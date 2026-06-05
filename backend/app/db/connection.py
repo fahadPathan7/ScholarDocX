@@ -187,6 +187,9 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "admin_manage_user_roles", "admin_manage_admin_roles",
         "admin_suspend_user", "admin_revoke_user",
         "admin_manage_invites", "admin_view_audit_logs",
+        "admin_manage_plan_requests", "admin_manage_invite_requests",
+        "admin_manage_role_limits", "admin_manage_notification_texts",
+        "admin_manage_settings",
     }
     placeholders = ",".join("?" for _ in canonical_features)
     connection.execute(

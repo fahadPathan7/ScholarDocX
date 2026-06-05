@@ -48,6 +48,7 @@ class ChangePasswordPayload(BaseModel):
 
 class PlanRequestPayload(BaseModel):
     requested_plan: str
+    billing_cycle: str = "monthly"
     message: Optional[str] = ""
 
 class InviteRequestPayload(BaseModel):
@@ -98,12 +99,15 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     hashed_password = hash_password(payload.password)
     default_roles = json.dumps(["general_user"])
     
+    plan_started_at = datetime.utcnow().isoformat()
+    plan_ends_at = (datetime.utcnow() + timedelta(days=60)).isoformat()
+    
     cursor = store.connection.execute(
         """
-        INSERT INTO users (email, password_hash, display_name, roles, is_active)
-        VALUES (?, ?, ?, ?, 1)
+        INSERT INTO users (email, password_hash, display_name, roles, is_active, plan_started_at, plan_ends_at)
+        VALUES (?, ?, ?, ?, 1, ?, ?)
         """,
-        (payload.email, hashed_password, payload.display_name, default_roles)
+        (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at)
     )
     user_id = cursor.lastrowid
     
@@ -191,6 +195,16 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
             "display_name": user["display_name"],
             "roles": roles
         }
+    }
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "id": current_user["id"],
+        "email": current_user["email"],
+        "display_name": current_user["display_name"],
+        "roles": current_user.get("roles", []),
+        "plan_started_at": current_user.get("plan_started_at"),
+        "plan_ends_at": current_user.get("plan_ends_at")
     }
 
 @router.post("/me/password")
@@ -307,10 +321,10 @@ def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get
     try:
         store.connection.execute(
             """
-            INSERT INTO plan_upgrade_requests (user_id, requested_plan, message)
-            VALUES (?, ?, ?)
+            INSERT INTO plan_upgrade_requests (user_id, requested_plan, billing_cycle, message)
+            VALUES (?, ?, ?, ?)
             """,
-            (current_user["id"], payload.requested_plan, payload.message)
+            (current_user["id"], payload.requested_plan, payload.billing_cycle, payload.message)
         )
         store.connection.commit()
         return {"status": "success", "message": "Plan upgrade request submitted successfully."}

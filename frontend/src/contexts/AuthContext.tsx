@@ -25,8 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const initAuth = async () => {
-    setIsLoading(true);
+  const initAuth = async (isRefresh = false) => {
+    if (!isRefresh) setIsLoading(true);
     if (checkIsAuthenticated()) {
       const token = getToken();
       if (token) {
@@ -38,12 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           display_name: payload.display_name,
           roles: payload.roles || [],
         });
-        setIsAuthenticated(true);
+        if (!isRefresh) setIsAuthenticated(true);
         // Background refresh to get latest user details from server
         try {
-          // This endpoint will be implemented in Phase 2
-          // const latestUser = await api.get<User>("/auth/me");
-          // setUser(latestUser);
+          const latestUser = await api.get<User>("/auth/me");
+          setUser(latestUser);
         } catch (error) {
           // If 401, token might be revoked
           console.error("Failed to refresh user", error);
@@ -53,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setIsAuthenticated(false);
     }
-    setIsLoading(false);
+    if (!isRefresh) setIsLoading(false);
   };
 
   useEffect(() => {
@@ -68,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshUser = async () => {
-    await initAuth();
+    await initAuth(true);
   };
 
   return (

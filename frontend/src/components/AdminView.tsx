@@ -18,7 +18,9 @@ import {
   HardDrive,
   X,
   Info,
-  Settings
+  Settings,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { notificationCategories } from "../config/notificationLabels";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
@@ -46,76 +48,84 @@ function DashboardTab() {
   return (
     <div className="h-full overflow-y-auto pr-2 space-y-6 animate-in fade-in duration-300">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600"><Users size={24} /></div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Users</p>
-            <p className="text-2xl font-bold text-slate-800">{stats.counts.total_users}</p>
+        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-indigo-100 p-2.5 rounded-xl shadow-sm"><Users size={20} className="text-indigo-600" /></div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Users</p>
           </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.total_users}</p>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-emerald-50 p-3 rounded-lg text-emerald-600"><CheckCircle size={24} /></div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active (30d)</p>
-            <p className="text-2xl font-bold text-slate-800">{stats.counts.active_users}</p>
+        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-emerald-100 p-2.5 rounded-xl shadow-sm"><CheckCircle size={20} className="text-emerald-600" /></div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active (30d)</p>
           </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.active_users}</p>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-blue-50 p-3 rounded-lg text-blue-600"><LayoutDashboard size={24} /></div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Projects</p>
-            <p className="text-2xl font-bold text-slate-800">{stats.counts.total_projects}</p>
+        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-blue-100 p-2.5 rounded-xl shadow-sm"><LayoutDashboard size={20} className="text-blue-600" /></div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Projects</p>
           </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.total_projects}</p>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="bg-amber-50 p-3 rounded-lg text-amber-600"><HardDrive size={24} /></div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Storage Used</p>
-            <p className="text-2xl font-bold text-slate-800">{(stats.counts.storage_bytes / 1024 / 1024).toFixed(2)} MB</p>
+        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-amber-100 p-2.5 rounded-xl shadow-sm"><HardDrive size={20} className="text-amber-600" /></div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Storage Used</p>
           </div>
+          <p className="text-3xl font-black text-slate-800 tracking-tight">{(stats.counts.storage_bytes / 1024 / 1024).toFixed(2)} <span className="text-lg text-slate-500">MB</span></p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700">Recent Registrations</div>
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100">
-              <tr><th className="px-4 py-3">Email</th><th className="px-4 py-3 text-right">Date</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {stats.recent_registrations.map((u: any) => (
-                <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-700">{u.email}</td>
-                  <td className="px-4 py-3 text-right text-slate-500">{new Date(u.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
+          <div className="bg-slate-50/50 px-5 py-4 border-b border-slate-200/50 font-bold text-slate-700 flex items-center gap-2">
+            <Users size={16} className="text-slate-400" /> Recent Registrations
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-500 uppercase bg-transparent border-b border-slate-100/50">
+                <tr><th className="px-5 py-3 font-semibold tracking-wide">Email</th><th className="px-5 py-3 text-right font-semibold tracking-wide">Date</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/50">
+                {stats.recent_registrations.map((u: any) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-slate-700">{u.email}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-500">{new Date(u.created_at).toLocaleDateString("en-GB")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700">Recent Logins</div>
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-500 uppercase bg-white border-b border-slate-100">
-              <tr><th className="px-4 py-3">Email</th><th className="px-4 py-3 text-right">Time</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {stats.recent_logins.map((u: any) => (
-                <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-700">{u.email}</td>
-                  <td className="px-4 py-3 text-right text-slate-500 flex items-center justify-end gap-1"><Clock size={14} /> {new Date(u.last_login_at).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
+          <div className="bg-slate-50/50 px-5 py-4 border-b border-slate-200/50 font-bold text-slate-700 flex items-center gap-2">
+            <Clock size={16} className="text-slate-400" /> Recent Logins
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-500 uppercase bg-transparent border-b border-slate-100/50">
+                <tr><th className="px-5 py-3 font-semibold tracking-wide">Email</th><th className="px-5 py-3 text-right font-semibold tracking-wide">Time</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/50">
+                {stats.recent_logins.map((u: any) => (
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-slate-700">{u.email}</td>
+                    <td className="px-5 py-3.5 text-right text-slate-500 flex items-center justify-end gap-1.5"><Clock size={14} className="opacity-70" /> {new Date(u.last_login_at).toLocaleString("en-GB")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string, boolean> }) {
+function UsersTab({ adminPermissions }: { adminPermissions: Record<string, boolean> }) {
   const { showConfirm } = useDialog();
   const [users, setUsers] = useState<any[]>([]);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -241,21 +251,21 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-300">
-      <div className="shrink-0 flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="shrink-0 flex justify-between items-center profile-system-card glass-panel" style={{ padding: '16px' }}>
         <div>
-          <h3 className="text-base font-semibold text-slate-800">User Management</h3>
+          <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2"><Users size={18} className="text-indigo-600" /> User Management</h3>
           <p className="text-slate-500 text-xs mt-0.5">Manage user access, statuses, active tokens, and assign roles.</p>
         </div>
         <button
           onClick={() => setCreatingUser(true)}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm inline-flex items-center gap-2"
+          className="profile-primary-button"
         >
           <Users size={16} />
           Create User
         </button>
       </div>
       
-      <div className="flex flex-wrap gap-2 mb-2 border-b border-slate-200 pb-px shrink-0">
+      <div className="flex flex-wrap gap-2 mb-2 shrink-0 bg-slate-100/50 p-1.5 rounded-xl border border-slate-200/50">
         {[
           { id: "all", label: "All Users" },
           { id: "general_user", label: "General User" },
@@ -269,9 +279,9 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
             <button
               key={tab.id}
               onClick={() => setRoleFilter(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${isActive
-                  ? 'border-indigo-600 text-indigo-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                  ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                 }`}
             >
               {tab.label}
@@ -280,14 +290,15 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
         })}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="overflow-auto flex-1 bg-white relative">
+      <div className="profile-system-card glass-panel flex-1 flex flex-col min-h-0 overflow-hidden" style={{ padding: '0' }}>
+        <div className="overflow-auto flex-1 relative">
           <table className="w-full text-sm text-left whitespace-nowrap relative">
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200/50 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 font-semibold">ID</th>
                 <th className="px-6 py-4 font-semibold">Email</th>
                 <th className="px-6 py-4 font-semibold">Roles</th>
+                <th className="px-6 py-4 font-semibold">Plan Duration</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Last Login</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
@@ -295,26 +306,36 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
             </thead>
             <tbody className="divide-y divide-slate-100">
               {users.filter((u: any) => roleFilter === "all" ? true : u.roles.includes(roleFilter)).map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-slate-500">{u.id}</td>
                   <td className="px-6 py-4 font-medium text-slate-800">{u.email}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1.5">
                       {u.roles.map((r: string) => (
-                        <span key={r} className={`px-2 py-0.5 rounded text-xs font-medium ${r === 'super_admin' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        <span key={r} className={`px-2 py-0.5 rounded text-xs font-medium ${r === 'super_admin' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100/50 text-indigo-700'}`}>
                           {r.replace('_', ' ')}
                         </span>
                       ))}
                     </div>
                   </td>
+                  <td className="px-6 py-4 text-slate-500 text-xs">
+                    {(u.plan_started_at || u.plan_ends_at) ? (
+                      <div className="flex flex-col gap-1">
+                        <div><span className="font-medium">Started:</span> {u.plan_started_at ? new Date(u.plan_started_at).toLocaleDateString("en-GB") : '-'}</div>
+                        <div><span className="font-medium">Ends:</span> {u.plan_ends_at ? new Date(u.plan_ends_at).toLocaleDateString("en-GB") : '-'}</div>
+                      </div>
+                    ) : (
+                      <span className="italic text-slate-400">N/A</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-emerald-100/50 text-emerald-700' : 'bg-slate-100/50 text-slate-600'}`}>
                       {u.is_active ? <CheckCircle size={12} /> : <XCircle size={12} />}
                       {u.is_active ? "Active" : "Suspended"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs">
-                    {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "Never"}
+                    {u.last_login_at ? new Date(u.last_login_at).toLocaleString("en-GB") : "Never"}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1.5">
@@ -323,7 +344,7 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
                           {(adminPermissions["admin_assign_user_roles"] || adminPermissions["admin_assign_admin_roles"]) && (
                         <button
                           onClick={() => setEditingUser(u)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 hover:text-indigo-800 transition-colors"
+                          className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
                           title="Edit Roles"
                         >
                           <Pencil size={12} />
@@ -332,10 +353,10 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
                       )}
                       <button
                         onClick={() => handleToggleStatus(u)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold border rounded-lg transition-colors ${
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                           u.is_active
-                            ? 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100 hover:text-amber-800'
-                            : 'text-emerald-700 bg-emerald-50 border-emerald-100 hover:bg-emerald-100 hover:text-emerald-800'
+                            ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                         }`}
                         title={u.is_active ? "Deactivate User" : "Activate User"}
                       >
@@ -344,7 +365,7 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
                       </button>
                       <button
                         onClick={() => handleRevoke(u)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-100 rounded-lg hover:bg-rose-100 hover:text-rose-800 transition-colors"
+                        className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
                         title="Revoke All Sessions"
                       >
                         <KeyRound size={12} />
@@ -522,7 +543,7 @@ function UsersTab({ adminPermissions = {} }: { adminPermissions?: Record<string,
   );
 }
 
-function LimitsTab() {
+function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
   const { showConfirm } = useDialog();
   type RoleFeature = {
     key: string;
@@ -563,6 +584,7 @@ function LimitsTab() {
       });
       setEditingLimit(null);
       fetchLimits();
+      onLimitsUpdated?.();
     } catch (err: any) {
       emitUiError({ title: "Permission denied", message: "Failed to update limit. Ensure you have the required permissions.", kind: "permission" });
     }
@@ -580,6 +602,7 @@ function LimitsTab() {
       setIsResetting(true);
       await api.post(`/admin/limits/${selectedRole}/reset`, {});
       fetchLimits();
+      onLimitsUpdated?.();
     } catch (err: any) {
       emitUiError({ title: "Permission denied", message: "Failed to reset role limits. Ensure you have the required permissions.", kind: "permission" });
     } finally {
@@ -729,7 +752,8 @@ function LimitsTab() {
       name: "Role Management",
       features: [
         { key: "admin_manage_user_roles", label: "Can Manage User Roles", description: "Allows editing limits and quotas for user-level roles (General User, Pro User, Max User)." },
-        { key: "admin_manage_admin_roles", label: "Can Manage Admin Roles & Settings", description: "Allows editing permissions for admin-level roles and application settings." }
+        { key: "admin_manage_role_limits", label: "Can Manage Role Limits", description: "Allows managing role limits and toggling admin permissions." },
+        { key: "admin_manage_admin_roles", label: "Can Manage Admin Roles", description: "Allows editing permissions for admin-level roles." }
       ]
     },
     {
@@ -738,6 +762,8 @@ function LimitsTab() {
         { key: "admin_manage_invites", label: "Can Manage Invite Codes", description: "Allows generating and managing invite codes for new user registration." },
         { key: "admin_manage_invite_requests", label: "Can Manage Invite Requests", description: "Allows approving or rejecting user invite requests." },
         { key: "admin_manage_plan_requests", label: "Can Manage Plan Requests", description: "Allows approving or rejecting user plan upgrade requests." },
+        { key: "admin_manage_notification_texts", label: "Can Manage Notification Texts", description: "Allows editing system-wide notification message templates." },
+        { key: "admin_manage_settings", label: "Can Manage App Settings", description: "Allows editing global application settings." },
         { key: "admin_view_audit_logs", label: "Can View Audit Logs", description: "Allows viewing system audit logs tracking all administrative actions." }
       ]
     }
@@ -781,9 +807,9 @@ function LimitsTab() {
             <button 
               key={role}
               onClick={() => setSelectedRole(role)}
-              className="flex items-center gap-3 bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all group text-left"
+              className="flex items-center gap-3 profile-system-card glass-panel hover:border-indigo-300 hover:shadow-md transition-all group text-left" style={{ padding: '20px' }}
             >
-              <div className="bg-indigo-50 p-3 rounded-lg text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+              <div className="bg-indigo-100 p-3 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                 <Shield size={24} />
               </div>
               <div>
@@ -803,9 +829,9 @@ function LimitsTab() {
               <button 
                 key={role}
                 onClick={() => setSelectedRole(role)}
-                className="flex items-center gap-3 bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all group text-left"
+                className="flex items-center gap-3 profile-system-card glass-panel hover:border-emerald-300 hover:shadow-md transition-all group text-left" style={{ padding: '20px' }}
               >
-                <div className="bg-emerald-50 p-3 rounded-lg text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                   <Shield size={24} />
                 </div>
                 <div>
@@ -821,7 +847,7 @@ function LimitsTab() {
       {selectedRole && (
         <AdminPortal>
           <div className="absolute inset-0 z-50 flex items-start justify-center pt-12 backdrop-blur-[10px]" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setSelectedRole(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl flex flex-col w-full mx-4" style={{ width: '900px', maxWidth: '95vw', maxHeight: '85vh' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-panel shadow-2xl flex flex-col mx-4" style={{ width: '900px', maxWidth: '95vw', maxHeight: '85vh', padding: '0' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Role Limits</p>
@@ -1154,11 +1180,11 @@ function InvitesTab() {
                       {inv.max_uses === -1 ? "Unlimited" : inv.max_uses}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right text-slate-500 text-xs">{new Date(inv.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4 text-right text-slate-500 text-xs">{new Date(inv.created_at).toLocaleString("en-GB")}</td>
                   <td className="px-6 py-4 text-right text-slate-500 text-xs">
                     {inv.expires_at ? (
                       <span className={new Date(inv.expires_at) < new Date() ? 'text-red-500 font-medium' : ''}>
-                        {new Date(inv.expires_at).toLocaleString()}
+                        {new Date(inv.expires_at).toLocaleString("en-GB")}
                       </span>
                     ) : (
                       <span className="text-slate-400 font-medium">Never</span>
@@ -1188,10 +1214,10 @@ function AuditLogsTab() {
 
   return (
     <div className="h-full flex flex-col animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="overflow-auto flex-1 bg-white relative">
+      <div className="profile-system-card glass-panel flex-1 flex flex-col min-h-0 overflow-hidden" style={{ padding: '0' }}>
+        <div className="overflow-auto flex-1 relative">
           <table className="w-full text-sm text-left relative">
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200/50 sticky top-0 z-10">
             <tr>
               <th className="px-6 py-4 font-semibold">Time</th>
               <th className="px-6 py-4 font-semibold">User</th>
@@ -1200,10 +1226,10 @@ function AuditLogsTab() {
               <th className="px-6 py-4 font-semibold">Details</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100/50">
             {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><Clock size={12} className="inline mr-1" />{new Date(log.created_at).toLocaleString()}</td>
+              <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><Clock size={12} className="inline mr-1" />{new Date(log.created_at).toLocaleString("en-GB")}</td>
                 <td className="px-6 py-4 font-medium text-slate-700">{log.user_email || log.user_id}</td>
                 <td className="px-6 py-4">
                   <span className="inline-flex px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded capitalize">{log.action.replace('_', ' ')}</span>
@@ -1317,9 +1343,9 @@ function InviteRequestsTab() {
 
   return (
     <div className="h-full overflow-y-auto pr-2 animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0">
-          <h2 className="text-lg font-semibold text-slate-800">Invite Requests</h2>
+      <div className="profile-system-card glass-panel flex flex-col min-h-[400px]" style={{ padding: '0' }}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2"><Users size={18} className="text-indigo-600" /> Invite Requests</h2>
           <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
             Refresh
           </button>
@@ -1332,7 +1358,7 @@ function InviteRequestsTab() {
             </div>
           ) : (
             <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
@@ -1360,7 +1386,7 @@ function InviteRequestsTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-500">
-                      {new Date(r.created_at + 'Z').toLocaleDateString()}
+                      {new Date(r.created_at + 'Z').toLocaleDateString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'Pending' && (
@@ -1418,9 +1444,9 @@ function PlanRequestsTab() {
 
   return (
     <div className="h-full overflow-y-auto pr-2 animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0">
-          <h2 className="text-lg font-semibold text-slate-800">Plan Upgrade Requests</h2>
+      <div className="profile-system-card glass-panel flex flex-col min-h-[400px]" style={{ padding: '0' }}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2"><CheckCircle size={18} className="text-indigo-600" /> Plan Upgrade Requests</h2>
           <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
             Refresh
           </button>
@@ -1433,7 +1459,7 @@ function PlanRequestsTab() {
             </div>
           ) : (
             <table className="w-full text-sm text-left whitespace-nowrap">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
                 <tr>
                   <th className="px-4 py-3">User Email</th>
                   <th className="px-4 py-3">Requested Plan</th>
@@ -1455,6 +1481,11 @@ function PlanRequestsTab() {
                       }`}>
                         {r.requested_plan === 'pro_user' ? 'Pro' : r.requested_plan === 'max_user' ? 'Max' : 'General'}
                       </span>
+                      {r.billing_cycle && (
+                        <span className="ml-2 text-xs font-medium text-slate-500 capitalize bg-slate-100 px-2 py-0.5 rounded">
+                          {r.billing_cycle}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 max-w-xs truncate" title={r.message}>{r.message || '-'}</td>
                     <td className="px-4 py-3">
@@ -1466,7 +1497,7 @@ function PlanRequestsTab() {
                         {r.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(r.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-slate-500">{new Date(r.created_at).toLocaleDateString("en-GB")}</td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'Pending' && (
                         <div className="flex items-center justify-end gap-2">
@@ -1500,6 +1531,7 @@ function SettingsTab() {
   const { showAlert } = useDialog();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [showJwt, setShowJwt] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -1547,9 +1579,9 @@ function SettingsTab() {
         <h2 className="text-xl font-semibold text-slate-800">App Settings</h2>
       </div>
       
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shrink-0 mb-6">
-        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
-          <div className="bg-rose-100 p-2 rounded-lg">
+      <div className="profile-system-card glass-panel overflow-hidden shrink-0 mb-6" style={{ padding: '0' }}>
+        <div className="p-5 border-b border-slate-200/50 flex items-center gap-3 bg-slate-50/30">
+          <div className="bg-rose-100/50 p-2 rounded-lg">
             <ShieldAlert className="w-5 h-5 text-rose-600" />
           </div>
           <div>
@@ -1561,23 +1593,32 @@ function SettingsTab() {
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">JWT Sign Key</label>
             <div className="flex gap-3">
-              <input 
-                type="text" 
-                defaultValue={settings["jwt_secret_key"] || "scholar-dock-local-first-secret-key-do-not-use-in-cloud"}
-                id="input-jwt_secret_key"
-                className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-              />
+              <div className="relative flex-1">
+                <input 
+                  type={showJwt ? "text" : "password"} 
+                  defaultValue={settings["jwt_secret_key"] || "scholar-dock-local-first-secret-key-do-not-use-in-cloud"}
+                  id="input-jwt_secret_key"
+                  className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowJwt(!showJwt)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
+                >
+                  {showJwt ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               <button 
                 onClick={() => {
                   const el = document.getElementById("input-jwt_secret_key") as HTMLInputElement;
                   if (el) handleUpdate("jwt_secret_key", el.value);
                 }}
-                className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+                className="profile-primary-button"
               >
                 Update
               </button>
             </div>
-            <p className="text-xs text-rose-500">Warning: Changing this will instantly log out all active users!</p>
+            <p className="text-xs text-rose-500 font-medium">Warning: Changing this will instantly log out all active users!</p>
           </div>
           
           <div className="space-y-3">
@@ -1595,12 +1636,12 @@ function SettingsTab() {
                   const el = document.getElementById("input-jwt_expiration_days") as HTMLInputElement;
                   if (el) handleUpdate("jwt_expiration_days", el.value);
                 }}
-                className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+                className="profile-primary-button"
               >
                 Update
               </button>
             </div>
-            <p className="text-xs text-slate-500">How many days until a user session expires.</p>
+            <p className="text-xs text-slate-500 font-medium">How many days until a user session expires.</p>
           </div>
         </div>
       </div>
@@ -1614,8 +1655,11 @@ export function AdminView() {
   const [adminPermissions, setAdminPermissions] = useState<Record<string, boolean>>({
     admin_manage_invites: true,
     admin_manage_invite_requests: true,
-    admin_view_audit_logs: isSuperAdmin,
+    admin_manage_user_roles: isSuperAdmin,
     admin_manage_admin_roles: isSuperAdmin,
+    admin_manage_role_limits: isSuperAdmin,
+    admin_manage_settings: isSuperAdmin,
+    admin_suspend_user: isSuperAdmin,
     admin_manage_plan_requests: true
   });
 
@@ -1624,25 +1668,39 @@ export function AdminView() {
   useEffect(() => {
     api.get<any[]>("/admin/limits").then(limits => {
       const myLimits = limits.filter(l => l.role === adminRole);
-      const perms: Record<string, boolean> = { ...adminPermissions };
-      myLimits.forEach(l => {
-        if (l.feature.startsWith("admin_")) {
-          perms[l.feature] = l.limit_count === 1;
-        }
+      setAdminPermissions(prev => {
+        const next = { ...prev };
+        myLimits.forEach(l => {
+          if (l.feature.startsWith("admin_")) {
+            next[l.feature] = l.limit_count === 1;
+          }
+        });
+        return next;
       });
-      setAdminPermissions(perms);
     }).catch(console.error);
   }, [adminRole]);
+
+  const fetchAdminPermissions = () => {
+    api.get<any[]>("/admin/limits").then(limits => {
+      const myLimits = limits.filter(l => l.role === adminRole);
+      setAdminPermissions(prev => {
+        const next = { ...prev };
+        myLimits.forEach(l => {
+          if (l.feature.startsWith("admin_")) {
+            next[l.feature] = l.limit_count === 1;
+          }
+        });
+        return next;
+      });
+    }).catch(console.error);
+  };
   
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "users", label: "Users", icon: Users },
-    { id: "limits", label: "Role Limits", icon: ShieldAlert },
-    { id: "notification_texts", label: "Notification Texts", icon: Bell },
   ];
-  
-  if (adminPermissions["admin_manage_plan_requests"]) {
-    tabs.push({ id: "plan_requests", label: "Plan Requests", icon: CheckCircle });
+
+  if (adminPermissions["admin_manage_user_roles"]) {
+    tabs.push({ id: "users", label: "Users", icon: Users });
   }
 
   if (adminPermissions["admin_manage_invite_requests"]) {
@@ -1653,58 +1711,82 @@ export function AdminView() {
     tabs.push({ id: "invites", label: "Invite Codes", icon: KeyRound });
   }
 
+  if (adminPermissions["admin_manage_plan_requests"]) {
+    tabs.push({ id: "plan_requests", label: "Plan Requests", icon: CheckCircle });
+  }
+
+  if (adminPermissions["admin_manage_role_limits"]) {
+    tabs.push({ id: "limits", label: "Role Limits", icon: ShieldAlert });
+  }
+
+  if (adminPermissions["admin_manage_notification_texts"]) {
+    tabs.push({ id: "notification_texts", label: "Notification Texts", icon: Bell });
+  }
+
   if (adminPermissions["admin_view_audit_logs"]) {
     tabs.push({ id: "audit", label: "Audit Logs", icon: FileClock });
   }
 
-  if (adminPermissions["admin_manage_admin_roles"]) {
+  if (adminPermissions["admin_manage_settings"]) {
     tabs.push({ id: "settings", label: "Settings", icon: Settings });
   }
 
   return (
-    <div id="admin-view-root" className="w-full flex-1 min-h-0 flex flex-col relative overflow-hidden">
-      <div className="max-w-7xl mx-auto w-full p-6 md:p-8 flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="flex items-center gap-3 mb-8 shrink-0">
-          <div className="bg-indigo-100 p-2.5 rounded-xl">
-            <ShieldAlert className="w-7 h-7 text-indigo-600" />
+    <div id="admin-view-root" className="profile-page w-full flex-1 min-h-0 flex flex-col relative overflow-hidden" style={{ margin: 0, height: '100dvh', maxWidth: 'none', padding: '0 24px 24px' }}>
+      
+      {/* Hero — Admin Header */}
+      <div className="profile-hero-wrapper" style={{ marginTop: '24px' }}>
+        <div className="profile-hero-bg-anim">
+          <div className="gradient-blob shape-1" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 60%)' }}></div>
+          <div className="gradient-blob shape-2" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.2) 0%, transparent 60%)' }}></div>
+          <div className="gradient-blob shape-3" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 60%)' }}></div>
+        </div>
+        <div className="profile-hero glass-panel">
+          <div className="profile-avatar profile-avatar-img flex items-center justify-center bg-indigo-100" style={{ padding: '0' }}>
+             <ShieldAlert className="w-10 h-10 text-indigo-600" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
-            <p className="text-slate-500 mt-1 text-sm">Manage workspace settings, user access, and system logs.</p>
+          <div className="profile-hero-text">
+            <h2>Admin Dashboard</h2>
+            <span>Manage workspace settings, user access, and system logs.</span>
+            <div className="flex gap-2 mt-2 profile-role-tags">
+              <span className="role-tag bg-indigo-100 text-indigo-700">
+                {isSuperAdmin ? 'Super Admin' : 'Admin'}
+              </span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-px shrink-0">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${isActive
-                    ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                  }`}
-              >
-                <tab.icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200/50 pb-px shrink-0" style={{ padding: '0 12px' }}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${isActive
+                  ? 'border-indigo-600 text-indigo-700 bg-white/40 rounded-t-lg'
+                  : 'border-transparent text-slate-600 hover:text-slate-800 hover:bg-white/30 rounded-t-lg'
+                }`}
+            >
+              <tab.icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-500'} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
         <div className="flex-1 min-h-0 flex flex-col pb-8">
           {activeTab === "dashboard" && <DashboardTab />}
           {activeTab === "users" && <UsersTab adminPermissions={adminPermissions} />}
-          {activeTab === "limits" && <LimitsTab />}
-          {activeTab === "notification_texts" && <NotificationTextsTab />}
+          {activeTab === "limits" && <LimitsTab onLimitsUpdated={fetchAdminPermissions} />}
+          {activeTab === "notification_texts" && adminPermissions["admin_manage_notification_texts"] && <NotificationTextsTab />}
           {activeTab === "plan_requests" && adminPermissions["admin_manage_plan_requests"] && <PlanRequestsTab />}
           {activeTab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab />}
           {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}
           {activeTab === "audit" && adminPermissions["admin_view_audit_logs"] && <AuditLogsTab />}
-          {activeTab === "settings" && adminPermissions["admin_manage_admin_roles"] && <SettingsTab />}
+          {activeTab === "settings" && adminPermissions["admin_manage_settings"] && <SettingsTab />}
         </div>
-      </div>
     </div>
   );
 }

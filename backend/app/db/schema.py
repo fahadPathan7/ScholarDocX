@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
   token_version INTEGER NOT NULL DEFAULT 1,
   is_active INTEGER NOT NULL DEFAULT 1,
   last_login_at TEXT,
+  plan_started_at TEXT,
+  plan_ends_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -396,6 +398,7 @@ CREATE TABLE IF NOT EXISTS plan_upgrade_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   requested_plan TEXT NOT NULL,
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly',
   message TEXT,
   status TEXT NOT NULL DEFAULT 'Pending',
   reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -503,6 +506,9 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_plan_requests', 1, 'never'),
   ('general_admin', 'admin_manage_invite_requests', 1, 'never'),
   ('general_admin', 'can_use_agents', 1, 'never'),
+  ('general_admin', 'admin_manage_role_limits', 1, 'never'),
+  ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
+  ('general_admin', 'admin_manage_settings', 0, 'never'),
 
   ('super_admin', 'admin_create_user', 1, 'never'),
   ('super_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -515,7 +521,10 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_view_audit_logs', 1, 'never'),
   ('super_admin', 'admin_manage_plan_requests', 1, 'never'),
   ('super_admin', 'admin_manage_invite_requests', 1, 'never'),
-  ('super_admin', 'can_use_agents', 1, 'never');
+  ('super_admin', 'can_use_agents', 1, 'never'),
+  ('super_admin', 'admin_manage_role_limits', 1, 'never'),
+  ('super_admin', 'admin_manage_notification_texts', 1, 'never'),
+  ('super_admin', 'admin_manage_settings', 1, 'never');
 
 INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('jwt_secret_key', 'scholar-dock-local-first-secret-key-do-not-use-in-cloud'),

@@ -6,6 +6,8 @@ export interface User {
   display_name: string;
   avatar?: string;
   roles: string[];
+  plan_started_at?: string;
+  plan_ends_at?: string;
 }
 
 export function getToken(): string | null {

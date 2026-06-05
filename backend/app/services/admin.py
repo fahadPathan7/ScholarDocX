@@ -3,6 +3,7 @@ from typing import Any, Optional
 import sqlite3
 import random
 import string
+from datetime import datetime, timedelta
 from app.auth.limits import invalidate_limits_cache
 
 DEFAULT_ROLE_LIMITS = {
@@ -145,7 +146,7 @@ class AdminService:
 
     def list_users(self) -> list[dict]:
         users = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, last_login_at, created_at, token_version FROM users ORDER BY created_at DESC"
+            "SELECT id, email, display_name, roles, is_active, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users ORDER BY created_at DESC"
         ).fetchall()
         
         results = []
@@ -158,7 +159,7 @@ class AdminService:
 
     def get_user_details(self, user_id: int) -> dict:
         user = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, last_login_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
+            "SELECT id, email, display_name, roles, is_active, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
         ).fetchone()
         
         if not user:
@@ -176,9 +177,12 @@ class AdminService:
 
     def update_user_roles(self, admin_id: int, user_id: int, roles: list[str]) -> dict:
         roles_json = json.dumps(roles)
+        plan_started_at = datetime.utcnow().isoformat()
+        plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+        
         self.connection.execute(
-            "UPDATE users SET roles = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (roles_json, user_id)
+            "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (roles_json, plan_started_at, plan_ends_at, user_id)
         )
         self.log_audit_action(admin_id, "update_roles", "users", str(user_id), {"new_roles": roles})
         return self.get_user_details(user_id)
@@ -272,12 +276,15 @@ class AdminService:
             raise ValueError("Email already registered.")
 
         roles_json = json.dumps(roles)
+        plan_started_at = datetime.utcnow().isoformat()
+        plan_ends_at = (datetime.utcnow() + timedelta(days=60)).isoformat()
+        
         cursor = self.connection.execute(
             """
-            INSERT INTO users (email, password_hash, display_name, roles, is_active)
-            VALUES (?, ?, ?, ?, 1)
+            INSERT INTO users (email, password_hash, display_name, roles, is_active, plan_started_at, plan_ends_at)
+            VALUES (?, ?, ?, ?, 1, ?, ?)
             """,
-            (email, password_hash, display_name, roles_json)
+            (email, password_hash, display_name, roles_json, plan_started_at, plan_ends_at)
         )
         user_id = cursor.lastrowid
 
@@ -409,7 +416,15 @@ class AdminService:
             if req["requested_plan"] not in new_roles:
                 new_roles.append(req["requested_plan"])
                 
-            self.update_user_roles(admin_id, req["user_id"], new_roles)
+            roles_json = json.dumps(new_roles)
+            plan_started_at = datetime.utcnow().isoformat()
+            days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
+            plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+
+            self.connection.execute(
+                "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (roles_json, plan_started_at, plan_ends_at, req["user_id"])
+            )
             
         self.connection.commit()
         self.log_audit_action(admin_id, f"resolve_plan_request_{new_status.lower()}", "plan_upgrade_requests", str(request_id))

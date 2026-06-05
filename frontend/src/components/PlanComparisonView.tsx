@@ -51,13 +51,18 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
   const [requestPlan, setRequestPlan] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isYearly, setIsYearly] = useState(false);
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestPlan) return;
     setSubmitting(true);
     try {
-      const res = await api.post<{message: string}>("/auth/plans/request", { requested_plan: requestPlan, message });
+      const res = await api.post<{message: string}>("/auth/plans/request", { 
+        requested_plan: requestPlan, 
+        billing_cycle: isYearly ? "yearly" : "monthly",
+        message 
+      });
       if (onToast) onToast(res.message);
       setRequestPlan(null);
       setMessage("");
@@ -137,7 +142,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
 
   return (
     <div className="animate-fade-in p-6 lg:p-12 max-w-7xl mx-auto h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-4 mb-8 shrink-0">
+      <div className="flex items-center justify-between gap-4 mb-8 shrink-0 flex-wrap">
         <div className="flex items-center gap-4">
           <button 
             className="p-2.5 rounded-full bg-white shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
@@ -150,12 +155,30 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
             <p className="text-slate-500 mt-1">Unlock the full potential of your academic workspace.</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="text-sm font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-lg transition-colors border border-emerald-200"
-        >
-          {showAll ? "Show Core Features" : "View All Features"}
-        </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/60 shadow-inner">
+            <button
+              onClick={() => setIsYearly(false)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${!isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setIsYearly(true)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Yearly
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm font-semibold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-lg transition-colors border border-emerald-200"
+          >
+            {showAll ? "Show Core Features" : "View All Features"}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pt-4 pb-12 pr-2">
@@ -168,7 +191,11 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
           </div>
           <div className="mb-8 relative">
             <h3 className="text-2xl font-bold text-slate-800 mb-2">General</h3>
-            <p className="text-slate-500 text-sm">Basic access for simple planning.</p>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="text-3xl font-bold text-slate-800">0 BDT</span>
+              <span className="text-slate-500 font-medium">/mo</span>
+            </div>
+            <p className="text-slate-500 text-sm">Max 2 months. Need to upgrade to Pro or Max to continue using.</p>
           </div>
           <div className="space-y-4 flex-1 relative">
             {displayedFeatures.map((f) => {
@@ -208,8 +235,12 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
               RECOMMENDED
             </div>
           )}
-          <div className="mb-8">
+          <div className="mb-8 relative">
             <h3 className="text-2xl font-bold text-emerald-950 mb-2 mt-4">Pro</h3>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="text-3xl font-bold text-emerald-900">{isYearly ? '500 BDT' : '50 BDT'}</span>
+              <span className="text-emerald-700/80 font-medium">{isYearly ? '/yr' : '/mo'}</span>
+            </div>
             <p className="text-emerald-700/70 text-sm">Advanced features and more AI capabilities.</p>
           </div>
           <div className="space-y-4 flex-1">
@@ -255,6 +286,10 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
           )}
           <div className="mb-8 relative">
             <h3 className="text-2xl font-bold text-white mb-2">Max</h3>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="text-3xl font-bold text-white">{isYearly ? '1500 BDT' : '180 BDT'}</span>
+              <span className="text-slate-300 font-medium">{isYearly ? '/yr' : '/mo'}</span>
+            </div>
             <p className="text-slate-400 text-sm">Unlimited power and maximum storage.</p>
           </div>
           <div className="space-y-4 flex-1 relative">
@@ -311,7 +346,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
               </div>
               <div className="p-6">
                 <p className="text-sm text-slate-600 mb-4">
-                  You are requesting to change your plan to <strong>{requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "General"}</strong>. Please provide a brief reason or context for this request.
+                  You are requesting to change your plan to <strong>{requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "General"} ({isYearly ? "Yearly" : "Monthly"})</strong>. Please provide a brief reason or context for this request.
                 </p>
                 <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
                   <textarea

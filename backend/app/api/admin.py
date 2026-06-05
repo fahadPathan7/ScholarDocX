@@ -246,10 +246,10 @@ def review_invite_request(request_id: int, payload: InviteRequestReviewPayload, 
 
 @router.get("/settings")
 def list_app_settings(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_admin_roles", current_user, admin_service.connection)
+    require_feature("admin_manage_settings", current_user, admin_service.connection)
     return admin_service.get_app_settings()
 
 @router.patch("/settings/{key}")
 def update_app_setting(key: str, payload: SettingUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_admin_roles", current_user, admin_service.connection)
+    require_feature("admin_manage_settings", current_user, admin_service.connection)
     return admin_service.update_app_setting(current_user["id"], key, payload.value)

@@ -49,7 +49,7 @@ export function ProfileView({
   onViewPlans?: () => void;
   onViewAdmin?: () => void;
 }) {
-  const { logout, user } = useAuth();
+  const { logout, user, refreshUser } = useAuth();
   const [draft, setDraft] = useState<ProfileData>(empty);
   const [saved, setSaved] = useState<ProfileData>(empty);
   const [justSaved, setJustSaved] = useState(false);
@@ -68,6 +68,9 @@ export function ProfileView({
   const [profileId, setProfileId] = useState<number | null>(null);
 
   useEffect(() => {
+    // Refresh user context to ensure latest roles from database
+    refreshUser().catch(console.error);
+
     api.get<RecordMap[]>("/local_profiles").then((rows) => {
       const first = rows[0];
       if (first) {
@@ -171,35 +174,42 @@ export function ProfileView({
     <div className="profile-page">
 
       {/* Hero — reflects saved state only */}
-      <div className="profile-hero">
-        {savedAvatar ? (
-          <img
-            className="profile-avatar profile-avatar-img"
-            src={avatarImageSrc(savedAvatar)}
-            alt={savedAvatar.label}
-          />
-        ) : (
-          <div className="profile-avatar">{initials}</div>
-        )}
-        <div className="profile-hero-text">
-          <h2>{saved.display_name || "Your Profile"}</h2>
-          <span>{saved.email || "No email set"}</span>
-          {user?.roles && user.roles.length > 0 && (
-            <div className="flex gap-2 mt-2">
-              {user.roles.map(role => (
-                <span key={role} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-white/20 text-white capitalize shadow-sm border border-white/30">
-                  {role.replace(/_/g, ' ')}
-                </span>
-              ))}
-            </div>
+      <div className="profile-hero-wrapper">
+        <div className="profile-hero-bg-anim">
+          <div className="gradient-blob shape-1"></div>
+          <div className="gradient-blob shape-2"></div>
+          <div className="gradient-blob shape-3"></div>
+        </div>
+        <div className="profile-hero glass-panel">
+          {savedAvatar ? (
+            <img
+              className="profile-avatar profile-avatar-img"
+              src={avatarImageSrc(savedAvatar)}
+              alt={savedAvatar.label}
+            />
+          ) : (
+            <div className="profile-avatar">{initials}</div>
           )}
+          <div className="profile-hero-text">
+            <h2>{saved.display_name || "Your Profile"}</h2>
+            <span>{saved.email || "No email set"}</span>
+            {user?.roles && user.roles.length > 0 && (
+              <div className="flex gap-2 mt-2 profile-role-tags">
+                {user.roles.map(role => (
+                  <span key={role} className="role-tag">
+                    {role.replace(/_/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="profile-layout" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
         {/* Left Column */}
         <div className="profile-meta-col">
-          <div className="profile-system-card">
+          <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
               <User size={16} />
               <strong>Personal Information</strong>
@@ -226,7 +236,7 @@ export function ProfileView({
             </div>
           </div>
 
-          <div className="profile-system-card profile-workspace-card">
+          <div className="profile-system-card profile-workspace-card glass-panel">
             <div className="profile-system-header">
               <Database size={16} />
               <strong>Workspace</strong>
@@ -267,27 +277,29 @@ export function ProfileView({
         {/* Right Column */}
         <div className="profile-meta-col">
           {onViewPlans && (
-            <div className="profile-system-card" style={{ 
-              background: "linear-gradient(145deg, rgba(236, 253, 245, 0.9), rgba(209, 250, 229, 0.5))", 
-              borderColor: "rgba(16, 185, 129, 0.2)",
-              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.08)"
-            }}>
-              <div className="profile-system-header" style={{ color: "#065f46" }}>
+            <div className="profile-system-card glass-panel plan-card">
+              <div className="profile-system-header text-emerald-700">
                 <Sparkles size={16} className="text-emerald-500" />
-                <strong style={{ color: "#065f46" }}>Subscription & Plans</strong>
+                <strong>Subscription & Plans</strong>
               </div>
-              <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px", color: "#047857" }}>
+              <p className="profile-system-hint text-emerald-800" style={{ marginTop: 0, marginBottom: "8px" }}>
                 Upgrade to unlock premium features, higher AI limits, and dedicated support.
               </p>
+              {(user?.plan_started_at || user?.plan_ends_at) && (
+                <div className="bg-emerald-50/50 rounded-lg p-3 mb-3 border border-emerald-100/50 text-[13px] text-emerald-800">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="opacity-70 font-medium">Plan Started:</span>
+                    <span className="font-semibold">{user.plan_started_at ? new Date(user.plan_started_at).toLocaleDateString("en-GB") : 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="opacity-70 font-medium">Plan Ends:</span>
+                    <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={onViewPlans}
-                className="profile-secondary-button"
-                style={{ 
-                  backgroundColor: "#10b981", 
-                  color: "white", 
-                  borderColor: "transparent",
-                  boxShadow: "0 2px 6px rgba(16, 185, 129, 0.3)"
-                }}
+                className="profile-secondary-button btn-emerald-glass"
                 type="button"
               >
                 <Sparkles size={14} className="text-white" /> View Subscription Plans
@@ -296,27 +308,17 @@ export function ProfileView({
           )}
 
           {user?.roles?.some(r => ['super_admin', 'general_admin'].includes(r)) && onViewAdmin && (
-            <div className="profile-system-card" style={{ 
-              background: "linear-gradient(145deg, rgba(239, 246, 255, 0.9), rgba(219, 234, 254, 0.5))", 
-              borderColor: "rgba(59, 130, 246, 0.2)",
-              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.08)"
-            }}>
-              <div className="profile-system-header" style={{ color: "#1e40af" }}>
+            <div className="profile-system-card glass-panel admin-card">
+              <div className="profile-system-header text-blue-800">
                 <ShieldCheck size={16} className="text-blue-500" />
-                <strong style={{ color: "#1e40af" }}>Admin Panel</strong>
+                <strong>Admin Panel</strong>
               </div>
-              <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px", color: "#1e3a8a" }}>
+              <p className="profile-system-hint text-blue-900" style={{ marginTop: 0, marginBottom: "12px" }}>
                 You have administrative privileges. Access the Admin Panel to manage users, roles, and platform settings.
               </p>
               <button
                 onClick={onViewAdmin}
-                className="profile-secondary-button"
-                style={{ 
-                  backgroundColor: "#3b82f6", 
-                  color: "white", 
-                  borderColor: "transparent",
-                  boxShadow: "0 2px 6px rgba(59, 130, 246, 0.3)"
-                }}
+                className="profile-secondary-button btn-blue-glass"
                 type="button"
               >
                 <ShieldCheck size={14} className="text-white" /> Go to Admin Panel
@@ -324,7 +326,7 @@ export function ProfileView({
             </div>
           )}
 
-          <div className="profile-system-card">
+          <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
               <Zap size={16} />
               <strong>Usage & AI Models</strong>
@@ -351,7 +353,7 @@ export function ProfileView({
             </div>
           </div>
 
-          <div className="profile-system-card">
+          <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
               <ShieldCheck size={16} />
               <strong>Change Password</strong>

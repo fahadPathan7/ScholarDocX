@@ -74,6 +74,12 @@ Enforcement:
   single green wash.
 - Dashboard typography should be compact: headings and metric numbers should
   support scanning without visually shouting.
+- Admin dashboard panels should feel like a dense operational console: compact
+  metric cards, clear table headers, stable panel heights, and polished empty
+  states. Avoid sparse blank card bodies when recent admin activity is limited.
+- Profile pages should keep identity, workspace, plan, usage, and security
+  actions visually balanced. Avoid one column ending far above another on
+  desktop when cards can be regrouped without changing behavior.
 - The collapsed left navigation should behave as an icon rail: icons stay at
   readable size, buttons are centered, active state does not overlap the icon,
   and hidden text remains accessible through labels or tooltips.

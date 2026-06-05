@@ -26,6 +26,7 @@ import { notificationCategories } from "../config/notificationLabels";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
 import { emitUiError } from "../lib/uiError";
 import { useDialog } from "./DialogProvider";
+import "../admin.css";
 
 function AdminPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -43,81 +44,112 @@ function DashboardTab() {
     api.get<any>("/admin/dashboard").then(setStats).catch(console.error);
   }, []);
 
-  if (!stats) return <div className="p-8 text-center text-slate-500 animate-pulse">Loading dashboard...</div>;
+  if (!stats) return <div className="admin-dashboard-loading">Loading dashboard...</div>;
+
+  const statCards = [
+    {
+      label: "Total Users",
+      value: stats.counts.total_users,
+      icon: Users,
+      tone: "indigo"
+    },
+    {
+      label: "Active (30d)",
+      value: stats.counts.active_users,
+      icon: CheckCircle,
+      tone: "emerald"
+    },
+    {
+      label: "Total Projects",
+      value: stats.counts.total_projects,
+      icon: LayoutDashboard,
+      tone: "blue"
+    },
+    {
+      label: "Storage Used",
+      value: (
+        <>
+          {(stats.counts.storage_bytes / 1024 / 1024).toFixed(2)}
+          <span>MB</span>
+        </>
+      ),
+      icon: HardDrive,
+      tone: "amber"
+    }
+  ];
 
   return (
-    <div className="h-full overflow-y-auto pr-2 space-y-6 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-indigo-100 p-2.5 rounded-xl shadow-sm"><Users size={20} className="text-indigo-600" /></div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Users</p>
+    <div className="admin-dashboard-tab animate-in fade-in duration-300">
+      <div className="admin-dashboard-stat-grid">
+        {statCards.map((card) => (
+          <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
+            <div className="admin-dashboard-stat-card__header">
+              <div className="admin-dashboard-stat-card__icon">
+                <card.icon size={19} />
+              </div>
+              <p>{card.label}</p>
+            </div>
+            <p className="admin-dashboard-stat-card__value">{card.value}</p>
           </div>
-          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.total_users}</p>
-        </div>
-        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-emerald-100 p-2.5 rounded-xl shadow-sm"><CheckCircle size={20} className="text-emerald-600" /></div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active (30d)</p>
-          </div>
-          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.active_users}</p>
-        </div>
-        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-blue-100 p-2.5 rounded-xl shadow-sm"><LayoutDashboard size={20} className="text-blue-600" /></div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Projects</p>
-          </div>
-          <p className="text-3xl font-black text-slate-800 tracking-tight">{stats.counts.total_projects}</p>
-        </div>
-        <div className="profile-system-card glass-panel flex flex-col justify-between" style={{ padding: '20px' }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-amber-100 p-2.5 rounded-xl shadow-sm"><HardDrive size={20} className="text-amber-600" /></div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Storage Used</p>
-          </div>
-          <p className="text-3xl font-black text-slate-800 tracking-tight">{(stats.counts.storage_bytes / 1024 / 1024).toFixed(2)} <span className="text-lg text-slate-500">MB</span></p>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
-          <div className="bg-slate-50/50 px-5 py-4 border-b border-slate-200/50 font-bold text-slate-700 flex items-center gap-2">
-            <Users size={16} className="text-slate-400" /> Recent Registrations
+      <div className="admin-dashboard-activity-grid">
+        <div className="admin-dashboard-panel">
+          <div className="admin-dashboard-panel__header">
+            <div>
+              <Users size={16} />
+              <h3>Recent Registrations</h3>
+            </div>
+            <span>{stats.recent_registrations.length}</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-transparent border-b border-slate-100/50">
-                <tr><th className="px-5 py-3 font-semibold tracking-wide">Email</th><th className="px-5 py-3 text-right font-semibold tracking-wide">Date</th></tr>
+          <div className="admin-dashboard-table-wrap">
+            <table className="admin-dashboard-table">
+              <thead>
+                <tr><th>Email</th><th className="text-right">Date</th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/50">
+              <tbody>
                 {stats.recent_registrations.map((u: any) => (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-3.5 font-medium text-slate-700">{u.email}</td>
-                    <td className="px-5 py-3.5 text-right text-slate-500">{new Date(u.created_at).toLocaleDateString("en-GB")}</td>
+                  <tr key={u.id}>
+                    <td>{u.email}</td>
+                    <td className="text-right">{new Date(u.created_at).toLocaleDateString("en-GB")}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {stats.recent_registrations.length === 0 && (
+              <div className="admin-dashboard-empty">No new registrations yet.</div>
+            )}
           </div>
         </div>
 
-        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
-          <div className="bg-slate-50/50 px-5 py-4 border-b border-slate-200/50 font-bold text-slate-700 flex items-center gap-2">
-            <Clock size={16} className="text-slate-400" /> Recent Logins
+        <div className="admin-dashboard-panel">
+          <div className="admin-dashboard-panel__header">
+            <div>
+              <Clock size={16} />
+              <h3>Recent Logins</h3>
+            </div>
+            <span>{stats.recent_logins.length}</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-transparent border-b border-slate-100/50">
-                <tr><th className="px-5 py-3 font-semibold tracking-wide">Email</th><th className="px-5 py-3 text-right font-semibold tracking-wide">Time</th></tr>
+          <div className="admin-dashboard-table-wrap">
+            <table className="admin-dashboard-table">
+              <thead>
+                <tr><th>Email</th><th className="text-right">Time</th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/50">
+              <tbody>
                 {stats.recent_logins.map((u: any) => (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-3.5 font-medium text-slate-700">{u.email}</td>
-                    <td className="px-5 py-3.5 text-right text-slate-500 flex items-center justify-end gap-1.5"><Clock size={14} className="opacity-70" /> {new Date(u.last_login_at).toLocaleString("en-GB")}</td>
+                  <tr key={u.id}>
+                    <td>{u.email}</td>
+                    <td className="text-right">
+                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at).toLocaleString("en-GB")}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {stats.recent_logins.length === 0 && (
+              <div className="admin-dashboard-empty">No recent logins yet.</div>
+            )}
           </div>
         </div>
       </div>
@@ -1757,19 +1789,16 @@ export function AdminView() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200/50 pb-px shrink-0" style={{ padding: '0 12px' }}>
+      <div className="admin-tab-strip">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${isActive
-                  ? 'border-indigo-600 text-indigo-700 bg-white/40 rounded-t-lg'
-                  : 'border-transparent text-slate-600 hover:text-slate-800 hover:bg-white/30 rounded-t-lg'
-                }`}
+              className={isActive ? 'active' : ''}
             >
-              <tab.icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-500'} />
+              <tab.icon size={16} />
               {tab.label}
             </button>
           );

@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           display_name: payload.display_name,
           roles: payload.roles || [],
         });
-        if (!isRefresh) setIsAuthenticated(true);
+        setIsAuthenticated(true);
         // Background refresh to get latest user details from server
         try {
           const latestUser = await api.get<User>("/auth/me");

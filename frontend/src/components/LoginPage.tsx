@@ -56,10 +56,9 @@ export function LoginPage() {
       const response = await api.post<{ token: string, user: any }>("/auth/login", { email, password });
       if (response && response.token) {
         setToken(response.token);
-        await refreshUser();
-        // Redirect to previous page or dashboard
+        // Use window.location for redirect so browser recognizes successful login for password saving
         const from = location.state?.from?.pathname || "/";
-        navigate(from, { replace: true });
+        window.location.href = from === "/login" ? "/" : from;
       }
     } catch (err: any) {
       setError(err.message || "Failed to log in. Please check your credentials.");
@@ -131,15 +130,17 @@ export function LoginPage() {
           </form>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="email">
                   Email Address
                 </label>
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   required
+                  autoComplete="username"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   placeholder="you@example.com"
                   value={email}
@@ -153,8 +154,10 @@ export function LoginPage() {
                 </label>
                 <input
                   id="password"
+                  name="password"
                   type="password"
                   required
+                  autoComplete="current-password"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   placeholder="••••••••"
                   value={password}

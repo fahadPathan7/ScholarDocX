@@ -272,6 +272,33 @@ export function ProfileView({
               </div>
             </div>
           </div>
+
+          <div className="profile-system-card glass-panel">
+            <div className="profile-system-header">
+              <Zap size={16} />
+              <strong>Usage & AI Models</strong>
+            </div>
+            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
+              Monitor workspace resource usage and explore available AI models.
+            </p>
+            <div className="profile-actions-stack" style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+              <button
+                onClick={() => setShowUsageModal(true)}
+                className="profile-secondary-button"
+                type="button"
+              >
+                <Zap size={14} className="text-amber-500" /> View Usage & Limits
+              </button>
+              
+              <button
+                onClick={() => setShowModelsModal(true)}
+                className="profile-secondary-button"
+                type="button"
+              >
+                <Bot size={14} className="text-indigo-500" /> Explore AI Models
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right Column */}
@@ -325,33 +352,6 @@ export function ProfileView({
               </button>
             </div>
           )}
-
-          <div className="profile-system-card glass-panel">
-            <div className="profile-system-header">
-              <Zap size={16} />
-              <strong>Usage & AI Models</strong>
-            </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
-              Monitor your workspace resource usage and explore available AI models.
-            </p>
-            <div className="profile-actions-stack" style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
-              <button
-                onClick={() => setShowUsageModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <Zap size={14} className="text-amber-500" /> View Usage & Limits
-              </button>
-              
-              <button
-                onClick={() => setShowModelsModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <Bot size={14} className="text-indigo-500" /> Explore AI Models
-              </button>
-            </div>
-          </div>
 
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">

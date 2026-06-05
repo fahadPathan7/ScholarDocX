@@ -13,13 +13,22 @@ ScholarDock is a local-first, privacy-first higher education application managem
 Before writing or changing product code:
 
 1. Read [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/README.md).
-2. Read the relevant business, functional, and technical context files for the requested work.
-3. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks).
-4. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
-5. Only then implement code.
-6. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
+2. Read the relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills).
+3. Read the relevant business, functional, and technical context files for the requested work.
+4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks).
+5. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
+6. Only then implement code.
+7. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
 
 Do not skip context refinement for new features or feature modifications.
+
+## Repo-Carried Agent Skills
+
+ScholarDock keeps project-specific `SKILL.md` files in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills). These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
+
+Use only the skills relevant to the current task. Skills supplement the source-of-truth order below; they do not override the user's latest instruction, root rules, the active Jira task, or AI-Context.
+
+The upstream `ui-ux-pro-max` skill is installed in project-local agent folders and is ScholarDock's primary UI style authority for UI/UX work. Use it first for visual quality, interaction, accessibility, layout, typography, color, motion, forms, navigation, and data readability; then apply ScholarDock's AI-DLC workflow, Jira/context rules, local-first constraints, and browser verification requirements.
 
 ## Source Of Truth
 
@@ -61,6 +70,7 @@ Use this order when resolving conflicts:
 ## UI/UX Skill Rule
 
 - For ScholarDock UI/UX design, frontend polish, layout, interaction, accessibility, visual design, design-system, responsive behavior, or UX review tasks, automatically select and use the `ui-ux-pro-max` skill when available.
+- Treat `ui-ux-pro-max` as the main UI style authority for the project, not optional inspiration.
 - The user should not need to mention the skill by name; agents must infer it from the task type.
 - This applies to Codex and Antigravity/Gemini-style agents.
 - In ScholarDock, the AI-DLC workflow, Jira task, context files, local-first constraints, and browser verification remain higher priority than the skill's generic recommendations.

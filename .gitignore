@@ -26,8 +26,12 @@ env/
 # IDEs & Tools
 .vscode/
 .idea/
-.claude/
-.cursor/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
 
 # Databases
 *.db

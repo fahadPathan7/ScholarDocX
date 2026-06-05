@@ -11,8 +11,11 @@ For any task, load context in this order:
 1. [AGENTS.md](/Users/fahadpathan/Documents/ScholarDock/AGENTS.md)
 2. [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/CODE_RULES.md)
 3. [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/README.md)
-4. The active task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks)
-5. Only the business, functional, and technical files relevant to the task
+4. Relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills)
+5. The active task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks)
+6. Only the business, functional, and technical files relevant to the task
+
+For UI/UX work, use the project-local upstream skill at `.claude/skills/ui-ux-pro-max` as ScholarDock's primary UI style authority. It controls the default visual quality, interaction, accessibility, layout, typography, color, motion, forms, navigation, and data-readability approach; ScholarDock AI-DLC context, Jira task updates, local-first constraints, and browser verification still override generic advice when they conflict.
 
 ## Work Protocol
 
@@ -41,4 +44,3 @@ ScholarDock is a locally hosted application portal for higher education applican
 - Do not exceed the file-size policy in [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/CODE_RULES.md).
 - Do not add features that require paid infrastructure by default.
 - Do not code before context is updated for new or changed features.
-

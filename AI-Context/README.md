@@ -20,6 +20,7 @@ Those files were deleted after their content was absorbed into this refined work
 - [technical](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical): architecture, stack, storage, APIs, coding rules, testing.
 - [jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks): task files used to execute work.
 - [workflows](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows): AI-DLC process, context maintenance, handoff rules.
+- [agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills): repo-carried `SKILL.md` files for recurring AI-agent workflows.
 
 ## AI-DLC Reading Strategy
 
@@ -27,9 +28,10 @@ For any implementation task:
 
 1. Read the root agent rules.
 2. Read this file.
-3. Read the active Jira task.
-4. Read only the relevant files from business, functional, and technical context.
-5. Update context before code when requirements or design change.
+3. Read relevant repo-carried skills from [agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills).
+4. Read the active Jira task.
+5. Read only the relevant files from business, functional, and technical context.
+6. Update context before code when requirements or design change.
 
 ## Context Update Rule
 

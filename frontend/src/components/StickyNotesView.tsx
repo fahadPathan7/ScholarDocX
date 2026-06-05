@@ -1,0 +1,548 @@
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Check, CheckSquare2, Edit, Eye, ListChecks, Palette, Plus, StickyNote, Trash2, X, PenTool } from "lucide-react";
+import { api, deleteRecord, notify, RecordMap } from "../lib/api";
+import { formatLongDate } from "../lib/date";
+import { useDialog } from "./DialogProvider";
+import "./sticky-notes.css";
+
+type ChecklistItem = {
+  id: string;
+  text: string;
+  done: boolean;
+};
+
+type NoteDraft = {
+  title: string;
+  body: string;
+  color: string;
+  is_checklist: boolean;
+  checklist: ChecklistItem[];
+  is_sketch: boolean;
+  sketch_paths: string[];
+};
+
+const noteColors = [
+  { key: "sun", label: "Sun", swatch: "#f8dfa3" },
+  { key: "mint", label: "Mint", swatch: "#caead8" },
+  { key: "sky", label: "Sky", swatch: "#c9e3f5" },
+  { key: "rose", label: "Rose", swatch: "#f3c8c8" },
+  { key: "lilac", label: "Lilac", swatch: "#ddd0f2" },
+  { key: "sand", label: "Sand", swatch: "#eadcc4" }
+];
+
+const emptyDraft: NoteDraft = {
+  title: "",
+  body: "",
+  color: "sun",
+  is_checklist: false,
+  checklist: [],
+  is_sketch: false,
+  sketch_paths: []
+};
+
+function parseNoteBody(body: string): { text: string, sketchPaths: string[] | null } {
+  if (!body) return { text: "", sketchPaths: null };
+  if (body.trim().startsWith('{')) {
+    try {
+      const data = JSON.parse(body);
+      if (data.type === 'sketch' && Array.isArray(data.paths)) {
+        return { text: "", sketchPaths: data.paths };
+      }
+      if (data.type === 'mixed' && Array.isArray(data.paths)) {
+        return { text: data.text || "", sketchPaths: data.paths };
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return { text: body, sketchPaths: null };
+}
+
+function parseSketch(body: string): string[] | null {
+  return parseNoteBody(body).sketchPaths;
+}
+
+function parseText(body: string): string {
+  return parseNoteBody(body).text;
+}
+
+function SketchCanvas({
+  paths,
+  onChange,
+  readOnly = false,
+  width = "100%",
+  height = "180px"
+}: {
+  paths: string[];
+  onChange?: (paths: string[]) => void;
+  readOnly?: boolean;
+  width?: string | number;
+  height?: string | number;
+}) {
+  const [currentPath, setCurrentPath] = useState<string | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (readOnly) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setCurrentPath(`M ${x} ${y}`);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (readOnly || currentPath === null) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setCurrentPath((prev) => `${prev} L ${x} ${y}`);
+  };
+
+  const handlePointerUp = () => {
+    if (readOnly || currentPath === null) return;
+    if (onChange) {
+      onChange([...paths, currentPath]);
+    }
+    setCurrentPath(null);
+  };
+
+  return (
+    <svg
+      style={{
+        width,
+        height,
+        background: readOnly ? "transparent" : "rgba(255, 255, 255, 0.4)",
+        borderRadius: "8px",
+        touchAction: "none",
+        cursor: readOnly ? "default" : "crosshair",
+        marginTop: readOnly ? 0 : "8px"
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+    >
+      {paths.map((p, i) => (
+        <path key={i} d={p} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+      {currentPath && (
+        <path d={currentPath} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+}
+
+function parseChecklist(note: RecordMap): ChecklistItem[] {
+  try {
+    const parsed = JSON.parse(note.checklist_json || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function StickyNotesView({ onToast }: { onToast: (msg: string) => void }) {
+  const { showConfirm, showAlert } = useDialog();
+  const [notes, setNotes] = useState<RecordMap[]>([]);
+  const [draft, setDraft] = useState<NoteDraft>(emptyDraft);
+  const [editingNote, setEditingNote] = useState<RecordMap | null>(null);
+  const [viewingNote, setViewingNote] = useState<RecordMap | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [itemText, setItemText] = useState("");
+  const [activeFilter, setActiveFilter] = useState("All");
+
+  const sortedNotes = useMemo(() => {
+    if (activeFilter === "All") return notes;
+    return notes.filter(n => (n.color || "sun").toLowerCase() === activeFilter.toLowerCase());
+  }, [notes, activeFilter]);
+
+  const loadNotes = async () => {
+    setNotes(await api.get<RecordMap[]>("/sticky_notes"));
+  };
+
+  useEffect(() => {
+    loadNotes().catch((error) => onToast(error.message));
+  }, []);
+
+  const resetDraft = () => {
+    setDraft(emptyDraft);
+    setEditingNote(null);
+    setItemText("");
+    setIsModalOpen(false);
+  };
+
+  const openCreate = () => {
+    setDraft(emptyDraft);
+    setEditingNote(null);
+    setItemText("");
+    setIsModalOpen(true);
+  };
+
+  const openEdit = (note: RecordMap) => {
+    setViewingNote(null);
+    setEditingNote(note);
+    const parsed = parseNoteBody(note.body || "");
+    setDraft({
+      title: note.title || "",
+      body: parsed.text,
+      color: note.color || "sun",
+      is_checklist: Boolean(note.is_checklist),
+      checklist: parseChecklist(note),
+      is_sketch: parsed.sketchPaths !== null,
+      sketch_paths: parsed.sketchPaths || []
+    });
+    setItemText("");
+    setIsModalOpen(true);
+  };
+
+  const addChecklistItem = () => {
+    const text = itemText.trim();
+    if (!text) return;
+    setDraft((current) => ({
+      ...current,
+      is_checklist: true,
+      is_sketch: false,
+      checklist: [...current.checklist, { id: crypto.randomUUID(), text, done: false }]
+    }));
+    setItemText("");
+  };
+
+  const toggleDraftItem = (id: string) => {
+    setDraft((current) => ({
+      ...current,
+      checklist: current.checklist.map((item) => item.id === id ? { ...item, done: !item.done } : item)
+    }));
+  };
+
+  const removeDraftItem = (id: string) => {
+    setDraft((current) => ({ ...current, checklist: current.checklist.filter((item) => item.id !== id) }));
+  };
+
+  const saveNote = async (event: FormEvent) => {
+    event.preventDefault();
+    let finalBody = draft.body.trim();
+    if (draft.is_sketch && draft.sketch_paths && draft.sketch_paths.length > 0) {
+      if (finalBody) {
+        finalBody = JSON.stringify({ type: "mixed", text: finalBody, paths: draft.sketch_paths });
+      } else {
+        finalBody = JSON.stringify({ type: "sketch", paths: draft.sketch_paths });
+      }
+    }
+    const title = draft.title.trim() || (draft.is_checklist ? "Checklist" : draft.is_sketch ? "Sketch" : "Untitled note");
+    if (!finalBody && !draft.checklist.length && !(draft.is_sketch && draft.sketch_paths.length)) return;
+    const data = {
+      title,
+      body: finalBody,
+      color: draft.color,
+      is_bold: false,
+      is_checklist: draft.is_checklist,
+      checklist_json: JSON.stringify(draft.checklist)
+    };
+    if (editingNote) {
+      await api.patch(`/sticky_notes/${editingNote.id}`, { data });
+      await notify("sticky_note_update", { sheetName: title });
+      onToast("Sticky note updated.");
+    } else {
+      await api.post("/sticky_notes", { data });
+      await notify("sticky_note_create", { sheetName: title });
+      onToast("Sticky note created.");
+    }
+    resetDraft();
+    await loadNotes();
+  };
+
+  const deleteNote = async (note: RecordMap) => {
+    const confirmed = await showConfirm(`Delete "${note.title || "this note"}"?`, "Delete Note");
+    if (!confirmed) return;
+    await deleteRecord("sticky_notes", note.id);
+    await notify("sticky_note_delete", { sheetName: note.title || "Untitled note" });
+    onToast("Sticky note deleted.");
+    await loadNotes();
+  };
+
+  const toggleSavedItem = async (note: RecordMap, itemId: string) => {
+    const nextItems = parseChecklist(note).map((item) => item.id === itemId ? { ...item, done: !item.done } : item);
+    const updatedNote = { ...note, checklist_json: JSON.stringify(nextItems) };
+    if (viewingNote?.id === note.id) {
+      setViewingNote(updatedNote);
+    }
+    setNotes(notes.map(n => n.id === note.id ? updatedNote : n));
+    await api.patch(`/sticky_notes/${note.id}`, { data: { checklist_json: JSON.stringify(nextItems) } });
+    await loadNotes();
+  };
+
+  const shouldShowView = (note: RecordMap, items: ChecklistItem[]) =>
+    (note.body || "").length > 120 || items.length > 3;
+
+  return (
+    <div className="sticky-notes-view">
+      <section className="sticky-board">
+        <div className="sticky-board-head">
+          <div>
+            <p className="eyebrow">{notes.length} note{notes.length === 1 ? "" : "s"}</p>
+            <h2>Sticky Notes</h2>
+          </div>
+          <button className="primary" type="button" onClick={openCreate}>
+            <Plus size={16} /> Create note
+          </button>
+        </div>
+
+        <div className="filter-row" style={{ display: 'flex', gap: 8, padding: '0 24px', marginBottom: 16, marginTop: 12, alignItems: 'center' }}>
+          <button
+            className={`filter-chip ${activeFilter === 'All' ? 'active' : ''}`}
+            onClick={() => setActiveFilter('All')}
+          >
+            All
+          </button>
+          {noteColors.map(c => (
+            <button
+              key={c.key}
+              className={`sticky-swatch ${activeFilter.toLowerCase() === c.key ? 'selected' : ''}`}
+              style={{ backgroundColor: c.swatch, width: 28, height: 28, margin: 0 }}
+              onClick={() => setActiveFilter(c.label)}
+              title={c.label}
+              type="button"
+            />
+          ))}
+        </div>
+
+        {sortedNotes.length ? (
+          <div className="sticky-card-grid">
+            {sortedNotes.map((note, index) => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                index={index}
+                openEdit={openEdit}
+                deleteNote={deleteNote}
+                setViewingNote={setViewingNote}
+                toggleSavedItem={toggleSavedItem}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="sticky-empty">
+            <StickyNote size={40} />
+            <strong>Your board is clear.</strong>
+            <span>Capture the next useful thought.</span>
+            <button className="primary" type="button" onClick={openCreate}>
+              <Plus size={16} /> Create note
+            </button>
+          </div>
+        )}
+      </section>
+
+      {isModalOpen ? (
+        <div className="modal-backdrop" onClick={resetDraft}>
+          <form className="modal-panel sticky-note-modal" onClick={(event) => event.stopPropagation()} onSubmit={saveNote}>
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">{editingNote ? "Update note" : "Quick capture"}</p>
+                <h2>{editingNote ? "Edit sticky note" : "Create sticky note"}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={resetDraft} title="Close note form"><X size={18} /></button>
+            </div>
+            <div className="modal-content sticky-note-form">
+              <input
+                className="sticky-title-input"
+                value={draft.title}
+                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                placeholder="Note title"
+              />
+              <div className="sticky-tools">
+                <div className="sticky-color-row" aria-label="Note colors">
+                  <Palette size={16} />
+                  {noteColors.map((color) => (
+                    <button
+                      key={color.key}
+                      className={draft.color === color.key ? "sticky-swatch selected" : "sticky-swatch"}
+                      style={{ backgroundColor: color.swatch }}
+                      type="button"
+                      onClick={() => setDraft({ ...draft, color: color.key })}
+                      title={color.label}
+                    />
+                  ))}
+                </div>
+                <button className={draft.is_checklist ? "sticky-tool active" : "sticky-tool"} type="button" onClick={() => setDraft({ ...draft, is_checklist: !draft.is_checklist })}>
+                  <ListChecks size={16} /> Checklist
+                </button>
+                <button className={draft.is_sketch ? "sticky-tool active" : "sticky-tool"} type="button" onClick={() => setDraft({ ...draft, is_sketch: !draft.is_sketch })}>
+                  <PenTool size={16} /> Sketch
+                </button>
+              </div>
+              <textarea
+                value={draft.body}
+                onChange={(event) => setDraft({ ...draft, body: event.target.value })}
+                placeholder="Write a quick thought..."
+                rows={3}
+              />
+              {draft.is_checklist ? (
+                <div className="sticky-check-editor">
+                  <div className="sticky-check-add">
+                    <input value={itemText} onChange={(event) => setItemText(event.target.value)} placeholder="Add checklist item" />
+                    <button type="button" onClick={addChecklistItem}><Plus size={16} /></button>
+                  </div>
+                  <div className="sticky-check-items">
+                    {draft.checklist.map((item) => (
+                      <div className="sticky-check-row" key={item.id}>
+                        <button type="button" onClick={() => toggleDraftItem(item.id)}>{item.done ? <CheckSquare2 size={17} /> : <span />}</button>
+                        <span className={item.done ? "done" : ""}>{item.text}</span>
+                        <button className="ghost-danger" type="button" onClick={() => removeDraftItem(item.id)}><X size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {draft.is_sketch ? (
+                <div style={{ position: "relative" }}>
+                  <SketchCanvas paths={draft.sketch_paths} onChange={(paths) => setDraft({ ...draft, sketch_paths: paths })} height={400} />
+                  <button 
+                    type="button" 
+                    onClick={() => setDraft({ ...draft, sketch_paths: [] })} 
+                    className="icon-button compact ghost-danger" 
+                    style={{ position: "absolute", top: "12px", right: "4px" }}
+                    title="Clear sketch"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button className="secondary" type="button" onClick={resetDraft}>Cancel</button>
+              <button className="primary" type="submit">
+                {editingNote ? <Check size={16} /> : <Plus size={16} />}
+                {editingNote ? "Save note" : "Create note"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {viewingNote ? (
+        <div className="modal-backdrop" onClick={() => setViewingNote(null)}>
+          <div className={`modal-panel sticky-view-modal color-${viewingNote.color || "sun"}`} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Full sticky note</p>
+                <h2>{viewingNote.title || "Untitled note"}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setViewingNote(null)} title="Close full note"><X size={18} /></button>
+            </div>
+            <div className="modal-content sticky-view-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {parseText(viewingNote.body || "") ? (
+                <div style={{ border: '1px dashed rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                  <p className="sticky-body" style={{ margin: 0 }}>{parseText(viewingNote.body || "")}</p>
+                </div>
+              ) : null}
+              {viewingNote.is_checklist ? (
+                <div style={{ border: '1px dashed rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                  <div className="sticky-check-list expanded">
+                    {parseChecklist(viewingNote).map((item) => (
+                      <button className={`check-item ${item.done ? "checked" : ""}`} type="button" key={item.id} onClick={() => toggleSavedItem(viewingNote, item.id)}>
+                        <span>{item.done ? <Check size={13} /> : null}</span>
+                        {item.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {parseSketch(viewingNote.body || "") ? (
+                <div style={{ border: '1px dashed rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                  <SketchCanvas paths={parseSketch(viewingNote.body || "") || []} readOnly height={400} />
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="sticky-view-date">{formatLongDate(viewingNote.updated_at)}</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="secondary" type="button" onClick={() => { deleteNote(viewingNote); setViewingNote(null); }} title="Delete note" style={{ color: '#a24b4b', borderColor: 'rgba(162, 75, 75, 0.3)' }}>
+                  Delete
+                </button>
+                <button className="primary" type="button" onClick={() => openEdit(viewingNote)}>
+                  <Edit size={16} /> Edit note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NoteCard({
+  note,
+  index,
+  openEdit,
+  deleteNote,
+  setViewingNote,
+  toggleSavedItem
+}: {
+  note: RecordMap;
+  index: number;
+  openEdit: (n: RecordMap) => void;
+  deleteNote: (n: RecordMap) => void;
+  setViewingNote: (n: RecordMap) => void;
+  toggleSavedItem: (n: RecordMap, id: string) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const items = parseChecklist(note);
+  const isSketch = parseSketch(note.body || "");
+  const textBody = parseText(note.body || "");
+  const shouldShowView = (n: RecordMap, itms: ChecklistItem[]) => parseText(n.body || "").length > 120 || itms.length > 3;
+  const isLongNote = shouldShowView(note, items) || (isSketch && isSketch.length > 15);
+  const visibleItems = isLongNote ? items.slice(0, 3) : items;
+  
+  const doneCount = items.filter((item) => item.done).length;
+  const totalCount = items.length;
+  const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  return (
+    <article 
+      className={`sticky-card color-${note.color || "sun"} tilt-${index % 4}${isLongNote ? " has-view" : ""}`}
+      style={{ cursor: 'pointer' }}
+      onClick={() => setViewingNote(note)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="sticky-card-head">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="note-title" style={{ fontWeight: 600 }}>{note.title || "Untitled"}</div>
+        </div>
+      </div>
+      
+      <div className="sticky-card-content">
+        {textBody ? (
+          <>
+            <p className="sticky-body">{textBody}</p>
+            {isLongNote && !note.is_checklist && !isSketch ? <div className="sticky-more">+ more text</div> : null}
+          </>
+        ) : null}
+        
+        {isSketch ? (
+          <SketchCanvas paths={isSketch} readOnly height={120} />
+        ) : null}
+        
+        {note.is_checklist ? (
+          <div className="sticky-check-list">
+            {visibleItems.map((item) => (
+              <div className={`check-item ${item.done ? "checked" : ""}`} key={item.id}>
+                <span>{item.done ? <Check size={13} /> : null}</span>
+                {item.text}
+              </div>
+            ))}
+            {isLongNote && items.length > visibleItems.length ? <div className="sticky-more">+{items.length - visibleItems.length} more</div> : null}
+            
+            <div style={{ height: 4, background: 'rgba(0,0,0,0.12)', borderRadius: 2, marginTop: 10 }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: 'rgba(0,0,0,0.35)', borderRadius: 2, transition: 'width 0.3s ease' }} />
+            </div>
+            <span style={{ fontFamily: 'Caveat', fontSize: 18, opacity: 0.6 }}>
+              {doneCount} of {totalCount} done
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <small>{formatLongDate(note.updated_at)}</small>
+    </article>
+  );
+}

@@ -1,0 +1,500 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
+import { Clipboard, Save, X } from "lucide-react";
+import { FilePickerField } from "./FilePickerField";
+import { API_BASE, RecordMap } from "../lib/api";
+import type { ColumnDef } from "./ProjectWorkspace";
+
+const CELL_EDITOR_MIN_LINES = 3;
+const CELL_EDITOR_MAX_LINES = 10;
+
+function resizeCellEditor(textarea: HTMLTextAreaElement) {
+  const styles = window.getComputedStyle(textarea);
+  const parsedLineHeight = Number.parseFloat(styles.lineHeight);
+  const lineHeight = Number.isFinite(parsedLineHeight) ? parsedLineHeight : 22;
+  const paddingBlock =
+    (Number.parseFloat(styles.paddingTop) || 0) +
+    (Number.parseFloat(styles.paddingBottom) || 0);
+  const borderBlock = textarea.offsetHeight - textarea.clientHeight;
+  const minHeight = lineHeight * CELL_EDITOR_MIN_LINES + paddingBlock + borderBlock;
+  const maxHeight = lineHeight * CELL_EDITOR_MAX_LINES + paddingBlock + borderBlock;
+
+  textarea.style.height = "auto";
+  textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight + borderBlock, minHeight), maxHeight)}px`;
+  textarea.style.overflowY = textarea.scrollHeight + borderBlock > maxHeight ? "auto" : "hidden";
+}
+
+export function TypedRecordField({
+  column,
+  value,
+  files,
+  onChange,
+  onFileUploaded
+}: {
+  column: ColumnDef;
+  value: string;
+  files: RecordMap[];
+  onChange: (value: string) => void;
+  onFileUploaded: () => Promise<void>;
+}) {
+  switch (column.type) {
+    case "file":
+      return (
+        <label className="field">
+          <span>{column.name}</span>
+          <FilePickerField
+            value={value}
+            files={files}
+            onChange={onChange}
+            onFileUploaded={onFileUploaded}
+          />
+        </label>
+      );
+
+    case "bool":
+      return (
+        <label className="field bool-field">
+          <span>{column.name}</span>
+          <div
+            className={`bool-toggle${value === "Yes" ? " active" : ""}`}
+            role="switch"
+            aria-checked={value === "Yes"}
+            tabIndex={0}
+            onClick={() => onChange(value === "Yes" ? "No" : "Yes")}
+            onKeyDown={(event) => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                onChange(value === "Yes" ? "No" : "Yes");
+              }
+            }}
+          >
+            <span className="bool-toggle-track">
+              <span className="bool-toggle-thumb" />
+            </span>
+            <span className="bool-toggle-label">{value === "Yes" ? "Yes" : "No"}</span>
+          </div>
+        </label>
+      );
+
+    case "number":
+      return (
+        <label className="field">
+          <span>{column.name}</span>
+          <input
+            type="number"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="0"
+          />
+        </label>
+      );
+
+    case "date":
+      return (
+        <label className="field">
+          <span>{column.name}</span>
+          <input
+            type={column.name.toLowerCase().includes("time") ? "datetime-local" : "date"}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onClick={(event) => {
+              if ("showPicker" in event.currentTarget) {
+                (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+              }
+            }}
+          />
+        </label>
+      );
+
+    case "select":
+      return (
+        <label className="field">
+          <span>{column.name}</span>
+          <select value={value} onChange={(event) => onChange(event.target.value)}>
+            <option value="">Select</option>
+            {(column.options || []).map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </label>
+      );
+
+    default:
+      return (
+        <label className="field">
+          <span>{column.name}</span>
+          <textarea
+            rows={column.name.toLowerCase().includes("body") || column.name.toLowerCase().includes("notes") ? 4 : 2}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                event.currentTarget.closest("form")?.requestSubmit();
+              }
+            }}
+          />
+        </label>
+      );
+  }
+}
+
+export function CellRenderer({
+  column,
+  value,
+  files = [],
+  onSave,
+  onFileUploaded
+}: {
+  column: ColumnDef;
+  value: string;
+  files?: RecordMap[];
+  onSave?: (value: string) => Promise<void> | void;
+  onFileUploaded?: () => Promise<void>;
+}) {
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [isSavingCell, setIsSavingCell] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [copyLabel, setCopyLabel] = useState("Copy");
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const contentRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!viewerOpen) setDraft(value);
+  }, [value, viewerOpen]);
+
+  useLayoutEffect(() => {
+    if (viewerOpen && editorRef.current) {
+      resizeCellEditor(editorRef.current);
+    }
+  }, [draft, viewerOpen]);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content || !value) {
+      setIsOverflowing(false);
+      return;
+    }
+
+    const checkOverflow = () => {
+      if (!content) return;
+
+      const parentCell = content.closest('td');
+      if (!parentCell) {
+        setIsOverflowing(false);
+        return;
+      }
+
+      const cellHeight = parentCell.clientHeight;
+      const contentHeight = content.scrollHeight;
+
+      // Show dots if content height > cell height (content is cut off)
+      setIsOverflowing(contentHeight > cellHeight + 2);
+    };
+
+    // Initial check with delay for rendering
+    const timeoutId = setTimeout(checkOverflow, 30);
+
+    // Watch for size changes on cell and content
+    const resizeObserver = new ResizeObserver(() => {
+      checkOverflow();
+    });
+
+    const parentCell = content.closest('td');
+    if (parentCell) {
+      resizeObserver.observe(parentCell);
+    }
+    resizeObserver.observe(content);
+
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, [value]);
+
+  const openViewer = () => {
+    setDraft(value);
+    setSaveError("");
+    setViewerOpen(true);
+  };
+  const closeViewer = () => {
+    setViewerOpen(false);
+    setCopyLabel("Copy");
+    setSaveError("");
+  };
+  const handlePreviewKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openViewer();
+    }
+  };
+  const copyValue = async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopyLabel("Copied");
+      window.setTimeout(() => setCopyLabel("Copy"), 1600);
+    } catch {
+      setCopyLabel("Copy failed");
+      window.setTimeout(() => setCopyLabel("Copy"), 1600);
+    }
+  };
+  const saveValue = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!onSave || isSavingCell) return;
+    setSaveError("");
+    setIsSavingCell(true);
+    try {
+      await onSave(draft);
+      closeViewer();
+    } catch (error) {
+      console.error(error);
+      setSaveError("Could not save this cell.");
+    } finally {
+      setIsSavingCell(false);
+    }
+  };
+  const handleEditorKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeViewer();
+    }
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      saveValue();
+    }
+  };
+
+  const renderEditor = () => {
+    if (column.type === "number") {
+      return (
+        <input
+          className="sheet-cell-viewer-input"
+          type="number"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleEditorKeyDown}
+          autoFocus
+        />
+      );
+    }
+    if (column.type === "url") {
+      return (
+        <input
+          className="sheet-cell-viewer-input"
+          type="url"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleEditorKeyDown}
+          placeholder="https://..."
+          autoFocus
+        />
+      );
+    }
+    if (column.type === "date") {
+      return (
+        <input
+          className="sheet-cell-viewer-input"
+          type={column.name.toLowerCase().includes("time") ? "datetime-local" : "date"}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onClick={(event) => {
+            if ("showPicker" in event.currentTarget) {
+              (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+            }
+          }}
+          onKeyDown={handleEditorKeyDown}
+          autoFocus
+        />
+      );
+    }
+    if (column.type === "bool") {
+      return (
+        <select
+          className="sheet-cell-viewer-input"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleEditorKeyDown}
+          autoFocus
+        >
+          <option value="">Blank</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      );
+    }
+    if (column.type === "select") {
+      const options = column.options || [];
+      const includesDraft = !draft || options.includes(draft);
+      return (
+        <select
+          className="sheet-cell-viewer-input"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleEditorKeyDown}
+          autoFocus
+        >
+          <option value="">Blank</option>
+          {!includesDraft ? <option value={draft}>{draft}</option> : null}
+          {options.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      );
+    }
+    if (column.type === "file") {
+      return (
+        <div className="sheet-cell-viewer-file-field">
+          <FilePickerField
+            value={draft}
+            files={files}
+            onChange={setDraft}
+            onFileUploaded={onFileUploaded || (async () => {})}
+          />
+        </div>
+      );
+    }
+    return (
+      <textarea
+        ref={editorRef}
+        className="sheet-cell-viewer-editor"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={handleEditorKeyDown}
+        autoFocus
+      />
+    );
+  };
+
+  const viewer = (
+    <div className="sheet-cell-viewer-backdrop" onClick={closeViewer}>
+      <form className="sheet-cell-viewer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Edit value for ${column.name}`} onSubmit={saveValue}>
+        <div className="sheet-cell-viewer-head">
+          <div>
+            <span>Edit cell</span>
+            <h2>{column.name}</h2>
+          </div>
+          <div className="sheet-cell-viewer-actions">
+            <button className="secondary" type="button" onClick={copyValue}>
+              <Clipboard size={15} />
+              {copyLabel}
+            </button>
+            <button className="icon-button compact" type="button" onClick={closeViewer} title="Close cell viewer">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="sheet-cell-viewer-content">
+          {renderEditor()}
+          {saveError ? <p className="sheet-cell-viewer-error">{saveError}</p> : null}
+        </div>
+        <div className="sheet-cell-viewer-footer">
+          <button className="secondary" type="button" onClick={closeViewer}>Cancel</button>
+          <button className="primary" type="submit" disabled={!onSave || isSavingCell}>
+            <Save size={15} />
+            {isSavingCell ? "Saving..." : "Save cell"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  if (column.type === "file") {
+    const parts = value.split(", ").filter(Boolean);
+    return (
+      <>
+        <span
+          ref={contentRef}
+          className="file-badge sheet-cell-preview sheet-cell-trigger"
+          aria-label={`Open full value for ${column.name}`}
+          role="button"
+          tabIndex={0}
+          onClick={openViewer}
+          onKeyDown={handlePreviewKeyDown}
+        >
+          {parts.length ? (
+            <>
+              {parts.map((part, index) => {
+                const fileName = part.split(" (")[0];
+                const fileRecord = files.find((file) => part === `${file.display_name} (${file.relative_path})`);
+                return (
+                  <span key={part}>
+                    {fileRecord ? (
+                      <a href={`${API_BASE}/files/${fileRecord.id}/content`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
+                        {fileName}
+                      </a>
+                    ) : (
+                      fileName
+                    )}
+                    {index < parts.length - 1 ? ", " : ""}
+                  </span>
+                );
+              })}
+              {isOverflowing && (
+                <span className="sheet-cell-overflow-indicator" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="empty-cell">-</span>
+          )}
+        </span>
+        {viewerOpen ? viewer : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span
+        ref={contentRef}
+        className="sheet-cell-preview sheet-cell-trigger"
+        aria-label={`Open full value for ${column.name}`}
+        role="button"
+        tabIndex={0}
+        onClick={openViewer}
+        onKeyDown={handlePreviewKeyDown}
+      >
+        {value ? (
+          column.type === "url" ? (
+            <a href={value} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} style={{ color: "var(--ui-brand)", textDecoration: "underline" }}>
+              {value}
+            </a>
+          ) : (
+            <>
+              {value}
+              {isOverflowing && (
+                <span className="sheet-cell-overflow-indicator" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              )}
+            </>
+          )
+        ) : (
+          <span className="empty-cell">-</span>
+        )}
+      </span>
+      {viewerOpen ? viewer : null}
+    </>
+  );
+}
+
+export function rowClass(row: Record<string, string>) {
+  const candidate = row["Follow-up date"] || row["Scheduled send time"] || row["Date"];
+  if (!candidate) return "";
+  const due = new Date(candidate);
+  if (Number.isNaN(due.getTime())) return "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+  if (days <= 3) return "due-urgent";
+  if (days <= 7) return "due-warning";
+  if (days <= 10) return "due-watch";
+  return "";
+}

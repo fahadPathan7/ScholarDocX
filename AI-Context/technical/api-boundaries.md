@@ -1,0 +1,77 @@
+# API Boundaries
+
+## Boundary Rule
+
+The frontend should call local backend APIs. The backend should own persistence, file system access, and external provider calls.
+
+When no explicit frontend API base is configured, the browser client should
+derive the backend host from the current page host and use port 8000. This
+avoids `localhost` versus `127.0.0.1` or LAN-host mismatches during local
+development.
+
+## Frontend Responsibilities
+
+- Render dashboards, forms, editors, timelines, and assistant UI.
+- Manage local UI state.
+- Call backend APIs.
+- Show validation errors and configuration state.
+- Ask user confirmation before AI saves or document overwrites.
+- Convert API authorization/limit failures into user-friendly alerts through a
+  centralized UI-error mapping layer instead of component-by-component parsing.
+
+## Backend Responsibilities
+
+- Initialize workspace.
+- Validate environment variables.
+- Read and write SQLite data.
+- Manage file uploads and local storage.
+- Validate paths and file types.
+- Call GLM and Tavily APIs.
+- Provide API responses optimized for UI workflows.
+
+## Service Layer Responsibilities
+
+- Application workflow logic.
+- Document versioning logic.
+- Deadline aggregation.
+- Outreach logging and reminder creation.
+- AI research orchestration.
+
+## Avoid
+
+- Business logic inside UI components.
+- Raw SQL scattered across route handlers.
+- File system operations in route handlers without a storage service.
+- Provider-specific AI code mixed into generic assistant code.
+
+## Future API Areas
+
+- `/health`
+- `/workspace`
+- `/settings`
+- `/degree-workspaces`
+- `/projects`
+- `/projects/{project_id}/summary`
+- `/projects/{project_id}/sheets`
+- `/project_sheets`
+- `/project_pages`
+- `/notifications`
+- `/local_profiles`
+- `/universities`
+- `/programs`
+- `/professors`
+- `/applications`
+- `/deadlines`
+- `/documents`
+- `/document_categories`
+- `/files`
+- `/sticky_notes`
+- `/email-templates`
+- `/email-drafts`
+- `/outreach`
+- `/reminders`
+- `/ai/chat`
+- `/ai/research`
+- `/auth/google/start` if optional Google signin is implemented
+- `/auth/google/callback` if optional Google signin is implemented
+- `/auth/session` if optional signin or local profile sessions are implemented

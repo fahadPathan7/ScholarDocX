@@ -1,0 +1,193 @@
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { LogIn } from "lucide-react";
+import { api } from "../lib/api";
+import { setToken } from "../lib/auth";
+import { useAuth } from "../contexts/AuthContext";
+
+export function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  
+  // Invite Request State
+  const [showInviteRequest, setShowInviteRequest] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteDesc, setInviteDesc] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  const { refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleRequestInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setInviteLoading(true);
+    setInviteSuccess(false);
+
+    try {
+      const response = await api.post<any>("/auth/invite-request", { 
+        name: inviteName,
+        email: inviteEmail,
+        phone: invitePhone,
+        description: inviteDesc
+      });
+      if (response && response.status === "success") {
+        setInviteSuccess(true);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to submit request.");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await api.post<{ token: string, user: any }>("/auth/login", { email, password });
+      if (response && response.token) {
+        setToken(response.token);
+        await refreshUser();
+        // Redirect to previous page or dashboard
+        const from = location.state?.from?.pathname || "/";
+        navigate(from, { replace: true });
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to log in. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-zinc-950">
+      <div className="w-full max-w-md rounded-lg border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
+        <div className="mb-8 flex flex-col items-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
+            <LogIn size={24} />
+          </div>
+          <h1 className="text-2xl font-bold text-zinc-100">
+            {showInviteRequest ? "Request Invite" : "Welcome Back"}
+          </h1>
+          <p className="mt-2 text-sm text-zinc-400 text-center">
+            {showInviteRequest ? "Tell us about yourself to get an invite code" : "Log in to your ScholarDock account"}
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 rounded-md bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
+            {error}
+          </div>
+        )}
+
+        {inviteSuccess ? (
+          <div className="text-center">
+            <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+              Your request has been submitted successfully. We will review it shortly.
+            </div>
+            <button
+              onClick={() => {
+                setShowInviteRequest(false);
+                setInviteSuccess(false);
+              }}
+              className="font-medium text-emerald-500 hover:text-emerald-400"
+            >
+              Back to login
+            </button>
+          </div>
+        ) : showInviteRequest ? (
+          <form onSubmit={handleRequestInvite} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteName">Full Name</label>
+              <input id="inviteName" type="text" required className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={inviteName} onChange={(e) => setInviteName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteEmail">Email Address</label>
+              <input id="inviteEmail" type="email" required className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="invitePhone">Phone Number (Optional)</label>
+              <input id="invitePhone" type="tel" className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteDesc">Why do you want to join? (Optional)</label>
+              <textarea id="inviteDesc" rows={3} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
+            </div>
+            <button type="submit" disabled={inviteLoading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6">
+              {inviteLoading ? "Submitting..." : "Submit Request"}
+            </button>
+            <div className="mt-4 text-center text-sm">
+              <button type="button" onClick={() => setShowInviteRequest(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="email">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6"
+              >
+                {loading ? "Logging in..." : "Log In"}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-zinc-400 space-y-2 flex flex-col">
+              <div>
+                Don't have an account?{" "}
+                <Link to="/register" className="font-medium text-emerald-500 hover:text-emerald-400">
+                  Sign up with invite code
+                </Link>
+              </div>
+              <div>
+                Need an invite code?{" "}
+                <button type="button" onClick={() => setShowInviteRequest(true)} className="font-medium text-emerald-500 hover:text-emerald-400">
+                  Request one here
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

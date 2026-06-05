@@ -1,0 +1,40 @@
+# Environments
+.env
+.env.local
+.env.development
+.env.test
+
+# MacOS
+.DS_Store
+
+# Frontend
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+coverage/
+
+# Backend
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+env/
+*.pyc
+*.pyo
+
+# IDEs & Tools
+.vscode/
+.idea/
+.claude/
+.cursor/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*-journal
+
+# Workspaces / User Data
+workspace/
+**/workspace/

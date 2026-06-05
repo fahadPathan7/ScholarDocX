@@ -1,0 +1,549 @@
+:root {
+  --sheet-row-height: 34px;
+  --sheet-cell-lines: 1;
+  --sheet-cell-line-height: 1.3;
+  --sheet-index-width: 50px;
+}
+
+.sheet-scroll {
+  background: #fffefb;
+  border-color: rgba(35, 58, 55, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 14px 32px rgba(24, 37, 35, 0.08);
+}
+
+.sheet-table {
+  color: var(--ui-ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: var(--sheet-cell-line-height);
+}
+
+.sheet-table th,
+.sheet-table td {
+  border-color: rgba(35, 58, 55, 0.13);
+}
+
+.sheet-table th {
+  font-size: 11.5px;
+  font-weight: 760;
+  height: 36px;
+  letter-spacing: 0;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.sheet-table .column-head-text {
+  line-height: 1.15;
+  max-width: 100%;
+}
+
+.sheet-table tbody td {
+  background: rgba(255, 255, 252, 0.94);
+  color: #1d2b28;
+  overflow: hidden;
+  padding: 6px 8px;
+  position: relative;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.sheet-table tbody tr {
+  /* Row height is handled via inline styles on individual cells */
+}
+
+.sheet-table tbody tr:hover td {
+  background: #f5faf7;
+}
+
+.sheet-table tr.due-urgent td,
+.sheet-table tr.due-warning td,
+.sheet-table tr.due-watch td {
+  background-blend-mode: multiply;
+}
+
+.sheet-table tr.due-urgent td {
+  background-color: #ffe8e5;
+}
+
+.sheet-table tr.due-warning td {
+  background-color: #fff1c7;
+}
+
+.sheet-table tr.due-watch td {
+  background-color: #e8f5ff;
+}
+
+.sheet-cell-preview {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--sheet-cell-lines);
+  display: -webkit-box;
+  line-height: var(--sheet-cell-line-height);
+  max-height: calc(var(--sheet-cell-lines) * 1em * var(--sheet-cell-line-height));
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sheet-table tbody td:has(.sheet-cell-trigger) {
+  cursor: pointer;
+  padding: 0;
+}
+
+.sheet-table tbody td:has(.sheet-cell-trigger):hover {
+  box-shadow: inset 0 0 0 1px rgba(52, 127, 120, 0.15);
+}
+
+.sheet-cell-trigger {
+  border-radius: 0;
+  cursor: pointer;
+  margin: 0;
+  padding: 10px 12px;
+  transition: background 150ms ease, box-shadow 150ms ease, color 150ms ease;
+  width: 100%;
+  display: block;
+  min-height: 100%;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.sheet-cell-overflow-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  display: flex;
+  gap: 3px;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sheet-cell-overflow-indicator span {
+  width: 3px;
+  height: 3px;
+  background: #37514c;
+  border-radius: 50%;
+}
+
+.sheet-cell-trigger:hover,
+.sheet-cell-trigger:focus-visible {
+  background: rgba(52, 127, 120, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(52, 127, 120, 0.18);
+  outline: none;
+}
+
+.sheet-table .empty-cell {
+  color: rgba(29, 43, 40, 0.54);
+  font-weight: 650;
+}
+
+.sheet-table .sheet-cell-trigger .empty-cell {
+  align-items: center;
+  display: flex;
+  height: 100%;
+}
+
+.sheet-table .file-badge {
+  gap: 2px;
+}
+
+.sheet-table .file-badge a {
+  color: var(--ui-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sheet-table .file-badge a:hover {
+  text-decoration: underline;
+}
+
+.sheet-table th.row-index-header,
+.sheet-table td.row-header {
+  left: 0;
+  min-width: var(--sheet-index-width);
+  position: sticky !important;
+  width: var(--sheet-index-width);
+}
+
+.sheet-table th.row-index-header {
+  z-index: 12;
+}
+
+.sheet-table td.row-header {
+  align-items: center;
+  background: #f7fbf8;
+  box-shadow: 2px 0 0 rgba(35, 58, 55, 0.14);
+  color: #37514c;
+  font-size: 14px;
+  font-weight: 760;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  z-index: 8;
+}
+
+.sheet-table tbody tr:hover td.row-header {
+  background: #eef7f3;
+}
+
+.sheet-table td.row-header .row-index {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 100%;
+}
+
+.row-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+}
+
+.sheet-table .group-control-cell,
+.sheet-table .group-child-cell {
+  overflow: hidden;
+}
+
+.sheet-table th.group-control-cell {
+  background: linear-gradient(180deg, #dcebe7, #cfe2dd) !important;
+  color: #183b38 !important;
+}
+
+.sheet-table th.group-control-cell .column-head-text,
+.sheet-table th.group-child-cell .column-head-text {
+  color: #183b38 !important;
+  font-weight: 780 !important;
+}
+
+.sheet-table th.group-child-cell {
+  background: linear-gradient(180deg, #eef7f4, #e5f1ee) !important;
+  color: #1e3c39 !important;
+}
+
+.group-parent-indicator {
+  background: #c8e7df;
+  border: 1px solid rgba(52, 127, 120, 0.2);
+  color: #23675f;
+  font-size: 9px;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.sheet-cell-viewer-backdrop {
+  align-items: center;
+  background: rgba(18, 33, 31, 0.22);
+  backdrop-filter: blur(8px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 28px;
+  position: fixed;
+  z-index: 120;
+}
+
+.sheet-cell-viewer {
+  background: linear-gradient(180deg, #fffffc, #f4faf7);
+  border: 1px solid rgba(35, 58, 55, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(18, 33, 31, 0.24);
+  color: var(--ui-ink);
+  display: flex;
+  flex-direction: column;
+  max-height: min(72vh, 680px);
+  overflow: hidden;
+  width: min(720px, 92vw);
+}
+
+.sheet-cell-viewer-head {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(228, 242, 237, 0.96), rgba(232, 241, 245, 0.9));
+  border-bottom: 1px solid rgba(35, 58, 55, 0.1);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.sheet-cell-viewer-head span {
+  color: var(--ui-primary);
+  display: block;
+  font-size: 11px;
+  font-weight: 760;
+  margin-bottom: 4px;
+}
+
+.sheet-cell-viewer-head h2 {
+  color: var(--ui-ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.sheet-cell-viewer-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.sheet-cell-viewer-actions .secondary {
+  gap: 7px;
+  min-height: 34px;
+  padding: 8px 12px;
+}
+
+.sheet-cell-viewer-content {
+  background: #fffefb;
+  color: #1d2b28;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font: 14px/1.55 var(--font-body);
+  margin: 0;
+  max-height: 100%;
+  overflow: auto;
+  padding: 18px;
+}
+
+.sheet-cell-viewer-editor,
+.sheet-cell-viewer-input {
+  background: #fffffc;
+  border: 1px solid rgba(35, 58, 55, 0.14);
+  border-radius: 14px;
+  color: #1d2b28;
+  font: 14px/1.55 var(--font-body);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+  width: 100%;
+}
+
+.sheet-cell-viewer-editor {
+  max-height: calc((1.55em * 10) + 30px);
+  min-height: calc((1.55em * 3) + 30px);
+  padding: 14px 15px;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sheet-cell-viewer-input {
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.sheet-cell-viewer-file-field {
+  background: rgba(228, 242, 237, 0.34);
+  border: 1px solid rgba(35, 58, 55, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.sheet-cell-viewer-editor:focus,
+.sheet-cell-viewer-input:focus {
+  border-color: rgba(52, 127, 120, 0.42);
+  box-shadow: 0 0 0 4px rgba(52, 127, 120, 0.11);
+}
+
+.sheet-cell-viewer-error {
+  background: #ffe8e5;
+  border-left: 4px solid #b05a56;
+  border-radius: 10px;
+  color: #8c2f2b;
+  font-size: 13px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.sheet-cell-viewer-footer {
+  align-items: center;
+  background: rgba(248, 252, 249, 0.94);
+  border-top: 1px solid rgba(35, 58, 55, 0.1);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 18px;
+}
+
+.sheet-cell-viewer-footer .primary,
+.sheet-cell-viewer-footer .secondary {
+  min-height: 36px;
+}
+
+.sheet-cell-viewer-footer .primary {
+  gap: 7px;
+  min-width: 118px;
+}
+
+/* Color Picker */
+.color-picker-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease;
+  padding: 0;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.active {
+  border-color: var(--ui-ink, #000);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+}
+
+/* Select Options Editor */
+.select-options-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.select-options-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.select-option-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.select-option-pill input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  width: 60px;
+  outline: none;
+  min-width: 40px;
+}
+
+.select-option-pill input:focus {
+  border-bottom: 1px solid var(--ui-primary);
+}
+
+.select-option-pill button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.select-option-pill button:hover {
+  color: #d32f2f;
+}
+
+.select-add-row {
+  display: flex;
+  gap: 6px;
+}
+
+.select-add-row input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.select-add-row button {
+  padding: 4px 8px;
+  border: none;
+  background: var(--ui-primary, #2f6d7a);
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+
+
+/* Reduce button and text sizes in sheet view */
+.sheet-detail-view .sheet-toolbar button {
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+.sheet-detail-view .section-head h2 {
+  font-size: 15px;
+}
+
+.sheet-detail-view .section-head .eyebrow {
+  font-size: 11px;
+}
+
+/* Reduce modal text sizes */
+.sheet-detail-view .modal-panel {
+  font-size: 13px;
+}
+
+.sheet-detail-view .modal-panel h2 {
+  font-size: 16px;
+}
+
+.sheet-detail-view .modal-panel label,
+.sheet-detail-view .modal-panel .field span {
+  font-size: 12px;
+}
+
+.sheet-detail-view .modal-panel input,
+.sheet-detail-view .modal-panel select,
+.sheet-detail-view .modal-panel textarea {
+  font-size: 12px;
+}
+
+.sheet-detail-view .modal-panel button {
+  font-size: 12px;
+  padding: 7px 14px;
+}
+
+.sheet-detail-view .record-form-fields {
+  font-size: 12px;
+}
+
+.sheet-detail-view .column-form input,
+.sheet-detail-view .column-form select {
+  font-size: 12px;
+}
+
+.sheet-detail-view .edit-columns-form {
+  font-size: 12px;
+}
+
+.sheet-detail-view .edit-column-item input {
+  font-size: 12px;
+}
+
+.sheet-detail-view .column-type-badge {
+  font-size: 10px;
+}
+

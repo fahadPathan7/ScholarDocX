@@ -1,0 +1,427 @@
+.modal-panel.small-modal-panel.doc-upload-panel {
+  max-height: min(680px, 86vh);
+  width: min(560px, 92vw);
+}
+
+.doc-upload-title {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.doc-upload-title-icon,
+.doc-upload-file-icon {
+  align-items: center;
+  background: rgba(79, 128, 118, 0.12);
+  border: 1px solid rgba(79, 128, 118, 0.18);
+  border-radius: 14px;
+  color: var(--ui-primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.doc-upload-title-icon {
+  height: 42px;
+  width: 42px;
+}
+
+.doc-upload-content {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.doc-upload-content .field span {
+  color: var(--ui-ink-soft);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.doc-upload-content select,
+.doc-upload-content textarea {
+  background: rgba(255, 255, 251, 0.94);
+  border-color: rgba(56, 74, 67, 0.12);
+  border-radius: 14px;
+}
+
+.doc-upload-content textarea {
+  min-height: 104px;
+}
+
+.doc-upload-file-field {
+  position: relative;
+}
+
+.doc-upload-dropzone {
+  align-items: center;
+  background:
+    radial-gradient(circle at 94% 10%, rgba(155, 184, 174, 0.22), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 251, 0.96), rgba(242, 248, 241, 0.86));
+  border: 1px dashed rgba(79, 128, 118, 0.42);
+  border-radius: 18px;
+  display: flex;
+  gap: 14px;
+  min-height: 96px;
+  overflow: hidden;
+  padding: 18px;
+  position: relative;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.doc-upload-dropzone:hover,
+.doc-upload-dropzone:focus-within {
+  border-color: rgba(31, 111, 115, 0.72);
+  box-shadow: 0 14px 30px rgba(79, 128, 118, 0.14);
+  transform: translateY(-1px);
+}
+
+.doc-upload-file-input {
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.doc-upload-file-icon {
+  height: 46px;
+  width: 46px;
+}
+
+.doc-upload-dropzone strong,
+.doc-upload-dropzone small {
+  display: block;
+}
+
+.doc-upload-dropzone strong {
+  color: var(--ui-ink);
+  font-size: 15px;
+  font-weight: 720;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-upload-dropzone small {
+  color: var(--ui-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.doc-upload-footer {
+  background: rgba(250, 252, 247, 0.92);
+  padding: 14px 20px;
+}
+
+.doc-upload-footer .primary {
+  min-width: 150px;
+}
+
+.doc-grid {
+  align-items: start;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+}
+
+.doc-list-sections {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 0;
+}
+
+.doc-action-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.doc-category-grid {
+  align-items: start;
+  align-content: start;
+  display: grid;
+  gap: 14px;
+  grid-auto-rows: auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: rgba(52, 127, 120, 0.42) rgba(24, 37, 35, 0.06);
+  scrollbar-width: thin;
+}
+
+.doc-category-card {
+  align-items: flex-start;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 252, 0.98), rgba(241, 248, 247, 0.9));
+  border: 1px solid rgba(35, 58, 55, 0.11);
+  border-radius: 13px;
+  box-shadow: var(--ui-shadow-soft);
+  color: var(--ui-ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 124px;
+  overflow: hidden;
+  padding: 16px 18px;
+  position: relative;
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.doc-category-card-actions {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 1;
+}
+
+.doc-category-card-actions .icon-button {
+  min-height: 30px;
+  width: 30px;
+}
+
+.doc-category-card::before {
+  background: linear-gradient(180deg, #74beb2, #477ea5);
+  content: "";
+  inset: 0 auto 0 0;
+  position: absolute;
+  width: 3px;
+}
+
+.doc-category-card:hover {
+  border-color: rgba(52, 127, 120, 0.28);
+  box-shadow: var(--ui-shadow);
+  transform: translateY(-2px);
+}
+
+.doc-category-card strong {
+  font-size: 21px;
+  font-weight: 720;
+  line-height: 1.05;
+}
+
+.doc-category-card-count,
+.doc-category-card-meta {
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.doc-category-card-count,
+.doc-category-card-action,
+.doc-category-label {
+  color: var(--ui-primary);
+}
+
+.doc-category-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.doc-category-grid::-webkit-scrollbar-thumb {
+  background: rgba(52, 127, 120, 0.38);
+  border-radius: 99px;
+}
+
+.doc-category-grid::-webkit-scrollbar-track {
+  background: rgba(24, 37, 35, 0.05);
+  border-radius: 99px;
+}
+
+.doc-category-card-action,
+.doc-category-label {
+  font-weight: 760;
+}
+
+.doc-category-card-action {
+  font-size: 13px;
+  margin-top: auto;
+}
+
+.doc-category-label {
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+
+.doc-list-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.doc-list-section .section-head {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+.doc-list-section .section-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: rgba(31, 111, 115, 0.45) rgba(31, 42, 38, 0.06);
+  scrollbar-width: thin;
+}
+
+.doc-file-list {
+  display: grid;
+  gap: 10px;
+}
+
+.doc-file-row {
+  align-items: start;
+  grid-template-areas:
+    "icon info"
+    "actions actions";
+  grid-template-columns: 22px minmax(0, 1fr);
+  min-height: 0;
+  padding: 12px;
+}
+
+.doc-file-icon {
+  grid-area: icon;
+  justify-self: center;
+  margin-top: 2px;
+}
+
+.doc-file-info {
+  grid-area: info;
+  min-width: 0;
+}
+
+.doc-file-name {
+  color: var(--ui-ink);
+  font-weight: 700;
+}
+
+.doc-file-path {
+  font-size: 12px;
+}
+
+.doc-file-notes {
+  max-width: 72ch;
+}
+
+.doc-file-actions {
+  grid-area: actions;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.doc-category-modal {
+  width: min(880px, 92vw);
+  max-height: 76vh;
+}
+
+.doc-category-editor {
+  width: min(460px, 90vw);
+}
+
+.doc-category-modal-content {
+  padding: 18px;
+}
+
+.doc-category-modal .doc-file-row {
+  align-items: center;
+  grid-template-areas: "icon info actions";
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+}
+
+.doc-category-modal .doc-file-actions {
+  margin-top: 0;
+}
+
+.doc-file-actions .doc-pin-action {
+  border: 1px solid rgba(56, 74, 67, 0.12);
+  color: var(--ui-muted);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.doc-file-actions .doc-pin-action:hover {
+  border-color: rgba(31, 111, 115, 0.34);
+  color: var(--ui-primary);
+  transform: translateY(-1px);
+}
+
+.doc-file-actions .doc-pin-action.active {
+  background: #dceee7;
+  border-color: rgba(31, 111, 115, 0.36);
+  color: #1f6f64;
+  box-shadow: inset 0 0 0 1px rgba(31, 111, 115, 0.12);
+}
+
+.doc-file-actions .dashboard-pin-action.active {
+  background: #edf4e7;
+  border-color: rgba(94, 130, 88, 0.38);
+  color: #55744d;
+}
+
+.doc-file-actions .doc-pin-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.doc-list-section .section-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.doc-list-section .section-body::-webkit-scrollbar-thumb {
+  background: rgba(31, 111, 115, 0.4);
+  border-radius: 99px;
+}
+
+.doc-list-section .section-body::-webkit-scrollbar-track {
+  background: rgba(31, 42, 38, 0.05);
+  border-radius: 99px;
+}
+
+@media (max-width: 1200px) {
+  .doc-category-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .doc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .doc-list-section {
+    max-height: none;
+  }
+
+  .doc-list-section .section-body {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .doc-category-grid {
+    grid-template-columns: 1fr;
+  }
+}

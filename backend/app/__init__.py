@@ -1,0 +1,2 @@
+"""ScholarDock backend package."""
+

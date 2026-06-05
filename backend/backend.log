@@ -1,0 +1,1120 @@
+INFO:     Will watch for changes in these directories: ['/Users/fahadpathan/Documents/ScholarDock/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [68525] using WatchFiles
+INFO:     Started server process [68527]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56376 - "GET /api/local_profiles HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56382 - "POST /api/workspace/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:56376 - "GET /api/local_profiles HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "POST /api/workspace/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:56382 - "GET /api/local_profiles HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/local_profiles HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized
+INITIALIZE DB CALLED WITH PATH: /Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db
+INFO:     127.0.0.1:56378 - "GET /api/auth/usage HTTP/1.1" 401 Unauthorized

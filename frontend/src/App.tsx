@@ -1,0 +1,1371 @@
+import { FormEvent, MouseEvent, ReactNode, useEffect, useState } from "react";
+import {
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  FileText,
+  FolderOpen,
+  PencilLine,
+  GraduationCap,
+  Info,
+  LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RefreshCw,
+  StickyNote,
+  User,
+  Upload,
+  Edit,
+  Trash2,
+  X,
+  Pin,
+  Square,
+  Settings,
+  Shield
+} from "lucide-react";
+import DeepSpaceBanner from "./components/DeepSpaceBanner";
+import { FloatingAssistant } from "./components/FloatingAssistant";
+import { FloatingNotifications } from "./components/FloatingNotifications";
+import { AboutView } from "./components/AboutView";
+import { SettingsView } from "./components/SettingsView";
+import { ProfileView } from "./components/ProfileView";
+import { AdminView } from "./components/AdminView";
+import { PlanComparisonView } from "./components/PlanComparisonView";
+import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
+import { isAdmin } from "./lib/auth";
+import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
+import { StickyNotesView } from "./components/StickyNotesView";
+import { WhiteboardView } from "./components/WhiteboardView";
+import { CalendarMonthView } from "./components/CalendarMonthView";
+import { Field } from "./components/Field";
+import { Section } from "./components/Section";
+import { SplashScreen } from "./components/SplashScreen";
+import { useDialog } from "./components/DialogProvider";
+import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
+import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
+import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
+import "./components/splash-screen.css";
+
+type Dashboard = {
+  counts: Record<string, number>;
+  status_counts: { status: string; count: number }[];
+  upcoming_deadlines: RecordMap[];
+  reminders: RecordMap[];
+  notifications: RecordMap[];
+  recent_applications: RecordMap[];
+  recent_projects: RecordMap[];
+  pinned_projects: RecordMap[];
+  pinned_sheets: RecordMap[];
+  pinned_docs: RecordMap[];
+  calendar_items: RecordMap[];
+};
+
+const emptyDashboard: Dashboard = {
+  counts: {},
+  status_counts: [],
+  upcoming_deadlines: [],
+  reminders: [],
+  notifications: [],
+  recent_applications: [],
+  recent_projects: [],
+  pinned_projects: [],
+  pinned_sheets: [],
+  pinned_docs: [],
+  calendar_items: []
+};
+
+function ScholarDockMark() {
+  return (
+    <svg
+      width="52"
+      height="52"
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="scholarMark"
+    >
+      <path
+        d="M11 50L18 31L45 7L55 17L30 43L11 50Z"
+        fill="#F59E0B"
+        stroke="#F4FAF8"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 50L18 31L30 43L11 50Z"
+        fill="#FF5FA2"
+        stroke="#F4FAF8"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M45 7L55 17L59 5L45 7Z"
+        fill="#F59E0B"
+        stroke="#F4FAF8"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M24 29L36 17"
+        stroke="#0B2A27"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M17 52C27 46 41 43 55 44"
+        stroke="#6BC7BD"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function App() {
+  const { showAlert, showConfirm } = useDialog();
+  const [dashboard, setDashboard] = useState<Dashboard>(emptyDashboard);
+  const [workspace, setWorkspace] = useState<RecordMap | null>(null);
+  const [degreeWorkspaces, setDegreeWorkspaces] = useState<RecordMap[]>([]);
+  const [universities, setUniversities] = useState<RecordMap[]>([]);
+  const [programs, setPrograms] = useState<RecordMap[]>([]);
+  const [professors, setProfessors] = useState<RecordMap[]>([]);
+  const [applications, setApplications] = useState<RecordMap[]>([]);
+  const [files, setFiles] = useState<RecordMap[]>([]);
+  const [documentCategories, setDocumentCategories] = useState<RecordMap[]>([]);
+  const [notifications, setNotifications] = useState<RecordMap[]>([]);
+  const [message, setMessage] = useState("Loading ScholarDock...");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [toast, setToast] = useState("");
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
+  const [projectWorkspaceHomeKey, setProjectWorkspaceHomeKey] = useState(0);
+  const [documentsKey, setDocumentsKey] = useState(0);
+  const [stickyNotesKey, setStickyNotesKey] = useState(0);
+  const [whiteboardKey, setWhiteboardKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refresh = async () => {
+    setIsRefreshing(true);
+    const startTime = Date.now();
+    try {
+      const [
+        workspaceStatus,
+        summary,
+        degreeRows,
+        universityRows,
+        programRows,
+        professorRows,
+        applicationRows,
+        fileRows,
+        categoryRows,
+        notificationRows
+      ] = await Promise.all([
+        api.get<RecordMap>("/workspace/status"),
+        api.get<Dashboard>("/dashboard/summary"),
+        listRecords<RecordMap>("degree_workspaces"),
+        listRecords<RecordMap>("universities"),
+        listRecords<RecordMap>("programs"),
+        listRecords<RecordMap>("professors"),
+        listRecords<RecordMap>("applications"),
+        listRecords<RecordMap>("static_files"),
+        api.get<RecordMap[]>("/document_categories"),
+        listRecords<RecordMap>("notifications")
+      ]);
+      setWorkspace(workspaceStatus);
+      setDashboard(summary);
+      setDegreeWorkspaces(degreeRows);
+      setUniversities(universityRows);
+      setPrograms(programRows);
+      setProfessors(professorRows);
+      setApplications(applicationRows);
+      setFiles(fileRows);
+      setDocumentCategories(categoryRows);
+      setNotifications(notificationRows);
+      setMessage("Ready.");
+    } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1000) {
+        await new Promise(r => setTimeout(r, 1000 - elapsed));
+      }
+      setIsRefreshing(false);
+    }
+  };
+
+  // Context-aware refresh - only refreshes the active tab
+  const refreshActiveTab = async () => {
+    setIsRefreshing(true);
+    const startTime = Date.now();
+    try {
+      switch (activeTab) {
+        case "dashboard":
+          // Refresh dashboard data
+          const [summary, notificationRows] = await Promise.all([
+            api.get<Dashboard>("/dashboard/summary"),
+            listRecords<RecordMap>("notifications")
+          ]);
+          setDashboard(summary);
+          setNotifications(notificationRows);
+          break;
+
+        case "projects":
+          // Force remount of ProjectWorkspace to refresh projects
+          setProjectWorkspaceHomeKey((value) => value + 1);
+          break;
+
+        case "documents":
+          // Refresh documents data
+          const [fileRows, categoryRows] = await Promise.all([
+            listRecords<RecordMap>("static_files"),
+            api.get<RecordMap[]>("/document_categories")
+          ]);
+          setFiles(fileRows);
+          setDocumentCategories(categoryRows);
+          setDocumentsKey((value) => value + 1);
+          break;
+
+        case "sticky":
+          // Force remount of StickyNotesView
+          setStickyNotesKey((value) => value + 1);
+          break;
+
+        case "whiteboard":
+          // Force remount of WhiteboardView
+          setWhiteboardKey((value) => value + 1);
+          break;
+
+        case "profile":
+          // Profile doesn't need refresh (form-based)
+          break;
+
+        case "settings":
+          // Settings doesn't need refresh (form-based)
+          break;
+
+        case "about":
+          // About is static, no refresh needed
+          break;
+      }
+      setMessage("Ready.");
+    } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 500) {
+        await new Promise(r => setTimeout(r, 500 - elapsed));
+      }
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    api
+      .post<RecordMap>("/workspace/init", {})
+      .then(refresh)
+      .catch((error) => setMessage(error.message));
+  }, []);
+
+  const baseNavItems = [
+    ["dashboard", "Dashboard", LayoutDashboard],
+    ["projects", "Projects", FolderOpen],
+    ["documents", "Documents", FileText],
+    ["sticky", "Sticky Notes", StickyNote],
+    ["whiteboard", "Whiteboard", Square],
+    ["profile", "Profile", User],
+    ["settings", "Settings", Settings],
+    ["about", "About", Info]
+  ] as const;
+
+  const adminItem = ["admin", "Admin", Shield] as const;
+  
+  const navItems = isAdmin() ? [...baseNavItems.slice(0, 5), adminItem, ...baseNavItems.slice(5)] : baseNavItems;
+
+  const handleSidebarNav = (key: string) => {
+    if (key === "projects") {
+      setProjectNavigationTarget(null);
+      setProjectWorkspaceHomeKey((value) => value + 1);
+    }
+    setActiveTab(key);
+  };
+
+  const navigateToCalendarEvent = (event: RecordMap) => {
+    setProjectNavigationTarget({
+      token: Date.now(),
+      projectId: event.project_id,
+      sheetId: event.sheet_id,
+      pageId: event.page_id,
+      rowIndex: typeof event.row_index === "number" ? event.row_index : Number(event.row_index)
+    });
+    setActiveTab("projects");
+  };
+
+  const navigateToProject = (projectId: number | string) => {
+    setProjectNavigationTarget({ token: Date.now(), projectId });
+    setActiveTab("projects");
+  };
+
+  const showToast = (text: string) => {
+    setToast(text);
+    window.setTimeout(() => setToast(""), 2600);
+  };
+
+  // Show splash screen while loading
+  if (message !== "Ready.") {
+    return <SplashScreen message={message} />;
+  }
+
+  return (
+    <div className={navCollapsed ? "app-shell nav-collapsed" : "app-shell"}>
+      <GlobalErrorAlerts />
+      <aside className="sidebar">
+        <div className="brand logoCardPremium">
+          <ScholarDockMark />
+          <div className="logoContent">
+            <strong className="logoText">ScholarDock</strong>
+            <div className="logoUnderline" />
+            <span className="logoTagline">Chase Your Dream</span>
+          </div>
+        </div>
+        <nav>
+          {navItems.slice(0, 5).map(([key, label, Icon]) => (
+            <button
+              aria-label={label}
+              className={activeTab === key ? "active" : ""}
+              key={key}
+              onClick={() => handleSidebarNav(key)}
+              title={navCollapsed ? label : undefined}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+          <div className="nav-spacer" />
+          {navItems.slice(5).map(([key, label, Icon]) => (
+            <button
+              aria-label={label}
+              className={activeTab === key ? "active" : ""}
+              key={key}
+              onClick={() => handleSidebarNav(key)}
+              title={navCollapsed ? label : undefined}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <main>
+        <div className="main-head" style={{ position: 'relative', zIndex: 1000 }}>
+          <DeepSpaceBanner />
+          <header className="topbar" style={{ position: 'relative', zIndex: 1001 }}>
+            <div className="banner-content">
+              <p className="eyebrow" style={{ color: '#94a3b8' }}>Your Academic Journey Companion</p>
+              <h1 style={{ color: '#f8fafc' }}>Built for the scholars who refuse to settle.</h1>
+            </div>
+            <div className="top-actions">
+              <button className="icon-button" onClick={() => setNavCollapsed((value) => !value)} title="Collapse navigation">
+                {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              </button>
+              <button className={`icon-button ${isRefreshing ? "refreshing" : ""}`} onClick={refreshActiveTab} title="Refresh data" disabled={isRefreshing}>
+                <RefreshCw size={18} className={isRefreshing ? "icon-spin" : ""} />
+              </button>
+              <button
+                className="icon-button notification-header-button"
+                onClick={() => setNotificationPanelOpen(!notificationPanelOpen)}
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {notifications.filter((item) => !item.read_at).length > 0 && (
+                  <span className="notification-badge-header">{notifications.filter((item) => !item.read_at).length}</span>
+                )}
+              </button>
+              <FloatingAssistant
+                onWorkspaceChanged={async () => {
+                  await refresh();
+                  setProjectWorkspaceHomeKey((value) => value + 1);
+                  showToast("Workspace updated by Lumi.");
+                }}
+              />
+            </div>
+          </header>
+
+        </div>
+
+        <div className="main-content">
+          {activeTab === "dashboard" ? (
+            <DashboardView
+              dashboard={dashboard}
+              notificationCount={notifications.filter((item) => !item.read_at).length}
+              onCalendarEventClick={navigateToCalendarEvent}
+              onProjectClick={navigateToProject}
+            />
+          ) : activeTab === "projects" ? (
+            <ProjectWorkspace
+              key={projectWorkspaceHomeKey}
+              files={files}
+              onChanged={refresh}
+              onFilesChanged={refresh}
+              navigationTarget={projectNavigationTarget}
+              onToast={showToast}
+            />
+          ) : activeTab === "documents" ? (
+            <DocumentView
+              key={documentsKey}
+              categories={documentCategories}
+              files={files}
+              onChanged={refresh}
+              onToast={showToast}
+              showAlert={showAlert}
+              showConfirm={showConfirm}
+            />
+          ) : activeTab === "sticky" ? (
+            <StickyNotesView key={stickyNotesKey} onToast={showToast} />
+          ) : activeTab === "whiteboard" ? (
+            <WhiteboardView key={whiteboardKey} onToast={showToast} />
+          ) : activeTab === "profile" ? (
+            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onViewAdmin={() => setActiveTab("admin")} />
+          ) : activeTab === "settings" ? (
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f8fafc" }}>
+              <SettingsView />
+            </div>
+          ) : activeTab === "about" ? (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <AboutView />
+            </div>
+          ) : activeTab === "plans" ? (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
+              <PlanComparisonView onBack={() => setActiveTab("profile")} />
+            </div>
+          ) : activeTab === "admin" && isAdmin() ? (
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>
+              <AdminView />
+            </div>
+          ) : (
+            <DashboardView dashboard={dashboard} notificationCount={notifications.filter((item) => !item.read_at).length} onCalendarEventClick={() => { }} onProjectClick={() => { }} />
+          )}
+        </div>
+      </main>
+
+      <FloatingNotifications
+        calendarItems={dashboard.calendar_items || []}
+        notifications={notifications}
+        projects={dashboard.recent_projects || []}
+        isOpen={notificationPanelOpen}
+        onClose={() => setNotificationPanelOpen(false)}
+        onChanged={refresh}
+        onNavigateToEvent={navigateToCalendarEvent}
+        onNavigateToProject={navigateToProject}
+        onToast={showToast}
+      />
+
+      {toast ? <div className="toast-message">{toast}</div> : null}
+    </div>
+  );
+}
+
+function DigitalClock() {
+  const [time, setTime] = useState(new Date());
+  const [location, setLocation] = useState("");
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+
+    fetch("https://get.geojs.io/v1/ip/geo.json")
+      .then(res => res.json())
+      .then(data => {
+        if (data.city && data.country) {
+          setLocation(`${data.city}, ${data.country}`);
+        }
+      })
+      .catch(() => {
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz) {
+            const parts = tz.split('/');
+            const city = parts[parts.length - 1].replace(/_/g, ' ');
+            setLocation(city);
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const hours = time.getHours() % 12 || 12;
+  const minutes = time.getMinutes().toString().padStart(2, '0');
+  const seconds = time.getSeconds().toString().padStart(2, '0');
+  const ampm = time.getHours() >= 12 ? 'PM' : 'AM';
+
+  const tzParts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' }).formatToParts(time);
+  const tzName = tzParts.find(p => p.type === 'timeZoneName')?.value || '';
+  const o = -time.getTimezoneOffset();
+  const h = Math.floor(Math.abs(o) / 60);
+  const m = Math.abs(o) % 60;
+  const offset = `UTC${o >= 0 ? '+' : '-'}${h}${m > 0 ? ':' + m.toString().padStart(2, '0') : ''}`;
+
+  return (
+    <Section title="Local Time" eyebrow="Dashboard" className="dashboard-clock">
+      <div className="digital-clock-container">
+        <div className="digital-clock">
+          <div className="clock-time">
+            <span className="clock-digit">{hours}</span>
+            <span className="clock-colon">:</span>
+            <span className="clock-digit">{minutes}</span>
+            <div className="clock-sec-ampm">
+              <span className="clock-digit seconds">{seconds}</span>
+              <span className="clock-ampm">{ampm}</span>
+            </div>
+          </div>
+          <div>
+            <div className="clock-divider" />
+            <div className="clock-bottom">
+              <div className="clock-date">
+                {time.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+              {location && (
+                <div className="clock-location">
+                  <div className="clock-dot" />
+                  {location}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function DashboardView({
+  dashboard,
+  notificationCount,
+  onCalendarEventClick,
+  onProjectClick
+}: {
+  dashboard: Dashboard;
+  notificationCount: number;
+  onCalendarEventClick: (event: RecordMap) => void;
+  onProjectClick?: (projectId: number | string) => void;
+}) {
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const cards = [
+    ["Projects", dashboard.counts.projects ?? 0],
+    ["Sheets", dashboard.counts.project_sheets ?? 0],
+    ["Documents", dashboard.counts.documents ?? 0],
+    ["Sticky notes", dashboard.counts.sticky_notes ?? 0],
+    ["White boards", dashboard.counts.whiteboards ?? 0],
+    ["Calendar dates", futureCalendarCount(dashboard.calendar_items || [])]
+  ];
+  const nextEvents = upcomingEvents(dashboard.calendar_items || [], 10);
+  const nextCalendarEvent = nextFeaturedEvent(dashboard.calendar_items || []);
+  const pinnedProjects = dashboard.pinned_projects || [];
+  const pinnedSheets = dashboard.pinned_sheets || [];
+  const pinnedDocs = dashboard.pinned_docs || [];
+
+  return (
+    <div className="page-grid dashboard-grid">
+      <DigitalClock />
+
+
+      <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
+        <div className="metric-grid">
+          {cards.map(([label, value]) => (
+            <article className="metric-card" key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Project Calendar" eyebrow="All projects" className="dashboard-calendar">
+        <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
+          <CalendarDays size={22} />
+          <div>
+            <strong>{dashboard.calendar_items?.length ?? 0}</strong>
+            <span>row date{(dashboard.calendar_items?.length ?? 0) === 1 ? "" : "s"}</span>
+          </div>
+          <small>
+            {nextCalendarEvent
+              ? `Next: ${formatShortDate(nextCalendarEvent.date_key || nextCalendarEvent.date)} · ${nextCalendarEvent.title || "Untitled row"}`
+              : "Open full calendar"}
+          </small>
+        </button>
+
+        {isCalendarOpen ? (
+          <div className="modal-backdrop" onClick={() => setIsCalendarOpen(false)}>
+            <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Project Calendar</h2>
+                <button className="icon-button" type="button" onClick={() => setIsCalendarOpen(false)} title="Close calendar">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="modal-content">
+                <CalendarMonthView
+                  events={dashboard.calendar_items || []}
+                  empty="Add dates in project sheet rows to build the central calendar."
+                  focusDate={nextCalendarEvent?.date_key || nextCalendarEvent?.date || null}
+                  scopeLabel="All projects"
+                  onEventClick={(event) => {
+                    setIsCalendarOpen(false);
+                    onCalendarEventClick(event);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Section>
+
+      {/* formatDegreeType helper ensures 'phd' is properly capitalized */}
+      <Section title="Pinned Projects" eyebrow="Dashboard" className="dashboard-pinned-projects">
+        <List
+          items={pinnedProjects}
+          empty="Pin projects to dashboard."
+          onClick={(item) => onProjectClick?.(item.id)}
+          render={(item) => (
+            <>
+              <FolderOpen size={16} />
+              <div>
+                <strong>{item.name}</strong>
+                <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
+              </div>
+            </>
+          )}
+        />
+      </Section>
+
+      <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
+        <List
+          items={pinnedSheets}
+          empty="Pin sheets to dashboard."
+          onClick={(item) => onCalendarEventClick({ project_id: item.project_id, sheet_id: item.sheet_id, page_id: item.id })}
+          render={(item) => (
+            <>
+              <FileText size={16} />
+              <div>
+                <strong>{item.name}</strong>
+                <span>{item.project_name || "Project"} · Created {formatLongDate(item.created_at)}</span>
+              </div>
+            </>
+          )}
+        />
+      </Section>
+
+      <Section title="Pinned Docs" eyebrow="Dashboard" className="dashboard-pinned-docs">
+        <List
+          items={pinnedDocs}
+          empty="Pin docs to dashboard."
+          onClick={(item) => window.open(`${API_BASE}/files/${item.id}/content`, "_blank", "noopener,noreferrer")}
+          render={(item) => (
+            <>
+              <FileText size={16} />
+              <div>
+                <strong>{item.display_name}</strong>
+                <span>{item.file_type || "Document"} · {formatLongDate(item.created_at)}</span>
+              </div>
+            </>
+          )}
+        />
+      </Section>
+
+      <Section title="Next 10 Days" eyebrow="Upcoming row dates" className="dashboard-upcoming">
+        {nextEvents.length ? (
+          <div className="upcoming-event-list">
+            {nextEvents.map((event, index) => (
+              <button
+                className="upcoming-event"
+                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
+                type="button"
+                onClick={() => onCalendarEventClick(event)}
+              >
+                <span>{formatShortDate(event.date_key || event.date)}</span>
+                <div>
+                  <strong>{event.title || "Untitled row"}</strong>
+                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty">No row dates in the next 10 days.</p>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+function futureCalendarCount(events: RecordMap[]) {
+  const today = startOfLocalDay(new Date());
+  return events.filter((event) => {
+    const date = parseLocalDate(event.date_key || event.date);
+    return date ? date >= today : false;
+  }).length;
+}
+
+function nextFeaturedEvent(events: RecordMap[]) {
+  const today = startOfLocalDay(new Date());
+  return [...events]
+    .filter((event) => {
+      const date = parseLocalDate(event.date_key || event.date);
+      return date ? date >= today : false;
+    })
+    .sort((first, second) => {
+      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
+      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
+      return firstDate - secondDate;
+    })[0];
+}
+
+function upcomingEvents(events: RecordMap[], dayWindow: number) {
+  const today = startOfLocalDay(new Date());
+  const end = new Date(today);
+  end.setDate(today.getDate() + dayWindow);
+  return events
+    .filter((event) => {
+      const date = parseLocalDate(event.date_key || event.date);
+      return date ? date >= today && date <= end : false;
+    })
+    .sort((first, second) => {
+      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
+      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
+      return firstDate - secondDate;
+    });
+}
+
+function HierarchyView(props: {
+  degreeWorkspaces: RecordMap[];
+  universities: RecordMap[];
+  programs: RecordMap[];
+  professors: RecordMap[];
+  onChanged: () => Promise<void>;
+}) {
+  const [university, setUniversity] = useForm({ name: "", country: "", region: "", website_url: "", notes: "" });
+  const [program, setProgram] = useForm({ university_id: "", name: "", degree_type: "", department: "", application_url: "", funding_url: "", notes: "" });
+  const [professor, setProfessor] = useForm({ university_id: "", program_id: "", name: "", title: "", email: "", profile_url: "", research_interests: "", notes: "" });
+  const [application, setApplication] = useForm({ degree_workspace_id: "", university_id: "", program_id: "", professor_id: "", status: "Researching", intake_term: "", application_url: "", priority: "Medium", notes: "" });
+  const [deadline, setDeadline] = useForm({ application_id: "", deadline_type: "Application", title: "", due_at: "", notes: "" });
+
+  const universityOptions = props.universities.map((item) => ({ value: String(item.id), label: item.name }));
+  const programOptions = props.programs.map((item) => ({ value: String(item.id), label: item.name }));
+  const professorOptions = props.professors.map((item) => ({ value: String(item.id), label: item.name }));
+  const degreeOptions = props.degreeWorkspaces.map((item) => ({ value: String(item.id), label: item.display_name }));
+
+  return (
+    <div className="page-grid">
+      <Section title="University" eyebrow="Institution">
+        <DataForm fields={[
+          ["name", "Name", true],
+          ["country", "Country", true],
+          ["region", "State / Region"],
+          ["website_url", "Website"],
+          ["notes", "Notes", false, 3]
+        ]} form={university} setForm={setUniversity} onSubmit={() => submit("universities", university, setUniversity, props.onChanged)} />
+      </Section>
+
+      <Section title="Program" eyebrow="Academic target">
+        <DataForm fields={[
+          ["university_id", "University", true, 0, universityOptions],
+          ["name", "Program name", true],
+          ["degree_type", "Degree type", false, 0, degreeTypes],
+          ["department", "Department"],
+          ["application_url", "Application URL"],
+          ["funding_url", "Funding URL"],
+          ["notes", "Notes", false, 3]
+        ]} form={program} setForm={setProgram} onSubmit={() => submit("programs", program, setProgram, props.onChanged)} />
+      </Section>
+
+      <Section title="Professor" eyebrow="Advisor research">
+        <DataForm fields={[
+          ["university_id", "University", false, 0, universityOptions],
+          ["program_id", "Program", false, 0, programOptions],
+          ["name", "Name", true],
+          ["title", "Title"],
+          ["email", "Email"],
+          ["profile_url", "Profile URL"],
+          ["research_interests", "Research interests", false, 3],
+          ["notes", "Notes", false, 3]
+        ]} form={professor} setForm={setProfessor} onSubmit={() => submit("professors", professor, setProfessor, props.onChanged)} />
+      </Section>
+
+      <Section title="Application" eyebrow="Pipeline item">
+        <DataForm fields={[
+          ["degree_workspace_id", "Degree", false, 0, degreeOptions],
+          ["university_id", "University", false, 0, universityOptions],
+          ["program_id", "Program", false, 0, programOptions],
+          ["professor_id", "Professor", false, 0, professorOptions],
+          ["status", "Status", true, 0, applicationStatuses],
+          ["intake_term", "Intake term"],
+          ["application_url", "Application URL"],
+          ["priority", "Priority", false, 0, ["Low", "Medium", "High"]],
+          ["notes", "Notes", false, 3]
+        ]} form={application} setForm={setApplication} onSubmit={() => submit("applications", application, setApplication, props.onChanged)} />
+      </Section>
+
+      <Section title="Deadline" eyebrow="Timeline">
+        <DataForm fields={[
+          ["application_id", "Application id", false],
+          ["deadline_type", "Type", true, 0, ["Application", "Scholarship", "Test", "Interview"]],
+          ["title", "Title", true],
+          ["due_at", "Due date", true],
+          ["notes", "Notes", false, 3]
+        ]} form={deadline} setForm={setDeadline} onSubmit={() => submit("deadlines", deadline, setDeadline, props.onChanged)} />
+      </Section>
+    </div>
+  );
+}
+
+type DocCategoryEntry = {
+  category: RecordMap;
+  slug: string;
+  title: string;
+  files: RecordMap[];
+};
+
+function DocumentView(props: {
+  categories: RecordMap[];
+  files: RecordMap[];
+  onChanged: () => Promise<void>;
+  onToast: (msg: string) => void;
+  showAlert: (msg: string, title?: string) => Promise<void>;
+  showConfirm: (msg: string, title?: string) => Promise<boolean>;
+}) {
+  const [editingFile, setEditingFile] = useState<RecordMap | null>(null);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedDocCategory, setSelectedDocCategory] = useState<string | null>(null);
+  const [selectedUploadFileName, setSelectedUploadFileName] = useState("");
+  const [categoryEditor, setCategoryEditor] = useState<{ mode: "create" | "rename"; category?: RecordMap } | null>(null);
+  const [categoryName, setCategoryName] = useState("");
+  const [editFileForm, setEditFileForm] = useState({ display_name: "", file_type: "", notes: "" });
+  const [pinningFileKey, setPinningFileKey] = useState<string | null>(null);
+
+  const closeUploadModal = () => {
+    setIsUploadOpen(false);
+    setSelectedUploadFileName("");
+  };
+
+  const uploadFile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    if (!form.get("file_type") || form.get("file_type") === "") {
+      form.set("file_type", form.get("category") as string);
+    }
+    await api.upload<RecordMap>("/files/upload", form);
+    props.onToast("Document uploaded.");
+    formEl.reset();
+    closeUploadModal();
+    await props.onChanged();
+  };
+
+  const deleteDocument = async (fileId: number) => {
+    const confirmed = await props.showConfirm("Are you sure you want to delete this document?", "Delete Document");
+    if (!confirmed) return;
+    await deleteRecord("static_files", fileId);
+    props.onToast("Document deleted.");
+    await props.onChanged();
+  };
+
+  const updateDocPin = async (file: RecordMap, data: RecordMap, label: string) => {
+    const pinKey = `${file.id}-${Object.keys(data)[0]}`;
+    setPinningFileKey(pinKey);
+    try {
+      await api.patch(`/static_files/${file.id}`, { data });
+      props.onToast(label);
+      await props.onChanged();
+    } catch (e: any) {
+      props.onToast(`Error: ${e.message}`);
+    } finally { setPinningFileKey(null); }
+  };
+
+  const startEditFile = (file: RecordMap) => {
+    setEditingFile(file);
+    setEditFileForm({
+      display_name: file.display_name || "",
+      file_type: file.file_type || "other",
+      notes: file.notes || ""
+    });
+  };
+
+  const saveFileEdit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingFile) return;
+    try {
+      await api.patch(`/static_files/${editingFile.id}`, { data: editFileForm });
+      props.onToast("Document updated.");
+      setEditingFile(null);
+      await props.onChanged();
+    } catch (err: any) {
+      await props.showAlert(err.message || "Failed to update document.", "Error");
+    }
+  };
+
+  const openCategoryEditor = (mode: "create" | "rename", category?: RecordMap) => {
+    setCategoryEditor({ mode, category });
+    setCategoryName(category?.display_name || "");
+  };
+
+  const saveCategory = async (event: FormEvent) => {
+    event.preventDefault();
+    const cleanName = categoryName.trim();
+    if (!cleanName) return;
+    try {
+      if (categoryEditor?.mode === "rename" && categoryEditor.category) {
+        await api.patch(`/document_categories/${categoryEditor.category.id}`, { name: cleanName });
+        props.onToast("Category renamed.");
+      } else {
+        await api.post("/document_categories", { name: cleanName });
+        props.onToast("Category created.");
+      }
+      setCategoryEditor(null);
+      setCategoryName("");
+      await props.onChanged();
+    } catch (err: any) {
+      props.onToast(err.message || "Failed to save category.");
+    }
+  };
+
+  const deleteCategory = async (event: React.MouseEvent, category: any, fileCount: number) => {
+    event.stopPropagation();
+    const detail = fileCount > 0 ? `\n\nThis will also un-categorize ${fileCount} document(s).` : "";
+    const confirmed = await props.showConfirm(`Delete "${category.display_name}" category?${detail}`, "Delete Category");
+    if (!confirmed) return;
+    try {
+      await api.delete(`/document_categories/${category.id}`);
+      if (selectedDocCategory === category.slug) setSelectedDocCategory(null);
+      props.onToast("Category deleted.");
+      await props.onChanged();
+    } catch (err: any) {
+      props.showAlert(err.message || "Failed to delete category.", "Error");
+    }
+  };
+
+  const groupedFiles = props.files.reduce((acc, file) => {
+    const category = file.file_type || "other";
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(file);
+    return acc;
+  }, {} as Record<string, RecordMap[]>);
+
+  Object.keys(groupedFiles).forEach((category) => {
+    groupedFiles[category].sort((a: RecordMap, b: RecordMap) => {
+      if (a.is_pinned !== b.is_pinned) {
+        return a.is_pinned ? -1 : 1;
+      }
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+  });
+
+  const formatUploadedTime = (utcString?: string) => {
+    if (!utcString) return "";
+    try {
+      const clean = utcString.replace(" ", "T") + (utcString.endsWith("Z") ? "" : "Z");
+      const date = new Date(clean);
+      if (isNaN(date.getTime())) return utcString;
+
+      const pad = (num: number) => String(num).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    } catch (e) {
+      return utcString;
+    }
+  };
+
+  const fallbackCategories: RecordMap[] = mediaCategories.map((slug) => ({ slug, display_name: formatCategoryTitle(slug) }));
+  const categoryOptions = props.categories.length ? props.categories : fallbackCategories;
+
+  function formatCategoryTitle(category: string) {
+    const labels: Record<string, string> = {
+      cvs: "CVs",
+      sop: "SOP",
+      "test-scores": "Test Scores"
+    };
+    return labels[category] || category
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
+  const categoryEntries: DocCategoryEntry[] = [
+    ...categoryOptions.map((category) => ({
+      category,
+      slug: category.slug,
+      title: category.display_name || formatCategoryTitle(category.slug),
+      files: groupedFiles[category.slug] || []
+    })),
+    ...Object.entries(groupedFiles)
+      .filter(([slug]) => !categoryOptions.some((category) => category.slug === slug))
+      .map(([slug, files]) => ({
+        category: { slug, display_name: formatCategoryTitle(slug) },
+        slug,
+        title: formatCategoryTitle(slug),
+        files
+      }))
+  ];
+
+  const selectedCategoryFiles = selectedDocCategory ? groupedFiles[selectedDocCategory] || [] : [];
+  const selectedCategoryEntry = categoryEntries.find((entry) => entry.slug === selectedDocCategory);
+
+  const renderDocumentFile = (file: RecordMap) => (
+    <div key={file.id} className="doc-file-row">
+      <FileText size={15} className="doc-file-icon" />
+      <div className="doc-file-info">
+        <a href={`${API_BASE}/files/${file.id}/content`} target="_blank" rel="noreferrer" className="doc-file-name">{file.display_name}</a>
+        <span className="doc-file-path">{formatUploadedTime(file.created_at)}</span>
+        {file.notes ? <p className="doc-file-notes">{file.notes}</p> : null}
+      </div>
+      <div className="doc-file-actions" style={{ display: "flex", gap: "6px" }}>
+        <button
+          type="button"
+          className={`icon-button compact doc-pin-action ${file.is_pinned ? "active" : ""}`}
+          disabled={pinningFileKey === `${file.id}-is_pinned`}
+          onClick={() => updateDocPin(file, { is_pinned: !file.is_pinned }, file.is_pinned ? "Document unpinned." : "Document pinned.")}
+          title={file.is_pinned ? "Unpin from this view" : "Pin to this view"} aria-label={file.is_pinned ? `Unpin ${file.display_name} from documents` : `Pin ${file.display_name} in documents`}
+        >
+          <Pin size={15} />
+        </button>
+        <button
+          type="button"
+          className={`icon-button compact doc-pin-action dashboard-pin-action ${file.pinned_to_dashboard ? "active" : ""}`}
+          disabled={pinningFileKey === `${file.id}-pinned_to_dashboard`}
+          onClick={() => updateDocPin(file, { pinned_to_dashboard: !file.pinned_to_dashboard }, file.pinned_to_dashboard ? "Removed from dashboard." : "Pinned to dashboard.")}
+          title={file.pinned_to_dashboard ? "Remove from dashboard" : "Pin to dashboard"} aria-label={file.pinned_to_dashboard ? `Remove ${file.display_name} from dashboard` : `Pin ${file.display_name} to dashboard`}
+        >
+          <LayoutDashboard size={15} />
+        </button>
+        <button
+          type="button"
+          className="icon-button compact"
+          onClick={() => startEditFile(file)}
+          title="Edit document info"
+        >
+          <Edit size={15} />
+        </button>
+        <button
+          type="button"
+          className="icon-button compact danger"
+          onClick={() => deleteDocument(file.id)}
+          title="Delete document"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="page-grid doc-grid">
+      {isUploadOpen ? (
+        <div className="modal-backdrop" onClick={closeUploadModal}>
+          <form className="modal-panel small-modal-panel doc-upload-panel" onClick={(event) => event.stopPropagation()} onSubmit={uploadFile}>
+            <div className="modal-header">
+              <div className="doc-upload-title">
+                <span className="doc-upload-title-icon">
+                  <Upload size={18} />
+                </span>
+                <div>
+                  <p className="eyebrow">Local file</p>
+                  <h2>Upload Document</h2>
+                </div>
+              </div>
+              <button className="icon-button" type="button" onClick={closeUploadModal} title="Close form">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content doc-upload-content">
+              <label className="field full">
+                <span>Category</span>
+                <select name="category">
+                  {categoryOptions.map((item) => <option key={item.slug} value={item.slug}>{item.display_name}</option>)}
+                </select>
+              </label>
+              <label className="field full doc-upload-file-field">
+                <span>File</span>
+                <div className="doc-upload-dropzone">
+                  <input
+                    className="doc-upload-file-input"
+                    name="file"
+                    type="file"
+                    required
+                    onChange={(event) => setSelectedUploadFileName(event.target.files?.[0]?.name || "")}
+                  />
+                  <span className="doc-upload-file-icon">
+                    <FileText size={20} />
+                  </span>
+                  <div>
+                    <strong>{selectedUploadFileName || "Choose a document"}</strong>
+                    <small>{selectedUploadFileName ? "Ready to store locally" : "PDF, image, or prepared document"}</small>
+                  </div>
+                </div>
+              </label>
+              <label className="field full">
+                <span>Notes <small>(optional)</small></span>
+                <textarea name="notes" rows={3} placeholder="Add a short note for this file..." />
+              </label>
+            </div>
+            <div className="modal-footer doc-upload-footer">
+              <button className="secondary" type="button" onClick={closeUploadModal}>Cancel</button>
+              <button className="primary full" type="submit">
+                <Upload size={16} /> Store file
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      <div className="doc-list-sections">
+        <div className="doc-action-row">
+          <button className="secondary" type="button" onClick={() => openCategoryEditor("create")}>
+            New category
+          </button>
+          <button className="primary" type="button" onClick={() => setIsUploadOpen(true)}>
+            <Upload size={16} /> Upload Document
+          </button>
+        </div>
+        {categoryEntries.length ? (
+          <div className="doc-category-grid">
+            {categoryEntries.map(({ category, slug, title, files: catFiles }) => (
+              <article
+                className="doc-category-card"
+                key={slug}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedDocCategory(slug)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedDocCategory(slug);
+                  }
+                }}
+              >
+                <span className="doc-category-card-actions">
+                  <button
+                    className="icon-button compact"
+                    type="button"
+                    title="Rename category"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (category.id) openCategoryEditor("rename", category);
+                    }}
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button
+                    className="icon-button compact danger"
+                    type="button"
+                    title="Delete category"
+                    onClick={(event) => deleteCategory(event, category, catFiles.length)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </span>
+                <span className="doc-category-card-count">
+                  {catFiles.length} document{catFiles.length === 1 ? "" : "s"}
+                </span>
+                <strong>{title}</strong>
+                <span className="doc-category-card-meta">
+                  {catFiles.length ? `Latest ${formatUploadedTime(catFiles[0]?.created_at)}` : "No documents yet"}
+                </span>
+                <span className="doc-category-card-action">Open files</span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <Section title="Uploaded Documents" eyebrow="0 files" className="doc-list-section">
+            <p className="empty">Upload SOPs, proposals, certificates, transcripts, CVs, and other prepared files here. Link them from sheet records.</p>
+          </Section>
+        )}
+      </div>
+
+      {selectedDocCategory ? (
+        <div className="modal-backdrop" onClick={() => setSelectedDocCategory(null)}>
+          <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">{selectedCategoryFiles.length} document{selectedCategoryFiles.length === 1 ? "" : "s"}</p>
+                <h2>{selectedCategoryEntry?.title || formatCategoryTitle(selectedDocCategory)}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setSelectedDocCategory(null)} title="Close files">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content doc-category-modal-content">
+              <div className="doc-file-list">
+                {selectedCategoryFiles.map(renderDocumentFile)}
+                {!selectedCategoryFiles.length ? <p className="empty">No documents in this category yet.</p> : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {categoryEditor ? (
+        <div className="modal-backdrop" onClick={() => setCategoryEditor(null)}>
+          <form className="modal-panel small-modal-panel doc-category-editor" onClick={(event) => event.stopPropagation()} onSubmit={saveCategory}>
+            <div className="modal-header">
+              <h2>{categoryEditor.mode === "rename" ? "Rename Category" : "Create Category"}</h2>
+              <button className="icon-button" type="button" onClick={() => setCategoryEditor(null)} title="Close category form">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content">
+              <label className="field">
+                <span>Category name</span>
+                <input
+                  autoFocus
+                  value={categoryName}
+                  onChange={(event) => setCategoryName(event.target.value)}
+                  placeholder="Recommendation letters"
+                  required
+                />
+              </label>
+            </div>
+            <div className="modal-footer">
+              <button className="secondary" type="button" onClick={() => setCategoryEditor(null)}>Cancel</button>
+              <button className="primary" type="submit">{categoryEditor.mode === "rename" ? "Save category" : "Create category"}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {editingFile ? (
+        <div className="modal-backdrop" onClick={() => setEditingFile(null)}>
+          <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveFileEdit}>
+            <div className="modal-header">
+              <h2>Edit Document</h2>
+              <button className="icon-button" type="button" onClick={() => setEditingFile(null)} title="Close form">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <label className="field">
+                <span>Document title</span>
+                <input
+                  value={editFileForm.display_name}
+                  onChange={(e) => setEditFileForm(prev => ({ ...prev, display_name: e.target.value }))}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Category</span>
+                <select
+                  value={editFileForm.file_type}
+                  onChange={(e) => setEditFileForm(prev => ({ ...prev, file_type: e.target.value }))}
+                >
+                  {categoryOptions.some((item) => item.slug === editFileForm.file_type) ? null : (
+                    <option value={editFileForm.file_type}>{formatCategoryTitle(editFileForm.file_type)}</option>
+                  )}
+                  {categoryOptions.map((item) => <option key={item.slug} value={item.slug}>{item.display_name}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Notes (optional)</span>
+                <textarea
+                  value={editFileForm.notes}
+                  onChange={(e) => setEditFileForm(prev => ({ ...prev, notes: e.target.value }))}
+                  rows={3}
+                />
+              </label>
+            </div>
+            <div className="modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button className="secondary" type="button" onClick={() => setEditingFile(null)}>Cancel</button>
+              <button className="primary" type="submit">Save changes</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type SelectOption = string | { value: string; label: string };
+type FieldConfig = [string, string, boolean?, number?, SelectOption[]?];
+
+function DataForm({
+  fields,
+  form,
+  setForm,
+  onSubmit
+}: {
+  fields: FieldConfig[];
+  form: Record<string, string>;
+  setForm: (name: string, value: string) => void;
+  onSubmit: () => Promise<void>;
+}) {
+  const submitForm = async (event: FormEvent) => {
+    event.preventDefault();
+    await onSubmit();
+  };
+  return (
+    <form className="form-grid" onSubmit={submitForm}>
+      {fields.map(([name, label, required, rows, options]) => (
+        <Field
+          key={name}
+          label={label}
+          name={name}
+          value={form[name] ?? ""}
+          required={required}
+          rows={rows || undefined}
+          options={options}
+          onChange={setForm}
+        />
+      ))}
+      <button className="primary full" type="submit">
+        Save
+      </button>
+    </form>
+  );
+}
+
+function List({ items, empty, onClick, render }: { items: RecordMap[]; empty: string; onClick?: (item: RecordMap) => void; render: (item: RecordMap) => ReactNode }) {
+  if (!items.length) {
+    return <p className="empty">{empty}</p>;
+  }
+  return (
+    <div className="list">
+      {items.map((item) => (
+        <article
+          key={item.id}
+          onClick={onClick ? () => onClick(item) : undefined}
+          style={onClick ? { cursor: 'pointer' } : undefined}
+        >
+          {render(item)}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function useForm(initial: Record<string, string>): [Record<string, string>, (name: string, value: string) => void] {
+  const [form, setForm] = useState(initial);
+  const update = (name: string, value: string) => setForm((current) => ({ ...current, [name]: value }));
+  return [form, update];
+}
+
+async function submit(
+  table: string,
+  form: Record<string, string>,
+  setForm: (name: string, value: string) => void,
+  onChanged: () => Promise<void>
+) {
+  await createRecord(table, cleanData(form));
+  await onChanged();
+}
+
+function cleanData(data: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== "")
+      .map(([key, value]) => {
+        const numericKeys = new Set(["id", "university_id", "program_id", "professor_id", "degree_workspace_id", "application_id", "template_id", "document_id", "email_draft_id", "owner_id"]);
+        return [key, numericKeys.has(key) ? Number(value) : value];
+      })
+  );
+}
+
+function findName(rows: RecordMap[], id: number | string | null | undefined) {
+  return rows.find((item) => String(item.id) === String(id))?.name ?? "";
+}

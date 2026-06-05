@@ -1,0 +1,510 @@
+.sticky-notes-view {
+  height: 100%;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.sticky-board {
+  background: #f0ede6 radial-gradient(circle at 18% 12%, rgba(208, 230, 219, 0.1), transparent 32%);
+  border: 1px solid rgba(65, 126, 112, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 20px 46px rgba(28, 45, 38, 0.08);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sticky-board-head {
+  align-items: center;
+  background:
+    radial-gradient(circle at 88% 14%, rgba(155, 184, 174, 0.22), transparent 30%),
+    linear-gradient(135deg, rgba(230, 244, 235, 0.92), rgba(255, 251, 238, 0.92));
+  border-bottom: 1px solid rgba(65, 126, 112, 0.14);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.sticky-board h2,
+.sticky-note-modal h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.sticky-note-modal {
+  max-height: min(720px, 86vh);
+  width: min(560px, 92vw);
+}
+
+.sticky-note-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.sticky-title-input,
+.sticky-note-form textarea,
+.sticky-check-add input {
+  background: #fffdf8;
+  border: 1px solid rgba(38, 69, 59, 0.16);
+  border-radius: 12px;
+  color: #18221e;
+  outline: none;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.sticky-note-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.sticky-title-input:focus,
+.sticky-note-form textarea:focus,
+.sticky-check-add input:focus {
+  border-color: #2f8579;
+  box-shadow: 0 0 0 3px rgba(47, 133, 121, 0.12);
+}
+
+.sticky-tools,
+.sticky-color-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sticky-color-row {
+  background: rgba(248, 246, 240, 0.86);
+  border: 1px solid rgba(38, 69, 59, 0.1);
+  border-radius: 999px;
+  padding: 7px 10px;
+}
+
+.sticky-swatch {
+  border: 2px solid rgba(24, 34, 30, 0.14);
+  border-radius: 999px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  width: 22px;
+}
+
+.sticky-swatch.selected {
+  border-color: #1f6f64;
+  box-shadow: 0 0 0 3px rgba(31, 111, 100, 0.14);
+}
+
+.sticky-tool {
+  align-items: center;
+  background: #fffdf8;
+  border: 1px solid rgba(38, 69, 59, 0.12);
+  border-radius: 999px;
+  color: #3d514a;
+  display: inline-flex;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.sticky-tool.active {
+  background: #1f6f64;
+  color: #fffdf8;
+}
+
+.sticky-check-editor {
+  background: rgba(255, 253, 248, 0.72);
+  border: 1px dashed rgba(65, 126, 112, 0.28);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.sticky-check-add {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 42px;
+}
+
+.sticky-check-add button,
+.sticky-check-row button {
+  align-items: center;
+  background: #e5f2ee;
+  border: 1px solid rgba(31, 111, 100, 0.16);
+  border-radius: 10px;
+  color: #1f6f64;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.sticky-check-items {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.sticky-check-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 32px minmax(0, 1fr) 28px;
+}
+
+.sticky-check-row button {
+  height: 28px;
+  padding: 0;
+}
+
+.sticky-check-row button span {
+  border: 1px solid rgba(31, 111, 100, 0.36);
+  border-radius: 6px;
+  display: block;
+  height: 15px;
+  width: 15px;
+}
+
+.sticky-check-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sticky-check-row .done,
+.sticky-check-list .checked {
+  opacity: 0.62;
+  text-decoration: line-through;
+}
+
+.sticky-check-row .ghost-danger {
+  background: transparent;
+  border-color: transparent;
+  color: #a24b4b;
+}
+
+.sticky-card-grid {
+  align-content: start;
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+  overflow: auto;
+  padding: 24px;
+}
+
+.sticky-card {
+  border: 1px solid rgba(36, 57, 49, 0.12);
+  border-radius: 6px 18px 8px 18px;
+  box-shadow: 0 8px 16px rgba(31, 44, 39, 0.08);
+  color: #17201d;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 280px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 18px;
+  position: relative;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+}
+
+.sticky-card:hover {
+  box-shadow: 0 22px 42px rgba(31, 44, 39, 0.16);
+  transform: translateY(-2px) rotate(0deg);
+}
+
+.sticky-card::before {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
+  box-shadow: 0 2px 5px rgba(23, 32, 29, 0.1);
+  content: "";
+  height: 26px;
+  left: 50%;
+  position: absolute;
+  top: -8px;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 90px;
+  z-index: 10;
+}
+
+.sticky-card::after {
+  background: linear-gradient(90deg, rgba(23, 32, 29, 0.08), transparent);
+  content: "";
+  inset: 0 auto 0 0;
+  position: absolute;
+  width: 4px;
+}
+
+.sticky-card.color-sun { background: #f8dfa3; }
+.sticky-card.color-mint { background: #caead8; }
+.sticky-card.color-sky { background: #c9e3f5; }
+.sticky-card.color-rose { background: #f3c8c8; }
+.sticky-card.color-lilac { background: #ddd0f2; }
+.sticky-card.color-sand { background: #eadcc4; }
+.sticky-card.tilt-0 { transform: rotate(1deg); }
+.sticky-card.tilt-1 { transform: rotate(-2deg); }
+.sticky-card.tilt-2 { transform: rotate(1.5deg); }
+.sticky-card.tilt-3 { transform: rotate(-1deg); }
+
+.sticky-card-head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sticky-title-wrap {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sticky-card-kicker {
+  color: rgba(23, 32, 29, 0.5);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.sticky-card-head strong {
+  font-size: 17px;
+  line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+
+.sticky-card-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.sticky-card.has-view .sticky-card-content::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.28));
+  bottom: 0;
+  content: "";
+  height: 44px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
+.sticky-body {
+  color: rgba(23, 32, 29, 0.78);
+  line-height: 1.3;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 22px;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sticky-check-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sticky-check-list .check-item,
+.sticky-check-list button {
+  background: transparent;
+  border: 0;
+  color: rgba(23, 32, 29, 0.78);
+  cursor: pointer;
+  display: flex;
+  font-family: 'Caveat', cursive;
+  font-size: 20px;
+  gap: 10px;
+  line-height: 1.2;
+  padding: 4px 0;
+  text-align: left;
+}
+
+.sticky-more {
+  background: rgba(255, 255, 255, 0.34);
+  color: rgba(23, 32, 29, 0.64);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  text-align: center;
+  border-radius: 4px;
+  margin-top: 8px;
+  padding: 0 12px;
+}
+
+.sticky-check-list.expanded {
+  margin-top: 16px;
+}
+
+.sticky-check-list.expanded button {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.sticky-check-list .check-item span,
+.sticky-check-list button span {
+  align-items: center;
+  border: 1px solid rgba(23, 32, 29, 0.32);
+  border-radius: 6px;
+  display: inline-flex;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+.sticky-card small {
+  align-self: end;
+  border-top: 1px solid rgba(23, 32, 29, 0.08);
+  color: rgba(23, 32, 29, 0.52);
+  font-size: 16px;
+  padding-top: 10px;
+  margin-top: auto;
+}
+
+.sticky-action-btn {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  color: rgba(23, 32, 29, 0.7);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 6px;
+  transition: all 0.2s ease;
+}
+.sticky-action-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(23, 32, 29, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.sticky-action-btn.danger:hover {
+  color: #a24b4b;
+}
+
+.sticky-view-modal {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.46), transparent 32%),
+    #f8dfa3;
+  width: min(680px, 92vw);
+}
+
+.sticky-view-modal h2 {
+  font-family: 'Caveat', cursive;
+  font-size: 32px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.view-note-action {
+  color: #1f6f72;
+}
+
+.sticky-view-modal.color-mint { background-color: #caead8; }
+.sticky-view-modal.color-sky { background-color: #c9e3f5; }
+.sticky-view-modal.color-rose { background-color: #f3c8c8; }
+.sticky-view-modal.color-lilac { background-color: #ddd0f2; }
+.sticky-view-modal.color-sand { background-color: #eadcc4; }
+
+.sticky-view-content {
+  max-height: min(560px, 62vh);
+  overflow: auto;
+  padding: 20px 24px;
+}
+
+.sticky-view-content .sticky-body {
+  font-family: 'Caveat', cursive;
+  font-size: 28px;
+  display: block;
+}
+
+.sticky-view-date {
+  color: rgba(23, 32, 29, 0.52);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filter-chip {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 0.5px solid rgba(0, 0, 0, 0.15);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.filter-chip.active {
+  background: #0F6E56;
+  color: #fff;
+  border-color: #0F6E56;
+}
+
+.sticky-empty {
+  align-items: center;
+  color: #62746c;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.sticky-empty svg {
+  color: #2f8579;
+}
+
+@media (max-width: 980px) {
+  .sticky-notes-view {
+    overflow: auto;
+  }
+
+  .sticky-board {
+    min-height: 640px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sticky-board-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sticky-board-head .primary {
+    width: 100%;
+  }
+}
+.sticky-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sticky-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(23, 32, 29, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 40px;
+}
+.sticky-progress-fill {
+  height: 100%;
+  background: rgba(23, 32, 29, 0.5);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}

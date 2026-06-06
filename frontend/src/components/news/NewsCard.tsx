@@ -9,6 +9,11 @@ interface NewsCardProps {
 }
 
 export function NewsCard({ article, isBookmarked, onToggleBookmark }: NewsCardProps) {
+  const description = article.description?.trim();
+  const descriptionPreview = description && description.length > 180
+    ? `${description.substring(0, 177).trimEnd()}...`
+    : description;
+
   return (
     <article className="news-card">
       {article.image_url && (
@@ -16,18 +21,18 @@ export function NewsCard({ article, isBookmarked, onToggleBookmark }: NewsCardPr
       )}
       <div className="news-card-content">
         <div className="news-card-header">
-          <span className="news-source">{article.source_name || "News"}</span>
+          <span className="news-source">{article.source_name || "Source"}</span>
           {article.pubDate && (
-            <span className="news-date">{new Date(article.pubDate).toLocaleDateString()}</span>
+            <span className="news-date">Updated {new Date(article.pubDate).toLocaleDateString()}</span>
           )}
         </div>
         <h3 className="news-title">{article.title}</h3>
-        {article.description && (
-          <p className="news-description">{article.description.substring(0, 150)}...</p>
+        {descriptionPreview && (
+          <p className="news-description">{descriptionPreview}</p>
         )}
         <div className="news-card-actions">
           <a href={article.link} target="_blank" rel="noopener noreferrer" className="news-link-btn button-secondary">
-            Read More <ExternalLink size={14} />
+            View Details <ExternalLink size={14} />
           </a>
           <button 
             className={`icon-button bookmark-btn ${isBookmarked ? "bookmarked" : ""}`} 

@@ -67,7 +67,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
       if (error.message?.includes("429") || error.message?.includes("Limit exceeded")) {
         onToast("Rate limit exceeded. Upgrade your plan for more searches.");
       } else {
-        onToast("Failed to fetch scholarship news.");
+        onToast("Failed to find scholarship opportunities.");
       }
       if (!append) setArticles([]);
       setHasMore(false);
@@ -157,7 +157,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
   return (
     <div className="scholarship-news-view">
       <div className="news-toolbar">
-        <h1>{showBookmarksOnly ? "Saved Scholarships" : "Scholarship News"}</h1>
+        <h1>{showBookmarksOnly ? "Saved Scholarships" : "Scholarship Hunt"}</h1>
         <div className="news-toolbar-actions" style={{ alignItems: 'center' }}>
           {!showBookmarksOnly && (
             <div style={{ display: 'flex', gap: '16px', marginRight: '8px', fontSize: '0.8rem', color: '#65756d', fontWeight: 600, background: 'rgba(47, 109, 122, 0.05)', padding: '6px 12px', borderRadius: '8px' }}>

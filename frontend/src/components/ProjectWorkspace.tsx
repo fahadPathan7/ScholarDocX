@@ -1345,11 +1345,11 @@ export function ProjectWorkspace({
                     <div key={index} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <div className="edit-column-item">
                         <div className="drag-handle-reorder">
-                          <button className="icon-button compact" type="button" disabled={index === 0} onClick={() => moveColumnUp(index)} title="Move up">
-                            <ChevronUp size={14} />
+                          <button className="icon-button" style={{ padding: "4px", width: "28px", minHeight: "28px" }} type="button" disabled={index === 0} onClick={() => moveColumnUp(index)} title="Move up">
+                            <ChevronUp size={16} />
                           </button>
-                          <button className="icon-button compact" type="button" disabled={index === tempColumns.length - 1} onClick={() => moveColumnDown(index)} title="Move down">
-                            <ChevronDown size={14} />
+                          <button className="icon-button" style={{ padding: "4px", width: "28px", minHeight: "28px" }} type="button" disabled={index === tempColumns.length - 1} onClick={() => moveColumnDown(index)} title="Move down">
+                            <ChevronDown size={16} />
                           </button>
                         </div>
                         <input
@@ -1394,7 +1394,7 @@ export function ProjectWorkspace({
                                 key={color}
                                 type="button"
                                 className={`color-swatch ${col.color === color ? 'active' : ''}`}
-                                style={{ backgroundColor: color, width: '18px', height: '18px' }}
+                                style={{ backgroundColor: color, width: '18px', height: '18px', borderRadius: '50%' }}
                                 onClick={() => updateTempColumn(index, "color", color)}
                                 title={`Select color ${color}`}
                               />
@@ -1402,8 +1402,8 @@ export function ProjectWorkspace({
                           </div>
                         )}
                         <span className="column-type-badge">{col.type}</span>
-                        <button className="icon-button compact danger-hover" type="button" onClick={() => deleteColumnLocal(col.name)} title="Delete column">
-                          <Trash2 size={14} />
+                        <button className="icon-button danger-hover" style={{ padding: "4px", width: "32px", minHeight: "32px" }} type="button" onClick={() => deleteColumnLocal(col.name)} title="Delete column">
+                          <Trash2 size={16} />
                         </button>
                       </div>
                       {col.type === "select" && (

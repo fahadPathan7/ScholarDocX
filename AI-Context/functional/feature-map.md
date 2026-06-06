@@ -11,6 +11,7 @@
 7. Email and outreach manager
 8. AI assistant
 9. Optional authentication and identity
+10. Scholarship Hunt and academic funding discovery
 
 ## Dependency Flow
 
@@ -28,6 +29,8 @@ flowchart TD
   AI --> Docs
   Auth["Optional Google signin / local profile"] --> AI
   Auth --> Reminders
+  Auth --> News["Scholarship Hunt"]
+  News --> Dashboard
 ```
 
 ## Cross-Feature Rules
@@ -38,3 +41,5 @@ flowchart TD
 - The global dashboard must aggregate across all enabled degree workspaces.
 - AI should assist with existing context but not become the system of record.
 - Authentication is optional for MVP and must not block local-only workflows unless a later decision changes this.
+- Scholarship Hunt must prioritize explicit scholarship/funding relevance over
+  broad web matches and remain isolated from AI-chat web research.

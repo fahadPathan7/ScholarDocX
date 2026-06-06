@@ -25,15 +25,15 @@ export function NewsFeed({ articles, bookmarks, isLoading, hasMore, hasFilters =
       return (
         <div className="news-empty-state">
           <p>Please select at least one filter.</p>
-          <p className="news-empty-subtext">Choose your preferences and click "Search" to view scholarship news. Each search consumes 1 credit.</p>
+          <p className="news-empty-subtext">Set your preferences and start the hunt for open and upcoming scholarships. Each search uses 1 credit.</p>
         </div>
       );
     }
     
     return (
       <div className="news-empty-state">
-        <p>No scholarship news found matching your criteria.</p>
-        <p className="news-empty-subtext">Try adjusting your filters to see more results.</p>
+        <p>No open or upcoming opportunities matched these filters.</p>
+        <p className="news-empty-subtext">Try broadening the region, study area, or funding filters.</p>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export function NewsFeed({ articles, bookmarks, isLoading, hasMore, hasFilters =
       {isLoading && (
         <div className="news-loading">
           <Loader2 className="icon-spin" size={24} />
-          <span>Loading more news...</span>
+          <span>Finding current scholarship opportunities...</span>
         </div>
       )}
       {!isLoading && hasMore && (
@@ -66,7 +66,7 @@ export function NewsFeed({ articles, bookmarks, isLoading, hasMore, hasFilters =
             className="load-more-btn" 
             onClick={onLoadMore}
           >
-            <span>Load More News</span>
+            <span>Find More Opportunities</span>
             <span className="credit-badge">1 Credit</span>
           </button>
         </div>

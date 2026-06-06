@@ -36,7 +36,7 @@ async def search_news(
     store: Store = Depends(get_store),
 ):
     if not news_service.api_key:
-        raise HTTPException(status_code=500, detail="NewsData API key is not configured.")
+        raise HTTPException(status_code=500, detail="Tavily API key is not configured.")
         
     try:
         # Check both limits first without incrementing

@@ -5,7 +5,8 @@
 - GLM AI API for chat, drafting, summarization, and rewriting.
 - Google AI Studio Gemini API for optional chat, drafting, summarization, and
   rewriting fallback.
-- Tavily API for real-time web research.
+- Tavily API for real-time AI-chat web research and the separate filtered
+  Scholarship Hunt web-discovery workspace.
 
 Gemini support is built around free-tier local use:
 
@@ -33,6 +34,50 @@ backend/app/integrations/gemini/
 backend/app/integrations/tavily/
 backend/app/services/ai_assistant/
 ```
+
+## Scholarship Hunt Search
+
+- The frontend sends structured filters to the local `/news/search` endpoint.
+- `backend/app/services/news_service.py` owns a dedicated Tavily adapter and
+  must not call the AI assistant research service.
+- The service reads the backend machine's local date for each search; query
+  dates and current/next application cycles are never hard-coded in production.
+- The backend converts UI labels into a focused natural-language web query.
+- Query text expresses selected values as natural scholarship-search phrases
+  and defines geography as the institution/study destination rather than
+  applicant nationality.
+- Named scholarships use canonical names and common aliases. Broad searches
+  include scholarship/fellowship/funding intent plus selected degree, region,
+  study-area, funding, and season terms.
+- Query construction injects the backend's exact current date, current/next
+  application years, and open/upcoming intent while excluding closed, expired,
+  archived, and past-deadline cycles.
+- Each submitted search makes one `POST https://api.tavily.com/search` request
+  with `search_depth: basic`, `topic: general`, `auto_parameters: false`,
+  `max_results: 20`, and answer/raw-content/image options disabled.
+- Social/video domains such as YouTube, Facebook, Instagram, LinkedIn, TikTok,
+  Threads, X, and Twitter are excluded in the same request.
+- Scholarship Hunt does not use Tavily Extract, Crawl, Research, AI answer
+  generation, provider fallback, automatic retries, or provider pagination.
+- Tavily results are normalized into the existing `NewsResponse` card contract
+  with stable URL-derived IDs, source hostnames, snippets, and optional dates.
+- Provider responses are relevance-checked and deduplicated before returning
+  them to the frontend. ScholarDock must prefer an empty result set over
+  unrelated content.
+- Local post-processing parses deadline-context dates from titles/snippets,
+  removes explicitly closed or wholly expired results, and sorts future
+  deadlines and official sources first. Provider publication-date filters are
+  not used as a substitute for application-deadline checks.
+- Local post-processing also validates every selected dimension: level,
+  destination, study area, funding type, season, and named scholarship.
+  Dimensions use AND semantics; selections within a dimension use OR.
+- Destination matching rejects nationality/audience titles and generic
+  country-domain evidence. Academic country domains may establish institution
+  location; government and publisher pages still need explicit study-location
+  text.
+- Existing `news_searches_per_day` and `news_searches_per_month` limits are
+  checked before the call and incremented only after provider success.
+- AI-chat `web_searches_*` counters and `/ai/research` behavior are unchanged.
 
 ## API Key Handling
 

@@ -40,6 +40,9 @@ export const searchNews = async (params: NewsSearchParams): Promise<NewsResponse
   if (params.years) params.years.forEach(v => query.append("years", v));
   if (params.funding_types) params.funding_types.forEach(v => query.append("funding_types", v));
   if (params.fields_of_study) params.fields_of_study.forEach(v => query.append("fields_of_study", v));
+  if (params.popular_scholarships) {
+    params.popular_scholarships.forEach(v => query.append("popular_scholarships", v));
+  }
   
   if (params.language) query.append("language", params.language);
   if (params.sort_by) query.append("sort_by", params.sort_by);

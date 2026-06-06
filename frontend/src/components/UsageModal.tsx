@@ -3,6 +3,11 @@ import { useUsage } from "../contexts/UsageContext";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 
+const USAGE_LABELS: Record<string, string> = {
+  news_searches_per_day: "Scholarship Hunt Searches Per Day",
+  news_searches_per_month: "Scholarship Hunt Searches Per Month",
+};
+
 function ModalPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -54,7 +59,8 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                   k !== "records_per_sheet" &&
                   k !== "sheets_per_project"
                 );
-                const formatLabel = (k: string) => k.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                const formatLabel = (k: string) => USAGE_LABELS[k]
+                  ?? k.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
                 return (
                   <div className="space-y-6">

@@ -72,6 +72,10 @@ development.
 - `/reminders`
 - `/ai/chat`
 - `/ai/research`
+- `/news/search` makes one dedicated Tavily basic web-search request for
+  structured scholarship filters, normalizes results into news cards, and
+  applies backend relevance filtering without using the AI-chat research flow
+- `/news/bookmarks`
 - `/auth/google/start` if optional Google signin is implemented
 - `/auth/google/callback` if optional Google signin is implemented
 - `/auth/session` if optional signin or local profile sessions are implemented

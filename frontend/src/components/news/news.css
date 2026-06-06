@@ -71,12 +71,14 @@
   width: 300px;
   min-width: 300px;
   border-right: 1px solid rgba(47, 109, 122, 0.15);
-  background-color: rgba(255, 255, 255, 0.6);
+  background:
+    linear-gradient(180deg, rgba(248, 251, 249, 0.96), rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
+  font-family: var(--font-body, "Aptos", "Avenir Next", "Segoe UI", sans-serif);
   transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .filter-panel.closed {
@@ -94,100 +96,348 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 28px 16px;
+  min-height: 76px;
+  padding: 14px 18px 13px 20px;
   position: sticky;
   top: 0;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 100%);
+  background: rgba(250, 252, 250, 0.92);
   backdrop-filter: blur(8px);
   z-index: 2;
-  border-bottom: 1px solid rgba(47, 109, 122, 0.08);
+  border-bottom: 1px solid rgba(47, 109, 122, 0.12);
 }
 
 .filter-title {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   color: #1f4f5a;
-  font-weight: 700;
+}
+
+.filter-title-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(47, 109, 122, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 5px 14px rgba(31, 79, 90, 0.06);
 }
 
 .filter-title h2 {
-  font-size: 1.1rem;
+  font-size: 0.98rem;
+  font-weight: 750;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.filter-title p {
+  margin: 3px 0 0;
+  color: #718079;
+  font-size: 0.72rem;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.filter-close-button {
+  color: #65756d;
+  width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
 }
 
 .filter-content {
-  padding: 24px 28px;
+  padding: 8px 12px 20px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 109, 122, 0.25) transparent;
 }
 
-.filter-section h3 {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #65756d;
-  margin-bottom: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.filter-section {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.filter-section.expanded {
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(47, 109, 122, 0.11);
+  box-shadow: 0 7px 20px rgba(31, 79, 90, 0.045);
+}
+
+.filter-section-trigger {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #314b45;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.filter-section-trigger:hover {
+  color: #1f4f5a;
+  background: rgba(47, 109, 122, 0.055);
+}
+
+.filter-section-trigger:focus-visible {
+  outline: 3px solid rgba(56, 163, 127, 0.24);
+  outline-offset: 1px;
+}
+
+.filter-section-title {
+  font-size: 0.8rem;
+  font-weight: 720;
+  letter-spacing: 0.015em;
+}
+
+.filter-section.has-selection .filter-section-title {
+  color: #1e6657;
+}
+
+.filter-section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #73817b;
+}
+
+.filter-selection-count {
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dff3eb;
+  color: #17634f;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-section-chevron {
+  transition: transform 180ms ease;
+}
+
+.filter-section.expanded .filter-section-chevron {
+  transform: rotate(180deg);
 }
 
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 2px;
+  padding: 0 7px 10px;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 7px 8px;
+  border-radius: 9px;
   cursor: pointer;
-  font-size: 0.95rem;
-  color: #17201d;
-  font-weight: 500;
-  transition: opacity 0.2s;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: #293b36;
+  font-weight: 520;
+  transition: color 180ms ease, background-color 180ms ease;
 }
 
 .checkbox-label:hover {
-  opacity: 0.8;
+  color: #153f36;
+  background: #f0f7f4;
+}
+
+.checkbox-label:has(input[type="checkbox"]:checked) {
+  color: #175c4c;
+  background: rgba(56, 163, 127, 0.09);
+  font-weight: 650;
 }
 
 .checkbox-label input[type="checkbox"] {
-  accent-color: #38a37f;
-  width: 18px;
-  height: 18px;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  margin: 0;
   cursor: pointer;
-  border-radius: 4px;
-  border: 1px solid #d8d0c4;
+  border-radius: 6px;
+  border: 1.5px solid #aebcb6;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.checkbox-label input[type="checkbox"]::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border: solid #ffffff;
+  border-width: 0 0 2px 2px;
+  transform: rotate(-45deg) scale(0);
+  margin-top: -2px;
+  transition: transform 140ms ease;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background: #2f9b78;
+  border-color: #2f9b78;
+  box-shadow: 0 0 0 3px rgba(47, 155, 120, 0.13);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  transform: rotate(-45deg) scale(1);
+}
+
+.checkbox-label input[type="checkbox"]:focus-visible {
+  outline: 3px solid rgba(56, 163, 127, 0.25);
+  outline-offset: 2px;
+}
+
+.filter-option-group {
+  border: 1px solid transparent;
+  border-radius: 11px;
+  overflow: hidden;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.filter-option-group.expanded {
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.76);
+  border-color: rgba(47, 109, 122, 0.1);
+  box-shadow: 0 6px 18px rgba(31, 79, 90, 0.04);
+}
+
+.filter-option-group-trigger {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  color: #314b45;
+  text-align: left;
+  font: inherit;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.filter-option-group-trigger:hover {
+  background: rgba(47, 109, 122, 0.04);
+  color: #1f4f5a;
+}
+
+.filter-option-group-trigger:focus-visible {
+  outline: 3px solid rgba(56, 163, 127, 0.2);
+  outline-offset: 1px;
+}
+
+.filter-option-group-title {
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: #718079;
+}
+
+.filter-option-group.has-selection .filter-option-group-title {
+  color: #1e6657;
+}
+
+.filter-option-group-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #73817b;
+}
+
+.filter-selection-count--small {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.6rem;
+}
+
+.filter-option-group-chevron {
+  transition: transform 180ms ease;
+}
+
+.filter-option-group.expanded .filter-option-group-chevron {
+  transform: rotate(180deg);
+}
+
+.filter-option-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 7px 10px;
 }
 
 .filter-actions {
-  padding: 20px 28px;
-  border-top: 1px solid rgba(47, 109, 122, 0.1);
+  padding: 12px 16px 16px;
+  border-top: 1px solid rgba(47, 109, 122, 0.12);
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   position: sticky;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(250, 252, 250, 0.94);
   backdrop-filter: blur(12px);
+  box-shadow: 0 -10px 24px rgba(31, 79, 90, 0.045);
+}
+
+.filter-action-buttons {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.75fr) minmax(130px, 1.25fr);
+  gap: 10px;
 }
 
 .filter-actions button {
-  flex: 1;
   justify-content: center;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.82rem;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
+.filter-actions button:focus-visible {
+  outline: 3px solid rgba(56, 163, 127, 0.24);
+  outline-offset: 2px;
+}
+
+.filter-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .filter-actions .button-secondary {
-  background: transparent;
+  background: #ffffff;
   border: 1px solid rgba(47, 109, 122, 0.2);
   color: #2f6d7a;
 }
@@ -197,10 +447,30 @@
 }
 
 .filter-actions .button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   background: #38a37f;
   border: 1px solid #38a37f;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(56, 163, 127, 0.2);
+}
+
+.filter-actions .button-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 7px rgba(56, 163, 127, 0.22);
+}
+
+.filter-error {
+  color: #a33a32;
+  background: #fff2f0;
+  border: 1px solid #f1cbc7;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: left;
 }
 
 .filter-actions .button-primary:hover {
@@ -457,6 +727,8 @@
 
 @media (max-width: 768px) {
   .filter-panel {
+    width: min(330px, calc(100vw - 28px));
+    min-width: min(330px, calc(100vw - 28px));
     position: absolute;
     top: 0;
     left: 0;
@@ -472,5 +744,19 @@
 
   .mobile-close {
     display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-panel,
+  .filter-section,
+  .filter-section-trigger,
+  .filter-section-chevron,
+  .filter-option-group,
+  .filter-option-group-trigger,
+  .filter-option-group-chevron,
+  .checkbox-label,
+  .checkbox-label input[type="checkbox"] {
+    transition: none;
   }
 }

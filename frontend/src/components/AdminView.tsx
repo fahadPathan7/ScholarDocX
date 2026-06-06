@@ -315,14 +315,14 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       example: "If limit is 150, user can perform 150 web searches this month. Counter resets on the 1st of next month."
     },
     news_searches_per_day: {
-      description: "Limits the number of scholarship news search requests per day.",
+      description: "Limits the number of Scholarship Hunt searches per day.",
       resetInfo: "Resets daily at midnight UTC (00:00 UTC).",
-      example: "If limit is 50, user can search news 50 times today. Counter resets at midnight UTC."
+      example: "If limit is 50, the user can run 50 scholarship hunts today. Counter resets at midnight UTC."
     },
     news_searches_per_month: {
-      description: "Limits the total number of scholarship news search requests in a calendar month.",
+      description: "Limits the total number of Scholarship Hunt searches in a calendar month.",
       resetInfo: "Resets on the 1st of each month at midnight UTC.",
-      example: "If limit is 500, user can perform 500 news searches this month. Counter resets on the 1st of next month."
+      example: "If limit is 500, the user can run 500 scholarship hunts this month. Counter resets on the 1st of next month."
     },
     total_projects: {
       description: "Limits the total number of projects a user can create.",
@@ -400,10 +400,10 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       ]
     },
     {
-      name: "Scholarship News",
+      name: "Scholarship Hunt",
       features: [
-        { key: "news_searches_per_day", label: "Maximum Daily News Searches", description: "Limits the number of news search requests per day." },
-        { key: "news_searches_per_month", label: "Maximum Monthly News Searches", description: "Limits the total number of news search requests in a calendar month." }
+        { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
+        { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
       ]
     },
     {

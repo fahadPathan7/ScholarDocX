@@ -22,7 +22,7 @@ import {
   Square,
   Settings,
   Shield,
-  Globe
+  Compass
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
 import { FloatingAssistant } from "./components/FloatingAssistant";
@@ -275,7 +275,7 @@ export function App() {
     ["documents", "Documents", FileText],
     ["sticky", "Sticky Notes", StickyNote],
     ["whiteboard", "Whiteboard", Square],
-    ["news", "Scholarship News", Globe],
+    ["news", "Scholarship Hunt", Compass],
     ["profile", "Profile", User],
     ["settings", "Settings", Settings],
     ["about", "About", Info]

@@ -81,3 +81,29 @@
 - FR-7.22: Admin user-management filters should show live user counts for each available role, plan-status, and account-status option based on the currently selected complementary filters.
 - FR-7.23: Admins can send notifications with a title, body, and category to all users, the currently filtered user subset, or specific individual users.
 - FR-7.24: Admin-sent notifications must respect each recipient's notification preferences, except for the mandatory `system` category which users cannot disable.
+
+## FR-8: Scholarship Hunt
+
+- FR-8.1: Users can run Scholarship Hunt with structured academic and funding filters.
+- FR-8.2: Named scholarships use canonical names and aliases rather than UI display labels.
+- FR-8.3: Named-scholarship results must mention the selected scholarship or an accepted alias.
+- FR-8.4: Generic results must remain scholarship or academic-funding focused.
+- FR-8.5: Duplicate provider articles appear only once per result page.
+- FR-8.6: Successful provider searches consume role-based daily and monthly usage.
+- FR-8.7: Tavily credentials remain backend-only.
+- FR-8.8: The filter panel uses accessible accordions and visible selection counts.
+- FR-8.9: Dense filter subcategories can collapse independently.
+- FR-8.10: Main filter categories follow user-intent priority.
+- FR-8.11: Broad level filters produce useful scholarship web queries.
+- FR-8.12: One submitted search uses at most one one-credit Tavily Search call.
+- FR-8.13: Scholarship Hunt search remains isolated from AI chat web research.
+- FR-8.14: Tavily results retain the existing news-card and bookmark contract.
+- FR-8.15: Queries prioritize open and upcoming current/future application cycles.
+- FR-8.16: Explicitly closed and past-deadline results are excluded.
+- FR-8.17: Future deadlines, active applications, and official sources rank first.
+- FR-8.18: UI copy describes scholarship opportunities rather than generic news.
+- FR-8.19: Query dates and cycles update from the backend's local date per search.
+- FR-8.20: Visible branding uses Scholarship Hunt while internal news contracts stay stable.
+- FR-8.21: Selected filter dimensions are mandatory AND constraints with OR inside each dimension.
+- FR-8.22: Region means study destination, not nationality, eligibility, source, or sponsor location.
+- FR-8.23: Usage quotas and Admin role-limit labels use Scholarship Hunt terminology while internal quota keys stay stable.

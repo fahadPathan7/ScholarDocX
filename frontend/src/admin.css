@@ -248,7 +248,7 @@
 
 .admin-dashboard-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
 }
 
@@ -262,8 +262,8 @@
 
 .admin-dashboard-stat-card {
   position: relative;
-  min-height: 8.5rem;
-  padding: 1.125rem;
+  min-height: 7.5rem;
+  padding: 1rem;
   overflow: hidden;
 }
 
@@ -340,6 +340,16 @@
 .admin-dashboard-stat-card--amber {
   --admin-stat-bg: #fef3c7;
   --admin-stat-color: #d97706;
+}
+
+.admin-dashboard-stat-card--rose {
+  --admin-stat-bg: #ffe4e6;
+  --admin-stat-color: #e11d48;
+}
+
+.admin-dashboard-stat-card--purple {
+  --admin-stat-bg: #f3e8ff;
+  --admin-stat-color: #9333ea;
 }
 
 .admin-dashboard-activity-grid {

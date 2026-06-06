@@ -146,6 +146,10 @@ class AdminService:
         active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= date('now', '-30 days')").fetchone()[0]
         total_projects = self.connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         total_sheets = self.connection.execute("SELECT COUNT(*) FROM project_sheets").fetchone()[0]
+        total_documents = self.connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+        total_sticky_notes = self.connection.execute("SELECT COUNT(*) FROM sticky_notes").fetchone()[0]
+        total_whiteboards = self.connection.execute("SELECT COUNT(*) FROM whiteboards").fetchone()[0]
+        total_records = self.connection.execute("SELECT COALESCE(SUM(json_array_length(rows_json)), 0) FROM project_pages").fetchone()[0]
         storage_row = self.connection.execute("SELECT SUM(size_bytes) FROM static_files").fetchone()
         storage_bytes = storage_row[0] if storage_row and storage_row[0] else 0
 
@@ -162,13 +166,24 @@ class AdminService:
             ).fetchall()
         ]
 
+        pending_invite_requests = self.connection.execute("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'").fetchone()[0]
+        pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
+        pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
+
         return {
             "counts": {
                 "total_users": total_users,
                 "active_users": active_users,
                 "total_projects": total_projects,
                 "total_sheets": total_sheets,
-                "storage_bytes": storage_bytes
+                "total_documents": total_documents,
+                "total_sticky_notes": total_sticky_notes,
+                "total_whiteboards": total_whiteboards,
+                "total_records": total_records,
+                "storage_bytes": storage_bytes,
+                "pending_invite_requests": pending_invite_requests,
+                "pending_appeals": pending_appeals,
+                "pending_plan_requests": pending_plan_requests
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins

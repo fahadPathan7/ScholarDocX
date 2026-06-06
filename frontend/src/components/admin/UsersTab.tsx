@@ -393,7 +393,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 shrink-0 bg-slate-100/50 p-1.5 rounded-xl border border-slate-200/50">
+      <div className="flex overflow-x-auto items-center gap-3 shrink-0 bg-slate-100/50 p-1.5 rounded-xl border border-slate-200/50">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
           {roleTabs.map((tab) => {

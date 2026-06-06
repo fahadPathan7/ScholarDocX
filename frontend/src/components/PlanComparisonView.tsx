@@ -509,10 +509,9 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
                   <textarea
                     className="w-full p-3 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                     rows={4}
-                    placeholder="E.g., I need more API usage limits for my research project..."
+                    placeholder="E.g., I need more API usage limits for my research project... (Optional)"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    required
                   ></textarea>
                   <div className="flex justify-end gap-3 mt-2">
                     <button

@@ -20,7 +20,13 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Copy
+  Copy,
+  Check,
+  FileText,
+  StickyNote,
+  Presentation,
+  FileSpreadsheet,
+  Database
 } from "lucide-react";
 import { notificationCategories } from "../config/notificationLabels";
 import { PlanRequestsTab as PlanRequestsReviewTab } from "./admin/PlanRequestsTab";
@@ -62,16 +68,64 @@ function DashboardTab() {
       tone: "emerald"
     },
     {
+      label: "Invite Requests",
+      value: stats.counts.pending_invite_requests || 0,
+      icon: KeyRound,
+      tone: "amber"
+    },
+    {
+      label: "Plan Requests",
+      value: stats.counts.pending_plan_requests || 0,
+      icon: FileClock,
+      tone: "purple"
+    },
+    {
+      label: "Suspension Appeals",
+      value: stats.counts.pending_appeals || 0,
+      icon: ShieldAlert,
+      tone: "rose"
+    },
+    {
       label: "Total Projects",
       value: stats.counts.total_projects,
       icon: LayoutDashboard,
       tone: "blue"
     },
     {
+      label: "Total Sheets",
+      value: stats.counts.total_sheets || 0,
+      icon: FileSpreadsheet,
+      tone: "emerald"
+    },
+    {
+      label: "Total Documents",
+      value: stats.counts.total_documents || 0,
+      icon: FileText,
+      tone: "indigo"
+    },
+    {
+      label: "Total Sticky Notes",
+      value: stats.counts.total_sticky_notes || 0,
+      icon: StickyNote,
+      tone: "amber"
+    },
+    {
+      label: "Total Whiteboards",
+      value: stats.counts.total_whiteboards || 0,
+      icon: Presentation,
+      tone: "rose"
+    },
+    {
+      label: "Total Records",
+      value: stats.counts.total_records || 0,
+      icon: Database,
+      tone: "blue"
+    },
+    {
       label: "Storage Used",
       value: (
         <>
-          {(stats.counts.storage_bytes / 1024 / 1024).toFixed(2)}
+          {((stats.counts.storage_bytes || 0) / 1024 / 1024).toFixed(2)}
           <span>MB</span>
         </>
       ),
@@ -108,13 +162,15 @@ function DashboardTab() {
           <div className="admin-dashboard-table-wrap">
             <table className="admin-dashboard-table">
               <thead>
-                <tr><th>Email</th><th className="text-right">Date</th></tr>
+                <tr><th>Email</th><th className="text-right">Time</th></tr>
               </thead>
               <tbody>
                 {stats.recent_registrations.map((u: any) => (
                   <tr key={u.id}>
                     <td>{u.email}</td>
-                    <td className="text-right">{new Date(u.created_at).toLocaleDateString("en-GB")}</td>
+                    <td className="text-right">
+                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.created_at + 'Z').toLocaleString("en-GB")}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -143,7 +199,7 @@ function DashboardTab() {
                   <tr key={u.id}>
                     <td>{u.email}</td>
                     <td className="text-right">
-                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at).toLocaleString("en-GB")}</span>
+                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at + 'Z').toLocaleString("en-GB")}</span>
                     </td>
                   </tr>
                 ))}
@@ -710,6 +766,7 @@ function InvitesTab() {
   const [viewUsagesCode, setViewUsagesCode] = useState<string | null>(null);
   const [usages, setUsages] = useState<any[]>([]);
   const [loadingUsages, setLoadingUsages] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const fetchInvites = () => {
     api.get<any[]>("/admin/invites").then(setInvites).catch(console.error);
@@ -810,11 +867,15 @@ function InvitesTab() {
                   <td className="px-6 py-4 flex items-center gap-2">
                     <span className="font-mono text-indigo-700 font-bold tracking-widest bg-indigo-50 px-3 py-1 rounded border border-indigo-100">{inv.code}</span>
                     <button 
-                      onClick={() => navigator.clipboard.writeText(inv.code)}
+                      onClick={() => {
+                        navigator.clipboard.writeText(inv.code);
+                        setCopiedCode(inv.code);
+                        setTimeout(() => setCopiedCode(null), 2000);
+                      }}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                      title="Copy Code"
+                      title={copiedCode === inv.code ? "Copied!" : "Copy Code"}
                     >
-                      <Copy size={16} />
+                      {copiedCode === inv.code ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
                     </button>
                   </td>
                   <td className="px-6 py-4 text-center text-slate-700 font-medium">{inv.used_count}</td>
@@ -1034,9 +1095,9 @@ function InviteRequestsTab() {
       if (action === 'approve' && res.invite_code) {
         const subject = encodeURIComponent("Welcome to ScholarDock - Your Invite Code");
         const body = encodeURIComponent(`Hi ${req.name},\n\nWe are excited to welcome you to ScholarDock! Here is your single-use invite code to create your account:\n\n${res.invite_code}\n\nPlease head to the registration page and sign up with this code.\n\nBest,\nThe ScholarDock Team`);
-        const mailtoLink = `mailto:${req.email}?subject=${subject}&body=${body}`;
+        const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(req.email)}&su=${subject}&body=${body}`;
         const a = document.createElement('a');
-        a.href = mailtoLink;
+        a.href = gmailLink;
         a.target = '_blank';
         document.body.appendChild(a);
         a.click();
@@ -1303,144 +1364,144 @@ function SettingsTab() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">General Plan Monthly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_general_monthly"] || "0"}
-                      id="modal-input-plan_price_general_monthly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_general_monthly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_general_monthly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">General Plan Yearly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_general_yearly"] || "0"}
-                      id="modal-input-plan_price_general_yearly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_general_yearly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_general_yearly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="col-span-1 md:col-span-2 my-2 border-b border-slate-100"></div>
-
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">Pro Plan Monthly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_pro_monthly"] || "50"}
-                      id="modal-input-plan_price_pro_monthly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_pro_monthly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_pro_monthly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">Pro Plan Yearly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_pro_yearly"] || "500"}
-                      id="modal-input-plan_price_pro_yearly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_pro_yearly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_pro_yearly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
+              <div className="space-y-6">
+                {/* General Plan */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                  <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                    General Plan
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_general_monthly"] || "0"}
+                          id="modal-input-plan_price_general_monthly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_general_yearly"] || "0"}
+                          id="modal-input-plan_price_general_yearly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="col-span-1 md:col-span-2 my-2 border-b border-slate-100"></div>
-
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">Max Plan Monthly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_max_monthly"] || "180"}
-                      id="modal-input-plan_price_max_monthly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_max_monthly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_max_monthly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
+                {/* Pro Plan */}
+                <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-5">
+                  <h4 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    Pro Plan
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_pro_monthly"] || "50"}
+                          id="modal-input-plan_price_pro_monthly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_pro_yearly"] || "500"}
+                          id="modal-input-plan_price_pro_yearly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-slate-700">Max Plan Yearly (BDT)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      min="0"
-                      defaultValue={settings["plan_price_max_yearly"] || "1500"}
-                      id="modal-input-plan_price_max_yearly"
-                      className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    <button 
-                      onClick={() => {
-                        const el = document.getElementById("modal-input-plan_price_max_yearly") as HTMLInputElement;
-                        if (el) handleUpdate("plan_price_max_yearly", el.value);
-                      }}
-                      className="profile-primary-button bg-emerald-500 hover:bg-emerald-600 ring-emerald-500"
-                    >
-                      Save
-                    </button>
+
+                {/* Max Plan */}
+                <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-5">
+                  <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    Max Plan
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_max_monthly"] || "180"}
+                          id="modal-input-plan_price_max_monthly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          defaultValue={settings["plan_price_max_yearly"] || "1500"}
+                          id="modal-input-plan_price_max_yearly"
+                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
-              <button onClick={() => setShowPricingModal(false)} className="px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
-                Done
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+              <button 
+                onClick={() => setShowPricingModal(false)} 
+                className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  const keys = [
+                    "plan_price_general_monthly", "plan_price_general_yearly",
+                    "plan_price_pro_monthly", "plan_price_pro_yearly",
+                    "plan_price_max_monthly", "plan_price_max_yearly"
+                  ];
+                  let updated = false;
+                  for (const key of keys) {
+                    const el = document.getElementById(`modal-input-${key}`) as HTMLInputElement;
+                    if (el && el.value !== String(settings[key] || "0")) {
+                      await handleUpdate(key, el.value);
+                      updated = true;
+                    }
+                  }
+                  if (updated) fetchSettings();
+                  setShowPricingModal(false);
+                }} 
+                className="px-6 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm hover:shadow transition-all"
+              >
+                Save Changes
               </button>
             </div>
           </div>

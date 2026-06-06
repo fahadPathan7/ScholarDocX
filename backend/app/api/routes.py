@@ -122,9 +122,14 @@ def create_project_sheet(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
-    from app.auth.limits import check_and_increment_limit
+    from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
+    limit_count = get_user_limit(current_user, "sheets_per_project", store.connection)
+    if limit_count != -1:
+        current_sheet_count = store.connection.execute("SELECT COUNT(*) FROM project_sheets WHERE project_id = ?", (project_id,)).fetchone()[0]
+        if current_sheet_count >= limit_count:
+            raise UsageLimitExceeded(f"Limit exceeded for sheets_per_project. Your plan allows {limit_count}.")
+            
     check_and_increment_limit(current_user, "total_sheets", 1, store.connection)
-    check_and_increment_limit(current_user, "sheets_per_project", 1, store.connection)
     try:
         return store.create_sheet_with_defaults(project_id, payload.name)
     except LookupError as exc:
@@ -209,7 +214,7 @@ def _crud_routes(table: str):
     ) -> dict:
         if table_name == "project_pages" and "rows_json" in payload.data:
             import json
-            from app.auth.limits import check_and_increment_limit
+            from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
             old_record = store.connection.execute("SELECT rows_json FROM project_pages WHERE id = ?", (record_id,)).fetchone()
             if old_record:
                 old_rows = json.loads(old_record["rows_json"] or "[]")
@@ -218,8 +223,12 @@ def _crud_routes(table: str):
                     new_rows = json.loads(new_rows)
                 
                 rows_diff = len(new_rows) - len(old_rows)
+                
+                limit_count = get_user_limit(current_user, "records_per_sheet", store.connection)
+                if limit_count != -1 and len(new_rows) > limit_count:
+                    raise UsageLimitExceeded(f"Limit exceeded for records_per_sheet. Your plan allows {limit_count}.")
+                
                 if rows_diff != 0:
-                    check_and_increment_limit(current_user, "records_per_sheet", rows_diff, store.connection)
                     check_and_increment_limit(current_user, "total_records", rows_diff, store.connection)
 
         try:

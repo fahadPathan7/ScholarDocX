@@ -314,6 +314,16 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       resetInfo: "Resets on the 1st of each month at midnight UTC.",
       example: "If limit is 150, user can perform 150 web searches this month. Counter resets on the 1st of next month."
     },
+    news_searches_per_day: {
+      description: "Limits the number of scholarship news search requests per day.",
+      resetInfo: "Resets daily at midnight UTC (00:00 UTC).",
+      example: "If limit is 50, user can search news 50 times today. Counter resets at midnight UTC."
+    },
+    news_searches_per_month: {
+      description: "Limits the total number of scholarship news search requests in a calendar month.",
+      resetInfo: "Resets on the 1st of each month at midnight UTC.",
+      example: "If limit is 500, user can perform 500 news searches this month. Counter resets on the 1st of next month."
+    },
     total_projects: {
       description: "Limits the total number of projects a user can create.",
       resetInfo: "Never resets. This is a cumulative limit.",
@@ -387,6 +397,13 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
         { key: "can_use_web_search", label: "Can Use Web Search", description: "Controls whether users can enable web search in AI chat research mode." },
         { key: "web_searches_per_day", label: "Maximum Daily Web Searches", description: "Limits the number of web search requests per day." },
         { key: "web_searches_per_month", label: "Maximum Monthly Web Searches", description: "Limits the total number of web search requests in a calendar month." }
+      ]
+    },
+    {
+      name: "Scholarship News",
+      features: [
+        { key: "news_searches_per_day", label: "Maximum Daily News Searches", description: "Limits the number of news search requests per day." },
+        { key: "news_searches_per_month", label: "Maximum Monthly News Searches", description: "Limits the total number of news search requests in a calendar month." }
       ]
     },
     {

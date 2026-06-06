@@ -21,7 +21,8 @@ import {
   Pin,
   Square,
   Settings,
-  Shield
+  Shield,
+  Globe
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
 import { FloatingAssistant } from "./components/FloatingAssistant";
@@ -36,6 +37,7 @@ import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
 import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
+import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { CalendarMonthView } from "./components/CalendarMonthView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
@@ -273,6 +275,7 @@ export function App() {
     ["documents", "Documents", FileText],
     ["sticky", "Sticky Notes", StickyNote],
     ["whiteboard", "Whiteboard", Square],
+    ["news", "Scholarship News", Globe],
     ["profile", "Profile", User],
     ["settings", "Settings", Settings],
     ["about", "About", Info]
@@ -292,12 +295,12 @@ export function App() {
 
   let navItems: any[] = [];
   if (currentHasUserPlan) {
-    navItems.push(...baseNavItems.slice(0, 5));
+    navItems.push(...baseNavItems.slice(0, 6));
   }
   if (currentIsAdmin) {
     navItems.push(adminItem);
   }
-  navItems.push(...baseNavItems.slice(5));
+  navItems.push(...baseNavItems.slice(6));
 
   const handleSidebarNav = (key: string) => {
     if (key === "projects") {
@@ -348,7 +351,7 @@ export function App() {
         <nav>
           {navItems.map(([key, label, Icon], i) => (
             <Fragment key={key}>
-              {i === 5 && <div className="nav-spacer" />}
+              {i === 6 && <div className="nav-spacer" />}
               <button
                 aria-label={label}
                 className={activeTab === key ? "active" : ""}
@@ -431,6 +434,8 @@ export function App() {
             <StickyNotesView key={stickyNotesKey} onToast={showToast} />
           ) : activeTab === "whiteboard" ? (
             <WhiteboardView key={whiteboardKey} onToast={showToast} />
+          ) : activeTab === "news" ? (
+            <ScholarshipNewsView onToast={showToast} />
           ) : activeTab === "profile" ? (
             <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onViewAdmin={() => setActiveTab("admin")} />
           ) : activeTab === "settings" ? (

@@ -79,6 +79,7 @@ TABLE_COLUMNS = {
     "ai_conversations": {"user_id", "title"},
     "research_notes": {"user_id", "application_id", "professor_id", "university_id", "title", "content", "sources"},
     "whiteboards": {"user_id", "name", "shapes_json", "camera_json", "last_used_at"},
+    "bookmarked_news": {"user_id", "article_id", "title", "link", "source_name", "pub_date", "image_url", "description", "country"},
 }
 
 

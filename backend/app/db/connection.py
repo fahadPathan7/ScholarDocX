@@ -229,6 +229,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "total_projects", "total_sheets", "total_records",
         "sheets_per_project", "records_per_sheet",
         "total_documents_bytes", "total_sticky_notes", "total_whiteboards",
+        "news_searches_per_day", "news_searches_per_month",
         # Admin permissions
         "admin_create_user", "admin_assign_user_roles", "admin_assign_admin_roles",
         "admin_manage_user_roles", "admin_manage_admin_roles",

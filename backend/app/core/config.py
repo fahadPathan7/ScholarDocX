@@ -20,6 +20,7 @@ class Settings:
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
         self.mistral_api_key = os.getenv("MISTRAL_API_KEY", "")
         self.mistral_base_url = os.getenv("MISTRAL_BASE_URL", "https://api.mistral.ai/v1/chat/completions")
+        self.newsdata_api_key = os.getenv("NEWSDATA_API_KEY", "")
         self.cors_origins = [
             origin.strip()
             for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")

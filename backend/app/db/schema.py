@@ -401,6 +401,22 @@ CREATE TABLE IF NOT EXISTS research_notes (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS bookmarked_news (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  article_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  link TEXT NOT NULL,
+  source_name TEXT,
+  pub_date TEXT,
+  image_url TEXT,
+  description TEXT,
+  country TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, article_id)
+);
+
 CREATE TABLE IF NOT EXISTS plan_upgrade_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -471,6 +487,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_user', 'total_documents_bytes', 31457280, 'never'),
   ('general_user', 'total_sticky_notes', 5, 'never'),
   ('general_user', 'total_whiteboards', 1, 'never'),
+  ('general_user', 'news_searches_per_day', 3, 'daily'),
+  ('general_user', 'news_searches_per_month', 30, 'monthly'),
 
   ('pro_user', 'ai_messages_per_session', 30, 'per_session'),
   ('pro_user', 'daily_ai_chats', 50, 'daily'),
@@ -491,6 +509,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('pro_user', 'total_documents_bytes', 104857600, 'never'),
   ('pro_user', 'total_sticky_notes', 20, 'never'),
   ('pro_user', 'total_whiteboards', 3, 'never'),
+  ('pro_user', 'news_searches_per_day', 10, 'daily'),
+  ('pro_user', 'news_searches_per_month', 100, 'monthly'),
 
   ('max_user', 'ai_messages_per_session', 100, 'per_session'),
   ('max_user', 'daily_ai_chats', 200, 'daily'),
@@ -511,6 +531,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('max_user', 'total_documents_bytes', 314572800, 'never'),
   ('max_user', 'total_sticky_notes', 50, 'never'),
   ('max_user', 'total_whiteboards', 10, 'never'),
+  ('max_user', 'news_searches_per_day', 30, 'daily'),
+  ('max_user', 'news_searches_per_month', 300, 'monthly'),
 
   ('general_admin', 'admin_create_user', 1, 'never'),
   ('general_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -529,6 +551,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
   ('general_admin', 'admin_send_notifications', 1, 'never'),
   ('general_admin', 'admin_manage_settings', 0, 'never'),
+  ('general_admin', 'news_searches_per_day', -1, 'daily'),
+  ('general_admin', 'news_searches_per_month', -1, 'monthly'),
 
   ('super_admin', 'admin_create_user', 1, 'never'),
   ('super_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -546,7 +570,9 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_manage_role_limits', 1, 'never'),
   ('super_admin', 'admin_manage_notification_texts', 1, 'never'),
   ('super_admin', 'admin_send_notifications', 1, 'never'),
-  ('super_admin', 'admin_manage_settings', 1, 'never');
+  ('super_admin', 'admin_manage_settings', 1, 'never'),
+  ('super_admin', 'news_searches_per_day', -1, 'daily'),
+  ('super_admin', 'news_searches_per_month', -1, 'monthly');
 
 INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('jwt_secret_key', 'scholar-dock-local-first-secret-key-do-not-use-in-cloud'),

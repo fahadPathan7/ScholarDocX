@@ -63,6 +63,10 @@ In scope:
 - Extract LimitsTab from AdminView.tsx into its own component file.
 - Ensure FloatingAssistant refreshes usage after action execution.
 - Add backend tests for permission-only features and AI usage increments.
+- Make assistant model selectors reflect `can_use_gemini/glm/groq/mistral`
+  permissions and prevent blocked provider selection in chat settings.
+- Ensure `/ai/summarize` enforces the same model permission checks as chat and
+  research.
 
 Out of scope:
 
@@ -108,10 +112,10 @@ Planned tests:
 Files expected to be edited:
 
 - `backend/app/api/routes.py`
-- `frontend/src/components/AdminView.tsx` (reduce from 1291 to ~300)
-- `frontend/src/components/RoleLimitsTab.tsx` (new, ~530 lines)
 - `frontend/src/components/FloatingAssistant.tsx`
-- `backend/tests/test_usage_limits.py` (new)
+- `frontend/src/lib/assistantModels.ts`
+- `frontend/src/styles.css`
+- `backend/tests/test_ai_model_permissions.py` (new)
 - Context/Jira markdown files
 
 Line-count risk:
@@ -123,3 +127,17 @@ Line-count risk:
 - `pytest -q backend/tests`
 - `npm --prefix frontend run build`
 - Browser-check Admin Role Limits modal and AI assistant usage behavior
+
+## Follow-up Notes
+
+- Added a follow-up to close the gap between displayed role permissions and the
+  assistant model picker. Restricted providers should no longer be selectable
+  from settings, and stale saved values must recover to an allowed model.
+- Extracted assistant model metadata/helpers out of `FloatingAssistant.tsx` so
+  the file stays below the repo line-count target after the picker change.
+
+## Follow-up Verification Results
+
+- `pytest backend/tests/test_ai_model_permissions.py -q` passed.
+- `npm --prefix frontend run build` passed.
+- Browser verification was not run in this follow-up turn.

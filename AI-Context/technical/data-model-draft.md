@@ -315,7 +315,44 @@ Likely `notifications` fields:
 - title
 - body
 - notification_type
+- preference_key
 - due_at
 - read_at
 - created_at
 - updated_at
+
+Notes:
+
+- `notification_type` remains the routing/display type used by existing
+  workspace flows such as project-linked notifications.
+- `preference_key` stores the user preference bucket for the notification,
+  allowing both workspace events and admin-authored categories such as
+  `system`, `billing`, `plans`, and `announcements`.
+
+## plan_upgrade_requests
+
+Purpose:
+
+Track plan change requests for admin review.
+
+Likely fields:
+
+- id
+- user_id
+- request_type
+- requested_plan
+- billing_cycle
+- message
+- status
+- reviewed_by
+- reviewed_at
+- created_at
+- updated_at
+
+Notes:
+
+- `request_type` distinguishes a replacement upgrade from a renewal of the
+  current plan.
+- Renewal approvals should extend the deadline from approval time when the
+  plan has already expired, or from the existing deadline when the plan is
+  still active.

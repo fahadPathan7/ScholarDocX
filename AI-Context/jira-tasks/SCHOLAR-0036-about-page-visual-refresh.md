@@ -45,6 +45,9 @@ Links:
 - Moved About-specific visual rules into `frontend/src/about-refresh.css`,
   imported after the global visual refresh layer.
 - Kept the visual direction aligned with the muted sage/fog theme.
+- Refining the About-page system clock card so it reads like a deliberate
+  status instrument instead of a plain utility block, without changing the UTC
+  or 24-hour behavior.
 
 ## Changed Files
 
@@ -60,3 +63,23 @@ Links:
 - Confirmed About page uses full workspace width, hero and flow panels span the
   available content area, four feature cards render, CSS animation names are
   active for the map scan and pulse, and no horizontal overflow was detected.
+
+## Follow-up Verification
+
+- Run frontend build again after the clock-card refresh.
+- Browser-check the About-page clock for hierarchy, alignment, and visual fit
+  with the surrounding cards.
+
+## Completion Notes
+
+- Reworked the About-page system clock from inline styles to dedicated semantic
+  classes so the card can use a more polished instrument-panel treatment while
+  preserving the existing UTC and 24-hour behavior.
+- Added clock-specific visual tokens for a calmer high-contrast display, live
+  status chip, grid texture, and tabular-number layout that better matches the
+  surrounding About cards.
+
+## Final Verification
+
+- `npm run build` passed in `frontend` after the clock-card refresh.
+- Browser verification was not run in this follow-up turn.

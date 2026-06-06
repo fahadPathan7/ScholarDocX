@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, RecordMap } from "../lib/api";
 import {
-  notificationCategories,
   defaultNotificationSettings,
+  getNotificationSettingLabel,
+  isNotificationSettingLocked,
   notificationSettingsIntro,
+  notificationPreferenceTabs,
   normalizeNotificationSettings
 } from "../config/notificationLabels";
 import {
@@ -14,6 +16,7 @@ import {
   Database,
   PencilLine,
   MessageCircle,
+  BellRing,
   Settings,
   X
 } from "lucide-react";
@@ -33,6 +36,7 @@ export function SettingsView() {
   const [profileId, setProfileId] = useState<number | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<Record<string, boolean>>(defaultNotificationSettings);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [activeNotificationTab, setActiveNotificationTab] = useState<"workspace" | "admin">("workspace");
 
   useEffect(() => {
     api.get<RecordMap[]>("/local_profiles").then((rows) => {
@@ -55,9 +59,8 @@ export function SettingsView() {
     });
   }, []);
 
-  const toggleNotificationSetting = async (key: string) => {
+  const saveNotificationSettings = async (newSettings: Record<string, boolean>) => {
     if (!profileId) return;
-    const newSettings = { ...notificationSettings, [key]: !notificationSettings[key] };
     setNotificationSettings(newSettings);
     try {
       await api.patch(`/local_profiles/${profileId}`, {
@@ -67,42 +70,32 @@ export function SettingsView() {
       console.error("Failed to save notification settings", e);
       setNotificationSettings(notificationSettings);
     }
+  };
+
+  const toggleNotificationSetting = async (key: string) => {
+    if (isNotificationSettingLocked(key)) return;
+    const newSettings = { ...notificationSettings, [key]: !notificationSettings[key] };
+    await saveNotificationSettings(newSettings);
   };
 
   const toggleAllInCategory = async (categorySettings: { key: string }[], selectAll: boolean) => {
-    if (!profileId) return;
     const newSettings = { ...notificationSettings };
     categorySettings.forEach((setting) => {
+      if (isNotificationSettingLocked(setting.key)) return;
       newSettings[setting.key] = selectAll;
     });
-    setNotificationSettings(newSettings);
-    try {
-      await api.patch(`/local_profiles/${profileId}`, {
-        data: { notification_settings: JSON.stringify(newSettings) }
-      });
-    } catch (e) {
-      console.error("Failed to save notification settings", e);
-      setNotificationSettings(notificationSettings);
-    }
+    await saveNotificationSettings(newSettings);
   };
 
-  const toggleAllNotifications = async (selectAll: boolean) => {
-    if (!profileId) return;
-    const newSettings: Record<string, boolean> = {};
-    notificationCategories.forEach((category) => {
+  const toggleAllNotifications = async (selectAll: boolean, categories = notificationPreferenceTabs.find((tab) => tab.id === activeNotificationTab)?.categories || []) => {
+    const newSettings: Record<string, boolean> = { ...notificationSettings };
+    categories.forEach((category) => {
       category.settings.forEach((setting) => {
+        if (isNotificationSettingLocked(setting.key)) return;
         newSettings[setting.key] = selectAll;
       });
     });
-    setNotificationSettings(newSettings);
-    try {
-      await api.patch(`/local_profiles/${profileId}`, {
-        data: { notification_settings: JSON.stringify(newSettings) }
-      });
-    } catch (e) {
-      console.error("Failed to save notification settings", e);
-      setNotificationSettings(notificationSettings);
-    }
+    await saveNotificationSettings(newSettings);
   };
 
   return (
@@ -155,13 +148,13 @@ export function SettingsView() {
                     onClick={() => toggleAllNotifications(true)}
                     className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-700 transition-colors"
                   >
-                    Select All
+                    Select Tab
                   </button>
                   <button
                     onClick={() => toggleAllNotifications(false)}
                     className="text-xs font-medium px-3 py-1.5 bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-700 transition-colors"
                   >
-                    Unselect All
+                    Unselect Tab
                   </button>
                   <button
                     onClick={() => setShowNotificationsModal(false)}
@@ -174,18 +167,49 @@ export function SettingsView() {
               </div>
 
               <div className="overflow-y-auto flex-1 p-6 space-y-6">
-                {notificationCategories.map((category) => {
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {notificationPreferenceTabs.map((tab) => {
+                    const isActive = activeNotificationTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveNotificationTab(tab.id)}
+                        className={`text-left rounded-2xl border px-4 py-3 transition-all ${isActive
+                          ? "border-indigo-200 bg-indigo-50/70 shadow-sm"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                          }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className={`text-sm font-semibold ${isActive ? "text-indigo-800" : "text-slate-800"}`}>{tab.label}</p>
+                            <p className="text-xs text-slate-500 mt-1">{tab.description}</p>
+                          </div>
+                          {tab.id === "workspace" ? (
+                            <Bell className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+                          ) : (
+                            <BellRing className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {(notificationPreferenceTabs.find((tab) => tab.id === activeNotificationTab)?.categories || []).map((category) => {
                   const iconMap: Record<string, any> = {
                     Route,
                     FileText,
                     Database,
                     PencilLine,
-                    MessageCircle
+                    MessageCircle,
+                    Bell,
                   };
                   const IconComponent = iconMap[category.icon] || FileText;
 
-                  const allSelected = category.settings.every((s) => notificationSettings[s.key]);
-                  const noneSelected = category.settings.every((s) => !notificationSettings[s.key]);
+                  const selectableKeys = category.settings.filter((setting) => !isNotificationSettingLocked(setting.key));
+                  const allSelected = selectableKeys.length > 0 && selectableKeys.every((s) => notificationSettings[s.key]);
+                  const noneSelected = selectableKeys.every((s) => !notificationSettings[s.key]);
 
                   return (
                     <div key={category.title} className="pb-6 border-b border-slate-100 last:border-0 last:pb-0">
@@ -199,7 +223,7 @@ export function SettingsView() {
                             type="button"
                             className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                             onClick={() => toggleAllInCategory(category.settings, true)}
-                            disabled={allSelected}
+                            disabled={selectableKeys.length === 0 || allSelected}
                           >
                             Select All
                           </button>
@@ -207,7 +231,7 @@ export function SettingsView() {
                             type="button"
                             className="text-[11px] font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                             onClick={() => toggleAllInCategory(category.settings, false)}
-                            disabled={noneSelected}
+                            disabled={selectableKeys.length === 0 || noneSelected}
                           >
                             Unselect All
                           </button>
@@ -215,16 +239,35 @@ export function SettingsView() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {category.settings.map((setting) => (
-                          <label key={setting.key} className="flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-colors group">
+                          <label
+                            key={setting.key}
+                            className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group ${isNotificationSettingLocked(setting.key)
+                              ? "border-amber-100 bg-amber-50/70 cursor-not-allowed"
+                              : "border-slate-100 bg-slate-50/50 hover:bg-slate-50 cursor-pointer"
+                              }`}
+                          >
                             <div className="flex items-center h-5">
                               <input
                                 type="checkbox"
                                 className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
                                 checked={!!notificationSettings[setting.key]}
+                                disabled={isNotificationSettingLocked(setting.key)}
                                 onChange={() => toggleNotificationSetting(setting.key)}
                               />
                             </div>
-                            <span className="text-sm text-slate-700 group-hover:text-slate-900 leading-tight">{setting.label}</span>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-700 group-hover:text-slate-900 leading-tight">{getNotificationSettingLabel(setting.key)}</span>
+                                {isNotificationSettingLocked(setting.key) && (
+                                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                    Always on
+                                  </span>
+                                )}
+                              </div>
+                              {setting.description && (
+                                <p className="text-xs text-slate-500">{setting.description}</p>
+                              )}
+                            </div>
                           </label>
                         ))}
                       </div>

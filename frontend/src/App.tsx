@@ -32,7 +32,7 @@ import { ProfileView } from "./components/ProfileView";
 import { AdminView } from "./components/AdminView";
 import { PlanComparisonView } from "./components/PlanComparisonView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
-import { isAdmin } from "./lib/auth";
+import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
 import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
@@ -41,6 +41,7 @@ import { Field } from "./components/Field";
 import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
 import { useDialog } from "./components/DialogProvider";
+import { useAuth } from "./contexts/AuthContext";
 import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
 import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
@@ -124,6 +125,7 @@ function ScholarDockMark() {
 
 export function App() {
   const { showAlert, showConfirm } = useDialog();
+  const { user } = useAuth();
   const [dashboard, setDashboard] = useState<Dashboard>(emptyDashboard);
   const [workspace, setWorkspace] = useState<RecordMap | null>(null);
   const [degreeWorkspaces, setDegreeWorkspaces] = useState<RecordMap[]>([]);
@@ -135,7 +137,8 @@ export function App() {
   const [documentCategories, setDocumentCategories] = useState<RecordMap[]>([]);
   const [notifications, setNotifications] = useState<RecordMap[]>([]);
   const [message, setMessage] = useState("Loading ScholarDock...");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [toast, setToast] = useState("");
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
@@ -276,8 +279,25 @@ export function App() {
   ] as const;
 
   const adminItem = ["admin", "Admin", Shield] as const;
-  
-  let navItems = isAdmin() ? [...baseNavItems.slice(0, 5), adminItem, ...baseNavItems.slice(5)] : baseNavItems;
+
+  const currentIdentity = workspace?.user ?? user;
+  const currentHasUserPlan = currentIdentity ? hasActiveUserPlan(currentIdentity) : isUser();
+  const currentIsAdmin = currentIdentity?.roles ? hasAdminRole(currentIdentity.roles) : isAdmin();
+
+  useEffect(() => {
+    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard"].includes(activeTab)) {
+      setActiveTab(currentIsAdmin ? "admin" : "profile");
+    }
+  }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
+
+  let navItems: any[] = [];
+  if (currentHasUserPlan) {
+    navItems.push(...baseNavItems.slice(0, 5));
+  }
+  if (currentIsAdmin) {
+    navItems.push(adminItem);
+  }
+  navItems.push(...baseNavItems.slice(5));
 
   const handleSidebarNav = (key: string) => {
     if (key === "projects") {
@@ -425,7 +445,7 @@ export function App() {
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
               <PlanComparisonView onBack={() => setActiveTab("profile")} />
             </div>
-          ) : activeTab === "admin" && isAdmin() ? (
+          ) : activeTab === "admin" && currentIsAdmin ? (
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>
               <AdminView />
             </div>

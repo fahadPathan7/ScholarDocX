@@ -1,9 +1,14 @@
 /**
- * Notification Settings Labels Configuration
- * 
- * This file maintains all notification setting labels and descriptions
- * for better maintainability and consistency across the application.
+ * Notification preferences and labels used by both the settings UI and
+ * notification-related admin surfaces.
  */
+
+export interface NotificationSetting {
+  key: string;
+  label: string;
+  description?: string;
+  locked?: boolean;
+}
 
 export interface NotificationCategory {
   title: string;
@@ -11,13 +16,9 @@ export interface NotificationCategory {
   settings: NotificationSetting[];
 }
 
-export interface NotificationSetting {
-  key: string;
-  label: string;
-  description?: string;
-}
+export type NotificationPreferenceTabId = "workspace" | "admin";
 
-export const notificationCategories: NotificationCategory[] = [
+export const workspaceNotificationCategories: NotificationCategory[] = [
   {
     title: "Project Actions",
     icon: "Route",
@@ -25,7 +26,7 @@ export const notificationCategories: NotificationCategory[] = [
       { key: "project_create", label: "Created" },
       { key: "project_delete", label: "Deleted" },
       { key: "project_pin", label: "Pin Status Changed" },
-    ]
+    ],
   },
   {
     title: "Sheet Actions",
@@ -34,7 +35,7 @@ export const notificationCategories: NotificationCategory[] = [
       { key: "sheet_create", label: "Created" },
       { key: "sheet_delete", label: "Deleted" },
       { key: "sheet_pin", label: "Pin Status Changed" },
-    ]
+    ],
   },
   {
     title: "Record Actions",
@@ -42,7 +43,7 @@ export const notificationCategories: NotificationCategory[] = [
     settings: [
       { key: "record_create", label: "Created" },
       { key: "record_delete", label: "Deleted" },
-    ]
+    ],
   },
   {
     title: "Whiteboard Actions",
@@ -50,7 +51,7 @@ export const notificationCategories: NotificationCategory[] = [
     settings: [
       { key: "whiteboard_create", label: "Created" },
       { key: "whiteboard_delete", label: "Deleted" },
-    ]
+    ],
   },
   {
     title: "Sticky Note Actions",
@@ -59,53 +60,87 @@ export const notificationCategories: NotificationCategory[] = [
       { key: "sticky_note_create", label: "Created" },
       { key: "sticky_note_update", label: "Updated" },
       { key: "sticky_note_delete", label: "Deleted" },
-    ]
+    ],
   },
   {
     title: "Outreach Actions",
     icon: "MessageCircle",
-    settings: [
-      { key: "scheduled_email", label: "Scheduled Email Reminder" },
-    ]
-  }
+    settings: [{ key: "scheduled_email", label: "Scheduled Email Reminder" }],
+  },
 ];
 
-/**
- * Default notification settings
- * true = enabled by default, false = disabled by default
- */
+export const adminNotificationCategories: NotificationCategory[] = [
+  {
+    title: "Administrative Notices",
+    icon: "Bell",
+    settings: [
+      {
+        key: "system",
+        label: "System",
+        description: "Critical access, security, and platform notices.",
+        locked: true,
+      },
+      {
+        key: "announcements",
+        label: "Announcements",
+        description: "General admin announcements and updates.",
+      },
+      {
+        key: "billing",
+        label: "Billing",
+        description: "Plan, payment, and account billing updates.",
+      },
+      {
+        key: "plans",
+        label: "Plan Updates",
+        description: "Plan approvals, renewals, and subscription guidance.",
+      },
+    ],
+  },
+];
+
+export const notificationCategories = workspaceNotificationCategories;
+
+export const notificationPreferenceTabs = [
+  {
+    id: "workspace" as const,
+    label: "Workspace Activity",
+    description: "Control notifications created by your own workspace actions.",
+    categories: workspaceNotificationCategories,
+  },
+  {
+    id: "admin" as const,
+    label: "Admin Notices",
+    description: "Control admin-sent notice categories. System notices always stay on.",
+    categories: adminNotificationCategories,
+  },
+];
+
+export const mandatoryNotificationSettingKeys = ["system"] as const;
+
 export const defaultNotificationSettings: Record<string, boolean> = {
-  // Project actions - important ones enabled
   project_create: true,
   project_delete: true,
   project_pin: false,
-  
-  // Sheet actions - important ones enabled
   sheet_create: true,
   sheet_delete: true,
   sheet_pin: false,
-  
-  // Record actions
   record_create: false,
   record_delete: true,
-  
-  // Whiteboard actions
   whiteboard_create: false,
   whiteboard_delete: true,
-
-  // Sticky Note actions
   sticky_note_create: false,
   sticky_note_update: false,
   sticky_note_delete: true,
-
-  // Outreach actions
   scheduled_email: true,
+  system: true,
+  announcements: true,
+  billing: true,
+  plans: true,
 };
 
-/**
- * Notification settings intro text
- */
-export const notificationSettingsIntro = "Choose which events you want to be notified about.";
+export const notificationSettingsIntro =
+  "Choose which workspace and admin notification categories you want to receive.";
 
 function parseBooleanLike(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
@@ -119,12 +154,33 @@ function parseBooleanLike(value: unknown): boolean | undefined {
 
 export function normalizeNotificationSettings(raw: unknown): Record<string, boolean> {
   const merged: Record<string, boolean> = { ...defaultNotificationSettings };
-  if (!raw || typeof raw !== "object") return merged;
+  if (!raw || typeof raw !== "object") {
+    mandatoryNotificationSettingKeys.forEach((key) => {
+      merged[key] = true;
+    });
+    return merged;
+  }
   Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
     const parsed = parseBooleanLike(value);
     if (typeof parsed === "boolean") {
       merged[key] = parsed;
     }
   });
+  mandatoryNotificationSettingKeys.forEach((key) => {
+    merged[key] = true;
+  });
   return merged;
+}
+
+export function isNotificationSettingLocked(key: string): boolean {
+  return mandatoryNotificationSettingKeys.includes(key as (typeof mandatoryNotificationSettingKeys)[number]);
+}
+
+export function getNotificationSettingLabel(key: string): string {
+  const categories = [...workspaceNotificationCategories, ...adminNotificationCategories];
+  for (const category of categories) {
+    const match = category.settings.find((setting) => setting.key === key);
+    if (match) return match.label;
+  }
+  return key;
 }

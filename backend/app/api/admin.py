@@ -50,6 +50,13 @@ class InviteRequestReviewPayload(BaseModel):
 class SettingUpdatePayload(BaseModel):
     value: str
 
+class AdminNotificationSendPayload(BaseModel):
+    title: str
+    body: str
+    category: str
+    send_to_all: bool = False
+    recipient_user_ids: list[int] = []
+
 def require_feature(feature: str, user: dict, connection):
     try:
         check_and_increment_limit(user, feature, 0, connection)
@@ -169,7 +176,7 @@ def list_invite_codes(admin_service: AdminService = Depends(get_admin_service), 
 def create_invite_code(payload: InviteCodePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_manage_invites", current_user, admin_service.connection)
     expires_at = None
-    if payload.expiration_hours is not None:
+    if payload.expiration_hours is not None and payload.expiration_hours > 0:
         expires_at = (datetime.utcnow() + timedelta(hours=payload.expiration_hours)).isoformat()
     return admin_service.create_invite_code(current_user["id"], payload.max_uses, expires_at)
 
@@ -215,6 +222,25 @@ def create_user(payload: UserCreatePayload, admin_service: AdminService = Depend
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/notifications/send")
+def send_admin_notifications(
+    payload: AdminNotificationSendPayload,
+    admin_service: AdminService = Depends(get_admin_service),
+    current_user: dict = Depends(get_current_user),
+):
+    require_feature("admin_send_notifications", current_user, admin_service.connection)
+    try:
+        return admin_service.send_notifications(
+            current_user["id"],
+            title=payload.title,
+            body=payload.body,
+            category=payload.category,
+            send_to_all=payload.send_to_all,
+            recipient_user_ids=payload.recipient_user_ids,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/limits")
 def list_role_limits(admin_service: AdminService = Depends(get_admin_service)):
     # All admins can view limits (read-only)
@@ -246,12 +272,23 @@ def list_audit_logs(admin_service: AdminService = Depends(get_admin_service), cu
     return admin_service.list_audit_logs()
 
 @router.get("/plan-requests")
-def list_plan_requests(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def list_plan_requests(
+    request_type: Optional[str] = None,
+    admin_service: AdminService = Depends(get_admin_service),
+    current_user: dict = Depends(get_current_user),
+):
+    normalized_type = request_type.lower() if request_type and request_type.lower() != "all" else None
     require_feature("admin_manage_plan_requests", current_user, admin_service.connection)
-    return admin_service.list_plan_requests()
+    return admin_service.list_plan_requests(normalized_type)
 
 @router.post("/plan-requests/{request_id}/review")
 def review_plan_request(request_id: int, payload: PlanRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    request_row = admin_service.connection.execute(
+        "SELECT COALESCE(request_type, 'upgrade') AS request_type FROM plan_upgrade_requests WHERE id = ?",
+        (request_id,),
+    ).fetchone()
+    if not request_row:
+        raise HTTPException(status_code=404, detail="Request not found")
     require_feature("admin_manage_plan_requests", current_user, admin_service.connection)
     try:
         return admin_service.resolve_plan_request(current_user["id"], request_id, payload.action)

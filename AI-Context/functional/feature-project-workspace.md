@@ -25,6 +25,15 @@ Targets should be organized as projects. The Projects root screen should only he
 - FR-7.21: When role-based permissions or limits block an action, the UI should
   show a clear, styled alert explaining why the action failed and what to do
   next.
+- FR-7.22: Admin user-management filters should show live user counts for each
+  available role, plan-status, and account-status option based on the
+  currently selected complementary filters.
+- FR-7.23: Admins should be able to send notifications with a title, body, and
+  category to all users, the currently filtered user subset, or specific
+  individual users from the user-management surface.
+- FR-7.24: Admin-sent notifications must respect recipient notification
+  preferences, except for the mandatory `system` category which cannot be
+  disabled by users.
 - FR-7.8: Left navigation is collapsible.
 - FR-7.9: AI assistant appears as a collapsible/expandable top-right panel similar to browser Copilot.
 - FR-7.10: Users have a profile page for local identity and preferences.

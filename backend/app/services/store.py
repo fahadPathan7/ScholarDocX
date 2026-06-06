@@ -19,7 +19,7 @@ TABLE_COLUMNS = {
     "projects": {"user_id", "name", "degree_type", "intake_term", "status", "description", "is_pinned", "pinned_to_dashboard"},
     "project_sheets": {"user_id", "project_id", "name", "is_pinned", "pinned_to_dashboard"},
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},
-    "notifications": {"user_id", "project_id", "title", "body", "notification_type", "due_at", "read_at"},
+    "notifications": {"user_id", "project_id", "title", "body", "notification_type", "preference_key", "due_at", "read_at"},
     "document_categories": {"user_id", "slug", "display_name", "sort_order"},
     "sticky_notes": {"user_id", "title", "body", "color", "is_bold", "is_checklist", "checklist_json"},
     "degree_workspaces": {"user_id", "degree_type", "display_name", "enabled"},

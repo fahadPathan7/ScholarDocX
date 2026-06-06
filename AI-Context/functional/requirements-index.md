@@ -47,6 +47,13 @@
 - FR-6.4: Google signin must not be required for local data access unless a later business decision changes the product.
 - FR-6.5: OAuth scopes must be minimal and purpose-specific.
 - FR-6.6: Disconnecting Google identity must not delete local application data.
+- FR-6.7: Authenticated users should be able to explicitly log out from the Profile view.
+- FR-6.8: Admin role limit/permission settings should support reset-to-default per role.
+- FR-6.9: Users with only admin roles and no user-tier role should see user-tier usage limits as zero in usage summaries.
+- FR-6.10: Users can request a renewal for their current plan using a monthly or yearly billing cycle without replacing the active or expired plan record.
+- FR-6.11: Admin approval of a renewal must extend the current plan deadline from the approval timestamp when the existing plan has expired, or from the existing plan end date when it is still active.
+- FR-6.12: Users whose user-tier plan has expired should lose the main workspace navigation tabs and fall back to the limited sidebar set used for non-user access, while still keeping Profile, Settings, About, and plan management reachable.
+- FR-6.13: The profile subscription card should visually warn users when a plan has 7 days or fewer remaining, and switch to an urgent expired state with renewal guidance once the plan has ended.
 
 ## FR-7: Projects, Sheet Pages, Notifications, And Layout
 
@@ -66,3 +73,11 @@
 - FR-7.14: Rows track email sent, follow-up sent, response, central application, and date fields.
 - FR-7.15: Rows are colored by configurable due-date thresholds.
 - FR-7.16: Rows can link uploaded documents/files.
+- FR-7.17: Notification events must come from a centralized, code-defined event registry so only approved notification kinds are emitted.
+- FR-7.18: Notification titles and bodies should use centralized templates with variable interpolation.
+- FR-7.19: Every emitted notification event must map to a user-controllable notification preference key.
+- FR-7.20: Admin dashboard should provide a read-only tab showing notification text previews by category.
+- FR-7.21: When role-based permissions or limits block an action, the UI should show a clear, styled alert explaining why the action failed and what to do next.
+- FR-7.22: Admin user-management filters should show live user counts for each available role, plan-status, and account-status option based on the currently selected complementary filters.
+- FR-7.23: Admins can send notifications with a title, body, and category to all users, the currently filtered user subset, or specific individual users.
+- FR-7.24: Admin-sent notifications must respect each recipient's notification preferences, except for the mandatory `system` category which users cannot disable.

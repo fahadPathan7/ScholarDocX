@@ -406,7 +406,13 @@ async def ai_research(
 
 
 @router.post("/ai/summarize")
-async def ai_summarize(payload: SummarizePayload, settings: Settings = Depends(get_settings)) -> dict:
+async def ai_summarize(
+    payload: SummarizePayload,
+    settings: Settings = Depends(get_settings),
+    store: Store = Depends(get_user_store),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    verify_model_permission(payload.model, current_user, store.connection)
     return await AiService(settings).summarize_memory(payload.text, payload.model)
 
 

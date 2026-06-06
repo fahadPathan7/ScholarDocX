@@ -1,7 +1,7 @@
 import re
 import json
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -48,7 +48,8 @@ class ChangePasswordPayload(BaseModel):
 
 class PlanRequestPayload(BaseModel):
     requested_plan: str
-    billing_cycle: str = "monthly"
+    request_type: Literal["upgrade", "extension"] = "upgrade"
+    billing_cycle: Literal["monthly", "yearly"] = "monthly"
     message: Optional[str] = ""
 
 class InviteRequestPayload(BaseModel):
@@ -89,7 +90,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     if invite["expires_at"] and datetime.fromisoformat(invite["expires_at"]) < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invite code has expired.")
         
-    if invite["max_uses"] != -1 and invite["used_count"] >= invite["max_uses"]:
+    if invite["max_uses"] != 0 and invite["used_count"] >= invite["max_uses"]:
         raise HTTPException(status_code=400, detail="Invite code usage limit reached.")
 
     # Check if email already exists
@@ -221,7 +222,7 @@ def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(ge
     ).fetchone()
     
     if not user or not verify_password(payload.current_password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Incorrect current password.")
+        raise HTTPException(status_code=400, detail="Incorrect current password.")
         
     if not validate_password_strength(payload.new_password):
         raise HTTPException(
@@ -292,7 +293,34 @@ def get_plans(store: Store = Depends(get_store)):
             "reset_period": row["reset_period"]
         }
         
-    return {"status": "success", "plans": plans}
+    settings_rows = store.connection.execute(
+        "SELECT key, value FROM app_settings WHERE key LIKE 'plan_price_%'"
+    ).fetchall()
+    
+    pricing = {row["key"]: row["value"] for row in settings_rows}
+    
+    # Defaults in case not in DB yet
+    pricing.setdefault("plan_price_general_monthly", "0")
+    pricing.setdefault("plan_price_general_yearly", "0")
+    pricing.setdefault("plan_price_pro_monthly", "50")
+    pricing.setdefault("plan_price_pro_yearly", "500")
+    pricing.setdefault("plan_price_max_monthly", "180")
+    pricing.setdefault("plan_price_max_yearly", "1500")
+
+    return {"status": "success", "plans": plans, "pricing": pricing}
+
+@router.get("/plans/requests")
+def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    rows = store.connection.execute(
+        """
+        SELECT id, request_type, requested_plan, billing_cycle, message, status, reviewed_at, created_at
+        FROM plan_upgrade_requests
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        """,
+        (current_user["id"],)
+    ).fetchall()
+    return {"status": "success", "requests": [dict(row) for row in rows]}
 
 @router.post("/invite-request")
 def request_invite(payload: InviteRequestPayload, request: Request, store: Store = Depends(get_store)):
@@ -359,16 +387,25 @@ def contact_admin(payload: ContactAdminPayload, request: Request, store: Store =
 
 @router.post("/plans/request")
 def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    existing_request = store.connection.execute(
+        "SELECT id FROM plan_upgrade_requests WHERE user_id = ? AND status = 'Pending'",
+        (current_user["id"],)
+    ).fetchone()
+    
+    if existing_request:
+        raise HTTPException(status_code=400, detail="You already have a pending plan request. Please wait for it to be reviewed before submitting another.")
+
     try:
         store.connection.execute(
             """
-            INSERT INTO plan_upgrade_requests (user_id, requested_plan, billing_cycle, message)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO plan_upgrade_requests (user_id, request_type, requested_plan, billing_cycle, message)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (current_user["id"], payload.requested_plan, payload.billing_cycle, payload.message)
+            (current_user["id"], payload.request_type, payload.requested_plan, payload.billing_cycle, payload.message)
         )
         store.connection.commit()
-        return {"status": "success", "message": "Plan upgrade request submitted successfully."}
+        message = "Plan extension request submitted successfully." if payload.request_type == "extension" else "Plan upgrade request submitted successfully."
+        return {"status": "success", "message": message}
     except Exception as e:
         store.connection.rollback()
         raise HTTPException(status_code=500, detail=str(e))

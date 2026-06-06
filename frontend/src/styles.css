@@ -1479,6 +1479,12 @@ h2 {
   width: 100%;
 }
 
+.chat-setting-note {
+  color: #7b4d4d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .chat-input-section {
   background: #fdfcf9;
   border-top: 1px solid rgba(56, 74, 67, 0.08);

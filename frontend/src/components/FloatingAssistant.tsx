@@ -5,6 +5,15 @@ import remarkGfm from "remark-gfm";
 import { api, RecordMap } from "../lib/api";
 import { useUsage } from "../contexts/UsageContext";
 import { emitUiError } from "../lib/uiError";
+import {
+  getFallbackModel,
+  getProviderDisplayName,
+  getProviderForModel,
+  MODEL_DISPLAY_NAMES,
+  MODEL_OPTIONS,
+  MODEL_PROVIDER_FEATURES,
+  type ModelOption,
+} from "../lib/assistantModels";
 
 type Message = {
   role: "user" | "assistant";
@@ -101,54 +110,6 @@ const createInitialGreeting = () => ({
   timestamp: Date.now()
 });
 
-const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  "groq:openai/gpt-oss-120b": "GPT OSS 120B",
-  "groq:groq/compound": "Groq Compound",
-  "groq:llama-3.3-70b-versatile": "Llama 3.3 70B (Versatile)",
-  "groq:qwen/qwen3-32b": "Qwen 3 32B",
-  "groq:meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout 17B Instruct",
-  "groq:openai/gpt-oss-20b": "GPT OSS 20B",
-  "mistral:mistral-large-latest": "Mistral Large",
-  "mistral:mistral-medium-3-5": "Mistral Medium 3.5",
-  "mistral:devstral-2512": "Devstral 2512",
-  "gemini:gemini-2.5-flash": "Gemini 2.5 Flash",
-  "gemini:gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite",
-  "GLM-5.1": "GLM-5.1",
-  "GLM-5": "GLM-5",
-  "GLM-5-Turbo": "GLM-5-Turbo",
-  "GLM-4.7": "GLM-4.7",
-  "GLM-4.6V": "GLM-4.6V (Vision)",
-};
-
-const MODEL_OPTIONS = (
-  <>
-    <optgroup label="Groq">
-      <option value="groq:openai/gpt-oss-120b">GPT OSS 120B</option>
-      <option value="groq:groq/compound">Groq Compound</option>
-      <option value="groq:llama-3.3-70b-versatile">Llama 3.3 70B (Versatile)</option>
-      <option value="groq:qwen/qwen3-32b">Qwen 3 32B</option>
-      <option value="groq:meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout 17B Instruct</option>
-      <option value="groq:openai/gpt-oss-20b">GPT OSS 20B</option>
-    </optgroup>
-    <optgroup label="Mistral">
-      <option value="mistral:mistral-large-latest">Mistral Large</option>
-      <option value="mistral:mistral-medium-3-5">Mistral Medium 3.5</option>
-      <option value="mistral:devstral-2512">Devstral 2512</option>
-    </optgroup>
-    <optgroup label="Google AI Studio">
-      <option value="gemini:gemini-2.5-flash">Gemini 2.5 Flash</option>
-      <option value="gemini:gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</option>
-    </optgroup>
-    <optgroup label="GLM">
-      <option value="GLM-5.1">GLM-5.1</option>
-      <option value="GLM-5">GLM-5</option>
-      <option value="GLM-5-Turbo">GLM-5-Turbo</option>
-      <option value="GLM-4.7">GLM-4.7</option>
-      <option value="GLM-4.6V">GLM-4.6V (Vision)</option>
-    </optgroup>
-  </>
-);
-
 export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?: () => Promise<void> }) {
   const { usageData, refreshUsage } = useUsage();
   const [open, setOpen] = useState(false);
@@ -198,6 +159,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const hasAdjustedRestrictedModelsRef = useRef(false);
 
   // Auto-scroll to bottom and auto-focus
   useEffect(() => {
@@ -226,12 +188,68 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   }, [webSearchEnabled]);
 
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
+  const allowedProviders = new Set(
+    (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
+      (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) === 1
+    )
+  );
+  const blockedProviders = (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
+    (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) !== 1
+  );
+  const modelOptionsByProvider = MODEL_OPTIONS.reduce<Record<string, ModelOption[]>>((groups, option) => {
+    (groups[option.providerLabel] ||= []).push(option);
+    return groups;
+  }, {});
+
+  const isModelAllowed = (model: string) => {
+    return allowedProviders.has(getProviderForModel(model));
+  };
+
+  const handleRestrictedModelAttempt = (model: string, targetLabel: "chat" | "background") => {
+    const provider = getProviderForModel(model);
+    emitUiError({
+      title: "Model unavailable",
+      kind: "permission",
+      message: `${getProviderDisplayName(provider)} models are disabled for your role, so this ${targetLabel} model cannot be selected.`,
+    });
+  };
 
   useEffect(() => {
     if (!canUseWebSearch && webSearchEnabled) {
       setWebSearchEnabled(false);
     }
   }, [canUseWebSearch, webSearchEnabled]);
+
+  useEffect(() => {
+    if (!usageData || allowedProviders.size === 0) return;
+
+    const nextSelectedModel = isModelAllowed(selectedModel)
+      ? selectedModel
+      : getFallbackModel("chat", allowedProviders);
+    const nextBackgroundModel = isModelAllowed(backgroundModel)
+      ? backgroundModel
+      : getFallbackModel("background", allowedProviders);
+
+    const selectedChanged = nextSelectedModel !== selectedModel;
+    const backgroundChanged = nextBackgroundModel !== backgroundModel;
+    if (!selectedChanged && !backgroundChanged) return;
+
+    if (selectedChanged) setSelectedModel(nextSelectedModel);
+    if (backgroundChanged) setBackgroundModel(nextBackgroundModel);
+
+    if (!hasAdjustedRestrictedModelsRef.current) {
+      const changedTargets = [
+        selectedChanged ? "chat model" : null,
+        backgroundChanged ? "background model" : null,
+      ].filter(Boolean).join(" and ");
+      emitUiError({
+        title: "Model access updated",
+        kind: "permission",
+        message: `Your saved ${changedTargets} was not allowed for this role, so ScholarDock switched you to an available provider automatically.`,
+      });
+      hasAdjustedRestrictedModelsRef.current = true;
+    }
+  }, [usageData, allowedProviders, selectedModel, backgroundModel]);
 
   useEffect(() => {
     localStorage.setItem("scholarDock_useSummaryContext", String(useSummaryContext));
@@ -679,16 +697,68 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
             <div className="chat-setting-item">
               <label>Chat Model</label>
-              <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
-                {MODEL_OPTIONS}
+              <select
+                value={selectedModel}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (!isModelAllowed(next)) {
+                    handleRestrictedModelAttempt(next, "chat");
+                    return;
+                  }
+                  setSelectedModel(next);
+                }}
+              >
+                {Object.entries(modelOptionsByProvider).map(([label, options]) => (
+                  <optgroup key={label} label={label}>
+                    {options.map((option) => {
+                      const disabled = !allowedProviders.has(option.provider);
+                      return (
+                        <option key={option.value} value={option.value} disabled={disabled}>
+                          {disabled ? `${option.label} (No access)` : option.label}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
               </select>
+              {blockedProviders.length > 0 && (
+                <small className="chat-setting-note">
+                  Disabled for your role: {blockedProviders.map(getProviderDisplayName).join(", ")}
+                </small>
+              )}
             </div>
 
             <div className="chat-setting-item">
               <label>Background Model</label>
-              <select value={backgroundModel} onChange={e => setBackgroundModel(e.target.value)}>
-                {MODEL_OPTIONS}
+              <select
+                value={backgroundModel}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (!isModelAllowed(next)) {
+                    handleRestrictedModelAttempt(next, "background");
+                    return;
+                  }
+                  setBackgroundModel(next);
+                }}
+              >
+                {Object.entries(modelOptionsByProvider).map(([label, options]) => (
+                  <optgroup key={label} label={label}>
+                    {options.map((option) => {
+                      const disabled = !allowedProviders.has(option.provider);
+                      return (
+                        <option key={option.value} value={option.value} disabled={disabled}>
+                          {disabled ? `${option.label} (No access)` : option.label}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
               </select>
+              {blockedProviders.length > 0 && (
+                <small className="chat-setting-note">
+                  Disabled for your role: {blockedProviders.map(getProviderDisplayName).join(", ")}
+                </small>
+              )}
             </div>
           </div>
         )}

@@ -12,6 +12,8 @@ export interface User {
   is_blocked?: boolean;
 }
 
+export type UserPlanStatus = "no_plan" | "active" | "warning" | "expired";
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -67,4 +69,58 @@ export function hasRole(role: string): boolean {
 
 export function isAdmin(): boolean {
   return hasRole("super_admin") || hasRole("general_admin");
+}
+
+export function isUser(): boolean {
+  return hasRole("general_user") || hasRole("pro_user") || hasRole("max_user");
+}
+
+export function hasUserTierRole(roles: string[] | undefined | null): boolean {
+  return (roles || []).some((role) => ["general_user", "pro_user", "max_user"].includes(role));
+}
+
+export function hasAdminRole(roles: string[] | undefined | null): boolean {
+  return (roles || []).some((role) => ["super_admin", "general_admin"].includes(role));
+}
+
+export function isUserPlanExpired(planEndsAt?: string): boolean {
+  if (!planEndsAt) return false;
+  const parsed = new Date(planEndsAt);
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return endDate < today;
+}
+
+export function getUserPlanStatus(planEndsAt?: string): UserPlanStatus {
+  if (!planEndsAt) return "no_plan";
+  const parsed = new Date(planEndsAt);
+  if (Number.isNaN(parsed.getTime())) return "no_plan";
+
+  const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysUntilExpiry = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysUntilExpiry < 0) return "expired";
+  if (daysUntilExpiry <= 7) return "warning";
+  return "active";
+}
+
+export function getPlanDaysRemaining(planEndsAt?: string): number | null {
+  if (!planEndsAt) return null;
+  const parsed = new Date(planEndsAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function hasActiveUserPlan(user?: Pick<User, "roles" | "plan_ends_at"> | null): boolean {
+  if (!user || !hasUserTierRole(user.roles)) return false;
+  return getUserPlanStatus(user.plan_ends_at) !== "expired";
 }

@@ -21,6 +21,9 @@ Rules:
 - Expanded state should support chat and research actions.
 - The assistant should be available across core pages.
 - The assistant trigger should live in the top-right header controls beside refresh.
+- Model selectors in assistant settings must reflect role/provider permissions.
+  Providers blocked by role limits should appear unavailable and must not be
+  selected for chat or background tasks.
 
 ## Research Workflow
 
@@ -101,6 +104,14 @@ Agentic action rules:
 ## Privacy UX
 
 Before sending sensitive context to external AI providers, the UI should make it clear that the content will be sent externally.
+
+## Model Access UX
+
+- Role-limited providers such as GLM or Mistral must not remain selected when a
+  user no longer has access.
+- If a saved chat/background model becomes unavailable because of role limits,
+  the assistant should recover to an allowed model and explain the change
+  clearly.
 
 ## Non-Goals
 

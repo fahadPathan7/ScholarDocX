@@ -22,6 +22,21 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.8: Admin role limit/permission settings should support reset-to-default per role.
 - FR-6.9: Users with only admin roles and no user-tier role should see user-tier
   usage limits as zero in usage summaries.
+- FR-6.10: Users can request a renewal for their current plan using a monthly
+  or yearly billing cycle without replacing the active or expired plan record.
+- FR-6.11: Admin approval of a renewal must extend the current plan deadline
+  from the approval timestamp when the existing plan has expired, or from the
+  existing plan end date when it is still active.
+- FR-6.12: Users whose user-tier plan has expired should lose the main
+  workspace navigation tabs and fall back to the limited sidebar set used for
+  non-user access, while still keeping Profile, Settings, About, and plan
+  management reachable.
+- FR-6.13: The profile subscription card should visually warn users when a
+  plan has 7 days or fewer remaining, and switch to an urgent expired state
+  with renewal guidance once the plan has ended.
+- FR-6.14: Plan upgrade review and plan extension review should have separate
+  admin permissions so either review surface can be granted or disabled
+  independently in role limits.
 
 ## Google Signin User Flow
 

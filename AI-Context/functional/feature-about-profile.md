@@ -24,6 +24,11 @@ Keep user-facing work screens focused on work. Product/system details such as lo
   than rendering all settings sections inline.
 - FR-8.11: Settings detail sections such as usage limits and notification
   preferences should open in modals with blurred main-content backdrop.
+- FR-8.12: Notification preferences should separate workspace activity
+  notifications from admin-sent notification categories so users can manage
+  them independently.
+- FR-8.13: The `system` admin notification category must stay enabled for every
+  user and cannot be unchecked from the settings UI.
 
 ## About Page UX
 
@@ -31,4 +36,6 @@ The About page should use the full workspace width instead of a narrow centered
 column. It should explain ScholarDock's purpose, local-first privacy model, AI
 boundaries, document storage, and outreach support in a visually engaging but
 work-focused way. Subtle motion is acceptable when it helps the page feel alive
-without distracting from the app's calm planning theme.
+without distracting from the app's calm planning theme. Utility cards inside
+About, such as the system clock, should feel like polished status instruments
+rather than placeholder or debug-style widgets.

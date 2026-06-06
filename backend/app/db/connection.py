@@ -2,6 +2,7 @@ import sqlite3
 from pathlib import Path
 
 from app.core.categories import DEFAULT_MEDIA_CATEGORIES, category_display_name
+from app.core.notifications import default_notification_settings_json
 from app.db.schema import SCHEMA, SEED_SQL
 
 
@@ -74,8 +75,22 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         if "avatar" not in profile_columns:
             connection.execute("ALTER TABLE local_profiles ADD COLUMN avatar TEXT")
         if "notification_settings" not in profile_columns:
-            connection.execute("ALTER TABLE local_profiles ADD COLUMN notification_settings TEXT DEFAULT '{\"create_project\": true, \"create_sheet\": true, \"delete_project\": true, \"delete_sheet\": true, \"delete_record\": true, \"delete_whiteboard\": true, \"pin_project\": false, \"pin_sheet\": false, \"create_whiteboard\": false, \"add_record\": false}'")
-            
+            default_json = default_notification_settings_json().replace("'", "''")
+            connection.execute(f"ALTER TABLE local_profiles ADD COLUMN notification_settings TEXT DEFAULT '{default_json}'")
+
+    notification_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(notifications)").fetchall()
+    }
+    if notification_columns and "preference_key" not in notification_columns:
+        connection.execute("ALTER TABLE notifications ADD COLUMN preference_key TEXT NOT NULL DEFAULT 'system'")
+
+    plan_request_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(plan_upgrade_requests)").fetchall()
+    }
+    if plan_request_columns and "request_type" not in plan_request_columns:
+        connection.execute("ALTER TABLE plan_upgrade_requests ADD COLUMN request_type TEXT NOT NULL DEFAULT 'upgrade'")
 
 
     # Set user_id in related tables where missing
@@ -155,7 +170,9 @@ def migrate_database(connection: sqlite3.Connection) -> None:
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
+        ("general_admin", "admin_manage_plan_requests", 1, "never"),
         ("super_admin", "admin_manage_suspension_appeals", 1, "never"),
+        ("super_admin", "admin_manage_plan_requests", 1, "never"),
     ]
     connection.executemany(
         """
@@ -219,6 +236,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "admin_manage_invites", "admin_view_audit_logs",
         "admin_manage_plan_requests", "admin_manage_invite_requests",
         "admin_manage_role_limits", "admin_manage_notification_texts",
+        "admin_send_notifications",
         "admin_manage_settings", "admin_manage_suspension_appeals",
     }
     placeholders = ",".join("?" for _ in canonical_features)

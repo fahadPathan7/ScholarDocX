@@ -75,3 +75,13 @@ development.
 - `/auth/google/start` if optional Google signin is implemented
 - `/auth/google/callback` if optional Google signin is implemented
 - `/auth/session` if optional signin or local profile sessions are implemented
+- `/auth/plans/request` accepts upgrade and renewal requests with a
+  `request_type` field
+- `/auth/plans/requests` returns the current user's submitted plan requests so
+  the plan UI can show request history and statuses
+- `/admin/plan-requests` returns both replacement upgrades and renewal
+  requests and should support filtering by request type so admin permission
+  checks can differ between upgrade review and extension review tabs
+- `/admin/notifications/send` accepts admin-authored notification broadcasts or
+  targeted sends with a category, title, body, and either all-user delivery or
+  an explicit recipient list

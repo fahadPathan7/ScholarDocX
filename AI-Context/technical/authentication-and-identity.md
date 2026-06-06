@@ -67,6 +67,26 @@ Possible fields:
   local auth token/session state and navigate to `/login`.
 - Logout should never delete local project/workspace/user data.
 
+## Plan Access Lifecycle
+
+- User-tier plan access is enforced through `plan_started_at` and
+  `plan_ends_at` checks in the backend limit layer.
+- The frontend shell should also treat an expired user-tier plan as limited
+  navigation access: hide workspace tabs such as Dashboard, Projects,
+  Documents, Sticky Notes, and Whiteboard, while preserving Profile, Settings,
+  About, and plan-management entry points.
+- Profile-level subscription summary UI should derive plan state from the same
+  date logic and present three visual states: normal, warning when 7 or fewer
+  days remain, and urgent expired messaging with direct renewal/change-plan
+  guidance.
+- Plan renewal requests are stored separately from upgrades so the admin can
+  preserve the existing plan record and extend the deadline instead of
+  replacing the current subscription when a user asks for more time on the same
+  tier.
+- If a renewal is approved after the plan has already expired, the new
+  deadline starts from the approval timestamp so the user regains access from
+  the moment the admin acts.
+
 ## Testing Requirements
 
 If auth is implemented, add unit tests for:

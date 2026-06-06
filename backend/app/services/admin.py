@@ -5,6 +5,7 @@ import random
 import string
 from datetime import datetime, timedelta
 from app.auth.limits import invalidate_limits_cache
+from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
 
 DEFAULT_ROLE_LIMITS = {
     'general_user': [
@@ -80,6 +81,8 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_revoke_user', 1, 'never'),
         ('admin_manage_invites', 1, 'never'),
         ('admin_view_audit_logs', 0, 'never'),
+        ('admin_send_notifications', 1, 'never'),
+        ('admin_manage_plan_requests', 1, 'never'),
         ('can_use_agents', 1, 'never'),
     ],
     'super_admin': [
@@ -92,6 +95,8 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_revoke_user', 1, 'never'),
         ('admin_manage_invites', 1, 'never'),
         ('admin_view_audit_logs', 1, 'never'),
+        ('admin_send_notifications', 1, 'never'),
+        ('admin_manage_plan_requests', 1, 'never'),
         ('can_use_agents', 1, 'never'),
     ]
 }
@@ -99,6 +104,31 @@ DEFAULT_ROLE_LIMITS = {
 class AdminService:
     def __init__(self, connection: sqlite3.Connection):
         self.connection = connection
+
+    @staticmethod
+    def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00").split("+")[0])
+        except (ValueError, AttributeError):
+            return None
+
+    def _calculate_plan_extension_window(self, user: dict, billing_cycle: str) -> tuple[str, str]:
+        now = datetime.utcnow()
+        current_start = self._parse_iso_datetime(user.get("plan_started_at"))
+        current_end = self._parse_iso_datetime(user.get("plan_ends_at"))
+        duration_days = 365 if billing_cycle == "yearly" else 30
+
+        if current_end and current_end > now:
+            base_dt = current_end
+            start_dt = current_start or now
+        else:
+            base_dt = now
+            start_dt = now
+
+        new_end = base_dt + timedelta(days=duration_days)
+        return start_dt.isoformat(), new_end.isoformat()
 
     def log_audit_action(self, user_id: int, action: str, target_type: str, target_id: Optional[str] = None, details: Optional[dict] = None) -> None:
         details_json = json.dumps(details) if details else None
@@ -156,6 +186,90 @@ class AdminService:
             results.append(d)
             
         return results
+
+    def send_notifications(
+        self,
+        admin_id: int,
+        *,
+        title: str,
+        body: str,
+        category: str,
+        send_to_all: bool = False,
+        recipient_user_ids: Optional[list[int]] = None,
+    ) -> dict:
+        cleaned_title = (title or "").strip()
+        cleaned_body = (body or "").strip()
+        if not cleaned_title:
+            raise ValueError("Notification title is required")
+        if not cleaned_body:
+            raise ValueError("Notification body is required")
+        if category not in ADMIN_NOTIFICATION_KEYS:
+            raise ValueError("Unsupported notification category")
+
+        explicit_ids = sorted({int(user_id) for user_id in (recipient_user_ids or []) if user_id})
+        if send_to_all:
+            recipient_rows = self.connection.execute("SELECT id FROM users ORDER BY id ASC").fetchall()
+            target_user_ids = [int(row["id"]) for row in recipient_rows]
+        else:
+            if not explicit_ids:
+                raise ValueError("At least one recipient is required")
+            placeholders = ",".join("?" for _ in explicit_ids)
+            recipient_rows = self.connection.execute(
+                f"SELECT id FROM users WHERE id IN ({placeholders}) ORDER BY id ASC",
+                explicit_ids,
+            ).fetchall()
+            target_user_ids = [int(row["id"]) for row in recipient_rows]
+
+        if not target_user_ids:
+            raise ValueError("No matching recipients found")
+
+        placeholders = ",".join("?" for _ in target_user_ids)
+        profile_rows = self.connection.execute(
+            f"SELECT user_id, notification_settings FROM local_profiles WHERE user_id IN ({placeholders})",
+            target_user_ids,
+        ).fetchall()
+        settings_by_user_id = {
+            int(row["user_id"]): row["notification_settings"]
+            for row in profile_rows
+        }
+
+        delivered_user_ids: list[int] = []
+        skipped_user_ids: list[int] = []
+        for user_id in target_user_ids:
+            if not is_notification_enabled(settings_by_user_id.get(user_id), category):
+                skipped_user_ids.append(user_id)
+                continue
+            self.connection.execute(
+                """
+                INSERT INTO notifications (user_id, title, body, notification_type, preference_key)
+                VALUES (?, ?, ?, 'general', ?)
+                """,
+                (user_id, cleaned_title, cleaned_body, category),
+            )
+            delivered_user_ids.append(user_id)
+
+        self.connection.commit()
+        self.log_audit_action(
+            admin_id,
+            "send_notifications",
+            "notifications",
+            None,
+            {
+                "category": category,
+                "send_to_all": send_to_all,
+                "recipient_count": len(target_user_ids),
+                "delivered_count": len(delivered_user_ids),
+                "skipped_count": len(skipped_user_ids),
+            },
+        )
+        return {
+            "status": "success",
+            "category": category,
+            "delivered_count": len(delivered_user_ids),
+            "skipped_count": len(skipped_user_ids),
+            "delivered_user_ids": delivered_user_ids,
+            "skipped_user_ids": skipped_user_ids,
+        }
 
     def get_user_details(self, user_id: int) -> dict:
         user = self.connection.execute(
@@ -471,15 +585,27 @@ class AdminService:
             results.append(d)
         return results
 
-    def list_plan_requests(self) -> list[dict]:
-        requests = self.connection.execute(
-            """
-            SELECT p.*, u.email as user_email
-            FROM plan_upgrade_requests p
-            JOIN users u ON u.id = p.user_id
-            ORDER BY p.created_at DESC
-            """
-        ).fetchall()
+    def list_plan_requests(self, request_type: Optional[str] = None) -> list[dict]:
+        if request_type:
+            requests = self.connection.execute(
+                """
+                SELECT p.*, u.email as user_email
+                FROM plan_upgrade_requests p
+                JOIN users u ON u.id = p.user_id
+                WHERE COALESCE(p.request_type, 'upgrade') = ?
+                ORDER BY p.created_at DESC
+                """,
+                (request_type,),
+            ).fetchall()
+        else:
+            requests = self.connection.execute(
+                """
+                SELECT p.*, u.email as user_email
+                FROM plan_upgrade_requests p
+                JOIN users u ON u.id = p.user_id
+                ORDER BY p.created_at DESC
+                """
+            ).fetchall()
         return [dict(r) for r in requests]
 
     def resolve_plan_request(self, admin_id: int, request_id: int, action: str) -> dict:
@@ -507,25 +633,40 @@ class AdminService:
         if new_status == "Approved":
             user = self.get_user_details(req["user_id"])
             current_roles = user.get("roles", [])
-            
-            # Remove old plan roles
-            new_roles = [r for r in current_roles if r not in ["general_user", "pro_user", "max_user"]]
-            # Add requested plan
-            if req["requested_plan"] not in new_roles:
-                new_roles.append(req["requested_plan"])
-                
-            roles_json = json.dumps(new_roles)
+            request_type = req["request_type"] or "upgrade"
             plan_started_at = datetime.utcnow().isoformat()
             days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
-            plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+            audit_details = {
+                "request_type": request_type,
+                "billing_cycle": req["billing_cycle"],
+                "requested_plan": req["requested_plan"],
+            }
+
+            if request_type == "extension":
+                new_roles = current_roles
+                plan_started_at, plan_ends_at = self._calculate_plan_extension_window(user, req["billing_cycle"])
+            else:
+                # Remove old plan roles
+                new_roles = [r for r in current_roles if r not in ["general_user", "pro_user", "max_user"]]
+                # Add requested plan
+                if req["requested_plan"] not in new_roles:
+                    new_roles.append(req["requested_plan"])
+                plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+            roles_json = json.dumps(new_roles)
+            audit_details.update({
+                "plan_started_at": plan_started_at,
+                "plan_ends_at": plan_ends_at,
+            })
 
             self.connection.execute(
                 "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (roles_json, plan_started_at, plan_ends_at, req["user_id"])
             )
-            
+            self.connection.commit()
+            self.log_audit_action(admin_id, f"resolve_plan_request_{new_status.lower()}", "plan_upgrade_requests", str(request_id), audit_details)
+            return {"status": "success", "message": f"Request {new_status.lower()}."}
         self.connection.commit()
-        self.log_audit_action(admin_id, f"resolve_plan_request_{new_status.lower()}", "plan_upgrade_requests", str(request_id))
+        self.log_audit_action(admin_id, f"resolve_plan_request_{new_status.lower()}", "plan_upgrade_requests", str(request_id), {"request_type": req["request_type"] or "upgrade"})
         return {"status": "success", "message": f"Request {new_status.lower()}."}
 
     def get_app_settings(self) -> dict:

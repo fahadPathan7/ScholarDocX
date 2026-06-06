@@ -1,5 +1,6 @@
 import { Bell, CheckCheck, ExternalLink, Trash2, X } from "lucide-react";
 import { api, deleteRecord, RecordMap } from "../lib/api";
+import { getNotificationSettingLabel } from "../config/notificationLabels";
 
 export function FloatingNotifications({
   calendarItems,
@@ -28,6 +29,8 @@ export function FloatingNotifications({
   const read = notifications.filter((item) => item.read_at);
   const projectName = (item: RecordMap) =>
     item.project_name || projects.find((project) => String(project.id) === String(item.project_id))?.name || "Global";
+  const notificationLabel = (item: RecordMap) =>
+    item.preference_key ? getNotificationSettingLabel(String(item.preference_key)) : (item.notification_type || "general");
 
   const markAllRead = async () => {
     const timestamp = new Date().toISOString();
@@ -102,7 +105,7 @@ export function FloatingNotifications({
                     <div className="notification-meta">
                       <span className="notification-project">{projectName(item)}</span>
                       <span className="notification-separator">·</span>
-                      <span className="notification-type">{item.notification_type || "general"}</span>
+                      <span className="notification-type">{notificationLabel(item)}</span>
                       {item.due_at && (
                         <>
                           <span className="notification-separator">·</span>

@@ -1,3 +1,6 @@
+from app.core.notifications import default_notification_settings_json
+
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -38,7 +41,7 @@ CREATE TABLE IF NOT EXISTS local_profiles (
   timezone TEXT,
   notes TEXT,
   avatar TEXT,
-  notification_settings TEXT DEFAULT '{"create_project": true, "create_sheet": true, "delete_project": true, "delete_sheet": true, "delete_record": true, "delete_whiteboard": true, "pin_project": false, "pin_sheet": false, "create_whiteboard": false, "add_record": false}',
+  notification_settings TEXT DEFAULT '""" + default_notification_settings_json().replace("'", "''") + """',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -175,6 +178,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title TEXT NOT NULL,
   body TEXT,
   notification_type TEXT NOT NULL DEFAULT 'general',
+  preference_key TEXT NOT NULL DEFAULT 'system',
   due_at TEXT,
   read_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -400,6 +404,7 @@ CREATE TABLE IF NOT EXISTS research_notes (
 CREATE TABLE IF NOT EXISTS plan_upgrade_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_type TEXT NOT NULL DEFAULT 'upgrade',
   requested_plan TEXT NOT NULL,
   billing_cycle TEXT NOT NULL DEFAULT 'monthly',
   message TEXT,
@@ -522,6 +527,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'can_use_agents', 1, 'never'),
   ('general_admin', 'admin_manage_role_limits', 1, 'never'),
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
+  ('general_admin', 'admin_send_notifications', 1, 'never'),
   ('general_admin', 'admin_manage_settings', 0, 'never'),
 
   ('super_admin', 'admin_create_user', 1, 'never'),
@@ -539,10 +545,17 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'can_use_agents', 1, 'never'),
   ('super_admin', 'admin_manage_role_limits', 1, 'never'),
   ('super_admin', 'admin_manage_notification_texts', 1, 'never'),
+  ('super_admin', 'admin_send_notifications', 1, 'never'),
   ('super_admin', 'admin_manage_settings', 1, 'never');
 
 INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('jwt_secret_key', 'scholar-dock-local-first-secret-key-do-not-use-in-cloud'),
-  ('jwt_expiration_days', '30');
+  ('jwt_expiration_days', '30'),
+  ('plan_price_general_monthly', '0'),
+  ('plan_price_general_yearly', '0'),
+  ('plan_price_pro_monthly', '50'),
+  ('plan_price_pro_yearly', '500'),
+  ('plan_price_max_monthly', '180'),
+  ('plan_price_max_yearly', '1500');
 
 """

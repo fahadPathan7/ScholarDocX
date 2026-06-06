@@ -1,6 +1,7 @@
 import { Bell, CheckCheck, ExternalLink, Trash2 } from "lucide-react";
 import { Section } from "./Section";
 import { api, deleteRecord, RecordMap } from "../lib/api";
+import { getNotificationSettingLabel } from "../config/notificationLabels";
 import "./notifications.css";
 
 export function NotificationsView({
@@ -24,6 +25,8 @@ export function NotificationsView({
   const read = notifications.filter((item) => item.read_at);
   const projectName = (item: RecordMap) =>
     item.project_name || projects.find((project) => String(project.id) === String(item.project_id))?.name || "Global";
+  const notificationLabel = (item: RecordMap) =>
+    item.preference_key ? getNotificationSettingLabel(String(item.preference_key)) : (item.notification_type || "general");
 
   const markAllRead = async () => {
     const timestamp = new Date().toISOString();
@@ -78,7 +81,7 @@ export function NotificationsView({
                   <Bell size={16} />
                   <div>
                     <strong>{item.title || "Untitled alert"}</strong>
-                    <span>{projectName(item)} · {item.notification_type || "general"} · {item.due_at || "No due date"}</span>
+                    <span>{projectName(item)} · {notificationLabel(item)} · {item.due_at || "No due date"}</span>
                     <p>{item.body || "No extra details were stored for this alert."}</p>
                   </div>
                   <ExternalLink size={16} />

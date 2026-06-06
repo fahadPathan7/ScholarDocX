@@ -356,6 +356,192 @@
   margin: 0;
 }
 
+.about-clock-card {
+  background:
+    radial-gradient(circle at top right, rgba(106, 165, 149, 0.12), transparent 46%),
+    linear-gradient(160deg, rgba(251, 253, 249, 0.98), rgba(241, 247, 243, 0.96));
+  gap: 0;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+.about-clock-card::before {
+  background: linear-gradient(90deg, rgba(78, 151, 134, 0.22), rgba(78, 151, 134, 0));
+  content: "";
+  height: 1px;
+  inset: 0 0 auto;
+  position: absolute;
+}
+
+.about-clock-card::after {
+  background:
+    linear-gradient(rgba(68, 104, 94, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(68, 104, 94, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  content: "";
+  inset: auto 0 0 auto;
+  opacity: 0.55;
+  pointer-events: none;
+  position: absolute;
+  width: 62%;
+  height: 68%;
+}
+
+.about-clock-head,
+.about-clock-body {
+  position: relative;
+  z-index: 1;
+}
+
+.about-clock-head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 16px 10px;
+}
+
+.about-clock-label {
+  align-items: center;
+  color: #2c7466;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.about-clock-label svg {
+  flex-shrink: 0;
+}
+
+.about-clock-label span {
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.about-clock-meta {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.about-clock-chip {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(69, 103, 93, 0.12);
+  border-radius: 999px;
+  color: rgba(40, 59, 54, 0.7);
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 720;
+  gap: 6px;
+  letter-spacing: 0.14em;
+  min-height: 22px;
+  padding: 0 8px;
+  text-transform: uppercase;
+}
+
+.about-clock-chip-live {
+  color: #2b7869;
+}
+
+.about-clock-live-dot {
+  background: #3c8f7d;
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(60, 143, 125, 0.1);
+  display: inline-block;
+  height: 6px;
+  transition: opacity 0.2s ease;
+  width: 6px;
+}
+
+.about-clock-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.about-clock-caption {
+  color: rgba(50, 67, 62, 0.62);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin: 0;
+}
+
+.about-clock-display {
+  align-items: end;
+  color: #20312d;
+  display: flex;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", monospace;
+  gap: 2px;
+  line-height: 0.92;
+  min-height: 64px;
+}
+
+.about-clock-primary {
+  font-size: clamp(34px, 2.55vw, 42px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 560;
+  letter-spacing: 0.06em;
+}
+
+.about-clock-separator {
+  color: rgba(43, 89, 79, 0.78);
+  font-size: clamp(30px, 2.25vw, 36px);
+  font-weight: 420;
+  margin: 0 1px;
+  transition: opacity 0.2s ease;
+}
+
+.about-clock-seconds {
+  color: rgba(33, 49, 45, 0.5);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  margin-bottom: 5px;
+  margin-left: 8px;
+}
+
+.about-clock-footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.about-clock-date,
+.about-clock-zone {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(69, 103, 93, 0.1);
+  border-radius: 999px;
+  color: rgba(38, 58, 53, 0.72);
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  min-height: 28px;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+
+.about-clock-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.about-clock-zone {
+  color: #2a7668;
+}
+
+.about-clock-date-mobile {
+  display: none;
+}
+
 /* ─── AI guide ────────────────────────────────────────────────────────────── */
 
 .about-ai-guide {

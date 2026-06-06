@@ -815,7 +815,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     return (
       <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
         <div style={{ color: 'var(--wb-text-dim)', fontSize: 16 }}>No whiteboards yet</div>
-        <button className="wb-btn" onClick={handleCreateBoard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button className="wb-btn" onClick={createNewBoard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Plus size={16} /> Create Whiteboard
         </button>
       </div>

@@ -274,29 +274,50 @@ export function AboutView() {
           </div>
         ))}
         
-        <div className="about-card" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px", justifyContent: "center" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: "6px", alignItems: "center", color: "var(--ui-primary)" }}>
+        <div className="about-card about-clock-card">
+          <div className="about-clock-head">
+            <div className="about-clock-label">
               <Clock size={16} />
-              <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>System Clock</span>
+              <span>System Clock</span>
             </div>
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "1px", color: "var(--ui-ink)", opacity: 0.5, border: "1px solid rgba(0,0,0,0.1)", padding: "1px 4px", borderRadius: "4px" }}>24H</span>
-              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--ui-primary)", opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.3, transition: "opacity 0.2s ease", marginLeft: "2px" }}></div>
-              <span style={{ fontSize: "10px", fontWeight: 800, color: "var(--ui-primary)", letterSpacing: "0.5px" }}>UTC</span>
+            <div className="about-clock-meta">
+              <span className="about-clock-chip">24H</span>
+              <span className="about-clock-chip about-clock-chip-live">
+                <span
+                  className="about-clock-live-dot"
+                  style={{ opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.28 }}
+                />
+                Live
+              </span>
             </div>
           </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: "36px", fontWeight: 400, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", color: "var(--ui-ink)", letterSpacing: "2px", display: "flex", alignItems: "baseline", lineHeight: 1 }}>
-              <span>{utcTime.toISOString().substring(11, 13)}</span>
-              <span style={{ opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.2, transition: "opacity 0.2s ease", margin: "0 2px" }}>:</span>
-              <span>{utcTime.toISOString().substring(14, 16)}</span>
-              <span style={{ fontSize: "18px", marginLeft: "6px", opacity: 0.5, fontWeight: 500, letterSpacing: "1px" }}>
+
+          <div className="about-clock-body">
+            <p className="about-clock-caption">Coordinated Universal Time</p>
+            <div className="about-clock-display" aria-label="Current UTC time">
+              <span className="about-clock-primary">
+                {utcTime.toISOString().substring(11, 13)}
+              </span>
+              <span
+                className="about-clock-separator"
+                style={{ opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.22 }}
+              >
+                :
+              </span>
+              <span className="about-clock-primary">
+                {utcTime.toISOString().substring(14, 16)}
+              </span>
+              <span className="about-clock-seconds">
                 {utcTime.toISOString().substring(17, 19)}
               </span>
             </div>
-            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--ui-ink)", opacity: 0.4, letterSpacing: "2px", marginTop: "12px" }}>
+            <div className="about-clock-footer">
+              <span className="about-clock-date">
+                {utcTime.toISOString().substring(0, 10)}
+              </span>
+              <span className="about-clock-zone">UTC</span>
+            </div>
+            <div className="about-clock-date-mobile">
               {utcTime.toISOString().substring(0, 10)}
             </div>
           </div>

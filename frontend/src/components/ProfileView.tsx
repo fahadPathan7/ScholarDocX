@@ -3,6 +3,7 @@ import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
 import { useAuth } from "../contexts/AuthContext";
 import { UsageModal } from "./UsageModal";
+import { getPlanDaysRemaining, getUserPlanStatus } from "../lib/auth";
 
 type ProfileData = {
   display_name: string;
@@ -63,10 +64,46 @@ export function ProfileView({
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profileId, setProfileId] = useState<number | null>(null);
+
+  const planStatus = getUserPlanStatus(user?.plan_ends_at);
+  const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
+  const planCardTone = planStatus === "expired"
+    ? {
+        headerClass: "text-rose-800",
+        iconClass: "text-rose-600",
+        hintClass: "text-rose-900",
+        panelClass: "bg-rose-50/80 border border-rose-200 text-rose-900",
+        actionsStyle: { borderColor: "rgba(244, 63, 94, 0.35)", background: "rgba(255, 255, 255, 0.78)" },
+        badgeClass: "bg-rose-100 text-rose-700",
+      }
+    : planStatus === "warning"
+      ? {
+          headerClass: "text-amber-800",
+          iconClass: "text-amber-600",
+          hintClass: "text-amber-900",
+          panelClass: "bg-amber-50/80 border border-amber-200 text-amber-900",
+          actionsStyle: { borderColor: "rgba(245, 158, 11, 0.35)", background: "rgba(255, 255, 255, 0.78)" },
+          badgeClass: "bg-amber-100 text-amber-700",
+        }
+      : {
+          headerClass: "text-emerald-700",
+          iconClass: "text-emerald-500",
+          hintClass: "text-emerald-800",
+          panelClass: "bg-emerald-50/50 border border-emerald-100/50 text-emerald-800",
+          actionsStyle: { borderColor: "rgba(16, 185, 129, 0.3)", background: "rgba(255, 255, 255, 0.6)" },
+          badgeClass: "bg-emerald-100 text-emerald-700",
+        };
+
+  const planHintText = planStatus === "expired"
+    ? "Your plan has expired. Renew or change your plan to restore full workspace access."
+    : planStatus === "warning"
+      ? `Your plan ends ${planDaysRemaining === 0 ? "today" : `in ${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"}`}. Renew or change your plan to avoid interruption.`
+      : "Upgrade to unlock premium features, higher AI limits, and dedicated support.";
 
   useEffect(() => {
     // Refresh user context to ensure latest roles from database
@@ -140,6 +177,12 @@ export function ProfileView({
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError("");
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+    
     setIsChangingPassword(true);
     
     try {
@@ -150,6 +193,7 @@ export function ProfileView({
       onToast?.("Password changed successfully. You will be logged out.");
       setCurrentPassword("");
       setNewPassword("");
+      setConfirmPassword("");
       
       // Since all old sessions are invalidated, we need to log out the user locally too
       setTimeout(() => logout(), 1500);
@@ -289,15 +333,22 @@ export function ProfileView({
         <div className="profile-meta-col">
           {onViewPlans && (
             <div className="profile-system-card glass-panel plan-card">
-              <div className="profile-system-header text-emerald-700">
-                <Sparkles size={16} className="text-emerald-500" />
+              <div className={`profile-system-header ${planCardTone.headerClass}`}>
+                <Sparkles size={16} className={planCardTone.iconClass} />
                 <strong>Subscription & Plans</strong>
               </div>
-              <p className="profile-system-hint text-emerald-800" style={{ marginTop: 0, marginBottom: "8px" }}>
-                Upgrade to unlock premium features, higher AI limits, and dedicated support.
+              <p className={`profile-system-hint ${planCardTone.hintClass}`} style={{ marginTop: 0, marginBottom: "8px" }}>
+                {planHintText}
               </p>
               {(user?.plan_started_at || user?.plan_ends_at) && (
-                <div className="bg-emerald-50/50 rounded-lg p-3 mb-3 border border-emerald-100/50 text-[13px] text-emerald-800">
+                <div className={`rounded-lg p-3 mb-3 text-[13px] ${planCardTone.panelClass}`}>
+                  {planStatus !== "active" && planStatus !== "no_plan" && (
+                    <div className="mb-2">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${planCardTone.badgeClass}`}>
+                        {planStatus === "expired" ? "Plan expired" : "Plan ending soon"}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center mb-1">
                     <span className="opacity-70 font-medium">Plan Started:</span>
                     <span className="font-semibold">{user.plan_started_at ? new Date(user.plan_started_at).toLocaleDateString("en-GB") : 'N/A'}</span>
@@ -306,12 +357,25 @@ export function ProfileView({
                     <span className="opacity-70 font-medium">Plan Ends:</span>
                     <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
                   </div>
+                  {planStatus === "warning" && planDaysRemaining !== null && (
+                    <p className="mt-2 text-xs font-medium">
+                      {planDaysRemaining === 0 ? "This plan ends today." : `${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"} remaining.`}
+                    </p>
+                  )}
+                  {planStatus === "expired" && (
+                    <p className="mt-2 text-xs font-medium">
+                      Full workspace access is paused until you renew or change your plan.
+                    </p>
+                  )}
                 </div>
               )}
-              <div className="profile-actions-stack" style={{ borderColor: "rgba(16, 185, 129, 0.3)", background: "rgba(255, 255, 255, 0.6)" }}>
+              <div className="profile-actions-stack" style={planCardTone.actionsStyle}>
                 <button onClick={onViewPlans} className="profile-action-row" type="button">
-                  <div className="profile-action-content"><Sparkles size={16} className="text-emerald-600" /> View Subscription Plans</div>
-                  <ChevronRight size={16} className="profile-action-chevron text-emerald-600" />
+                  <div className="profile-action-content">
+                    <Sparkles size={16} className={planCardTone.iconClass} />
+                    {planStatus === "expired" ? "Renew or Change Plan" : planStatus === "warning" ? "Review Renewal Options" : "View Subscription Plans"}
+                  </div>
+                  <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
                 </button>
               </div>
             </div>
@@ -415,6 +479,20 @@ export function ProfileView({
                   />
                   <p className="text-[11px] text-slate-400 mt-1.5">Between 3 and 10 characters.</p>
                 </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5 uppercase tracking-wide">Confirm New Password</label>
+                  <input
+                    type="password"
+                    placeholder="Retype your new password"
+                    required
+                    minLength={3}
+                    maxLength={10}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400"
+                  />
+                </div>
 
                 <div className="pt-4 flex justify-end gap-3">
                   <button
@@ -426,7 +504,7 @@ export function ProfileView({
                   </button>
                   <button
                     type="submit"
-                    disabled={isChangingPassword || !currentPassword || !newPassword}
+                    disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
                     className="px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm shadow-indigo-600/20"
                   >
                     {isChangingPassword ? (

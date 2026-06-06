@@ -22,6 +22,7 @@ export type NotificationPayload = {
   title: string;
   body: string;
   notification_type: "project" | "general" | "scheduled-email";
+  preference_key: NotificationSettingKey;
 };
 
 type NotificationTemplateVars = {
@@ -164,6 +165,7 @@ export function buildNotification(eventKey: NotificationEventKey, vars: Notifica
     due_at: vars.dueAt,
     title: rendered.title,
     body: rendered.body,
-    notification_type: definition.notification_type
+    notification_type: definition.notification_type,
+    preference_key: definition.settingKey
   };
 }

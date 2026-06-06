@@ -23,6 +23,15 @@ def initialize_database(database_path: Path) -> None:
 
 
 def migrate_database(connection: sqlite3.Connection) -> None:
+    user_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if "is_blocked" not in user_columns:
+        connection.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_users_is_blocked ON users(is_blocked)")
+    if "registered_with_invite_id" not in user_columns:
+        connection.execute("ALTER TABLE users ADD COLUMN registered_with_invite_id INTEGER REFERENCES invite_codes(id) ON DELETE SET NULL")
     page_columns = {
         row["name"]
         for row in connection.execute("PRAGMA table_info(project_pages)").fetchall()
@@ -76,30 +85,38 @@ def migrate_database(connection: sqlite3.Connection) -> None:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
         connection.execute(f"UPDATE {table} SET user_id = 1 WHERE user_id IS NULL")
 
-    category_count = connection.execute("SELECT COUNT(*) AS count FROM document_categories").fetchone()["count"]
-    if category_count == 0:
-        connection.executemany(
-            "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order) VALUES (?, ?, ?)",
-            [(slug, label, index) for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES)],
-        )
-    else:
-        # Migrate existing display names to canonical plural forms
-        connection.execute("UPDATE document_categories SET display_name = 'SOPs' WHERE slug = 'sop'")
-        connection.execute("UPDATE document_categories SET display_name = 'LORs' WHERE slug = 'lor'")
-        connection.execute("UPDATE document_categories SET display_name = 'Others' WHERE slug = 'other'")
-        # Ensure Others comes after LORs
-        connection.execute("UPDATE document_categories SET sort_order = 6 WHERE slug = 'lor'")
-        connection.execute("UPDATE document_categories SET sort_order = 7 WHERE slug = 'other'")
+    # Migrate document_categories schema to support per-user UNIQUE(slug) instead of global
+    category_schema = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='document_categories'").fetchone()
+    if category_schema and "UNIQUE(user_id,slug)" not in category_schema["sql"].replace(" ", ""):
+        connection.execute("PRAGMA foreign_keys=off")
+        connection.execute("""
+            CREATE TABLE document_categories_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                slug TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, slug)
+            )
+        """)
+        connection.execute("INSERT OR IGNORE INTO document_categories_new SELECT * FROM document_categories")
+        connection.execute("DROP TABLE document_categories")
+        connection.execute("ALTER TABLE document_categories_new RENAME TO document_categories")
+        connection.execute("PRAGMA foreign_keys=on")
 
-    # Ensure every user has all default document categories (idempotent)
+    # Seed default document categories for users who have 0 categories (fixes old accounts without overriding user deletions)
     users = connection.execute("SELECT id FROM users").fetchall()
     for user in users:
         uid = user["id"]
-        for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
-            connection.execute(
-                "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
-                (slug, label, index, uid),
-            )
+        cat_count = connection.execute("SELECT COUNT(*) as count FROM document_categories WHERE user_id = ?", (uid,)).fetchone()["count"]
+        if cat_count == 0:
+            for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
+                connection.execute(
+                    "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
+                    (slug, label, index, uid),
+                )
 
 
     static_categories = [
@@ -133,6 +150,19 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         VALUES (?, ?, ?, ?)
         """,
         web_search_permission_defaults,
+    )
+
+    # Ensure admin permission role limits exist for existing databases.
+    admin_permission_defaults = [
+        ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
+        ("super_admin", "admin_manage_suspension_appeals", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        admin_permission_defaults,
     )
 
     # Migrate legacy sticky note / whiteboard defaults to current baseline limits.
@@ -189,7 +219,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "admin_manage_invites", "admin_view_audit_logs",
         "admin_manage_plan_requests", "admin_manage_invite_requests",
         "admin_manage_role_limits", "admin_manage_notification_texts",
-        "admin_manage_settings",
+        "admin_manage_settings", "admin_manage_suspension_appeals",
     }
     placeholders = ",".join("?" for _ in canonical_features)
     connection.execute(

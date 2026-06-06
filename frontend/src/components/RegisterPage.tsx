@@ -115,7 +115,7 @@ export function RegisterPage() {
               type="password"
               required
               className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              placeholder="Min 8 chars, 1 uppercase, 1 special"
+              placeholder="3-10 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

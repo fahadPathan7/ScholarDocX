@@ -6,9 +6,10 @@ DEFAULT_MEDIA_CATEGORIES = (
     ("transcripts", "Transcripts"),
     ("certificates", "Certificates"),
     ("test-scores", "Test Scores"),
-    ("proposals", "Proposals"),
+    ("proposals", "Research Proposals"),
     ("sop", "SOPs"),
     ("lor", "LORs"),
+    ("passports", "Passports"),
     ("other", "Others"),
 )
 

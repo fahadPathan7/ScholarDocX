@@ -20,11 +20,13 @@ CREATE TABLE IF NOT EXISTS users (
   roles TEXT NOT NULL DEFAULT '["general_user"]',
   token_version INTEGER NOT NULL DEFAULT 1,
   is_active INTEGER NOT NULL DEFAULT 1,
+  is_blocked INTEGER NOT NULL DEFAULT 0,
   last_login_at TEXT,
   plan_started_at TEXT,
   plan_ends_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  registered_with_invite_id INTEGER REFERENCES invite_codes(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS local_profiles (
@@ -291,11 +293,12 @@ CREATE TABLE IF NOT EXISTS static_files (
 CREATE TABLE IF NOT EXISTS document_categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  slug TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL,
   display_name TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, slug)
 );
 
 CREATE TABLE IF NOT EXISTS whiteboards (
@@ -420,6 +423,16 @@ CREATE TABLE IF NOT EXISTS invite_requests (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS suspension_appeals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL,
+  message TEXT NOT NULL,
+  ip_address TEXT,
+  status TEXT NOT NULL DEFAULT 'Pending',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 """
 
 SEED_SQL = """
@@ -429,8 +442,8 @@ VALUES
   ('masters', 'Master''s', 1),
   ('phd', 'PhD', 1);
 
-INSERT INTO users (email, password_hash, display_name, roles, is_active)
-SELECT 'admin@scholardock.com', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Super Admin', '["super_admin", "max_user"]', 1
+INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked)
+SELECT 'admin@scholardock.com', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Super Admin', '["super_admin", "max_user"]', 1, 0
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@scholardock.com');
 
 INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
@@ -505,6 +518,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_view_audit_logs', 0, 'never'),
   ('general_admin', 'admin_manage_plan_requests', 1, 'never'),
   ('general_admin', 'admin_manage_invite_requests', 1, 'never'),
+  ('general_admin', 'admin_manage_suspension_appeals', 1, 'never'),
   ('general_admin', 'can_use_agents', 1, 'never'),
   ('general_admin', 'admin_manage_role_limits', 1, 'never'),
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
@@ -521,6 +535,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_view_audit_logs', 1, 'never'),
   ('super_admin', 'admin_manage_plan_requests', 1, 'never'),
   ('super_admin', 'admin_manage_invite_requests', 1, 'never'),
+  ('super_admin', 'admin_manage_suspension_appeals', 1, 'never'),
   ('super_admin', 'can_use_agents', 1, 'never'),
   ('super_admin', 'admin_manage_role_limits', 1, 'never'),
   ('super_admin', 'admin_manage_notification_texts', 1, 'never'),

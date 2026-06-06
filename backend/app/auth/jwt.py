@@ -15,6 +15,7 @@ def create_token(user: Dict[str, Any], secret_key: str, expiration_days: int) ->
         "email": user["email"],
         "display_name": user["display_name"],
         "roles": user.get("roles", ["general_user"]),
+        "is_active": user.get("is_active", 1),
         "token_version": user.get("token_version", 1),
         "jti": str(uuid.uuid4()),
         "iat": now,

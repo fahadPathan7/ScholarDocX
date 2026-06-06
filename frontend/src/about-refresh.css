@@ -493,40 +493,65 @@
   color: white;
   display: inline-flex;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
   height: 22px;
   justify-content: center;
   width: 22px;
   border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(78, 151, 134, 0.3);
 }
 
 /* Medal highlights */
 tr.rank-gold {
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.08) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 193, 7, 0.03) 30%, transparent 60%);
 }
 
 tr.rank-gold:first-child td {
-  border-top: 2px solid rgba(255, 193, 7, 0.25);
+  border-top: 2px solid rgba(255, 193, 7, 0.3);
+  padding-top: 16px;
+}
+
+tr.rank-gold .rank-badge {
+  background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+  box-shadow: 0 3px 10px rgba(255, 193, 7, 0.4);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-silver {
-  background: linear-gradient(90deg, rgba(192, 192, 192, 0.06) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(156, 163, 175, 0.1) 0%, rgba(156, 163, 175, 0.02) 30%, transparent 60%);
 }
 
 tr.rank-silver:first-child td {
-  border-top: 2px solid rgba(192, 192, 192, 0.2);
+  border-top: 2px solid rgba(156, 163, 175, 0.25);
+  padding-top: 16px;
+}
+
+tr.rank-silver .rank-badge {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  box-shadow: 0 3px 10px rgba(156, 163, 175, 0.35);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-bronze {
-  background: linear-gradient(90deg, rgba(205, 127, 50, 0.06) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.08) 0%, rgba(180, 83, 9, 0.02) 30%, transparent 60%);
 }
 
 tr.rank-bronze:first-child td {
-  border-top: 2px solid rgba(205, 127, 50, 0.2);
+  border-top: 2px solid rgba(180, 83, 9, 0.25);
+  padding-top: 16px;
+}
+
+tr.rank-bronze .rank-badge {
+  background: linear-gradient(135deg, #b45309 0%, #8b4513 100%);
+  box-shadow: 0 3px 10px rgba(180, 83, 9, 0.35);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-lowest td {
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 /* Provider badges */
@@ -567,7 +592,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(78, 151, 134, 0.25);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-good {
@@ -576,7 +605,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(107, 168, 138, 0.2);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-fair {
@@ -585,7 +618,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 5px rgba(168, 184, 106, 0.2);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-basic {
@@ -594,7 +631,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 5px rgba(122, 122, 122, 0.15);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .about-models-table tbody strong {
@@ -640,58 +681,124 @@ tr.rank-lowest td {
   right: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(18, 30, 26, 0.4);
+  padding-top: 8vh;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(15, 25, 20, 0.55);
   z-index: 999;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .models-modal-panel {
-  width: 95%;
-  max-width: 1100px;
-  max-height: 95vh;
+  width: 96%;
+  max-width: 1200px;
+  max-height: 75vh;
+  height: auto;
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 24px 48px rgba(20, 40, 35, 0.15), 0 0 0 1px rgba(78, 151, 134, 0.1);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 32px 64px rgba(15, 30, 25, 0.2),
+    0 0 0 1px rgba(78, 151, 134, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   overflow: hidden;
   background: #ffffff;
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .models-modal-header {
-  background: linear-gradient(180deg, #fbfdfc 0%, #f4f8f6 100%);
-  border-bottom: 1px solid rgba(78, 151, 134, 0.15);
-  padding: 20px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 100%);
+  border-bottom: 1px solid rgba(78, 151, 134, 0.18);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.models-modal-header .eyebrow {
+  font-size: 11px;
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #4e9786;
+  margin: 0 0 4px 0;
 }
 
 .models-modal-header h2 {
-  font-size: 20px;
+  font-size: 22px;
+  font-weight: 700;
   color: #1a3a32;
+  margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .models-modal-header .close-btn {
-  background: #ffffff;
-  border: 1px solid rgba(78, 151, 134, 0.2);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbf9 100%);
+  border: 1px solid rgba(78, 151, 134, 0.25);
   border-radius: 50%;
   color: #4e9786;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(78, 151, 134, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 .models-modal-header .close-btn:hover {
-  background: #eef5f3;
+  background: linear-gradient(135deg, #eef5f3 0%, #e5f0ee 100%);
   color: #2a5f4f;
-  transform: scale(1.05);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(78, 151, 134, 0.2);
 }
 
 .models-modal-content {
   overflow: auto;
   flex: 1;
-  padding: 24px;
-  background: #ffffff;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafcfb 100%);
+}
+
+.models-modal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.models-modal-content::-webkit-scrollbar-track {
+  background: #f1f5f3;
+  border-radius: 5px;
+}
+
+.models-modal-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #a8c8b8 0%, #8db8a8 100%);
+  border-radius: 5px;
+  border: 2px solid #f1f5f3;
+}
+
+.models-modal-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #8db8a8 0%, #78a898 100%);
 }
 
 /* Models table inside standard modal */
@@ -699,6 +806,9 @@ tr.rank-lowest td {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 25, 20, 0.06);
 }
 
 .modal-panel .about-models-table thead {
@@ -708,29 +818,41 @@ tr.rank-lowest td {
 }
 
 .modal-panel .about-models-table th {
-  background: linear-gradient(180deg, #f8fbf8 0%, #f0f5f0 100%);
-  border-bottom: 2px solid rgba(79, 128, 118, 0.2);
-  color: var(--ui-ink);
-  font-weight: 660;
-  padding: 12px 10px;
+  background: linear-gradient(180deg, #f0f5f3 0%, #e8f0ed 100%);
+  border-bottom: 2px solid rgba(78, 151, 134, 0.25);
+  color: #1a3a32;
+  font-weight: 680;
+  padding: 9px 8px;
   text-align: left;
-  font-size: 11px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .modal-panel .about-models-table th:first-child,
 .modal-panel .about-models-table td:first-child {
   text-align: center;
-  padding: 10px 8px;
+  padding: 8px 6px;
 }
 
 .modal-panel .about-models-table td {
-  padding: 11px 10px;
-  border-bottom: 1px solid rgba(56, 74, 67, 0.08);
-  color: var(--ui-ink-soft);
+  padding: 9px 8px;
+  border-bottom: 1px solid rgba(56, 74, 67, 0.1);
+  color: #33453f;
+  vertical-align: middle;
+}
+
+.modal-panel .about-models-table tbody tr {
+  transition: all 0.15s ease;
 }
 
 .modal-panel .about-models-table tbody tr:hover {
-  background: rgba(78, 151, 134, 0.04);
+  background: linear-gradient(90deg, rgba(78, 151, 134, 0.06) 0%, rgba(78, 151, 134, 0.02) 100%);
+  transform: scale(1.002);
+}
+
+.modal-panel .about-models-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 /* Rank badges */
@@ -740,85 +862,114 @@ tr.rank-lowest td {
   color: white;
   display: inline-flex;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
   height: 22px;
   justify-content: center;
   width: 22px;
   border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(78, 151, 134, 0.3);
 }
 
 /* Medal highlights */
 tr.rank-gold {
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.08) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 193, 7, 0.03) 30%, transparent 60%);
 }
 
 tr.rank-gold:first-child td {
-  border-top: 2px solid rgba(255, 193, 7, 0.25);
+  border-top: 2px solid rgba(255, 193, 7, 0.3);
+  padding-top: 16px;
+}
+
+tr.rank-gold .rank-badge {
+  background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+  box-shadow: 0 3px 10px rgba(255, 193, 7, 0.4);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-silver {
-  background: linear-gradient(90deg, rgba(192, 192, 192, 0.06) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(156, 163, 175, 0.1) 0%, rgba(156, 163, 175, 0.02) 30%, transparent 60%);
 }
 
 tr.rank-silver:first-child td {
-  border-top: 2px solid rgba(192, 192, 192, 0.2);
+  border-top: 2px solid rgba(156, 163, 175, 0.25);
+  padding-top: 16px;
+}
+
+tr.rank-silver .rank-badge {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  box-shadow: 0 3px 10px rgba(156, 163, 175, 0.35);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-bronze {
-  background: linear-gradient(90deg, rgba(205, 127, 50, 0.06) 0%, transparent 25%);
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.08) 0%, rgba(180, 83, 9, 0.02) 30%, transparent 60%);
 }
 
 tr.rank-bronze:first-child td {
-  border-top: 2px solid rgba(205, 127, 50, 0.2);
+  border-top: 2px solid rgba(180, 83, 9, 0.25);
+  padding-top: 16px;
+}
+
+tr.rank-bronze .rank-badge {
+  background: linear-gradient(135deg, #b45309 0%, #8b4513 100%);
+  box-shadow: 0 3px 10px rgba(180, 83, 9, 0.35);
+  width: 24px;
+  height: 24px;
 }
 
 tr.rank-lowest td {
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 /* Provider badges */
 .provider-glm {
-  background: linear-gradient(135deg, #e8f4ea 0%, #d8e8dc 100%);
-  border: 1px solid rgba(78, 151, 134, 0.2);
-  border-radius: 5px;
+  background: linear-gradient(135deg, #e8f4ea 0%, #d0e8d4 100%);
+  border: 1px solid rgba(78, 151, 134, 0.3);
+  border-radius: 6px;
   color: #2a5f4f;
-  font-size: 10px;
-  font-weight: 620;
+  font-size: 9px;
+  font-weight: 650;
   padding: 3px 7px;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(78, 151, 134, 0.12);
 }
 
 .provider-groq {
-  background: linear-gradient(135deg, #ffe8d6 0%, #ffd8b8 100%);
-  border: 1px solid rgba(230, 130, 50, 0.25);
-  border-radius: 5px;
+  background: linear-gradient(135deg, #ffe8d6 0%, #ffcaa0 100%);
+  border: 1px solid rgba(230, 130, 50, 0.35);
+  border-radius: 6px;
   color: #8b4a1a;
-  font-size: 10px;
-  font-weight: 620;
+  font-size: 9px;
+  font-weight: 650;
   padding: 3px 7px;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(230, 130, 50, 0.15);
 }
 
 .provider-google {
-  background: linear-gradient(135deg, #e8f0fe 0%, #d2e3fc 100%);
-  border: 1px solid rgba(66, 133, 244, 0.2);
-  border-radius: 5px;
+  background: linear-gradient(135deg, #e8f0fe 0%, #c5d9fc 100%);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+  border-radius: 6px;
   color: #1a4a8a;
-  font-size: 10px;
-  font-weight: 620;
+  font-size: 9px;
+  font-weight: 650;
   padding: 3px 7px;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(66, 133, 244, 0.12);
 }
 
 .provider-mistral {
-  background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
-  border: 1px solid rgba(233, 30, 99, 0.2);
-  border-radius: 5px;
+  background: linear-gradient(135deg, #fce4ec 0%, #f48fb8 100%);
+  border: 1px solid rgba(233, 30, 99, 0.3);
+  border-radius: 6px;
   color: #880e4f;
-  font-size: 10px;
-  font-weight: 620;
+  font-size: 9px;
+  font-weight: 650;
   padding: 3px 7px;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(233, 30, 99, 0.12);
 }
 
 /* Score badges */
@@ -828,7 +979,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(78, 151, 134, 0.25);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-good {
@@ -837,7 +992,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(107, 168, 138, 0.2);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-fair {
@@ -846,7 +1005,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 5px rgba(168, 184, 106, 0.2);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .score-basic {
@@ -855,7 +1018,11 @@ tr.rank-lowest td {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
+  box-shadow: 0 2px 5px rgba(122, 122, 122, 0.15);
+  min-width: 30px;
+  text-align: center;
+  display: inline-block;
 }
 
 .modal-panel .about-models-table tbody strong {

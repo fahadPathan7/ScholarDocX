@@ -228,7 +228,10 @@ export function StickyNotesView({ onToast }: { onToast: (msg: string) => void })
       }
     }
     const title = draft.title.trim() || (draft.is_checklist ? "Checklist" : draft.is_sketch ? "Sketch" : "Untitled note");
-    if (!finalBody && !draft.checklist.length && !(draft.is_sketch && draft.sketch_paths.length)) return;
+    if (!finalBody && !draft.checklist.length && !(draft.is_sketch && draft.sketch_paths.length)) {
+      onToast("Please add some content — body, checklist, or a sketch.");
+      return;
+    }
     const data = {
       title,
       body: finalBody,

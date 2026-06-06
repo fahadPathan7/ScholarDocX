@@ -8,6 +8,8 @@ export interface User {
   roles: string[];
   plan_started_at?: string;
   plan_ends_at?: string;
+  is_active?: boolean;
+  is_blocked?: boolean;
 }
 
 export function getToken(): string | null {

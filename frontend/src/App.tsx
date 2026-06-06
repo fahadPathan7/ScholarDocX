@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, MouseEvent, ReactNode, useEffect, useState, Fragment } from "react";
 import {
   Bell,
   CalendarDays,
@@ -44,6 +44,7 @@ import { useDialog } from "./components/DialogProvider";
 import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
 import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
+import { getToken, decodeToken } from "./lib/auth";
 import "./components/splash-screen.css";
 
 type Dashboard = {
@@ -276,7 +277,7 @@ export function App() {
 
   const adminItem = ["admin", "Admin", Shield] as const;
   
-  const navItems = isAdmin() ? [...baseNavItems.slice(0, 5), adminItem, ...baseNavItems.slice(5)] : baseNavItems;
+  let navItems = isAdmin() ? [...baseNavItems.slice(0, 5), adminItem, ...baseNavItems.slice(5)] : baseNavItems;
 
   const handleSidebarNav = (key: string) => {
     if (key === "projects") {
@@ -325,30 +326,19 @@ export function App() {
           </div>
         </div>
         <nav>
-          {navItems.slice(0, 5).map(([key, label, Icon]) => (
-            <button
-              aria-label={label}
-              className={activeTab === key ? "active" : ""}
-              key={key}
-              onClick={() => handleSidebarNav(key)}
-              title={navCollapsed ? label : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
-          <div className="nav-spacer" />
-          {navItems.slice(5).map(([key, label, Icon]) => (
-            <button
-              aria-label={label}
-              className={activeTab === key ? "active" : ""}
-              key={key}
-              onClick={() => handleSidebarNav(key)}
-              title={navCollapsed ? label : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
+          {navItems.map(([key, label, Icon], i) => (
+            <Fragment key={key}>
+              {i === 5 && <div className="nav-spacer" />}
+              <button
+                aria-label={label}
+                className={activeTab === key ? "active" : ""}
+                onClick={() => handleSidebarNav(key)}
+                title={navCollapsed ? label : undefined}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            </Fragment>
           ))}
         </nav>
       </aside>
@@ -980,7 +970,10 @@ function DocumentView(props: {
   function formatCategoryTitle(category: string) {
     const labels: Record<string, string> = {
       cvs: "CVs",
-      sop: "SOP",
+      sop: "SOPs",
+      lor: "LORs",
+      proposals: "Research Proposals",
+      other: "Others",
       "test-scores": "Test Scores"
     };
     return labels[category] || category

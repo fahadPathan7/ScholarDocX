@@ -55,7 +55,12 @@ class InviteRequestPayload(BaseModel):
     name: str
     email: EmailStr
     phone: Optional[str] = ""
-    description: Optional[str] = ""
+    description: str
+
+class ContactAdminPayload(BaseModel):
+    email: str
+    message: str
+
 
 @router.post("/register")
 def register(payload: RegisterPayload, request: Request, store: Store = Depends(get_store)):
@@ -100,14 +105,14 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     default_roles = json.dumps(["general_user"])
     
     plan_started_at = datetime.utcnow().isoformat()
-    plan_ends_at = (datetime.utcnow() + timedelta(days=60)).isoformat()
+    plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
     
     cursor = store.connection.execute(
         """
-        INSERT INTO users (email, password_hash, display_name, roles, is_active, plan_started_at, plan_ends_at)
-        VALUES (?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id)
+        VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?)
         """,
-        (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at)
+        (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at, invite["id"])
     )
     user_id = cursor.lastrowid
     
@@ -165,7 +170,7 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
         raise HTTPException(status_code=401, detail="Invalid email or password.")
         
     if not user["is_active"]:
-        raise HTTPException(status_code=403, detail="Account is deactivated.")
+        raise HTTPException(status_code=403, detail="user_suspended")
 
     roles = json.loads(user["roles"])
     
@@ -193,7 +198,9 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
             "id": user["id"],
             "email": user["email"],
             "display_name": user["display_name"],
-            "roles": roles
+            "roles": roles,
+            "is_active": user["is_active"] == 1,
+            "is_blocked": user["is_blocked"] == 1
         }
     }
 @router.get("/me")
@@ -303,6 +310,16 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
     if existing_user:
         raise HTTPException(status_code=400, detail="This email is already registered.")
         
+    # Check if an invite request is already pending or approved for this email
+    existing_request = store.connection.execute(
+        "SELECT id, status FROM invite_requests WHERE email = ? AND status IN ('Pending', 'Approved')", (payload.email,)
+    ).fetchone()
+    if existing_request:
+        if existing_request["status"] == "Pending":
+            raise HTTPException(status_code=400, detail="An invite request for this email is already pending.")
+        else:
+            raise HTTPException(status_code=400, detail="An invite request for this email has already been approved. Please check your email for the invite code.")
+        
     _invite_request_attempts[client_ip].append(now)
 
     store.connection.execute(
@@ -315,6 +332,30 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
     store.connection.commit()
     
     return {"status": "success", "message": "Your request has been submitted successfully. We will review it shortly."}
+
+@router.post("/contact-admin")
+def contact_admin(payload: ContactAdminPayload, request: Request, store: Store = Depends(get_store)):
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check if there is already a pending appeal
+    existing = store.connection.execute(
+        "SELECT id FROM suspension_appeals WHERE email = ? AND status = 'Pending'",
+        (payload.email,)
+    ).fetchone()
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a pending suspension appeal.")
+
+    # Store it in suspension_appeals table so the admin can review it in the dedicated dashboard
+    store.connection.execute(
+        """
+        INSERT INTO suspension_appeals (email, message, ip_address, status, created_at, updated_at)
+        VALUES (?, ?, ?, 'Pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (payload.email, payload.message, client_ip)
+    )
+    store.connection.commit()
+    
+    return {"status": "success", "message": "Your message has been sent to the administrator."}
 
 @router.post("/plans/request")
 def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

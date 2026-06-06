@@ -1,4 +1,4 @@
-import { Check, CheckCircle2, Database, FolderOpen, Globe, Mail, Save, Sparkles, ShieldCheck, User, Zap, Bot, ExternalLink, X } from "lucide-react";
+import { Check, CheckCircle2, Database, FolderOpen, Globe, Mail, Save, Sparkles, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight } from "lucide-react";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
 import { useAuth } from "../contexts/AuthContext";
@@ -58,6 +58,7 @@ export function ProfileView({
   const [showModelsModal, setShowModelsModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -94,14 +95,18 @@ export function ProfileView({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!profileId) return;
     const identity = {
       display_name: draft.display_name,
       preferred_email_provider: draft.preferred_email_provider,
       timezone: draft.timezone,
       notes: draft.notes,
     };
-    await api.patch(`/local_profiles/${profileId}`, { data: identity });
+    if (!profileId) {
+      const res = await api.post<RecordMap>("/local_profiles", { data: { ...identity, email: user?.email || "" } });
+      setProfileId(res.id as number);
+    } else {
+      await api.patch(`/local_profiles/${profileId}`, { data: identity });
+    }
     setSaved((current) => ({ ...current, ...identity }));
     onToast?.("Profile saved locally.");
     setJustSaved(true);
@@ -110,8 +115,12 @@ export function ProfileView({
   };
 
   const saveAvatar = async () => {
-    if (!profileId) return;
-    await api.patch(`/local_profiles/${profileId}`, { data: { avatar: draft.avatar } });
+    if (!profileId) {
+      const res = await api.post<RecordMap>("/local_profiles", { data: { avatar: draft.avatar, email: user?.email || "" } });
+      setProfileId(res.id as number);
+    } else {
+      await api.patch(`/local_profiles/${profileId}`, { data: { avatar: draft.avatar } });
+    }
     setSaved((current) => ({ ...current, avatar: draft.avatar }));
     onToast?.("Avatar saved locally.");
     setAvatarJustSaved(true);
@@ -172,6 +181,14 @@ export function ProfileView({
 
   return (
     <div className="profile-page">
+      {user?.is_active === false && (
+        <div className="mx-8 mt-6 mb-2 rounded-lg bg-red-500/10 p-4 border border-red-500/20 flex items-center gap-3">
+          <ShieldCheck size={20} className="text-red-500 shrink-0" />
+          <div className="text-red-500 font-medium">
+            Your account is currently suspended. Please contact the admin to restore access.
+          </div>
+        </div>
+      )}
 
       {/* Hero — reflects saved state only */}
       <div className="profile-hero-wrapper">
@@ -192,7 +209,7 @@ export function ProfileView({
           )}
           <div className="profile-hero-text">
             <h2>{saved.display_name || "Your Profile"}</h2>
-            <span>{saved.email || "No email set"}</span>
+            <span>{saved.email || user?.email || "No email set"}</span>
             {user?.roles && user.roles.length > 0 && (
               <div className="flex gap-2 mt-2 profile-role-tags">
                 {user.roles.map(role => (
@@ -211,91 +228,58 @@ export function ProfileView({
         <div className="profile-meta-col">
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <User size={16} />
+              <User size={16} className="text-indigo-500" />
               <strong>Personal Information</strong>
             </div>
             <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
               Update your name, timezone, email preferences, and profile avatar.
             </p>
-            <div className="profile-actions-stack" style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
-              <button
-                onClick={() => setShowIdentityModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <User size={14} className="text-blue-500" /> Edit Identity
+            <div className="profile-actions-stack">
+              <button onClick={() => setShowIdentityModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><User size={16} className="text-slate-500" /> Edit Identity</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
               </button>
-              
-              <button
-                onClick={() => setShowAvatarModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <User size={14} className="text-purple-500" /> Change Avatar
+
+              <button onClick={() => setShowAvatarModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><User size={16} className="text-slate-500" /> Change Avatar</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
           </div>
 
           <div className="profile-system-card profile-workspace-card glass-panel">
             <div className="profile-system-header">
-              <Database size={16} />
+              <Database size={16} className="text-amber-500" />
               <strong>Workspace</strong>
             </div>
-            <div className="profile-path-list">
-              <div className="profile-path-item">
-                <FolderOpen size={14} />
-                <div>
-                  <span>Workspace</span>
-                  <code title={workspace?.workspace_path || ""}>{shortPath(workspace?.workspace_path)}</code>
-                </div>
-              </div>
-              <div className="profile-path-item">
-                <Database size={14} />
-                <div>
-                  <span>Database</span>
-                  <code title={workspace?.database_path || ""}>{shortPath(workspace?.database_path)}</code>
-                </div>
-              </div>
-              <div className="profile-path-item">
-                <Globe size={14} />
-                <div>
-                  <span>Email provider</span>
-                  <code>{saved.preferred_email_provider || "gmail"}</code>
-                </div>
-              </div>
-              <div className="profile-path-item">
-                <Mail size={14} />
-                <div>
-                  <span>Contact email</span>
-                  <code>{saved.email || "—"}</code>
-                </div>
-              </div>
+            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
+              View your workspace directory, database location, and email configuration.
+            </p>
+            <div className="profile-actions-stack">
+              <button onClick={() => setShowWorkspaceModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><Database size={16} className="text-slate-500" /> View Workspace Details</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
+              </button>
             </div>
           </div>
 
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <Zap size={16} />
+              <Zap size={16} className="text-violet-500" />
               <strong>Usage & AI Models</strong>
             </div>
             <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
               Monitor workspace resource usage and explore available AI models.
             </p>
-            <div className="profile-actions-stack" style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
-              <button
-                onClick={() => setShowUsageModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <Zap size={14} className="text-amber-500" /> View Usage & Limits
+            <div className="profile-actions-stack">
+              <button onClick={() => setShowUsageModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><Zap size={16} className="text-slate-500" /> View Usage & Limits</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
               </button>
-              
-              <button
-                onClick={() => setShowModelsModal(true)}
-                className="profile-secondary-button"
-                type="button"
-              >
-                <Bot size={14} className="text-indigo-500" /> Explore AI Models
+
+              <button onClick={() => setShowModelsModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><Bot size={16} className="text-slate-500" /> Explore AI Models</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
           </div>
@@ -324,13 +308,12 @@ export function ProfileView({
                   </div>
                 </div>
               )}
-              <button
-                onClick={onViewPlans}
-                className="profile-secondary-button btn-emerald-glass"
-                type="button"
-              >
-                <Sparkles size={14} className="text-white" /> View Subscription Plans
-              </button>
+              <div className="profile-actions-stack" style={{ borderColor: "rgba(16, 185, 129, 0.3)", background: "rgba(255, 255, 255, 0.6)" }}>
+                <button onClick={onViewPlans} className="profile-action-row" type="button">
+                  <div className="profile-action-content"><Sparkles size={16} className="text-emerald-600" /> View Subscription Plans</div>
+                  <ChevronRight size={16} className="profile-action-chevron text-emerald-600" />
+                </button>
+              </div>
             </div>
           )}
 
@@ -343,31 +326,29 @@ export function ProfileView({
               <p className="profile-system-hint text-blue-900" style={{ marginTop: 0, marginBottom: "12px" }}>
                 You have administrative privileges. Access the Admin Panel to manage users, roles, and platform settings.
               </p>
-              <button
-                onClick={onViewAdmin}
-                className="profile-secondary-button btn-blue-glass"
-                type="button"
-              >
-                <ShieldCheck size={14} className="text-white" /> Go to Admin Panel
-              </button>
+              <div className="profile-actions-stack" style={{ borderColor: "rgba(59, 130, 246, 0.3)", background: "rgba(255, 255, 255, 0.6)" }}>
+                <button onClick={onViewAdmin} className="profile-action-row" type="button">
+                  <div className="profile-action-content"><ShieldCheck size={16} className="text-blue-600" /> Go to Admin Panel</div>
+                  <ChevronRight size={16} className="profile-action-chevron text-blue-600" />
+                </button>
+              </div>
             </div>
           )}
 
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <ShieldCheck size={16} />
+              <ShieldCheck size={16} className="text-rose-500" />
               <strong>Change Password</strong>
             </div>
             <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
               Changing your password will log you out of all devices.
             </p>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="profile-secondary-button w-full justify-center"
-              type="button"
-            >
-              <ShieldCheck size={14} className="text-slate-500" /> Change Password
-            </button>
+            <div className="profile-actions-stack">
+              <button onClick={() => setShowPasswordModal(true)} className="profile-action-row" type="button">
+                <div className="profile-action-content"><ShieldCheck size={16} className="text-rose-500" /> Change Password</div>
+                <ChevronRight size={16} className="profile-action-chevron" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -541,7 +522,7 @@ export function ProfileView({
                     <span>Email</span>
                     <input
                       className="profile-readonly-input"
-                      value={draft.email}
+                      value={draft.email || user?.email || ""}
                       placeholder="you@example.com"
                       type="email"
                       readOnly
@@ -613,8 +594,8 @@ export function ProfileView({
                 <X size={16} />
               </button>
             </div>
-            <div className="p-6">
-              <div className="profile-avatar-preview" style={{ marginBottom: '20px' }}>
+            <div className="p-6 pb-4">
+              <div className="profile-avatar-preview" style={{ marginBottom: '16px' }}>
                 {selectedAvatar ? (
                   <img className="profile-avatar profile-avatar-img profile-avatar-xl" src={avatarImageSrc(selectedAvatar)} alt={selectedAvatar.label} />
                 ) : (
@@ -626,8 +607,8 @@ export function ProfileView({
                 </div>
               </div>
 
-              <div className="avatar-picker-section avatar-picker-compact">
-                <div className="avatar-picker-grid">
+              <div className="avatar-picker-section avatar-picker-compact" style={{ marginBottom: '16px' }}>
+                <div className="avatar-picker-grid" style={{ paddingBottom: '8px' }}>
                   {AVATAR_OPTIONS.map((option) => (
                     <button
                       key={option.id}
@@ -651,8 +632,8 @@ export function ProfileView({
                   </button>
                 </div>
               </div>
-              
-              <div className="profile-form-actions mt-6" style={{ display: 'flex', gap: '10px' }}>
+
+              <div className="profile-form-actions" style={{ display: 'flex', gap: '10px' }}>
                 <button type="button" onClick={() => setShowAvatarModal(false)} className="profile-secondary-button" style={{ width: 'auto' }}>
                   Cancel
                 </button>
@@ -663,6 +644,73 @@ export function ProfileView({
                   style={{ flex: 1, marginTop: 0 }}
                 >
                   {avatarJustSaved ? <><CheckCircle2 size={16} /> Saved</> : <><Save size={16} /> Save avatar</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWorkspaceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md" style={{ background: 'rgba(15, 25, 20, 0.5)', animation: 'modalFadeIn 0.2s ease-out' }} onClick={() => setShowWorkspaceModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200/70" style={{ animation: 'modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-slate-200/80 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-indigo-100 rounded-lg">
+                  <Database size={16} className="text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Workspace Configuration</h3>
+                  <p className="text-[10px] text-slate-500">Your local environment settings</p>
+                </div>
+              </div>
+              <button onClick={() => setShowWorkspaceModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-indigo-50/50 to-transparent rounded-lg border border-indigo-100/50">
+                <div className="p-1.5 bg-indigo-100 rounded-md">
+                  <FolderOpen size={14} className="text-indigo-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide mb-0.5">Workspace Directory</div>
+                  <code className="text-xs text-slate-700 break-all font-mono">{workspace?.workspace_path || "Not initialized"}</code>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-amber-50/50 to-transparent rounded-lg border border-amber-100/50">
+                <div className="p-1.5 bg-amber-100 rounded-md">
+                  <Database size={14} className="text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Database File</div>
+                  <code className="text-xs text-slate-700 break-all font-mono">{workspace?.database_path || "Not initialized"}</code>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-emerald-50/50 to-transparent rounded-lg border border-emerald-100/50">
+                <div className="p-1.5 bg-emerald-100 rounded-md">
+                  <Globe size={14} className="text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">Email Provider</div>
+                  <code className="text-xs text-slate-700 font-mono">{saved.preferred_email_provider || "gmail"}</code>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-blue-50/50 to-transparent rounded-lg border border-blue-100/50">
+                <div className="p-1.5 bg-blue-100 rounded-md">
+                  <Mail size={14} className="text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Contact Email</div>
+                  <code className="text-xs text-slate-700 break-all font-mono">{saved.email || "—"}</code>
+                </div>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowWorkspaceModal(false)}
+                  className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  Close
                 </button>
               </div>
             </div>

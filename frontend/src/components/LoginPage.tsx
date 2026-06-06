@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LogIn } from "lucide-react";
+import { LogIn, Mail } from "lucide-react";
 import { api } from "../lib/api";
 import { setToken } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
@@ -10,6 +10,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSuspendedModalOpen, setIsSuspendedModalOpen] = useState(false);
   
   // Invite Request State
   const [showInviteRequest, setShowInviteRequest] = useState(false);
@@ -19,6 +20,13 @@ export function LoginPage() {
   const [inviteDesc, setInviteDesc] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+
+  // Appeal State
+  const [showAppealForm, setShowAppealForm] = useState(false);
+  const [appealMessage, setAppealMessage] = useState("");
+  const [appealSuccess, setAppealSuccessState] = useState(false);
+  const [appealLoading, setAppealLoading] = useState(false);
+  const [appealError, setAppealError] = useState("");
 
   const { refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -61,9 +69,27 @@ export function LoginPage() {
         window.location.href = from === "/login" ? "/" : from;
       }
     } catch (err: any) {
-      setError(err.message || "Failed to log in. Please check your credentials.");
+      if (err.message === "user_suspended" || err.message === "user_blocked") {
+        setIsSuspendedModalOpen(true);
+      } else {
+        setError(err.message || "Failed to log in. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppealSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppealLoading(true);
+    setAppealError("");
+    try {
+      await api.post("/auth/contact-admin", { email, message: appealMessage });
+      setAppealSuccessState(true);
+    } catch (err: any) {
+      setAppealError(err.message || "Failed to send message.");
+    } finally {
+      setAppealLoading(false);
     }
   };
 
@@ -191,6 +217,81 @@ export function LoginPage() {
           </>
         )}
       </div>
+
+      {isSuspendedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-lg border border-red-500/20 bg-zinc-900 p-6 shadow-2xl">
+            <h3 className="mb-2 text-xl font-semibold text-red-500">Account Suspended</h3>
+            {appealSuccess ? (
+              <>
+                <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+                  Your message has been sent to the administrator. They will review your appeal shortly.
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setIsSuspendedModalOpen(false)}
+                    className="rounded bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : showAppealForm ? (
+              <form onSubmit={handleAppealSubmit}>
+                {appealError && (
+                  <div className="mb-4 rounded-md bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
+                    {appealError}
+                  </div>
+                )}
+                <textarea
+                  value={appealMessage}
+                  onChange={(e) => setAppealMessage(e.target.value)}
+                  placeholder="Explain why you think this suspension is a mistake..."
+                  required
+                  className="w-full h-32 mb-4 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                />
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAppealForm(false)}
+                    className="rounded px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={appealLoading}
+                    className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 focus:outline-none disabled:opacity-50 transition-colors"
+                  >
+                    {appealLoading ? "Sending..." : "Send Message"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <p className="mb-6 text-sm text-zinc-300 leading-relaxed">
+                  Your account has been suspended from ScholarDock. If you think this was a mistake, please contact an administrator.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowAppealForm(true)}
+                    className="inline-flex items-center gap-2 rounded bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
+                  >
+                    <Mail size={16} />
+                    Contact Admin
+                  </button>
+                  <button
+                    onClick={() => setIsSuspendedModalOpen(false)}
+                    className="rounded bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

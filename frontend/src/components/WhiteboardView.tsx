@@ -58,10 +58,14 @@ interface WhiteboardRecord {
 }
 
 export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void }) {
+  const ERASER_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="%23000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m13.3 4.7 5.6 5.6"/></svg>') 4 20, crosshair`;
+  const PEN_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="%23000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>') 2 22, crosshair`;
+
   const { showAlert, showConfirm, showPrompt } = useDialog();
   const [boards, setBoards] = useState<WhiteboardRecord[]>([]);
   const [activeBoardId, setActiveBoardId] = useState<number | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isLoadingBoards, setIsLoadingBoards] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [history, setHistory] = useState<Shape[][]>([]);
@@ -129,22 +133,19 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   const loadBoards = async () => {
     try {
       let b = await listRecords<WhiteboardRecord>("whiteboards");
-      if (b.length === 0) {
-        const newBoard = await createRecord<WhiteboardRecord>("whiteboards", {
-          name: "My Board",
-          shapes_json: "[]",
-          camera_json: JSON.stringify({ x: 0, y: 0, zoom: 1 }),
-          last_used_at: new Date().toISOString()
-        });
-        b = [newBoard];
+      if (b.length > 0) {
+        b.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
+        setBoards(b);
+        switchBoard(b[0], false);
+      } else {
+        setBoards([]);
       }
-      b.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
-      setBoards(b);
-      switchBoard(b[0], false);
     } catch (e) {
       console.error("Failed to load boards", e);
       // Fallback for when backend might not be ready
       setTimeout(loadBoards, 2000);
+    } finally {
+      setIsLoadingBoards(false);
     }
   };
 
@@ -306,6 +307,11 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
       return;
     }
 
+    if (activeTool === "eraser") {
+      setIsDragging(true);
+      return;
+    }
+
     const newId = Date.now().toString();
     const newShape: Shape = {
       id: newId,
@@ -327,7 +333,64 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
     setDragStart({ x: coords.x, y: coords.y });
   };
 
+const distToSegment = (px: number, py: number, x1: number, y1: number, x2: number, y2: number) => {
+  const l2 = (x1 - x2) ** 2 + (y1 - y2) ** 2;
+  if (l2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+};
+
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (activeTool === "eraser" && isDragging) {
+      const coords = getCanvasCoords(e);
+      const ex = coords.x;
+      const ey = coords.y;
+      const radius = 10 / camera.zoom;
+
+      setShapes(prev => prev.filter(s => {
+        let hit = false;
+        
+        if (s.type === "pen") {
+          if (s.points && s.points.length > 0) {
+            if (s.points.length === 1) {
+               hit = Math.hypot(ex - (s.x + s.points[0].x), ey - (s.y + s.points[0].y)) <= radius;
+            } else {
+              for (let i = 0; i < s.points.length - 1; i++) {
+                if (distToSegment(ex, ey, s.x + s.points[i].x, s.y + s.points[i].y, s.x + s.points[i+1].x, s.y + s.points[i+1].y) <= radius) {
+                  hit = true; break;
+                }
+              }
+            }
+          }
+        } else if (s.type === "line" || s.type === "arrow") {
+          hit = distToSegment(ex, ey, s.x, s.y, s.x + s.w, s.y + s.h) <= radius;
+        } else {
+          const minX = Math.min(s.x, s.x + s.w);
+          const maxX = Math.max(s.x, s.x + s.w);
+          const minY = Math.min(s.y, s.y + s.h);
+          const maxY = Math.max(s.y, s.y + s.h);
+          
+          let w = maxX - minX;
+          let h = maxY - minY;
+          if (s.type === "text") {
+            w = Math.max(w, 150);
+            h = Math.max(h, 40);
+          }
+          
+          hit = ex >= minX - radius && ex <= minX + w + radius &&
+                ey >= minY - radius && ey <= minY + h + radius;
+        }
+
+        if (hit) {
+          if (selectedId === s.id) setSelectedId(null);
+          return false;
+        }
+        return true;
+      }));
+      return;
+    }
+
     if (isPanning) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
@@ -435,6 +498,13 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     e.currentTarget.releasePointerCapture(e.pointerId);
     setIsPanning(false);
+    
+    if (activeTool === "eraser" && isDragging) {
+      setIsDragging(false);
+      setTimeout(() => commitHistory(shapesRef.current), 0);
+      return;
+    }
+    
     setIsDragging(false);
     
     if (resizingHandle) {
@@ -484,10 +554,11 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   const handleShapePointerDown = (e: React.PointerEvent, id: string) => {
     if (activeTool === "eraser") {
       e.stopPropagation();
-      const newShapes = shapes.filter(s => s.id !== id);
-      setShapes(newShapes);
-      commitHistory(newShapes);
+      setShapes(prev => prev.filter(s => s.id !== id));
       if (selectedId === id) setSelectedId(null);
+      setIsDragging(true);
+      const svg = e.currentTarget.closest("svg");
+      if (svg) svg.setPointerCapture(e.pointerId);
       return;
     }
     
@@ -572,6 +643,7 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
     const strokeLinecap = s.style === "Dotted" ? "round" : undefined;
     
     const commonProps = {
+      "data-shape-id": s.id,
       stroke: s.stroke,
       fill: s.fill === "transparent" ? "none" : s.fill,
       strokeWidth: s.thickness,
@@ -581,8 +653,8 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
       strokeLinejoin: "round" as any,
       onPointerDown: (e: any) => handleShapePointerDown(e, s.id),
       style: { 
-        cursor: activeTool === "pointer" ? "move" : activeTool === "eraser" ? "crosshair" : "default",
-        pointerEvents: "all" as any
+        cursor: activeTool === "pointer" ? "move" : activeTool === "eraser" ? ERASER_CURSOR : activeTool === "pen" ? PEN_CURSOR : "crosshair",
+        pointerEvents: (activeTool === "pointer" || activeTool === "eraser" || s.type === "text") ? "all" as any : "none" as any
       }
     };
     
@@ -617,6 +689,7 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
         return (
           <foreignObject key={s.id} x={s.x} y={s.y} width={Math.max(s.w, 150)} height={Math.max(s.h, 40)} onPointerDown={(e) => handleShapePointerDown(e, s.id)}>
             <textarea 
+              data-shape-id={s.id}
               value={s.text}
               onChange={(e) => {
                 setShapes(shapes.map(sh => sh.id === s.id ? { ...sh, text: e.target.value } : sh));
@@ -732,9 +805,19 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   };
 
   if (activeBoardId === null) {
+    if (isLoadingBoards) {
+      return (
+        <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ color: 'var(--wb-text-dim)' }}>Loading boards...</div>
+        </div>
+      );
+    }
     return (
-      <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <div style={{ color: 'var(--wb-text-dim)' }}>Loading boards...</div>
+      <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
+        <div style={{ color: 'var(--wb-text-dim)', fontSize: 16 }}>No whiteboards yet</div>
+        <button className="wb-btn" onClick={handleCreateBoard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Plus size={16} /> Create Whiteboard
+        </button>
       </div>
     );
   }
@@ -780,7 +863,14 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
       <div className={`wb-canvas-dummy ${!isPanelOpen ? 'expanded' : ''}`}>
         <svg 
           className="wb-svg-layer" 
-          style={{ cursor: isPanning ? 'grabbing' : (activeTool === 'hand' ? 'grab' : undefined) }}
+          style={{ 
+            cursor: isPanning ? 'grabbing' 
+                    : activeTool === 'hand' ? 'grab' 
+                    : activeTool === 'eraser' ? ERASER_CURSOR 
+                    : activeTool === 'pen' ? PEN_CURSOR 
+                    : activeTool === 'pointer' ? 'default' 
+                    : 'crosshair'
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         // Background refresh to get latest user details from server
         try {
-          const latestUser = await api.get<User>("/auth/me");
+          const latestUser = await api.get<User>(`/auth/me?t=${Date.now()}`);
           setUser(latestUser);
         } catch (error) {
           // If 401, token might be revoked

@@ -146,7 +146,7 @@ class AdminService:
 
     def list_users(self) -> list[dict]:
         users = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users ORDER BY created_at DESC"
+            "SELECT id, email, display_name, roles, is_active, is_blocked, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users ORDER BY created_at DESC"
         ).fetchall()
         
         results = []
@@ -159,7 +159,7 @@ class AdminService:
 
     def get_user_details(self, user_id: int) -> dict:
         user = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
+            "SELECT id, email, display_name, roles, is_active, is_blocked, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
         ).fetchone()
         
         if not user:
@@ -175,24 +175,55 @@ class AdminService:
         d["usage"] = [dict(u) for u in usage]
         return d
 
-    def update_user_roles(self, admin_id: int, user_id: int, roles: list[str]) -> dict:
+    def update_user_roles(self, admin_id: int, user_id: int, roles: list[str], plan_duration_days: Optional[int] = None, plan_start_date: Optional[str] = None, plan_end_date: Optional[str] = None) -> dict:
         roles_json = json.dumps(roles)
-        plan_started_at = datetime.utcnow().isoformat()
-        plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
-        
-        self.connection.execute(
-            "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (roles_json, plan_started_at, plan_ends_at, user_id)
-        )
-        self.log_audit_action(admin_id, "update_roles", "users", str(user_id), {"new_roles": roles})
+
+        # Only set plan dates for user-level roles (general_user, pro_user, max_user)
+        # Admin-only users don't have plan expiration
+        has_user_role = any(r in ["general_user", "pro_user", "max_user"] for r in roles)
+
+        if has_user_role:
+            # Use custom dates if provided, otherwise calculate from duration
+            if plan_start_date and plan_end_date:
+                plan_started_at = plan_start_date
+                plan_ends_at = plan_end_date
+                audit_details = {"new_roles": roles, "custom_dates": {"start": plan_start_date, "end": plan_end_date}}
+            else:
+                plan_started_at = datetime.utcnow().isoformat()
+                # Use provided duration or default to 30 days
+                days = plan_duration_days if plan_duration_days is not None else 30
+                plan_ends_at = (datetime.utcnow() + timedelta(days=days)).isoformat()
+                audit_details = {"new_roles": roles, "plan_duration_days": days}
+
+            self.connection.execute(
+                "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (roles_json, plan_started_at, plan_ends_at, user_id)
+            )
+            self.log_audit_action(admin_id, "update_roles", "users", str(user_id), audit_details)
+        else:
+            # Clear plan dates for admin-only users
+            self.connection.execute(
+                "UPDATE users SET roles = ?, plan_started_at = NULL, plan_ends_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (roles_json, user_id)
+            )
+            self.log_audit_action(admin_id, "update_roles", "users", str(user_id), {"new_roles": roles})
+
         return self.get_user_details(user_id)
 
     def toggle_user_status(self, admin_id: int, user_id: int, is_active: bool) -> dict:
         self.connection.execute(
-            "UPDATE users SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE users SET is_active = ?, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (1 if is_active else 0, user_id)
         )
         self.log_audit_action(admin_id, "toggle_status", "users", str(user_id), {"is_active": is_active})
+        return self.get_user_details(user_id)
+
+    def toggle_user_block(self, admin_id: int, user_id: int, is_blocked: bool) -> dict:
+        self.connection.execute(
+            "UPDATE users SET is_blocked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (1 if is_blocked else 0, user_id)
+        )
+        self.log_audit_action(admin_id, "toggle_block", "users", str(user_id), {"is_blocked": is_blocked})
         return self.get_user_details(user_id)
 
     def revoke_tokens(self, admin_id: int, user_id: int) -> dict:
@@ -224,6 +255,17 @@ class AdminService:
         
         row = self.connection.execute("SELECT * FROM invite_codes WHERE id = ?", (new_id,)).fetchone()
         return dict(row)
+
+    def get_invite_usages(self, admin_id: int, code: str) -> list[dict]:
+        invite = self.connection.execute("SELECT id FROM invite_codes WHERE code = ?", (code,)).fetchone()
+        if not invite:
+            raise LookupError("Invite code not found")
+            
+        users = self.connection.execute(
+            "SELECT id, email, created_at FROM users WHERE registered_with_invite_id = ? ORDER BY created_at DESC",
+            (invite["id"],)
+        ).fetchall()
+        return [dict(u) for u in users]
 
     def delete_invite_code(self, admin_id: int, code: str) -> None:
         row = self.connection.execute("SELECT id FROM invite_codes WHERE code = ?", (code,)).fetchone()
@@ -267,7 +309,37 @@ class AdminService:
         else:
             raise ValueError(f"Invalid action: {action}")
 
-    def create_user(self, admin_id: int, email: str, password_hash: str, display_name: str, roles: list[str]) -> dict:
+    def list_suspension_appeals(self) -> list[dict]:
+        appeals = self.connection.execute(
+            "SELECT * FROM suspension_appeals ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(a) for a in appeals]
+
+    def resolve_suspension_appeal(self, admin_id: int, appeal_id: int, action: str) -> dict:
+        appeal = self.connection.execute(
+            "SELECT * FROM suspension_appeals WHERE id = ?", (appeal_id,)
+        ).fetchone()
+        if not appeal:
+            raise LookupError("Appeal not found")
+
+        if action not in ["Resolve", "Dismiss"]:
+            raise ValueError(f"Invalid action: {action}")
+
+        self.connection.execute(
+            "UPDATE suspension_appeals SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (action, appeal_id)
+        )
+        
+        if action == "Resolve":
+            # Automatically unsuspend the user
+            self.connection.execute(
+                "UPDATE users SET is_active = 1, token_version = token_version + 1 WHERE email = ?",
+                (appeal["email"],)
+            )
+        self.log_audit_action(admin_id, "resolve_suspension_appeal", "suspension_appeals", str(appeal_id), {"action": action})
+        self.connection.commit()
+        return {"status": "success"}
+    def create_user(self, admin_id: int, email: str, password_hash: str, display_name: str, roles: list[str], plan_duration: str = "1_month") -> dict:
         # Check if email already exists
         existing_user = self.connection.execute(
             "SELECT id FROM users WHERE email = ?", (email,)
@@ -277,7 +349,15 @@ class AdminService:
 
         roles_json = json.dumps(roles)
         plan_started_at = datetime.utcnow().isoformat()
-        plan_ends_at = (datetime.utcnow() + timedelta(days=60)).isoformat()
+
+        # Calculate plan_ends_at based on plan_duration
+        if plan_duration == "1_month":
+            plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+        elif plan_duration == "1_year":
+            plan_ends_at = (datetime.utcnow() + timedelta(days=365)).isoformat()
+        else:
+            # Default to 1 month if invalid value
+            plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
         
         cursor = self.connection.execute(
             """
@@ -298,6 +378,24 @@ class AdminService:
                 VALUES (?, ?, 0, CURRENT_TIMESTAMP)
                 """, (user_id, feature)
             )
+
+        # Initialize local profile
+        self.connection.execute(
+            """
+            INSERT INTO local_profiles (user_id, display_name, email)
+            VALUES (?, ?, ?)
+            """,
+            (user_id, display_name, email)
+        )
+
+        # Seed default document categories
+        from app.core.categories import DEFAULT_MEDIA_CATEGORIES
+        for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
+            self.connection.execute(
+                "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
+                (slug, label, index, user_id)
+            )
+
         self.connection.commit()
         self.log_audit_action(admin_id, "create_user", "users", str(user_id), {"email": email, "roles": roles})
         return self.get_user_details(user_id)

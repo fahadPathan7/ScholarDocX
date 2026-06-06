@@ -16,9 +16,15 @@ def get_admin_service(store: Store = Depends(get_store)) -> AdminService:
 
 class RoleUpdatePayload(BaseModel):
     roles: List[str]
+    plan_duration_days: Optional[int] = None
+    plan_start_date: Optional[str] = None
+    plan_end_date: Optional[str] = None
 
 class StatusUpdatePayload(BaseModel):
     is_active: bool
+
+class BlockUpdatePayload(BaseModel):
+    is_blocked: bool
 
 class InviteCodePayload(BaseModel):
     max_uses: int
@@ -29,6 +35,7 @@ class UserCreatePayload(BaseModel):
     password: str
     display_name: Optional[str] = "User"
     roles: Optional[List[str]] = ["general_user"]
+    plan_duration: Optional[str] = "1_month"
 
 class LimitUpdatePayload(BaseModel):
     limit_count: int
@@ -113,7 +120,14 @@ def update_user_roles(user_id: int, payload: RoleUpdatePayload, admin_service: A
         target_user = check_admin_modification_clearance(user_id, admin_service, current_user)
         can_manage_admin = has_admin_assign
         validate_roles_assignment(payload.roles, can_manage_admin, target_user.get("roles", []))
-        return admin_service.update_user_roles(current_user["id"], user_id, payload.roles)
+        return admin_service.update_user_roles(
+            current_user["id"],
+            user_id,
+            payload.roles,
+            payload.plan_duration_days,
+            payload.plan_start_date,
+            payload.plan_end_date
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except LookupError as e:
@@ -125,6 +139,15 @@ def toggle_user_status(user_id: int, payload: StatusUpdatePayload, admin_service
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
         return admin_service.toggle_user_status(current_user["id"], user_id, payload.is_active)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/users/{user_id}/toggle-block")
+def toggle_user_block(user_id: int, payload: BlockUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    require_feature("admin_suspend_user", current_user, admin_service.connection) # Using same feature flag for now
+    try:
+        check_admin_modification_clearance(user_id, admin_service, current_user)
+        return admin_service.toggle_user_block(current_user["id"], user_id, payload.is_blocked)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -159,6 +182,14 @@ def delete_invite_code(code: str, admin_service: AdminService = Depends(get_admi
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@router.get("/invites/{code}/usages")
+def get_invite_usages(code: str, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    require_feature("admin_manage_invites", current_user, admin_service.connection)
+    try:
+        return admin_service.get_invite_usages(current_user["id"], code)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @router.post("/users")
 def create_user(payload: UserCreatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_create_user", current_user, admin_service.connection)
@@ -180,7 +211,7 @@ def create_user(payload: UserCreatePayload, admin_service: AdminService = Depend
                 
     hashed_password = hash_password(payload.password)
     try:
-        return admin_service.create_user(current_user["id"], payload.email, hashed_password, payload.display_name, requested_roles)
+        return admin_service.create_user(current_user["id"], payload.email, hashed_password, payload.display_name, requested_roles, payload.plan_duration)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -239,6 +270,24 @@ def review_invite_request(request_id: int, payload: InviteRequestReviewPayload, 
     require_feature("admin_manage_invite_requests", current_user, admin_service.connection)
     try:
         return admin_service.resolve_invite_request(current_user["id"], request_id, payload.action)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class SuspensionAppealReviewPayload(BaseModel):
+    action: str
+
+@router.get("/suspension-appeals")
+def list_suspension_appeals(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    require_feature("admin_manage_suspension_appeals", current_user, admin_service.connection)
+    return admin_service.list_suspension_appeals()
+
+@router.post("/suspension-appeals/{appeal_id}/resolve")
+def resolve_suspension_appeal(appeal_id: int, payload: SuspensionAppealReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    require_feature("admin_manage_suspension_appeals", current_user, admin_service.connection)
+    try:
+        return admin_service.resolve_suspension_appeal(current_user["id"], appeal_id, payload.action)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:

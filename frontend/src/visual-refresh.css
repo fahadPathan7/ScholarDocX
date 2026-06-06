@@ -1563,6 +1563,27 @@ main {
 .profile-secondary-button {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.profile-secondary-button:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(203, 213, 225, 0.9);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.profile-secondary-button:active {
+  transform: translateY(0);
 }
 
 /* Profile page operational polish */
@@ -1673,4 +1694,79 @@ main {
   .profile-system-card .profile-secondary-button {
     width: 100%;
   }
+}
+
+/* Workspace Modal Animations */
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* Profile Action Rows (iOS grouped list style) */
+.profile-actions-stack {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.profile-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 0;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.profile-action-row:last-child {
+  border-bottom: none;
+}
+
+.profile-action-row:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.profile-action-row:active {
+  background: rgba(241, 245, 249, 1);
+}
+
+.profile-action-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-action-chevron {
+  opacity: 0.4;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.profile-action-row:hover .profile-action-chevron {
+  opacity: 0.8;
+  transform: translateX(2px);
 }

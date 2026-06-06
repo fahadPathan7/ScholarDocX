@@ -195,7 +195,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
               <span className="text-3xl font-bold text-slate-800">0 BDT</span>
               <span className="text-slate-500 font-medium">/mo</span>
             </div>
-            <p className="text-slate-500 text-sm">Max 2 months. Need to upgrade to Pro or Max to continue using.</p>
+            <p className="text-slate-500 text-sm">Max 1 month. Need to upgrade to Pro or Max to continue using.</p>
           </div>
           <div className="space-y-4 flex-1 relative">
             {displayedFeatures.map((f) => {

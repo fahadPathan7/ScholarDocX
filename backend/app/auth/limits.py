@@ -92,6 +92,37 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
     primary_role = get_primary_user_role(user)
     if not primary_role:
         raise UsageLimitExceeded("You must have a user-level role to use this feature.")
+
+    # ── Plan date guard ─────────────────────────────────────────────────────
+    # If the user's plan has explicit dates, enforce them.
+    # plan_started_at: the plan must have started (not a future plan).
+    # plan_ends_at:    the plan must not be expired.
+    now = datetime.utcnow()
+    plan_started_at = user.get("plan_started_at")
+    plan_ends_at = user.get("plan_ends_at")
+
+    if plan_ends_at:
+        try:
+            end_dt = datetime.fromisoformat(plan_ends_at.replace("Z", "+00:00").split("+")[0])
+            if end_dt.date() < now.date():
+                raise UsageLimitExceeded(
+                    "Your plan has expired. Please contact an administrator to renew your access."
+                )
+        except (ValueError, AttributeError):
+            pass  # Malformed date — fail open to avoid locking out on bad data
+
+    if plan_started_at:
+        try:
+            start_dt = datetime.fromisoformat(plan_started_at.replace("Z", "+00:00").split("+")[0])
+            if start_dt.date() > now.date():
+                raise UsageLimitExceeded(
+                    "Your plan has not started yet. Access will be available from "
+                    + start_dt.strftime("%d %b %Y") + "."
+                )
+        except (ValueError, AttributeError):
+            pass  # Malformed date — fail open
+    # ────────────────────────────────────────────────────────────────────────
+
     
     # Get role limit from cache or DB
     cache_key = f"{primary_role}:{feature}"

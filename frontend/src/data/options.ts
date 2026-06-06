@@ -28,6 +28,8 @@ export const mediaCategories = [
   "test-scores",
   "proposals",
   "sop",
+  "lor",
+  "passports",
   "other"
 ];
 

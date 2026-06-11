@@ -30,6 +30,8 @@ class Settings:
         )
 
         self.glm_base_url = os.getenv("GLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4/chat/completions")
+        self.advisor_atlas_glm_model = os.getenv("ADVISOR_ATLAS_GLM_MODEL", "GLM-5.1")
+        self.advisor_atlas_vision_model = os.getenv("ADVISOR_ATLAS_VISION_MODEL", "GLM-4.6V")
         self.gemini_base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
         self.mistral_api_key = os.getenv("MISTRAL_API_KEY", "")

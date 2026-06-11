@@ -34,6 +34,8 @@ USER_SCOPED_TABLES = (
     "ai_conversations",
     "research_notes",
     "bookmarked_news",
+    "advisor_atlas_runs",
+    "advisor_atlas_candidates",
 )
 
 

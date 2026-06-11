@@ -227,6 +227,25 @@ Likely tables:
 - ai_messages
 - research_notes
 
+## advisor_atlas
+
+Purpose:
+
+Persist user-scoped supervisor discovery work and evidence.
+
+Tables:
+
+- `advisor_atlas_runs`: search inputs, profile, depth, status, progress, and
+  action center.
+- `advisor_atlas_candidates`: normalized professor identity, lane, scores,
+  recruitment state, shortlist, notes, and save link.
+- `advisor_atlas_evidence`: claim-level source metadata and excerpts.
+- `advisor_atlas_publications`: latest and relevant publications plus reading
+  status.
+- `advisor_atlas_dossiers`: structured research, lab, opportunity, readiness,
+  risk, verification, and next-action sections.
+- `advisor_atlas_watch_events`: meaningful changes found during refresh.
+
 ## identity
 
 Purpose:

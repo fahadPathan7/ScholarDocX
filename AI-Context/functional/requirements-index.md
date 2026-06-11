@@ -112,3 +112,31 @@
 - FR-8.26: Preview uses no Tavily request but does consume one Scholarship Hunt quota unit; confirmation uses one Tavily request without spending a second unit.
 - FR-8.31: Repeated searches show a visible preparing/searching state before new results replace the previous result set.
 - FR-8.27: Hard destination/named-scholarship validation is combined with evidence-based relevance scoring for snippet-limited filters.
+
+## FR-9: Advisor Atlas
+
+See
+[feature-advisor-atlas.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-advisor-atlas.md)
+for the complete workflow and requirements.
+
+- FR-9.1: Add the Advisor Atlas navigation workspace.
+- FR-9.2: Support department discovery and professor-specific search.
+- FR-9.3: Build a reviewable student research profile.
+- FR-9.4: Support Quick Map, Deep Atlas, and Focused Dossier.
+- FR-9.5: Discover and deduplicate public professor profiles.
+- FR-9.6: Enrich research, lab, student, publication, funding, and recruitment data.
+- FR-9.7: Provide sourced latest-publication fallbacks.
+- FR-9.8: Use a visible multi-pass intelligence workflow.
+- FR-9.9: Preserve claim-level evidence.
+- FR-9.10: Separate match, confidence, and recruitment.
+- FR-9.11: Use five evidence-based recruitment states.
+- FR-9.12: Do not equate funding with confirmed recruitment.
+- FR-9.13: Produce structured advisor dossiers and next actions.
+- FR-9.14: Expose coverage, conflicts, and missing information.
+- FR-9.15: Provide decision lanes and comparison.
+- FR-9.16: Persist user-scoped runs and results locally.
+- FR-9.17: Support stop, revisit, refresh, and resume.
+- FR-9.18: Produce a student action center.
+- FR-9.19: Confirm before saving into core professor records.
+- FR-9.20: Respect public access restrictions.
+- FR-9.21: Provide responsive and accessible workflow states.

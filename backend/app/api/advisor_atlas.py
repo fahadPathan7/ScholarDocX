@@ -1,0 +1,204 @@
+from __future__ import annotations
+
+from typing import Any, Literal, Optional
+
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field, model_validator
+
+from app.auth.dependencies import get_current_user
+from app.core.config import Settings, get_settings
+from app.services.advisor_atlas import AdvisorAtlasService
+
+
+router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
+
+
+class ResearchProfile(BaseModel):
+    field: Optional[str] = Field(default=None, max_length=200)
+    subfields: list[str] = Field(default_factory=list, max_length=20)
+    research_question: Optional[str] = Field(default=None, max_length=1500)
+    keywords: list[str] = Field(default_factory=list, max_length=30)
+    methods_known: list[str] = Field(default_factory=list, max_length=30)
+    methods_to_learn: list[str] = Field(default_factory=list, max_length=30)
+    tools_and_datasets: list[str] = Field(default_factory=list, max_length=30)
+    prior_experience: Optional[str] = Field(default=None, max_length=2500)
+    work_style: Optional[str] = Field(default=None, max_length=200)
+    constraints: Optional[str] = Field(default=None, max_length=1200)
+    exclusions: list[str] = Field(default_factory=list, max_length=20)
+    career_direction: Optional[str] = Field(default=None, max_length=800)
+
+
+class CreateRunRequest(BaseModel):
+    mode: Literal["department", "professor"]
+    search_depth: Literal["quick", "deep", "focused"] = "deep"
+    university_name: Optional[str] = Field(default=None, max_length=300)
+    university_url: Optional[str] = Field(default=None, max_length=1000)
+    department: Optional[str] = Field(default=None, max_length=300)
+    professor_name: Optional[str] = Field(default=None, max_length=300)
+    degree_target: Optional[str] = Field(default=None, max_length=80)
+    intake_term: Optional[str] = Field(default=None, max_length=100)
+    research_profile: ResearchProfile = Field(default_factory=ResearchProfile)
+    approved_domains: list[str] = Field(default_factory=list, max_length=30)
+
+    @model_validator(mode="after")
+    def validate_mode_inputs(self):
+        if self.mode == "department":
+            if not self.university_name or not self.department:
+                raise ValueError("University name and department are required.")
+        if self.mode == "professor" and not self.professor_name:
+            raise ValueError("Professor name is required for Focused Dossier.")
+        return self
+
+
+class CandidateUpdateRequest(BaseModel):
+    shortlist_status: Optional[Literal["unreviewed", "shortlisted", "watch", "contacted", "dismissed"]] = None
+    decision_lane: Optional[str] = Field(default=None, max_length=100)
+    user_notes: Optional[str] = Field(default=None, max_length=5000)
+
+
+class PublicationUpdateRequest(BaseModel):
+    reading_status: Optional[Literal["unread", "read_next", "reading", "read"]] = None
+    user_note: Optional[str] = Field(default=None, max_length=3000)
+
+
+def _service(settings: Settings = Depends(get_settings)) -> AdvisorAtlasService:
+    return AdvisorAtlasService(settings)
+
+
+@router.post("/runs", status_code=202)
+async def create_run(
+    payload: CreateRunRequest,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    run = service.repository.create_run(
+        int(user["id"]),
+        payload.model_dump(),
+    )
+    background_tasks.add_task(service.run, int(run["id"]), int(user["id"]))
+    return run
+
+
+@router.get("/runs")
+def list_runs(
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    return service.repository.list_runs(int(user["id"]))
+
+
+@router.get("/runs/{run_id}")
+def get_run(
+    run_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.get_run(run_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/runs/{run_id}/cancel")
+def cancel_run(
+    run_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.cancel_run(run_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/runs/{run_id}/resume", status_code=202)
+def resume_run(
+    run_id: int,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        run = service.repository.prepare_resume(run_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    background_tasks.add_task(service.run, run_id, int(user["id"]))
+    return run
+
+
+@router.get("/candidates/{candidate_id}")
+def get_candidate(
+    candidate_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.get_candidate(candidate_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.patch("/candidates/{candidate_id}")
+def update_candidate(
+    candidate_id: int,
+    payload: CandidateUpdateRequest,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.update_candidate(
+            candidate_id,
+            int(user["id"]),
+            payload.model_dump(exclude_none=True),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.patch("/candidates/{candidate_id}/publications/{publication_id}")
+def update_publication(
+    candidate_id: int,
+    publication_id: int,
+    payload: PublicationUpdateRequest,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.update_publication(
+            publication_id,
+            candidate_id,
+            int(user["id"]),
+            payload.model_dump(exclude_none=True),
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/candidates/{candidate_id}/refresh")
+async def refresh_candidate(
+    candidate_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return await service.refresh_candidate(candidate_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except (httpx.HTTPError, ValueError) as exc:  # type: ignore[name-defined]
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.post("/candidates/{candidate_id}/save")
+def save_candidate(
+    candidate_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.save_to_professors(candidate_id, int(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))

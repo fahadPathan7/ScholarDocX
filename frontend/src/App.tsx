@@ -22,7 +22,8 @@ import {
   Square,
   Settings,
   Shield,
-  Compass
+  Compass,
+  Map
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
 import { FloatingAssistant } from "./components/FloatingAssistant";
@@ -38,6 +39,7 @@ import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectW
 import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
+import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
 import { CalendarMonthView } from "./components/CalendarMonthView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
@@ -275,6 +277,7 @@ export function App() {
     ["documents", "Documents", FileText],
     ["sticky", "Sticky Notes", StickyNote],
     ["whiteboard", "Whiteboard", Square],
+    ["atlas", "Advisor Atlas", Map],
     ["news", "Scholarship Hunt", Compass],
     ["profile", "Profile", User],
     ["settings", "Settings", Settings],
@@ -288,19 +291,19 @@ export function App() {
   const currentIsAdmin = currentIdentity?.roles ? hasAdminRole(currentIdentity.roles) : isAdmin();
 
   useEffect(() => {
-    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard"].includes(activeTab)) {
+    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
     }
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
 
   let navItems: any[] = [];
   if (currentHasUserPlan) {
-    navItems.push(...baseNavItems.slice(0, 6));
+    navItems.push(...baseNavItems.slice(0, 7));
   }
   if (currentIsAdmin) {
     navItems.push(adminItem);
   }
-  navItems.push(...baseNavItems.slice(6));
+  navItems.push(...baseNavItems.slice(7));
 
   const handleSidebarNav = (key: string) => {
     if (key === "projects") {
@@ -351,7 +354,7 @@ export function App() {
         <nav>
           {navItems.map(([key, label, Icon], i) => (
             <Fragment key={key}>
-              {i === 6 && <div className="nav-spacer" />}
+              {currentHasUserPlan && i === 7 && <div className="nav-spacer" />}
               <button
                 aria-label={label}
                 className={activeTab === key ? "active" : ""}
@@ -434,6 +437,8 @@ export function App() {
             <StickyNotesView key={stickyNotesKey} onToast={showToast} />
           ) : activeTab === "whiteboard" ? (
             <WhiteboardView key={whiteboardKey} onToast={showToast} />
+          ) : activeTab === "atlas" ? (
+            <AdvisorAtlasView onToast={showToast} />
           ) : activeTab === "news" ? (
             <ScholarshipNewsView onToast={showToast} />
           ) : activeTab === "profile" ? (

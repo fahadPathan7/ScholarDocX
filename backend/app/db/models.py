@@ -703,3 +703,149 @@ class Reminders(Base):
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='reminders')
     outreach_log: Mapped[Optional['OutreachLogs']] = relationship('OutreachLogs', back_populates='reminders')
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='reminders')
+
+
+class AdvisorAtlasRuns(Base):
+    __tablename__ = "advisor_atlas_runs"
+    __table_args__ = (
+        Index("idx_advisor_atlas_runs_user_id", "user_id"),
+        Index("idx_advisor_atlas_runs_status", "status"),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    search_depth: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'deep'"))
+    university_name: Mapped[Optional[str]] = mapped_column(Text)
+    university_url: Mapped[Optional[str]] = mapped_column(Text)
+    department: Mapped[Optional[str]] = mapped_column(Text)
+    professor_name: Mapped[Optional[str]] = mapped_column(Text)
+    degree_target: Mapped[Optional[str]] = mapped_column(Text)
+    intake_term: Mapped[Optional[str]] = mapped_column(Text)
+    research_profile_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    approved_domains_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
+    current_stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
+    progress_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    action_center_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    error_message: Mapped[Optional[str]] = mapped_column(Text)
+    started_at: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[Optional[str]] = mapped_column(Text)
+    cancelled_at: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AdvisorAtlasCandidates(Base):
+    __tablename__ = "advisor_atlas_candidates"
+    __table_args__ = (
+        Index("idx_advisor_atlas_candidates_run_id", "run_id"),
+        Index("idx_advisor_atlas_candidates_user_id", "user_id"),
+    )
+
+    run_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_runs.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(Text)
+    institution: Mapped[Optional[str]] = mapped_column(Text)
+    department: Mapped[Optional[str]] = mapped_column(Text)
+    email: Mapped[Optional[str]] = mapped_column(Text)
+    official_profile_url: Mapped[Optional[str]] = mapped_column(Text)
+    personal_url: Mapped[Optional[str]] = mapped_column(Text)
+    lab_name: Mapped[Optional[str]] = mapped_column(Text)
+    lab_url: Mapped[Optional[str]] = mapped_column(Text)
+    research_summary: Mapped[Optional[str]] = mapped_column(Text)
+    match_score: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    evidence_confidence: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    recruitment_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unknown'"))
+    recruitment_summary: Mapped[Optional[str]] = mapped_column(Text)
+    decision_lane: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Needs Verification'"))
+    shortlist_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unreviewed'"))
+    user_notes: Mapped[Optional[str]] = mapped_column(Text)
+    coverage_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    risk_flags_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    saved_professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("professors.id"))
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AdvisorAtlasEvidence(Base):
+    __tablename__ = "advisor_atlas_evidence"
+    __table_args__ = (
+        Index("idx_advisor_atlas_evidence_candidate_id", "candidate_id"),
+    )
+
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    canonical_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(Text, nullable=False)
+    page_title: Mapped[Optional[str]] = mapped_column(Text)
+    claim_type: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_excerpt: Mapped[Optional[str]] = mapped_column(Text)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("50"))
+    published_at: Mapped[Optional[str]] = mapped_column(Text)
+    retrieved_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AdvisorAtlasPublications(Base):
+    __tablename__ = "advisor_atlas_publications"
+    __table_args__ = (
+        Index("idx_advisor_atlas_publications_candidate_id", "candidate_id"),
+    )
+
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    authors_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    publication_year: Mapped[Optional[int]] = mapped_column(Integer)
+    venue: Mapped[Optional[str]] = mapped_column(Text)
+    doi: Mapped[Optional[str]] = mapped_column(Text)
+    source_url: Mapped[Optional[str]] = mapped_column(Text)
+    relevance_reason: Mapped[Optional[str]] = mapped_column(Text)
+    reading_priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    reading_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unread'"))
+    user_note: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AdvisorAtlasDossiers(Base):
+    __tablename__ = "advisor_atlas_dossiers"
+    __table_args__ = (
+        UniqueConstraint("candidate_id"),
+    )
+
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    dossier_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    decision_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    research_bridge_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    method_bridge_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    lab_environment_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    trajectory_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    application_fit_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    verification_questions_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    next_actions_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    generated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AdvisorAtlasWatchEvents(Base):
+    __tablename__ = "advisor_atlas_watch_events"
+    __table_args__ = (
+        Index("idx_advisor_atlas_watch_candidate_id", "candidate_id"),
+    )
+
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    previous_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
+    new_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
+    importance: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
+    detected_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    acknowledged_at: Mapped[Optional[str]] = mapped_column(Text)
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)

@@ -12,6 +12,7 @@
 8. AI assistant
 9. Optional authentication and identity
 10. Scholarship Hunt and academic funding discovery
+11. Advisor Atlas supervisor intelligence
 
 ## Dependency Flow
 
@@ -31,6 +32,9 @@ flowchart TD
   Auth --> Reminders
   Auth --> News["Scholarship Hunt"]
   News --> Dashboard
+  Hierarchy --> Atlas["Advisor Atlas"]
+  Atlas --> Hierarchy
+  Atlas --> AI
 ```
 
 ## Cross-Feature Rules
@@ -43,3 +47,5 @@ flowchart TD
 - Authentication is optional for MVP and must not block local-only workflows unless a later decision changes this.
 - Scholarship Hunt must prioritize explicit scholarship/funding relevance over
   broad web matches and remain isolated from AI-chat web research.
+- Advisor Atlas must separate research fit, evidence confidence, and recruitment
+  state while preserving claim-level public sources.

@@ -31,6 +31,9 @@ Created so far:
 - Central notifications
 - Collapsible left navigation
 - Top-right collapsible/expandable AI assistant panel
+- Advisor Atlas for evidence-backed professor discovery, fit ranking, dossiers,
+  publication reading paths, recruitment signals, comparison, and local
+  shortlists
 - Local profile page
 - About page for storage, AI, and email-compose details
 - Backend unit tests
@@ -74,7 +77,8 @@ ScholarDock should help users manage:
 - Backend: Python FastAPI
 - Database: SQLite
 - Storage: local file system
-- AI integrations: GLM AI API, Google AI Studio Gemini API, and Tavily API
+- AI integrations: GLM-5.1, GLM vision, Google AI Studio Gemini API, and Tavily
+  API
 
 ## Local Setup
 

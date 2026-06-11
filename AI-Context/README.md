@@ -18,6 +18,7 @@ Those files were deleted after their content was absorbed into this refined work
 - [business](/Users/fahadpathan/Documents/ScholarDock/AI-Context/business): product goals, users, business decisions, success metrics, risks.
 - [functional](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional): features, requirements, relationships, acceptance criteria.
 - [technical](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical): architecture, stack, storage, APIs, coding rules, testing.
+- [planbook](/Users/fahadpathan/Documents/ScholarDock/AI-Context/planbook): detailed pre-implementation plans for large or cross-module features.
 - [jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks): task files used to execute work.
 - [workflows](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows): AI-DLC process, context maintenance, handoff rules.
 - [agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills): repo-carried `SKILL.md` files for recurring AI-agent workflows.
@@ -30,8 +31,9 @@ For any implementation task:
 2. Read this file.
 3. Read relevant repo-carried skills from [agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills).
 4. Read the active Jira task.
-5. Read only the relevant files from business, functional, and technical context.
-6. Update context before code when requirements or design change.
+5. Read the relevant planbook when the Jira task links one.
+6. Read only the relevant files from business, functional, and technical context.
+7. Update context before code when requirements or design change.
 
 ## Context Update Rule
 

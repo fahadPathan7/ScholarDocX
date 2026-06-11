@@ -36,6 +36,12 @@ ScholarDock is privacy-first. Private academic data should remain local unless t
   a deterministic search baseline, and current date/cycle guidance to
   OpenRouter. It must not include application records, documents, profile
   details, or Tavily results.
+- Advisor Atlas may send public page excerpts and user-entered research-profile
+  fields to GLM after explicit search action. It must not send private
+  documents, transcripts, email history, or application records.
+- Advisor Atlas fetching must reject loopback, private-network, file, and unsafe
+  redirect targets; limit content type and size; sanitize remote HTML; and
+  respect robots and public access restrictions.
 
 ## Authentication Rules
 

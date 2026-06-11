@@ -83,6 +83,17 @@ development.
   user and the approved query, then persist both to user-scoped SQLite feedback
   storage before returning normalized results
 - `/news/bookmarks`
+- `/advisor-atlas/runs` creates and lists user-scoped persisted discovery runs
+- `/advisor-atlas/runs/{run_id}` returns progress, candidates, dossiers, and the
+  run action center
+- `/advisor-atlas/runs/{run_id}/cancel` stops an active local run
+- `/advisor-atlas/runs/{run_id}/resume` resumes an eligible incomplete run
+- `/advisor-atlas/candidates/{candidate_id}` returns the full evidence dossier
+- `/advisor-atlas/candidates/{candidate_id}/refresh` refreshes public evidence
+- `/advisor-atlas/candidates/{candidate_id}` updates shortlist, lane, notes, and
+  reading state
+- `/advisor-atlas/candidates/{candidate_id}/save` confirms creation of a core
+  ScholarDock professor record
 - `/auth/google/start` if optional Google signin is implemented
 - `/auth/google/callback` if optional Google signin is implemented
 - `/auth/session` if optional signin or local profile sessions are implemented

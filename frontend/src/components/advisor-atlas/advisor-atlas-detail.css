@@ -1,0 +1,304 @@
+.atlas-drawer-backdrop,
+.atlas-compare-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(14, 39, 39, 0.45);
+  backdrop-filter: blur(5px);
+}
+
+.atlas-dossier-drawer {
+  width: min(820px, 94vw);
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f8fbf9;
+  box-shadow: -24px 0 60px rgba(14, 45, 43, 0.24);
+}
+
+.atlas-dossier-drawer > header,
+.atlas-compare-panel > header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(42, 99, 94, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.atlas-dossier-actions { padding: 13px 22px 0; }
+
+.atlas-decision-snapshot {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 15px 22px 0;
+}
+
+.atlas-decision-snapshot > div {
+  padding: 11px;
+  border: 1px solid rgba(42, 99, 94, 0.12);
+  border-radius: 11px;
+  background: white;
+}
+
+.atlas-decision-snapshot span,
+.atlas-decision-snapshot strong { display: block; }
+.atlas-decision-snapshot span { color: #72837f; font-size: 0.64rem; }
+.atlas-decision-snapshot strong { margin-top: 4px; color: var(--atlas-ink); font-size: 0.78rem; text-transform: capitalize; }
+
+.atlas-dossier-section {
+  margin: 15px 22px;
+  padding: 16px;
+  border: 1px solid rgba(42, 99, 94, 0.12);
+  border-radius: 14px;
+  background: white;
+}
+
+.atlas-dossier-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--atlas-ink);
+  font-size: 0.94rem;
+}
+
+.atlas-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.atlas-detail-list > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 11px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(42, 99, 94, 0.08);
+}
+
+.atlas-detail-list dt {
+  color: #758783;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+
+.atlas-detail-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #3f5d59;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.atlas-detail-list ul,
+.atlas-dossier-section ul { margin: 0; padding-left: 18px; }
+.atlas-muted { color: #8b9996; font-style: italic; }
+
+.atlas-two-column,
+.atlas-three-column { display: grid; gap: 12px; }
+.atlas-two-column { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.atlas-three-column { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.atlas-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.atlas-coverage-grid > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: #f5f8f6;
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.coverage-strong { color: #237052; }
+.coverage-partial { color: #95651d; }
+.coverage-weak { color: #9b5146; }
+.coverage-unavailable { color: #7c8583; }
+
+.atlas-paper {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(42, 99, 94, 0.09);
+}
+
+.atlas-paper:last-child { border-bottom: 0; }
+
+.atlas-paper-priority {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #8a5c16;
+  background: #fff0ce;
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.atlas-paper h4 { margin: 0; color: #284d49; font-size: 0.82rem; line-height: 1.4; }
+.atlas-paper p { margin: 4px 0; color: #71837f; font-size: 0.68rem; }
+.atlas-paper small { display: block; color: #56706b; line-height: 1.45; }
+.atlas-paper-actions { margin-top: 8px; align-items: center; }
+.atlas-paper-actions select { width: auto; min-height: 36px; padding: 6px 9px; }
+.atlas-paper-actions a { color: #28736a; font-size: 0.7rem; text-decoration: none; }
+
+.atlas-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atlas-evidence-list a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid rgba(42, 99, 94, 0.1);
+  border-radius: 10px;
+  color: #365955;
+  text-decoration: none;
+  background: #fbfdfc;
+}
+
+.atlas-evidence-list strong,
+.atlas-evidence-list small { display: block; }
+.atlas-evidence-list small { margin-top: 3px; color: #7c8d89; }
+.atlas-evidence-list p { grid-column: 1 / -1; margin: 3px 0 0; color: #667b77; font-size: 0.7rem; line-height: 1.45; }
+
+.atlas-dossier-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 300px;
+  color: #607b76;
+}
+
+.atlas-compare-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.atlas-compare-panel {
+  width: min(1060px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 18px;
+  background: #f8fbf9;
+  box-shadow: 0 30px 80px rgba(12, 39, 37, 0.28);
+}
+
+.atlas-compare-table {
+  min-width: 720px;
+  padding: 16px 20px 22px;
+}
+
+.atlas-compare-row {
+  display: grid;
+  grid-template-columns: 150px repeat(4, minmax(130px, 1fr));
+  border-bottom: 1px solid rgba(42, 99, 94, 0.1);
+}
+
+.atlas-compare-row > * {
+  padding: 11px;
+  color: #4c6965;
+  font-size: 0.72rem;
+}
+
+.atlas-compare-row > span { color: #71837f; font-weight: 750; }
+.atlas-compare-row.heading { position: sticky; top: 91px; background: #f2f8f5; }
+.atlas-compare-row.heading strong { color: var(--atlas-ink); }
+
+@media (max-width: 1100px) {
+  .atlas-shell { grid-template-columns: 210px minmax(0, 1fr); }
+  .atlas-candidate-grid { grid-template-columns: 1fr; }
+  .atlas-search-heading { flex-direction: column; }
+  .atlas-mode-toggle { width: 100%; }
+  .atlas-mode-toggle button { flex: 1; justify-content: center; }
+  .atlas-three-column { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 800px) {
+  html:has(.advisor-atlas-view),
+  body:has(.advisor-atlas-view) {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+  .app-shell:has(.advisor-atlas-view),
+  .app-shell.nav-collapsed:has(.advisor-atlas-view) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+  .app-shell:has(.advisor-atlas-view) .sidebar {
+    position: static;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  .advisor-atlas-view { overflow-y: auto; }
+  .atlas-hero { padding: 14px 16px; }
+  .atlas-hero-mark { width: 46px; height: 46px; }
+  .atlas-hero p { display: none; }
+  .atlas-new-search { padding: 9px 11px; }
+  .atlas-shell { display: flex; flex-direction: column; overflow: visible; }
+  .atlas-history-panel { max-height: 190px; border-right: 0; border-bottom: 1px solid rgba(34, 94, 91, 0.12); }
+  .atlas-run-list { display: flex; gap: 8px; overflow-x: auto; }
+  .atlas-run-list button { min-width: 220px; }
+  .atlas-history-note { display: none; }
+  .atlas-main { overflow: visible; padding: 14px; }
+  .atlas-signature-strip,
+  .atlas-depth-grid,
+  .atlas-decision-snapshot,
+  .atlas-action-grid { grid-template-columns: 1fr; }
+  .atlas-form-grid,
+  .atlas-profile-builder,
+  .atlas-two-column,
+  .atlas-coverage-grid { grid-template-columns: 1fr; }
+  .atlas-profile-builder .wide { grid-column: auto; }
+  .atlas-search-card { padding: 17px; }
+  .atlas-search-footer { grid-template-columns: 1fr; }
+  .atlas-primary-button { width: 100%; }
+  .atlas-run-header,
+  .atlas-result-toolbar { flex-direction: column; align-items: stretch; }
+  .atlas-result-toolbar > div { justify-content: space-between; }
+  .atlas-dossier-drawer { width: 100%; }
+  .atlas-dossier-drawer > header { padding: 16px; }
+  .atlas-dossier-section { margin: 12px; padding: 13px; }
+  .atlas-dossier-actions,
+  .atlas-decision-snapshot { padding-left: 12px; padding-right: 12px; }
+  .atlas-detail-list > div { grid-template-columns: 1fr; gap: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .advisor-atlas-view *,
+  .advisor-atlas-view *::before,
+  .advisor-atlas-view *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

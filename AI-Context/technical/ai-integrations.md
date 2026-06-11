@@ -60,6 +60,23 @@ backend/app/integrations/tavily/
 backend/app/services/ai_assistant/
 ```
 
+## Advisor Atlas
+
+- Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.1
+  for bounded structured extraction, fit analysis, dossier generation, and
+  next-action guidance.
+- The configured GLM vision model is optional and reserved for public visual
+  documents that cannot be extracted as text.
+- Provider calls remain backend-only and receive only public source excerpts
+  plus the user-entered matching profile.
+- Missing provider keys produce a deterministic local result from directly
+  supplied or discoverable public pages where possible.
+- AI output must validate against the feature schema and cite source IDs.
+- Unsupported claims are removed or marked unknown.
+- Google Scholar access restrictions are not bypassed; publication enrichment
+  may use official pages, DOI records, Crossref, OpenAlex, ORCID, or Semantic
+  Scholar alternatives.
+
 ## Scholarship Hunt Search
 
 - The frontend sends structured filters to the local `/news/search` endpoint.

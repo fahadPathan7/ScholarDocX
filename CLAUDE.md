@@ -23,6 +23,7 @@ For any task, load context in this order:
 - If the task changes architecture, storage, APIs, integrations, or file organization, update technical context first.
 - If the task changes user value, product scope, privacy posture, monetization, or target users, update business context first.
 - Keep each context file focused. Do not create one giant project brain.
+- STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
 - Record decisions in the proper decision file, not only in chat.
 
 ## Current Product Direction

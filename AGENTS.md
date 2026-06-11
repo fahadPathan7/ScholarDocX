@@ -65,5 +65,6 @@ Use this order when resolving conflicts:
 - Do not introduce cloud services, remote databases, analytics, or telemetry unless context and user approval explicitly require it.
 - Never commit secrets or real API keys.
 - Keep documentation short, structured, and easy for future agents to scan.
+- STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
 - Add or update unit tests for each feature when meaningful behavior, data transformation, validation, persistence, or integration boundaries are introduced.
 

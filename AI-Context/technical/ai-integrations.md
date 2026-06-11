@@ -3,10 +3,14 @@
 ## Providers
 
 - GLM AI API for chat, drafting, summarization, and rewriting.
+- 9Router for optional assistant chat, summarization, research synthesis, and
+  AI action planning through the user's local OpenAI-compatible router.
 - Google AI Studio Gemini API for optional chat, drafting, summarization, and
   rewriting fallback.
 - Tavily API for real-time AI-chat web research and the separate filtered
   Scholarship Hunt web-discovery workspace.
+- OpenRouter Free for generating a Scholarship Hunt query from structured
+  filter choices before the existing user-review step.
 
 Gemini support is built around free-tier local use:
 
@@ -21,6 +25,27 @@ Gemini support is built around free-tier local use:
   paid-only media endpoints in the MVP.
 - Tavily remains the web-search source so search behavior and source rendering
   stay provider-neutral.
+
+9Router assistant support uses the local OpenAI-compatible service:
+
+- Read `NINE_ROUTER_API_KEY` and optional `NINE_ROUTER_BASE_URL` from the
+  backend environment.
+- Default to `http://localhost:20128/v1`.
+- Send assistant requests to `/chat/completions` and discover the user's
+  connected models from `/models`.
+- Send `stream: false` because ScholarDock expects one OpenAI-compatible JSON
+  response rather than a server-sent event stream.
+- Always include `NINE_ROUTER_DEFAULT_MODEL` in the assistant model list when
+  configured, because custom/no-auth provider models may not appear in
+  9Router's `/models` catalog.
+- Prefix frontend model values with `9router:` so role guards can distinguish
+  routed models from direct provider models.
+- Guard assistant access with `can_use_9router` role limits just like other
+  provider permissions. Pro and Max roles enable it by default.
+- 9Router can power chat, summarization, research synthesis, and AI action
+  planning, but not direct local mutation execution.
+- Tavily remains the only live web-search provider. OpenRouter remains isolated
+  to Scholarship Hunt query generation.
 
 ## Integration Boundary
 
@@ -38,6 +63,20 @@ backend/app/services/ai_assistant/
 ## Scholarship Hunt Search
 
 - The frontend sends structured filters to the local `/news/search` endpoint.
+- Before search, the frontend sends filters to `/news/query-preview`; the
+  backend makes at most one `openrouter/free` chat-completion request to produce
+  a concise query without using Tavily or Scholarship Hunt quota.
+- The user approves or edits the query. `/news/search` sends only that approved
+  query to Tavily and stores the exact preview plus approved text locally for
+  beta analysis.
+- OpenRouter receives only selected filter labels, a deterministic baseline,
+  and current date/cycle guidance. It never receives private workspace records,
+  documents, or the Tavily results.
+- OpenRouter output must be a bounded structured query. Invalid JSON, missing
+  required destination or named-scholarship constraints, provider errors, and
+  missing keys use the deterministic local query as a safe fallback.
+- Query preview never retries or cycles models: one preview causes zero or one
+  OpenRouter request. The configured model is `openrouter/free`.
 - `backend/app/services/news_service.py` owns a dedicated Tavily adapter and
   must not call the AI assistant research service.
 - The service reads the backend machine's local date for each search; query
@@ -55,29 +94,30 @@ backend/app/services/ai_assistant/
 - Each submitted search makes one `POST https://api.tavily.com/search` request
   with `search_depth: basic`, `topic: general`, `auto_parameters: false`,
   `max_results: 20`, and answer/raw-content/image options disabled.
+- Scholarship Hunt reads `TAVILY_API_KEY_SCHOLARSHIP_HUNT` for its dedicated
+  Tavily boundary. AI-chat web research continues to use `TAVILY_API_KEY`.
 - Social/video domains such as YouTube, Facebook, Instagram, LinkedIn, TikTok,
   Threads, X, and Twitter are excluded in the same request.
 - Scholarship Hunt does not use Tavily Extract, Crawl, Research, AI answer
   generation, provider fallback, automatic retries, or provider pagination.
 - Tavily results are normalized into the existing `NewsResponse` card contract
   with stable URL-derived IDs, source hostnames, snippets, and optional dates.
-- Provider responses are relevance-checked and deduplicated before returning
-  them to the frontend. ScholarDock must prefer an empty result set over
-  unrelated content.
-- Local post-processing parses deadline-context dates from titles/snippets,
-  removes explicitly closed or wholly expired results, and sorts future
-  deadlines and official sources first. Provider publication-date filters are
-  not used as a substitute for application-deadline checks.
-- Local post-processing also validates every selected dimension: level,
-  destination, study area, funding type, season, and named scholarship.
-  Dimensions use AND semantics; selections within a dimension use OR.
-- Destination matching rejects nationality/audience titles and generic
-  country-domain evidence. Academic country domains may establish institution
-  location; government and publisher pages still need explicit study-location
-  text.
+- Provider responses are normalized into the card contract and returned in
+  provider order. Scholarship Hunt no longer applies manual post-provider
+  relevance filtering, deadline rejection, or resorting.
+- Selected dimensions use AND semantics during query generation and constraint
+  sealing. Multiple selections inside one dimension are represented as OR terms
+  in the editable query.
+- The editable query is the relevance-control surface. Users can refine the
+  generated text before Tavily search when they want stricter destinations,
+  scholarships, dates, or exclusions.
 - Existing `news_searches_per_day` and `news_searches_per_month` limits are
-  checked before the call and incremented only after provider success.
+  checked before preview and incremented when `/news/query-preview` succeeds.
+  `/news/search` re-checks remaining availability but does not consume a
+  second unit for the same search flow.
 - AI-chat `web_searches_*` counters and `/ai/research` behavior are unchanged.
+- `OPENROUTER_API_KEY` remains backend-only and is used only by the dedicated
+  Scholarship Hunt query-generator service.
 
 ## API Key Handling
 
@@ -146,6 +186,8 @@ Agentic workspace actions use a plan-confirm-execute pattern:
 4. Only Confirm calls `/ai/actions/execute`.
 5. Execution uses `Store` methods for project, sheet, row, and sticky note
    writes; AI provider output is never trusted as executable code.
+6. `/ai/actions/execute` checks `can_use_agents` as a boolean permission only;
+   it does not consume a separate usage counter.
 
 Supported MVP action types:
 
@@ -175,5 +217,7 @@ storage.
 - Test routing JSON parsing and fail-open search behavior.
 - Test summarization fallback behavior so failed providers do not poison memory.
 - Test Gemini payload/response parsing and provider fallback ordering.
+- Test 9Router missing-key behavior, model discovery, provider errors, and
+  permission mapping.
 - Test action planning validation, missing-info behavior, and confirmed local
   execution.

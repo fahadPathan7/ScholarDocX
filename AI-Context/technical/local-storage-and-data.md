@@ -26,6 +26,10 @@ workspace/media/
 
 ## SQLite Should Store
 
+- Scholarship Hunt beta query feedback: user ID, generated query, approved
+  query, selected filters JSON, whether the user edited it, provider status,
+  result count, and timestamps.
+
 - Users or local profile if needed later
 - Degree workspaces
 - Countries, regions, universities, programs, professors

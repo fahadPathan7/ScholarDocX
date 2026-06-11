@@ -72,9 +72,16 @@ development.
 - `/reminders`
 - `/ai/chat`
 - `/ai/research`
-- `/news/search` makes one dedicated Tavily basic web-search request for
-  structured scholarship filters, normalizes results into news cards, and
-  applies backend relevance filtering without using the AI-chat research flow
+- `/news/search` makes one dedicated Tavily basic web-search request for the
+  approved Scholarship Hunt query and normalizes returned pages into news cards
+  without using the AI-chat research flow or manual post-search filtering
+- `/news/query-preview` uses at most one backend-only OpenRouter Free request to
+  generate the Scholarship Hunt query, falls back locally when needed, never
+  contacts Tavily, and consumes one Scholarship Hunt usage unit when the
+  preview succeeds
+- confirmed `/news/search` requests accept both the exact preview shown to the
+  user and the approved query, then persist both to user-scoped SQLite feedback
+  storage before returning normalized results
 - `/news/bookmarks`
 - `/auth/google/start` if optional Google signin is implemented
 - `/auth/google/callback` if optional Google signin is implemented

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React from "react";
 import { NewsArticle } from "../../lib/newsApi";
 import { NewsCard } from "./NewsCard";
 import { Loader2 } from "lucide-react";
@@ -7,15 +7,25 @@ interface NewsFeedProps {
   articles: NewsArticle[];
   bookmarks: any[];
   isLoading: boolean;
+  isRefreshing?: boolean;
+  refreshMessage?: string;
   hasMore: boolean;
   hasFilters?: boolean;
   onLoadMore: () => void;
   onToggleBookmark: (article: NewsArticle) => void;
 }
 
-export function NewsFeed({ articles, bookmarks, isLoading, hasMore, hasFilters = true, onLoadMore, onToggleBookmark }: NewsFeedProps) {
-  // Removed IntersectionObserver to prevent automatic token consumption
-
+export function NewsFeed({
+  articles,
+  bookmarks,
+  isLoading,
+  isRefreshing = false,
+  refreshMessage,
+  hasMore,
+  hasFilters = true,
+  onLoadMore,
+  onToggleBookmark,
+}: NewsFeedProps) {
   const isArticleBookmarked = (articleId: string) => {
     return bookmarks.some(b => b.article_id === articleId);
   };
@@ -24,34 +34,42 @@ export function NewsFeed({ articles, bookmarks, isLoading, hasMore, hasFilters =
     if (!hasFilters) {
       return (
         <div className="news-empty-state">
-          <p>Please select at least one filter.</p>
-          <p className="news-empty-subtext">Set your preferences and start the hunt for open and upcoming scholarships. Each search uses 1 credit.</p>
+          <p>Select at least one query input.</p>
+          <p className="news-empty-subtext">ScholarDock will turn your choices into an editable scholarship search query before using a credit.</p>
         </div>
       );
     }
     
     return (
       <div className="news-empty-state">
-        <p>No open or upcoming opportunities matched these filters.</p>
-        <p className="news-empty-subtext">Try broadening the region, study area, or funding filters.</p>
+        <p>No pages returned for this search query.</p>
+        <p className="news-empty-subtext">Try editing the query with broader wording, fewer exact terms, or a different destination.</p>
       </div>
     );
   }
 
   return (
     <div className="news-feed">
-      <div className="news-grid">
-        {articles.map((article, index) => {
-          const isBookmarked = isArticleBookmarked(article.article_id);
-          return (
-            <NewsCard 
-              key={article.article_id || index}
-              article={article} 
-              isBookmarked={isBookmarked}
-              onToggleBookmark={onToggleBookmark} 
-            />
-          );
-        })}
+      <div className={`news-grid-shell ${isRefreshing && articles.length > 0 ? "refreshing" : ""}`}>
+        {isRefreshing && articles.length > 0 && (
+          <div className="news-refresh-banner" role="status" aria-live="polite">
+            <Loader2 className="icon-spin" size={18} />
+            <span>{refreshMessage || "Refreshing scholarship results..."}</span>
+          </div>
+        )}
+        <div className={`news-grid ${isRefreshing && articles.length > 0 ? "news-grid--refreshing" : ""}`}>
+          {articles.map((article, index) => {
+            const isBookmarked = isArticleBookmarked(article.article_id);
+            return (
+              <NewsCard
+                key={article.article_id || index}
+                article={article}
+                isBookmarked={isBookmarked}
+                onToggleBookmark={onToggleBookmark}
+              />
+            );
+          })}
+        </div>
       </div>
       
       {isLoading && (

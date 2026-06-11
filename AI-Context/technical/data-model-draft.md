@@ -356,3 +356,29 @@ Notes:
 - Renewal approvals should extend the deadline from approval time when the
   plan has already expired, or from the existing deadline when the plan is
   still active.
+
+## scholarship_search_feedback
+
+Purpose:
+
+Store local beta evidence about Scholarship Hunt query generation and user
+refinement without adding remote analytics.
+
+Fields:
+
+- id
+- user_id
+- initial_query
+- refined_query
+- filters_json
+- was_edited
+- provider_status
+- result_count
+- created_at
+- updated_at
+
+Notes:
+
+- Rows are user-scoped and deleted with the owning local user.
+- Previewing does not create a row. A row is created when the user confirms a
+  query, then updated with success/failure and result count.

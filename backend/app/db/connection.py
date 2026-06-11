@@ -6,6 +6,33 @@ from app.core.notifications import default_notification_settings_json
 from app.db.schema import SCHEMA, SEED_SQL
 
 
+USER_SCOPED_TABLES = (
+    "local_profiles",
+    "projects",
+    "project_sheets",
+    "project_pages",
+    "notifications",
+    "universities",
+    "programs",
+    "professors",
+    "applications",
+    "deadlines",
+    "documents",
+    "document_versions",
+    "static_files",
+    "document_categories",
+    "whiteboards",
+    "sticky_notes",
+    "email_templates",
+    "email_drafts",
+    "outreach_logs",
+    "reminders",
+    "ai_conversations",
+    "research_notes",
+    "bookmarked_news",
+)
+
+
 def connect(database_path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(database_path, check_same_thread=False)
     connection.row_factory = sqlite3.Row
@@ -17,10 +44,32 @@ def initialize_database(database_path: Path) -> None:
     print("INITIALIZE DB CALLED WITH PATH:", database_path)
     database_path.parent.mkdir(parents=True, exist_ok=True)
     with connect(database_path) as connection:
+        _prepare_legacy_user_scoping(connection)
         connection.executescript(SCHEMA)
         migrate_database(connection)
         connection.executescript(SEED_SQL)
         connection.commit()
+
+
+def _prepare_legacy_user_scoping(connection: sqlite3.Connection) -> None:
+    existing_tables = {
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    for table in USER_SCOPED_TABLES:
+        if table not in existing_tables:
+            continue
+        columns = {
+            row["name"]
+            for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if "user_id" not in columns:
+            connection.execute(
+                f"ALTER TABLE {table} ADD COLUMN user_id "
+                "INTEGER REFERENCES users(id) ON DELETE CASCADE"
+            )
 
 
 def migrate_database(connection: sqlite3.Connection) -> None:
@@ -94,11 +143,10 @@ def migrate_database(connection: sqlite3.Connection) -> None:
 
 
     # Set user_id in related tables where missing
-    for table in ["projects", "sticky_notes", "whiteboards", "ai_conversations"]:
+    for table in USER_SCOPED_TABLES:
         columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
         if "user_id" not in columns:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
-        connection.execute(f"UPDATE {table} SET user_id = 1 WHERE user_id IS NULL")
 
     # Migrate document_categories schema to support per-user UNIQUE(slug) instead of global
     category_schema = connection.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='document_categories'").fetchone()
@@ -211,7 +259,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
     ).fetchone()
     if super_admin:
         fallback_uid = super_admin["id"]
-        for tbl in ("applications", "static_files", "email_drafts", "outreach_logs", "document_categories"):
+        for tbl in USER_SCOPED_TABLES:
             connection.execute(
                 f"UPDATE {tbl} SET user_id = ? WHERE user_id IS NULL",
                 (fallback_uid,),

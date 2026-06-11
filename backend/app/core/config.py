@@ -15,6 +15,20 @@ class Settings:
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
         self.tavily_api_key = os.getenv("TAVILY_API_KEY", "")
+        self.tavily_api_key_scholarship_hunt = os.getenv(
+            "TAVILY_API_KEY_SCHOLARSHIP_HUNT",
+            "",
+        )
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
+        self.openrouter_base_url = os.getenv(
+            "OPENROUTER_BASE_URL",
+            "https://openrouter.ai/api/v1/chat/completions",
+        )
+        self.openrouter_free_model = os.getenv(
+            "OPENROUTER_FREE_MODEL",
+            "openrouter/free",
+        )
+
         self.glm_base_url = os.getenv("GLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4/chat/completions")
         self.gemini_base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
@@ -32,11 +46,24 @@ class Settings:
 
     @property
     def ai_configured(self) -> bool:
-        return bool((self.glm_api_key or self.gemini_api_key or self.groq_api_key or self.mistral_api_key) and self.tavily_api_key)
+        return bool(
+            (
+                self.glm_api_key
+                or self.gemini_api_key
+                or self.groq_api_key
+                or self.mistral_api_key
+            )
+            and self.tavily_api_key
+        )
 
     @property
     def chat_provider_configured(self) -> bool:
-        return bool(self.glm_api_key or self.gemini_api_key or self.groq_api_key or self.mistral_api_key)
+        return bool(
+            self.glm_api_key
+            or self.gemini_api_key
+            or self.groq_api_key
+            or self.mistral_api_key
+        )
 
 
 @lru_cache

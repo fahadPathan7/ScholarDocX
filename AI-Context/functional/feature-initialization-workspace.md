@@ -33,6 +33,7 @@ Expected variables:
 - `GLM_API_KEY`
 - `GEMINI_API_KEY`
 - `TAVILY_API_KEY`
+- `TAVILY_API_KEY_SCHOLARSHIP_HUNT`
 
 Rules:
 
@@ -41,6 +42,7 @@ Rules:
 - Chat and summarization should work when either `GLM_API_KEY` or
   `GEMINI_API_KEY` is configured.
 - Web-assisted research requires Tavily plus at least one chat provider key.
+- Scholarship Hunt requires its own `TAVILY_API_KEY_SCHOLARSHIP_HUNT`.
 - Real keys must not be committed.
 
 ## User Workflow

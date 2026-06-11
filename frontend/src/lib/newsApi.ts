@@ -31,24 +31,39 @@ export interface NewsResponse {
   nextPage?: string;
 }
 
-export const searchNews = async (params: NewsSearchParams): Promise<NewsResponse> => {
-  const query = new URLSearchParams();
-  
-  if (params.levels) params.levels.forEach(v => query.append("levels", v));
-  if (params.countries) params.countries.forEach(v => query.append("countries", v));
-  if (params.seasons) params.seasons.forEach(v => query.append("seasons", v));
-  if (params.years) params.years.forEach(v => query.append("years", v));
-  if (params.funding_types) params.funding_types.forEach(v => query.append("funding_types", v));
-  if (params.fields_of_study) params.fields_of_study.forEach(v => query.append("fields_of_study", v));
-  if (params.popular_scholarships) {
-    params.popular_scholarships.forEach(v => query.append("popular_scholarships", v));
-  }
-  
-  if (params.language) query.append("language", params.language);
-  if (params.sort_by) query.append("sort_by", params.sort_by);
-  if (params.page) query.append("page", params.page);
+export interface NewsQueryPreview {
+  preview_feedback_id: number;
+  initial_query: string;
+  max_length: number;
+  generation_source: "openrouter" | "fallback";
+  generation_model: string;
+  generation_notice: string;
+}
 
-  return api.get<NewsResponse>(`/news/search?${query.toString()}`);
+const cleanSearchParams = (params: NewsSearchParams): NewsSearchParams => {
+  const { page: _page, ...filters } = params;
+  return filters;
+};
+
+export const previewNewsQuery = async (
+  params: NewsSearchParams,
+): Promise<NewsQueryPreview> => {
+  return api.post<NewsQueryPreview>("/news/query-preview", {
+    filters: cleanSearchParams(params),
+  });
+};
+
+export const searchNews = async (
+  params: NewsSearchParams,
+  previewFeedbackId: number,
+  approvedQuery: string,
+): Promise<NewsResponse> => {
+  return api.post<NewsResponse>("/news/search", {
+    filters: cleanSearchParams(params),
+    preview_feedback_id: previewFeedbackId,
+    approved_query: approvedQuery,
+    query_approved: true,
+  });
 };
 
 export const getBookmarkedNews = async (): Promise<any[]> => {

@@ -28,6 +28,18 @@ GEMINI_FAST_MODEL = "gemini-2.5-flash-lite"
 GROQ_FAST_MODEL = "openai/gpt-oss-20b"
 MISTRAL_FAST_MODEL = "devstral-2512"
 PROVIDER_FAILURE_MODES = {"local-fallback", "provider-error"}
+PROVIDER_DISPLAY_NAMES = {
+    "gemini": "Google AI Studio",
+    "glm": "GLM",
+    "groq": "Groq",
+    "mistral": "Mistral",
+}
+PROVIDER_ENV_VARS = {
+    "gemini": "GEMINI_API_KEY",
+    "glm": "GLM_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+}
 
 # Max enforced token limits for context components
 MAX_SUMMARY_TOKENS = 200
@@ -237,7 +249,7 @@ class AiService:
                 "mode": "local-fallback",
                 "answer": (
                     "AI research is ready structurally, but TAVILY_API_KEY plus at least one chat provider "
-                    "key (GLM_API_KEY or GEMINI_API_KEY) are required. Add them to the backend environment "
+                    "key (for example GLM_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or MISTRAL_API_KEY) are required. Add them to the backend environment "
                     "to enable web-assisted research."
                 ),
                 "sources": [],
@@ -368,6 +380,8 @@ class AiService:
             
         data = response.json()
         return data["choices"][0]["message"]["content"]
+
+
 
     def _candidate_models(self, model: str = None) -> list[dict[str, str]]:
         model_choice = (model or "").strip()
@@ -625,8 +639,8 @@ class AiService:
     def _missing_provider_answer(self, model: str, message: str, context: str) -> str:
         if model:
             provider, _model_name = self._parse_model_choice(model)
-            provider_name = "Google AI Studio" if provider == "gemini" else "GLM"
-            key_name = "GEMINI_API_KEY" if provider == "gemini" else "GLM_API_KEY"
+            provider_name = PROVIDER_DISPLAY_NAMES.get(provider, provider.upper())
+            key_name = PROVIDER_ENV_VARS.get(provider, "API_KEY")
             return (
                 f"{provider_name} is not configured, so no private text was sent outside this machine. "
                 f"Add {key_name} to the backend environment or select a model with a configured provider."

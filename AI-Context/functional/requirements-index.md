@@ -88,8 +88,8 @@
 - FR-8.2: Named scholarships use canonical names and aliases rather than UI display labels.
 - FR-8.3: Named-scholarship results must mention the selected scholarship or an accepted alias.
 - FR-8.4: Generic results must remain scholarship or academic-funding focused.
-- FR-8.5: Duplicate provider articles appear only once per result page.
-- FR-8.6: Successful provider searches consume role-based daily and monthly usage.
+- FR-8.5: Tavily result cards are normalized and displayed for the approved query.
+- FR-8.6: Successful Search-click previews consume role-based daily and monthly usage.
 - FR-8.7: Tavily credentials remain backend-only.
 - FR-8.8: The filter panel uses accessible accordions and visible selection counts.
 - FR-8.9: Dense filter subcategories can collapse independently.
@@ -99,11 +99,16 @@
 - FR-8.13: Scholarship Hunt search remains isolated from AI chat web research.
 - FR-8.14: Tavily results retain the existing news-card and bookmark contract.
 - FR-8.15: Queries prioritize open and upcoming current/future application cycles.
-- FR-8.16: Explicitly closed and past-deadline results are excluded.
-- FR-8.17: Future deadlines, active applications, and official sources rank first.
+- FR-8.16: Explicitly closed and past-deadline exclusions are included in the query.
+- FR-8.17: Tavily result order is preserved after normalization.
 - FR-8.18: UI copy describes scholarship opportunities rather than generic news.
 - FR-8.19: Query dates and cycles update from the backend's local date per search.
 - FR-8.20: Visible branding uses Scholarship Hunt while internal news contracts stay stable.
 - FR-8.21: Selected filter dimensions are mandatory AND constraints with OR inside each dimension.
 - FR-8.22: Region means study destination, not nationality, eligibility, source, or sponsor location.
 - FR-8.23: Usage quotas and Admin role-limit labels use Scholarship Hunt terminology while internal quota keys stay stable.
+- FR-8.24: Users review and optionally edit the generated query before search.
+- FR-8.25: Generated and approved queries are stored locally with filters and outcome.
+- FR-8.26: Preview uses no Tavily request but does consume one Scholarship Hunt quota unit; confirmation uses one Tavily request without spending a second unit.
+- FR-8.31: Repeated searches show a visible preparing/searching state before new results replace the previous result set.
+- FR-8.27: Hard destination/named-scholarship validation is combined with evidence-based relevance scoring for snippet-limited filters.

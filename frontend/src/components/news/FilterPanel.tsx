@@ -6,6 +6,7 @@ interface FilterPanelProps {
   onApplyFilters: (filters: any) => void;
   isOpen: boolean;
   onClose: () => void;
+  isPreparingQuery?: boolean;
 }
 
 interface FilterSectionProps {
@@ -74,7 +75,12 @@ const FilterGroup = ({ title, children, count = 0, defaultOpen = false }: Filter
   );
 };
 
-export function FilterPanel({ onApplyFilters, isOpen, onClose }: FilterPanelProps) {
+export function FilterPanel({
+  onApplyFilters,
+  isOpen,
+  onClose,
+  isPreparingQuery = false,
+}: FilterPanelProps) {
   const [levels, setLevels] = useState<string[]>([]);
   const [seasons, setSeasons] = useState<string[]>([]);
   const [fundingTypes, setFundingTypes] = useState<string[]>([]);
@@ -169,11 +175,11 @@ export function FilterPanel({ onApplyFilters, isOpen, onClose }: FilterPanelProp
         <div className="filter-title">
           <span className="filter-title-icon"><Filter size={17} /></span>
           <div>
-            <h2>Refine results</h2>
-            <p>{selectedCount > 0 ? `${selectedCount} selected` : "Choose your criteria"}</p>
+            <h2>Build query</h2>
+            <p>{selectedCount > 0 ? `${selectedCount} choices selected` : "Choose query inputs"}</p>
           </div>
         </div>
-        <button className="icon-button filter-close-button" onClick={onClose} aria-label="Close filters">
+        <button className="icon-button filter-close-button" onClick={onClose} aria-label="Close query builder">
           <X size={18} />
         </button>
       </div>
@@ -264,9 +270,9 @@ export function FilterPanel({ onApplyFilters, isOpen, onClose }: FilterPanelProp
         {error && <div className="filter-error" role="alert">{error}</div>}
         <div className="filter-action-buttons">
           <button className="button-secondary" onClick={handleClear} disabled={selectedCount === 0}>Clear</button>
-          <button className="button-primary" onClick={handleApply}>
+          <button className="button-primary" onClick={handleApply} disabled={isPreparingQuery}>
             <Search size={16} aria-hidden="true" />
-            Search
+            {isPreparingQuery ? "Preparing query..." : "Search"}
           </button>
         </div>
       </div>

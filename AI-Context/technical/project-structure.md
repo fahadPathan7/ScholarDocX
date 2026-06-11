@@ -8,20 +8,10 @@ The repository contains AI-DLC context plus the MVP product scaffold.
 
 AI-agent workflow skills are stored in `AI-Context/agent-skills/` as repo-carried `SKILL.md` folders.
 
-The upstream `ui-ux-pro-max` skill is also installed into project-local agent folders (`.claude/`, `.codex/`, `.gemini/`, and other supported AI assistant folders) for direct agent discovery.
 
 ## Actual MVP Structure
 
 ```text
-.claude/
-  skills/
-    ui-ux-pro-max/
-.codex/
-  skills/
-    ui-ux-pro-max/
-.gemini/
-  skills/
-    ui-ux-pro-max/
 
 AI-Context/
   agent-skills/
@@ -29,7 +19,7 @@ AI-Context/
     scholardock-context-update/
     scholardock-test-cases/
     scholardock-context-review/
-    scholardock-ui-ux/
+
     scholardock-ai-integrations/
     scholardock-security-privacy/
     scholardock-handoff/

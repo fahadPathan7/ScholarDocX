@@ -11,11 +11,11 @@ Fix the Admin Dashboard dashboard tab UI after screenshot review.
 ## Context
 
 - Technical visual system: [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/frontend-visual-system.md)
-- UI/UX skill: [scholardock-ui-ux/SKILL.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills/scholardock-ui-ux/SKILL.md)
+
 
 ## Scope
 
-- Apply `ui-ux-pro-max` and ScholarDock UI/UX rules to the admin dashboard tab.
+- Apply ScholarDock UI/UX rules to the admin dashboard tab.
 - Improve stat card hierarchy, table panels, spacing, responsive behavior, and loading/empty states.
 - Keep the change UI-only with no API, database, permissions, or role-limit behavior changes.
 
@@ -53,7 +53,7 @@ Final note: `AdminView.tsx` remains oversized after this UI-only change. The das
 
 ## Implementation Notes
 
-- Loaded `ui-ux-pro-max` and applied the ScholarDock UI/UX wrapper rules.
+- Applied the ScholarDock UI/UX wrapper rules.
 - Imported the existing dedicated admin stylesheet from `AdminView.tsx`; it was not previously wired.
 - Replaced dashboard-tab utility-heavy markup with stable admin dashboard class hooks.
 - Added stat-card tone variants, count pills, polished activity tables, loading state, and empty states.

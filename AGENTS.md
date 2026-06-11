@@ -28,7 +28,7 @@ ScholarDock keeps project-specific `SKILL.md` files in [AI-Context/agent-skills]
 
 Use only the skills relevant to the current task. Skills supplement the source-of-truth order below; they do not override the user's latest instruction, root rules, the active Jira task, or AI-Context.
 
-The upstream `ui-ux-pro-max` skill is installed in project-local agent folders and is ScholarDock's primary UI style authority for UI/UX work. Use it first for visual quality, interaction, accessibility, layout, typography, color, motion, forms, navigation, and data readability; then apply ScholarDock's AI-DLC workflow, Jira/context rules, local-first constraints, and browser verification requirements.
+
 
 ## Source Of Truth
 
@@ -67,10 +67,3 @@ Use this order when resolving conflicts:
 - Keep documentation short, structured, and easy for future agents to scan.
 - Add or update unit tests for each feature when meaningful behavior, data transformation, validation, persistence, or integration boundaries are introduced.
 
-## UI/UX Skill Rule
-
-- For ScholarDock UI/UX design, frontend polish, layout, interaction, accessibility, visual design, design-system, responsive behavior, or UX review tasks, automatically select and use the `ui-ux-pro-max` skill when available.
-- Treat `ui-ux-pro-max` as the main UI style authority for the project, not optional inspiration.
-- The user should not need to mention the skill by name; agents must infer it from the task type.
-- This applies to Codex and Antigravity/Gemini-style agents.
-- In ScholarDock, the AI-DLC workflow, Jira task, context files, local-first constraints, and browser verification remain higher priority than the skill's generic recommendations.

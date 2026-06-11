@@ -9,7 +9,7 @@ DESTINATION_RULES = {
     "usa": {
         "query": "United States (USA)",
         "aliases": ("united states", "united states of america", "usa", "u s a"),
-        "domains": (".us",),
+        "domains": (".edu", ".us"),
     },
     "canada": {
         "query": "Canada",
@@ -246,6 +246,59 @@ FIELD_ALIASES = {
     "climate & sustainability": ("climate", "sustainability", "sustainable development"),
 }
 
+KNOWN_FIELD_LABELS = (
+    "Electrical & Electronics Engineering (EEE)",
+    "Mechanical Engineering",
+    "Civil & Structural Engineering",
+    "Chemical Engineering",
+    "Aerospace Engineering",
+    "Industrial & Systems Engineering",
+    "Biomedical Engineering",
+    "Computer Science & Engineering",
+    "Software Engineering",
+    "Artificial Intelligence & Data Science",
+    "Cybersecurity",
+    "Information Technology",
+    "Human-Computer Interaction",
+    "Business Administration (BBA/MBA)",
+    "Economics & Finance",
+    "Accounting",
+    "Marketing & Management",
+    "International Business",
+    "Entrepreneurship",
+    "Medicine & Surgery",
+    "Public Health",
+    "Pharmacy",
+    "Nursing",
+    "Dentistry",
+    "Veterinary Science",
+    "Physics",
+    "Chemistry",
+    "Biology & Life Sciences",
+    "Mathematics & Statistics",
+    "Environmental Science",
+    "Earth & Atmospheric Sciences",
+    "Law & Legal Studies",
+    "Political Science & International Relations",
+    "Sociology & Anthropology",
+    "Psychology",
+    "Development Studies",
+    "Gender Studies",
+    "Architecture & Urban Planning",
+    "Fine Arts & Design",
+    "Literature & Linguistics",
+    "History & Philosophy",
+    "Media & Communications",
+    "Music & Performing Arts",
+    "Agriculture & Food Science",
+    "Forestry & Wildlife",
+    "Climate & Sustainability",
+    "Marine Science",
+    "Education & Teaching",
+    "Library & Information Science",
+    "Theology & Religious Studies",
+)
+
 FUNDING_ALIASES = {
     "fully funded": (
         "fully funded",
@@ -452,6 +505,24 @@ def matches_fields(article: Dict[str, Any], fields: Optional[List[str]]) -> bool
     )
 
 
+def has_conflicting_fields(
+    article: Dict[str, Any],
+    fields: Optional[List[str]],
+) -> bool:
+    if not fields or matches_fields(article, fields):
+        return False
+    text = _article_text(article)
+    known_aliases = (
+        alias
+        for label in KNOWN_FIELD_LABELS
+        for alias in FIELD_ALIASES.get(
+            label.casefold(),
+            _fallback_field_aliases(label),
+        )
+    )
+    return any(_contains_phrase(text, alias) for alias in known_aliases)
+
+
 def funding_query_terms(funding_types: Optional[List[str]]) -> List[str]:
     return [
         FUNDING_ALIASES.get(funding.strip().casefold(), (funding,))[0]
@@ -476,6 +547,27 @@ def matches_funding(
         )
         for funding in funding_types
     )
+
+
+def has_conflicting_funding(
+    article: Dict[str, Any],
+    funding_types: Optional[List[str]],
+) -> bool:
+    if not funding_types or matches_funding(article, funding_types):
+        return False
+    selected = {funding.strip().casefold() for funding in funding_types}
+    text = _article_text(article)
+    if "fully funded" in selected:
+        return any(
+            _contains_phrase(text, alias)
+            for alias in FUNDING_ALIASES["partially funded"]
+        )
+    if "partially funded" in selected:
+        return any(
+            _contains_phrase(text, alias)
+            for alias in FUNDING_ALIASES["fully funded"]
+        )
+    return False
 
 
 def season_query_terms(
@@ -526,3 +618,17 @@ def matches_seasons(
             ):
                 return True
     return False
+
+
+def has_conflicting_seasons(
+    article: Dict[str, Any],
+    seasons: Optional[List[str]],
+) -> bool:
+    if not seasons or matches_seasons(article, seasons):
+        return False
+    text = _article_text(article)
+    return any(
+        _contains_phrase(text, alias)
+        for aliases in SEASON_ALIASES.values()
+        for alias in aliases
+    )

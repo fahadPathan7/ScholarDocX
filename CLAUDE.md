@@ -15,7 +15,6 @@ For any task, load context in this order:
 5. The active task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks)
 6. Only the business, functional, and technical files relevant to the task
 
-For UI/UX work, use the project-local upstream skill at `.claude/skills/ui-ux-pro-max` as ScholarDock's primary UI style authority. It controls the default visual quality, interaction, accessibility, layout, typography, color, motion, forms, navigation, and data-readability approach; ScholarDock AI-DLC context, Jira task updates, local-first constraints, and browser verification still override generic advice when they conflict.
 
 ## Work Protocol
 

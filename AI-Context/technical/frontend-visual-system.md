@@ -5,23 +5,6 @@
 ScholarDock should feel like a local research command center: focused,
 interactive, and polished without becoming decorative marketing UI.
 
-## Primary UI Style Authority
-
-TD-009: `ui-ux-pro-max` is ScholarDock's primary UI style authority for all UI/UX work.
-
-Status: Accepted
-
-Decision:
-
-All new or modified UI/UX work must use the installed project-local `ui-ux-pro-max` skill as the main source for visual quality, interaction patterns, accessibility checks, layout reasoning, typography, color, motion, component polish, and UX review.
-
-Enforcement:
-
-- Before UI/UX work, load the upstream skill from the active agent folder, such as `.codex/skills/ui-ux-pro-max/SKILL.md`, `.claude/skills/ui-ux-pro-max/SKILL.md`, or `.gemini/skills/ui-ux-pro-max/SKILL.md`.
-- Use `ui-ux-pro-max` priority categories first: accessibility, touch/interaction, performance, style selection, layout/responsive behavior, typography/color, animation, forms/feedback, navigation, and data/chart readability.
-- Then apply the ScholarDock-specific rules in this file and `AI-Context/agent-skills/scholardock-ui-ux/SKILL.md`.
-- If generic `ui-ux-pro-max` advice conflicts with ScholarDock constraints, ScholarDock wins: local-first, privacy-first, app-workspace UX, compact command-center layout, no marketing-page defaults, no remote assets by default, and browser verification for rendered UI.
-- Jira tasks for UI/UX work must note that `ui-ux-pro-max` was used, or explain why the task was not a UI/UX task.
 
 ## Principles
 

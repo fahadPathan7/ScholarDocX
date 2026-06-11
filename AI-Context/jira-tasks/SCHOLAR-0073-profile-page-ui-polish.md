@@ -11,11 +11,11 @@ Fix the Profile page UI after screenshot review.
 ## Context
 
 - Technical visual system: [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/frontend-visual-system.md)
-- UI/UX skill: [scholardock-ui-ux/SKILL.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills/scholardock-ui-ux/SKILL.md)
+
 
 ## Scope
 
-- Apply `ui-ux-pro-max` and ScholarDock UI/UX rules to the profile page layout.
+- Apply ScholarDock UI/UX rules to the profile page layout.
 - Improve top spacing, hero density, card balance, action grouping, and responsive behavior.
 - Keep this UI-only with no profile API, auth, role, password, or storage behavior changes.
 
@@ -51,7 +51,7 @@ Fix the Profile page UI after screenshot review.
 
 ## Implementation Notes
 
-- Loaded `ui-ux-pro-max` and applied ScholarDock UI/UX rules.
+- Applied ScholarDock UI/UX rules.
 - Moved the existing Usage & AI Models card under Workspace to balance the two desktop columns.
 - Added profile-specific CSS overrides for top spacing, compact hero height, tighter card spacing, smaller action buttons, and responsive full-width action buttons on narrow screens.
 - Kept profile API, auth, admin-role, password, modal, and persistence behavior unchanged.

@@ -80,6 +80,15 @@ TABLE_COLUMNS = {
     "research_notes": {"user_id", "application_id", "professor_id", "university_id", "title", "content", "sources"},
     "whiteboards": {"user_id", "name", "shapes_json", "camera_json", "last_used_at"},
     "bookmarked_news": {"user_id", "article_id", "title", "link", "source_name", "pub_date", "image_url", "description", "country"},
+    "scholarship_search_feedback": {
+        "user_id",
+        "initial_query",
+        "refined_query",
+        "filters_json",
+        "was_edited",
+        "provider_status",
+        "result_count",
+    },
 }
 
 
@@ -96,6 +105,7 @@ DEFAULT_SORT = {
     "sticky_notes": "updated_at DESC",
     "document_versions": "created_at DESC",
     "whiteboards": "last_used_at DESC",
+    "scholarship_search_feedback": "created_at DESC",
 }
 
 def get_columns_for_degree(degree_type: str) -> list[dict]:

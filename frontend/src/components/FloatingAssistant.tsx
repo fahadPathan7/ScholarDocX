@@ -7,9 +7,9 @@ import { useUsage } from "../contexts/UsageContext";
 import { emitUiError } from "../lib/uiError";
 import {
   getFallbackModel,
+  getModelDisplayName,
   getProviderDisplayName,
   getProviderForModel,
-  MODEL_DISPLAY_NAMES,
   MODEL_OPTIONS,
   MODEL_PROVIDER_FEATURES,
   type ModelOption,
@@ -42,6 +42,8 @@ type ActionPlan = {
   actions?: RecordMap[];
   summary?: string[];
 };
+
+
 
 const MAX_HISTORY = 5;
 const STORAGE_KEY = "scholardock_chat_history";
@@ -156,6 +158,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const [backgroundModel, setBackgroundModel] = useState<string>(() => {
     return localStorage.getItem("scholarDock_backgroundModel") || "gemini:gemini-2.5-flash-lite";
   });
+
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -196,7 +199,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const blockedProviders = (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
     (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) !== 1
   );
-  const modelOptionsByProvider = MODEL_OPTIONS.reduce<Record<string, ModelOption[]>>((groups, option) => {
+  const allModelOptions = [
+    ...MODEL_OPTIONS,
+  ];
+  const modelOptionsByProvider = allModelOptions.reduce<Record<string, ModelOption[]>>((groups, option) => {
     (groups[option.providerLabel] ||= []).push(option);
     return groups;
   }, {});
@@ -220,15 +226,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     }
   }, [canUseWebSearch, webSearchEnabled]);
 
+
+
   useEffect(() => {
     if (!usageData || allowedProviders.size === 0) return;
+    if (!allModelOptions.some((option) => allowedProviders.has(option.provider))) return;
 
     const nextSelectedModel = isModelAllowed(selectedModel)
       ? selectedModel
-      : getFallbackModel("chat", allowedProviders);
+      : getFallbackModel("chat", allowedProviders, allModelOptions);
     const nextBackgroundModel = isModelAllowed(backgroundModel)
       ? backgroundModel
-      : getFallbackModel("background", allowedProviders);
+      : getFallbackModel("background", allowedProviders, allModelOptions);
 
     const selectedChanged = nextSelectedModel !== selectedModel;
     const backgroundChanged = nextBackgroundModel !== backgroundModel;
@@ -726,6 +735,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                   Disabled for your role: {blockedProviders.map(getProviderDisplayName).join(", ")}
                 </small>
               )}
+
             </div>
 
             <div className="chat-setting-item">
@@ -952,12 +962,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
           <div className="chat-model-row">
             <div className="chat-model-display" title="Chat Model">
               <Bot size={11} />
-              <span>{MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}</span>
+              <span>{getModelDisplayName(selectedModel)}</span>
             </div>
             <div className="chat-model-divider" />
             <div className="chat-model-display" title="Background Model">
               <Cpu size={11} />
-              <span>{MODEL_DISPLAY_NAMES[backgroundModel] || backgroundModel}</span>
+              <span>{getModelDisplayName(backgroundModel)}</span>
             </div>
             {usageData?.limits?.["ai_messages_per_session"] !== undefined && usageData.limits["ai_messages_per_session"] !== -1 && (
               <>

@@ -1,9 +1,17 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Filter, Bookmark } from "lucide-react";
 import { FilterPanel } from "./news/FilterPanel";
 import { NewsFeed } from "./news/NewsFeed";
-import { searchNews, getBookmarkedNews, addBookmark, removeBookmark, NewsArticle, NewsSearchParams } from "../lib/newsApi";
-import { useAuth } from "../contexts/AuthContext";
+import { QueryReviewDialog } from "./news/QueryReviewDialog";
+import {
+  searchNews,
+  previewNewsQuery,
+  getBookmarkedNews,
+  addBookmark,
+  removeBookmark,
+  NewsArticle,
+  NewsSearchParams,
+} from "../lib/newsApi";
 import { useUsage } from "../contexts/UsageContext";
 import "./news/news.css";
 
@@ -11,18 +19,33 @@ interface ScholarshipNewsViewProps {
   onToast: (msg: string) => void;
 }
 
+type SearchFlowState = "idle" | "preparing" | "review" | "searching";
+
 export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
-  const { user } = useAuth();
-  const { usageData } = useUsage();
+  const { usageData, refreshUsage } = useUsage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const isLoadingRef = React.useRef(false);
   const [isFilterOpen, setIsFilterOpen] = useState(window.innerWidth > 768);
   const [filters, setFilters] = useState<NewsSearchParams>({});
-  const [page, setPage] = useState<string | undefined>(undefined);
-  const [hasMore, setHasMore] = useState(true);
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  const [isPreparingQuery, setIsPreparingQuery] = useState(false);
+  const [searchFlow, setSearchFlow] = useState<SearchFlowState>("idle");
+  const [pendingFilters, setPendingFilters] = useState<NewsSearchParams | null>(null);
+  const [latestSearch, setLatestSearch] = useState<{
+    approvedQuery: string;
+    resultCount: number;
+    searchedAt: string;
+  } | null>(null);
+  const [queryPreview, setQueryPreview] = useState<{
+    previewFeedbackId: number;
+    initialQuery: string;
+    maxLength: number;
+    generationSource: "openrouter" | "fallback";
+    generationModel: string;
+    generationNotice: string;
+  } | null>(null);
 
   const hasAnyFilter = (params: NewsSearchParams) => {
     return Object.values(params).some(val => Array.isArray(val) ? val.length > 0 : !!val);
@@ -39,11 +62,15 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     }
   };
 
-  const fetchNews = async (currentFilters: NewsSearchParams, pageToken?: string, append = false) => {
+  const fetchNews = async (
+    currentFilters: NewsSearchParams,
+    previewFeedbackId: number,
+    approvedQuery: string,
+    append = false,
+  ) => {
     if (showBookmarksOnly) return; // Don't fetch from API when viewing bookmarks
     if (!hasAnyFilter(currentFilters)) {
       setArticles([]);
-      setHasMore(false);
       return;
     }
     
@@ -52,16 +79,20 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     setIsLoading(true);
     isLoadingRef.current = true;
     try {
-      const response = await searchNews({ ...currentFilters, page: pageToken });
+      const response = await searchNews(currentFilters, previewFeedbackId, approvedQuery);
       
       if (append) {
         setArticles(prev => [...prev, ...response.results]);
       } else {
         setArticles(response.results || []);
+        setLatestSearch({
+          approvedQuery,
+          resultCount: response.results?.length || 0,
+          searchedAt: new Date().toISOString(),
+        });
       }
       
-      setPage(response.nextPage);
-      setHasMore(!!response.nextPage && (response.results?.length > 0));
+      await refreshUsage();
     } catch (error: any) {
       console.error("News search error:", error);
       if (error.message?.includes("429") || error.message?.includes("Limit exceeded")) {
@@ -70,9 +101,9 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
         onToast("Failed to find scholarship opportunities.");
       }
       if (!append) setArticles([]);
-      setHasMore(false);
     } finally {
       setIsLoading(false);
+      setSearchFlow("idle");
       isLoadingRef.current = false;
     }
   };
@@ -80,8 +111,6 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
   // Initial load
   useEffect(() => {
     fetchBookmarks();
-    fetchNews(filters);
-    
     const handleResize = () => {
       if (window.innerWidth > 768 && !isFilterOpen) setIsFilterOpen(true);
     };
@@ -89,17 +118,55 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleApplyFilters = (newFilters: any) => {
-    setFilters(newFilters);
-    setShowBookmarksOnly(false); // Switch back to search results if applying filters
-    fetchNews(newFilters, undefined, false);
+  const handleApplyFilters = async (newFilters: NewsSearchParams) => {
+    if (!hasAnyFilter(newFilters)) {
+      setFilters({});
+      setPendingFilters(null);
+      setQueryPreview(null);
+      setArticles([]);
+      setLatestSearch(null);
+      setSearchFlow("idle");
+      return;
+    }
+
+    setSearchFlow("preparing");
+    setIsPreparingQuery(true);
+    try {
+      const preview = await previewNewsQuery(newFilters);
+      setPendingFilters(newFilters);
+      setQueryPreview({
+        previewFeedbackId: preview.preview_feedback_id,
+        initialQuery: preview.initial_query,
+        maxLength: preview.max_length,
+        generationSource: preview.generation_source,
+        generationModel: preview.generation_model,
+        generationNotice: preview.generation_notice,
+      });
+      setSearchFlow("review");
+      await refreshUsage();
+    } catch (error) {
+      console.error("Failed to prepare Scholarship Hunt query:", error);
+      if ((error as Error)?.message?.includes("429") || (error as Error)?.message?.includes("Limit exceeded")) {
+        onToast("Rate limit exceeded. Upgrade your plan for more searches.");
+      } else {
+        onToast("Could not prepare the scholarship search query.");
+      }
+      setSearchFlow("idle");
+    } finally {
+      setIsPreparingQuery(false);
+    }
   };
 
-  const handleLoadMore = useCallback(() => {
-    if (!isLoadingRef.current && hasMore && page && !showBookmarksOnly) {
-      fetchNews(filters, page, true);
-    }
-  }, [hasMore, page, filters, showBookmarksOnly]);
+  const handleConfirmQuery = async (approvedQuery: string) => {
+    if (!pendingFilters || !queryPreview) return;
+    const confirmedFilters = pendingFilters;
+    const previewFeedbackId = queryPreview.previewFeedbackId;
+    setFilters(confirmedFilters);
+    setShowBookmarksOnly(false);
+    setSearchFlow("searching");
+    setQueryPreview(null);
+    await fetchNews(confirmedFilters, previewFeedbackId, approvedQuery, false);
+  };
 
   const handleToggleBookmark = async (article: NewsArticle) => {
     const isBookmarked = bookmarks.some(b => b.article_id === article.article_id);
@@ -129,13 +196,6 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     }
   };
 
-  // When switching back from bookmarks view to feed, ensure we have data
-  useEffect(() => {
-    if (!showBookmarksOnly && articles.length === 0 && !isLoading) {
-      fetchNews(filters);
-    }
-  }, [showBookmarksOnly]);
-
   const displayedArticles = showBookmarksOnly 
     ? bookmarks.map(b => ({
         article_id: b.article_id,
@@ -153,6 +213,52 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
   const dailyLimit = usageData?.limits?.["news_searches_per_day"] ?? 0;
   const monthlyUsage = usageData?.usage?.["news_searches_per_month"] ?? 0;
   const monthlyLimit = usageData?.limits?.["news_searches_per_month"] ?? 0;
+  const latestQueryPreview = latestSearch?.approvedQuery
+    ? latestSearch.approvedQuery.length > 150
+      ? `${latestSearch.approvedQuery.slice(0, 150).trim()}...`
+      : latestSearch.approvedQuery
+    : "";
+  const latestSearchTime = latestSearch
+    ? new Date(latestSearch.searchedAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+  const searchStatus = (() => {
+    if (isPreparingQuery) {
+      return {
+        tone: "busy",
+        label: "Preparing next search",
+        detail: "Building a fresh Scholarship Hunt query from your new filter choices while the current cards stay visible.",
+      };
+    }
+    if (queryPreview) {
+      return {
+        tone: "review",
+        label: "Query ready for review",
+        detail: "A Scholarship Hunt credit has already been used for this run. Review, refine, or cancel before Tavily is called.",
+      };
+    }
+    if (isLoading || searchFlow === "searching") {
+      return {
+        tone: "busy",
+        label: "Searching the web",
+        detail: "Tavily is running the approved query now. Fresh results will replace the previous set when the request completes.",
+      };
+    }
+    if (latestSearch) {
+      return {
+        tone: "idle",
+        label: `Latest run: ${latestSearch.resultCount} results`,
+        detail: latestQueryPreview
+          ? `${latestQueryPreview}${latestSearchTime ? ` • Updated ${latestSearchTime}` : ""}`
+          : latestSearchTime
+            ? `Updated ${latestSearchTime}`
+            : "",
+      };
+    }
+    return null;
+  })();
 
   return (
     <div className="scholarship-news-view">
@@ -181,7 +287,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <Filter size={18} className={isFilterOpen ? "fill-current" : ""} />
-              <span className="hidden sm:inline">Filters</span>
+              <span className="hidden sm:inline">Query</span>
             </button>
           )}
         </div>
@@ -192,22 +298,53 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
           <FilterPanel 
             isOpen={isFilterOpen} 
             onClose={() => setIsFilterOpen(false)} 
-            onApplyFilters={handleApplyFilters} 
+            onApplyFilters={handleApplyFilters}
+            isPreparingQuery={isPreparingQuery}
           />
         )}
         
         <main className="news-main">
+          {!showBookmarksOnly && searchStatus && (
+            <section className={`news-search-status news-search-status--${searchStatus.tone}`} aria-live="polite">
+              <p className="news-search-status-label">{searchStatus.label}</p>
+              {searchStatus.detail && (
+                <p className="news-search-status-detail">{searchStatus.detail}</p>
+              )}
+            </section>
+          )}
           <NewsFeed 
             articles={displayedArticles} 
             bookmarks={bookmarks}
             isLoading={isLoading} 
-            hasMore={!showBookmarksOnly && hasMore} 
+            isRefreshing={isPreparingQuery || isLoading}
+            refreshMessage={isPreparingQuery
+              ? "Preparing a fresh Scholarship Hunt query..."
+              : "Running your approved Scholarship Hunt query..."}
+            hasMore={false}
             hasFilters={showBookmarksOnly || hasFiltersSelected}
-            onLoadMore={handleLoadMore} 
+            onLoadMore={() => undefined}
             onToggleBookmark={handleToggleBookmark}
           />
         </main>
       </div>
+      {queryPreview && (
+        <QueryReviewDialog
+          initialQuery={queryPreview.initialQuery}
+          maxLength={queryPreview.maxLength}
+          generationSource={queryPreview.generationSource}
+          generationModel={queryPreview.generationModel}
+          generationNotice={queryPreview.generationNotice}
+          isSearching={isLoading}
+          onCancel={() => {
+            if (!isLoading) {
+              setQueryPreview(null);
+              setPendingFilters(null);
+              setSearchFlow("idle");
+            }
+          }}
+          onConfirm={handleConfirmQuery}
+        />
+      )}
     </div>
   );
 }

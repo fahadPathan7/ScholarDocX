@@ -346,6 +346,9 @@ def log_outreach(payload: OutreachPayload, store: Store = Depends(get_user_store
     return store.log_outreach(payload.data, payload.follow_up_days)
 
 
+
+
+
 @router.post("/ai/chat")
 async def ai_chat(
     payload: AiPayload, 
@@ -454,7 +457,7 @@ async def ai_action_plan(
 @router.post("/ai/actions/execute")
 def ai_action_execute(payload: AiActionExecutePayload, store: Store = Depends(get_user_store), settings: Settings = Depends(get_settings), current_user: dict = Depends(get_current_user)) -> dict:
     from app.auth.limits import check_and_increment_limit
-    check_and_increment_limit(current_user, "can_use_agents", 1, store.connection)
+    check_and_increment_limit(current_user, "can_use_agents", 0, store.connection)
     try:
         return AiActionService(settings, store).execute(payload.plan)
     except (LookupError, ValueError) as exc:

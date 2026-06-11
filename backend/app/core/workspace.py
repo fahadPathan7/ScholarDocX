@@ -29,6 +29,9 @@ def workspace_status(settings: Settings) -> dict:
             "glm_configured": bool(settings.glm_api_key),
             "gemini_configured": bool(settings.gemini_api_key),
             "tavily_configured": bool(settings.tavily_api_key),
+            "scholarship_hunt_tavily_configured": bool(
+                settings.tavily_api_key_scholarship_hunt
+            ),
             "chat_provider_configured": settings.chat_provider_configured,
             "fully_configured": settings.ai_configured,
         },

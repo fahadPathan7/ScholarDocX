@@ -104,7 +104,7 @@ Changed files:
 - `AI-Context/agent-skills/scholardock-context-update/SKILL.md`
 - `AI-Context/agent-skills/scholardock-test-cases/SKILL.md`
 - `AI-Context/agent-skills/scholardock-context-review/SKILL.md`
-- `AI-Context/agent-skills/scholardock-ui-ux/SKILL.md`
+
 - `AI-Context/agent-skills/scholardock-ai-integrations/SKILL.md`
 - `AI-Context/agent-skills/scholardock-security-privacy/SKILL.md`
 - `AI-Context/agent-skills/scholardock-handoff/SKILL.md`

@@ -14,10 +14,6 @@ from app.services.news_filter_rules import (
     destination_query_terms,
     field_query_terms,
     funding_query_terms,
-    matches_destinations,
-    matches_fields,
-    matches_funding,
-    matches_seasons,
     season_query_terms,
 )
 
@@ -485,6 +481,22 @@ def _matches_selected_levels(
     return False
 
 
+def _has_conflicting_level(
+    article: Dict[str, Any],
+    levels: Optional[List[str]],
+) -> bool:
+    if not levels or _matches_selected_levels(article, levels):
+        return False
+
+    text = _article_text(article)
+    mentioned_levels = {
+        level
+        for level, terms in LEVEL_MATCH_TERMS.items()
+        if any(_contains_term(text, term) for term in terms)
+    }
+    return bool(mentioned_levels)
+
+
 def _refine_description(description: str) -> str:
     sentences = [
         sentence.strip()
@@ -522,7 +534,9 @@ class NewsService:
         today_provider=None,
     ):
         settings = get_settings()
-        self.api_key = settings.tavily_api_key if api_key is None else api_key
+        self.api_key = (
+            settings.tavily_api_key_scholarship_hunt if api_key is None else api_key
+        )
         self.base_url = TAVILY_SEARCH_URL
         self._client_factory = client_factory or httpx.AsyncClient
         self._today_provider = today_provider or date.today
@@ -683,109 +697,6 @@ class NewsService:
             "results": articles,
         }
 
-    def filter_results(
-        self,
-        response_data: Dict[str, Any],
-        popular_scholarships: Optional[List[str]] = None,
-        levels: Optional[List[str]] = None,
-        countries: Optional[List[str]] = None,
-        seasons: Optional[List[str]] = None,
-        funding_types: Optional[List[str]] = None,
-        fields_of_study: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
-        aliases = [
-            alias
-            for scholarship in popular_scholarships or []
-            for alias in _scholarship_aliases(scholarship)
-        ]
-        filtered_results = []
-        seen_ids = set()
-        seen_links = set()
-        seen_titles = set()
-        today = self._today_provider()
-
-        for article in response_data.get("results") or []:
-            text = _article_text(article)
-            is_relevant = (
-                any(_contains_term(text, alias) for alias in aliases)
-                if aliases
-                else _is_academic_funding_article(article)
-            )
-            if not is_relevant:
-                continue
-            if not _matches_selected_levels(article, levels):
-                continue
-            if not matches_destinations(article, countries):
-                continue
-            if not matches_fields(article, fields_of_study):
-                continue
-            if not matches_funding(article, funding_types):
-                continue
-            if not matches_seasons(article, seasons):
-                continue
-
-            deadlines = _extract_deadline_dates(article)
-            future_deadlines = [deadline for deadline in deadlines if deadline >= today]
-            future_cycle = any(year > today.year for year in _cycle_years(_raw_article_text(article)))
-            active_status = _has_active_status(article)
-            if deadlines and not future_deadlines:
-                continue
-            if _has_explicit_closed_status(article) and not (
-                future_deadlines or (active_status and future_cycle)
-            ):
-                continue
-            if _is_stale_cycle(article, today) and not future_deadlines:
-                continue
-
-            article_id = _dedupe_key(article.get("article_id"))
-            link = _dedupe_key(article.get("link"))
-            title = _dedupe_key(article.get("title"))
-            if (
-                (article_id and article_id in seen_ids)
-                or (link and link in seen_links)
-                or (title and title in seen_titles)
-            ):
-                continue
-
-            if article_id:
-                seen_ids.add(article_id)
-            if link:
-                seen_links.add(link)
-            if title:
-                seen_titles.add(title)
-            nearest_deadline = future_deadlines[0] if future_deadlines else None
-            if nearest_deadline:
-                priority = 0
-            elif active_status or future_cycle:
-                priority = 1
-            elif _is_official_source(str(article.get("link") or "")):
-                priority = 2
-            else:
-                priority = 3
-            filtered_results.append(
-                (
-                    (
-                        priority,
-                        nearest_deadline or date.max,
-                        0 if _is_official_source(str(article.get("link") or "")) else 1,
-                        -float(article.get("_search_score") or 0),
-                    ),
-                    article,
-                )
-            )
-
-        filtered_results.sort(key=lambda item: item[0])
-        cleaned_results = []
-        for _, article in filtered_results:
-            cleaned_article = dict(article)
-            cleaned_article.pop("_search_score", None)
-            cleaned_results.append(cleaned_article)
-        return {
-            "status": response_data.get("status", "success"),
-            "totalResults": len(cleaned_results),
-            "results": cleaned_results,
-        }
-
     async def search_scholarships(
         self,
         levels: Optional[List[str]] = None,
@@ -798,9 +709,10 @@ class NewsService:
         language: str = "en",
         sort_by: str = "latest",
         page: Optional[str] = None,
+        approved_query: Optional[str] = None,
     ) -> Dict[str, Any]:
         del page  # Tavily pagination is intentionally disabled: one request per search.
-        query = self.build_search_query(
+        query = approved_query or self.build_search_query(
             levels=levels,
             countries=countries,
             seasons=seasons,
@@ -836,15 +748,7 @@ class NewsService:
             )
 
         normalized = self.normalize_results(response.json())
-        return self.filter_results(
-            normalized,
-            popular_scholarships=popular_scholarships,
-            levels=levels,
-            countries=countries,
-            seasons=seasons,
-            funding_types=funding_types,
-            fields_of_study=fields_of_study,
-        )
+        return normalized
 
 
 news_service = NewsService()

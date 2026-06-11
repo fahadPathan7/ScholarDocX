@@ -417,6 +417,24 @@ CREATE TABLE IF NOT EXISTS bookmarked_news (
   UNIQUE(user_id, article_id)
 );
 
+CREATE TABLE IF NOT EXISTS scholarship_search_feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  initial_query TEXT NOT NULL,
+  refined_query TEXT NOT NULL,
+  filters_json TEXT NOT NULL DEFAULT '{}',
+  was_edited INTEGER NOT NULL DEFAULT 0,
+  provider_status TEXT NOT NULL DEFAULT 'pending',
+  result_count INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_scholarship_search_feedback_user_id
+  ON scholarship_search_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_scholarship_search_feedback_created_at
+  ON scholarship_search_feedback(created_at);
+
 CREATE TABLE IF NOT EXISTS plan_upgrade_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

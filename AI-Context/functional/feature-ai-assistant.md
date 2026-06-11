@@ -9,6 +9,9 @@ The AI assistant helps with research, summarization, drafting, and review while 
 ## Providers
 
 - GLM AI API: chat, completion, summarization, drafting.
+- 9Router: optional local routing for chat and agent-planning models exposed
+  through the assistant model picker when the local 9Router service and
+  `NINE_ROUTER_API_KEY` are configured.
 - Tavily API: real-time web search and research context.
 
 ## Chat UI
@@ -24,6 +27,11 @@ Rules:
 - Model selectors in assistant settings must reflect role/provider permissions.
   Providers blocked by role limits should appear unavailable and must not be
   selected for chat or background tasks.
+- 9Router models must follow the same role guard as GLM/Gemini/Groq/Mistral.
+  If `can_use_9router` is disabled, saved 9Router selections must recover
+  to an allowed provider instead of failing silently.
+- Available 9Router models are loaded from the local 9Router `/v1/models`
+  endpoint because the list depends on providers connected in its dashboard.
 
 ## Research Workflow
 
@@ -100,6 +108,9 @@ Agentic action rules:
 - Analytical reads use local logic (e.g. `CURRENT_DATE` and column semantic mapping) instead of sending large tables to the LLM.
 - Unsupported actions should fall back to ordinary chat or explain what is
   currently supported.
+- `can_use_agents` remains a boolean permission guard only. Opening the action
+  planner may consume normal AI chat quotas, but confirming execution must not
+  consume an agent permission counter because the feature is not quota-based.
 
 ## Privacy UX
 

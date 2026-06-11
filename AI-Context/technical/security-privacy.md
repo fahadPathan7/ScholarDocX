@@ -32,6 +32,10 @@ ScholarDock is privacy-first. Private academic data should remain local unless t
 - Show when content may be sent to external providers.
 - Keep provider credentials server-side.
 - Handle provider errors without losing local data.
+- Scholarship Hunt query generation may send only selected public filter labels,
+  a deterministic search baseline, and current date/cycle guidance to
+  OpenRouter. It must not include application records, documents, profile
+  details, or Tavily results.
 
 ## Authentication Rules
 

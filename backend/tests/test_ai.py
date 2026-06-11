@@ -54,7 +54,7 @@ async def test_summarize_memory_drops_provider_error(monkeypatch):
     settings.gemini_api_key = ""
     service = AiService(settings)
 
-    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None):
+    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None, **kwargs):
         return {
             "mode": "provider-error",
             "answer": "GLM API error - Rate limit reached",
@@ -80,7 +80,7 @@ async def test_research_invalid_routing_defaults_to_search(monkeypatch):
     service = AiService(settings)
     tavily_queries = []
 
-    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None):
+    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None, **kwargs):
         if override_system_prompt:
             return {
                 "mode": "glm-GLM-4.7-Flash",
@@ -95,7 +95,7 @@ async def test_research_invalid_routing_defaults_to_search(monkeypatch):
             "external_call_made": True,
         }
 
-    async def fake_tavily_search(query):
+    async def fake_tavily_search(query, max_results=2):
         tavily_queries.append(query)
         return [
             {
@@ -126,7 +126,7 @@ async def test_research_no_search_uses_direct_chat(monkeypatch):
     settings.tavily_api_key = "test-tavily-key"
     service = AiService(settings)
 
-    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None):
+    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None, **kwargs):
         if override_system_prompt:
             return {
                 "mode": "glm-GLM-4.7-Flash",
@@ -162,7 +162,7 @@ async def test_research_provider_error_mode_is_preserved(monkeypatch):
     settings.tavily_api_key = "test-tavily-key"
     service = AiService(settings)
 
-    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None):
+    async def fake_chat(message, context="", model=None, max_tokens=None, override_system_prompt=None, **kwargs):
         if override_system_prompt:
             return {
                 "mode": "glm-GLM-4.7-Flash",
@@ -209,6 +209,9 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
     assert calls[0][3] == 64
 
 
+
+
+
 @pytest.mark.asyncio
 async def test_auto_chat_falls_back_to_gemini_after_glm_rate_limit(monkeypatch):
     settings = Settings()
@@ -250,6 +253,9 @@ async def test_explicit_gemini_model_without_key_returns_local_fallback():
     assert response["external_call_made"] is False
     assert "GEMINI_API_KEY" in response["answer"]
     assert "select a model with a configured provider" in response["answer"]
+
+
+
 
 
 @pytest.mark.asyncio

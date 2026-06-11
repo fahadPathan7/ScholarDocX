@@ -52,6 +52,7 @@ export const MODEL_PROVIDER_FEATURES = {
   glm: "can_use_glm",
 } as const;
 
+
 export function getProviderForModel(model: string): ModelProvider {
   const lowered = model.toLowerCase();
   if (lowered.startsWith("gemini:") || lowered.startsWith("gemini-")) return "gemini";
@@ -61,14 +62,28 @@ export function getProviderForModel(model: string): ModelProvider {
 }
 
 export function getProviderDisplayName(provider: ModelProvider) {
-  return provider === "gemini" ? "Google AI Studio" : provider === "groq" ? "Groq" : provider === "mistral" ? "Mistral" : "GLM";
+  return provider === "gemini"
+    ? "Google AI Studio"
+    : provider === "groq"
+      ? "Groq"
+      : provider === "mistral"
+        ? "Mistral"
+        : "GLM";
 }
 
-export function getFallbackModel(preferred: "chat" | "background", allowedProviders: Set<ModelProvider>) {
+export function getModelDisplayName(model: string) {
+  return MODEL_DISPLAY_NAMES[model] || model;
+}
+
+export function getFallbackModel(
+  preferred: "chat" | "background",
+  allowedProviders: Set<ModelProvider>,
+  modelOptions: ModelOption[] = MODEL_OPTIONS,
+) {
   const orderedFallbacks = preferred === "chat"
     ? ["gemini:gemini-2.5-flash", "groq:openai/gpt-oss-120b", "mistral:mistral-medium-3-5", "GLM-5.1"]
     : ["gemini:gemini-2.5-flash-lite", "groq:openai/gpt-oss-20b", "mistral:mistral-medium-3-5", "GLM-5-Turbo"];
   const firstAllowedExplicit = orderedFallbacks.find((value) => allowedProviders.has(getProviderForModel(value)));
   if (firstAllowedExplicit) return firstAllowedExplicit;
-  return MODEL_OPTIONS.find((option) => allowedProviders.has(option.provider))?.value ?? "gemini:gemini-2.5-flash";
+  return modelOptions.find((option) => allowedProviders.has(option.provider))?.value ?? "gemini:gemini-2.5-flash";
 }

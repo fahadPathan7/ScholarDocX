@@ -1,6 +1,6 @@
 import sqlite3
 import json
-from app.auth.password import hash_password
+from backend.app.auth.password import hash_password
 
 db_path = "workspace/db/app.db"
 conn = sqlite3.connect(db_path)

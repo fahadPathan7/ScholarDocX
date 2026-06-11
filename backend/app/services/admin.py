@@ -1,9 +1,10 @@
 import json
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 import sqlite3
 import random
 import string
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from app.auth.limits import invalidate_limits_cache
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
 
@@ -102,8 +103,11 @@ DEFAULT_ROLE_LIMITS = {
 }
 
 class AdminService:
-    def __init__(self, connection: sqlite3.Connection):
-        self.connection = connection
+    def __init__(self, db: Session):
+        self.db = db
+        import sqlite3
+        self.connection = db.connection().connection.dbapi_connection
+        self.connection.row_factory = sqlite3.Row
 
     @staticmethod
     def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:

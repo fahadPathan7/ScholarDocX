@@ -2,7 +2,7 @@
 
 This folder stores repo-carried `SKILL.md` files for AI agents working on ScholarDock.
 
-These skills are project guidance artifacts, not product runtime code. Use them with the root rules in [AGENTS.md](/Users/fahadpathan/Documents/ScholarDock/AGENTS.md), [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDock/CLAUDE.md), [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/CODE_RULES.md), and the active Jira task.
+These skills are project guidance artifacts, not product runtime code. Use them with the root rules in [AGENTS.md](/Users/fahadpathan/Documents/ScholarDock/AGENTS.md), [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDock/CLAUDE.md), [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/CODE_RULES.md), and the active Jira task.
 
 ## Skill Map
 

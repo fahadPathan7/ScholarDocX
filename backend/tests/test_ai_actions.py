@@ -11,8 +11,12 @@ from app.services.store import Store
 def make_store(tmp_path):
     database_path = tmp_path / "app.db"
     initialize_database(database_path)
-    connection = connect(database_path)
-    return Store(connection), connection
+    from app.db.connection import get_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = SessionLocal()
+    return Store(session), session.connection().connection.dbapi_connection
 
 
 @pytest.mark.asyncio
@@ -30,7 +34,7 @@ async def test_action_plan_ignores_ordinary_chat(tmp_path):
         assert response["status"] == "no_action"
         assert response["actions"] == []
     finally:
-        connection.close()
+        store.db.close()
 
 
 @pytest.mark.asyncio
@@ -49,7 +53,7 @@ async def test_action_plan_asks_for_missing_sheet_details(tmp_path):
         assert "project_name" in response["missing"]
         assert "sheet_name" in response["missing"]
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_action_execute_creates_project_sheet_rows_and_note(tmp_path):
@@ -116,4 +120,4 @@ def test_action_execute_creates_project_sheet_rows_and_note(tmp_path):
         checklist = json.loads(notes[0]["checklist_json"])
         assert [item["text"] for item in checklist] == ["Verify deadlines", "Draft outreach"]
     finally:
-        connection.close()
+        store.db.close()

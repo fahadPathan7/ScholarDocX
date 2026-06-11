@@ -7,7 +7,7 @@ description: Use for reviewing ScholarDock AI-Context, Jira tasks, root rules, a
 
 ## Review Order
 
-1. Root rules: `AGENTS.md`, `CLAUDE.md`, `CODE_RULES.md`.
+1. Root rules: `AGENTS.md`, `CLAUDE.md`, `AI-Context/CODE_RULES.md`.
 2. `AI-Context/README.md` and workflow files.
 3. Active or recently changed Jira tasks.
 4. Relevant business, functional, and technical files.

@@ -2,6 +2,7 @@ import json
 import sqlite3
 
 import pytest
+from sqlalchemy import text
 
 from app.api import news as news_api
 from app.db.connection import connect, initialize_database
@@ -11,8 +12,12 @@ from app.services.store import Store
 def _store(tmp_path):
     database_path = tmp_path / "scholardock.db"
     initialize_database(database_path)
-    connection = connect(database_path)
-    return connection, Store(connection)
+    from app.db.connection import get_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = SessionLocal()
+    return session, Store(session)
 
 
 def test_legacy_database_adds_user_scope_before_schema_indexes(tmp_path):
@@ -100,9 +105,9 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
         store=store,
     )
 
-    row = connection.execute(
+    row = connection.execute(text(
         "SELECT * FROM scholarship_search_feedback ORDER BY id DESC LIMIT 1"
-    ).fetchone()
+    )).mappings().fetchone()
     assert response["initial_query"] == "generated master's scholarship query"
     assert response["preview_feedback_id"] == row["id"]
     assert response["generation_source"] == "openrouter"
@@ -119,7 +124,7 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
         ("news_searches_per_day", 1),
     ]
     assert provider_calls == []
-    connection.close()
+    store.db.close()
 
 
 @pytest.mark.asyncio
@@ -163,7 +168,7 @@ async def test_confirmed_search_persists_initial_and_refined_queries(
             store=store,
         )
 
-        row = connection.execute(
+        row = connection.connection().connection.dbapi_connection.execute(
             "SELECT * FROM scholarship_search_feedback ORDER BY id DESC LIMIT 1"
         ).fetchone()
         assert response["totalResults"] == 2
@@ -181,7 +186,7 @@ async def test_confirmed_search_persists_initial_and_refined_queries(
         }
         assert search_calls[0]["approved_query"] == "refined USA master's scholarship query"
     finally:
-        connection.close()
+        store.db.close()
 
 
 @pytest.mark.asyncio
@@ -220,14 +225,14 @@ async def test_failed_confirmed_search_keeps_feedback_without_consuming_usage(
                 store=store,
             )
 
-        row = connection.execute(
+        row = connection.connection().connection.dbapi_connection.execute(
             "SELECT * FROM scholarship_search_feedback ORDER BY id DESC LIMIT 1"
         ).fetchone()
         assert row["was_edited"] == 0
         assert row["provider_status"] == "failed"
         assert row["result_count"] is None
     finally:
-        connection.close()
+        store.db.close()
 
 
 @pytest.mark.asyncio
@@ -274,4 +279,4 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
         )
 
     assert error.value.status_code == 409
-    connection.close()
+    store.db.close()

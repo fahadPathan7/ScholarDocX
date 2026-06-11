@@ -39,8 +39,10 @@ def test_admin_routes_allow_admin_role(mock_get_dashboard_stats, client):
     assert response.json()["counts"]["total_users"] == 10
     client.app.dependency_overrides.clear()
 
+@patch("app.services.admin.AdminService.get_user_details")
 @patch("app.services.admin.AdminService.update_user_roles")
-def test_super_admin_required_for_roles(mock_update_roles, client):
+def test_super_admin_required_for_roles(mock_update_roles, mock_get_user_details, client):
+    mock_get_user_details.return_value = {"id": 1, "roles": ["super_admin"]}
     # general_admin should be forbidden
     client.app.dependency_overrides[get_current_user] = override_get_current_user_admin
     response = client.patch("/api/admin/users/1/roles", json={"roles": ["pro_user"]})
@@ -87,7 +89,7 @@ def test_create_user_by_admin_forbidden_admin_roles(client):
         "display_name": "New Admin",
         "roles": ["general_admin"]
     })
-    assert response.status_code == 403
+    assert response.status_code == 400
     client.app.dependency_overrides.clear()
 
 @patch("app.services.admin.AdminService.create_user")

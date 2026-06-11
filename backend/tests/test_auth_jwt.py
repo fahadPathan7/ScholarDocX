@@ -15,10 +15,10 @@ def test_create_and_decode_token():
         "token_version": 2
     }
     
-    token = create_token(user)
+    token = create_token(user, "secret", 30)
     assert isinstance(token, str)
     
-    payload = decode_token(token)
+    payload = decode_token(token, "secret")
     assert payload["user_id"] == 1
     assert payload["email"] == "test@example.com"
     assert payload["display_name"] == "Test User"
@@ -38,15 +38,15 @@ def test_decode_token_expired():
     
     # Mock time to create an expired token
     with mock.patch("time.time", return_value=time.time() - (31 * 24 * 3600)):
-        token = create_token(user)
+        token = create_token(user, "secret", 30)
         
     with pytest.raises(ValueError, match="Token has expired"):
-        decode_token(token)
+        decode_token(token, "secret")
 
 
 def test_decode_token_invalid():
     with pytest.raises(ValueError, match="Invalid token"):
-        decode_token("invalid.token.string")
+        decode_token("invalid.token.string", "secret")
 
 
 def test_verify_token_version():

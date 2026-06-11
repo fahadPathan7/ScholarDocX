@@ -12,7 +12,7 @@ from app.services.store import Store
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(get_current_user), Depends(require_admin)])
 
 def get_admin_service(store: Store = Depends(get_store)) -> AdminService:
-    return AdminService(store.connection)
+    return AdminService(store.db)
 
 class RoleUpdatePayload(BaseModel):
     roles: List[str]
@@ -57,15 +57,15 @@ class AdminNotificationSendPayload(BaseModel):
     send_to_all: bool = False
     recipient_user_ids: list[int] = []
 
-def require_feature(feature: str, user: dict, connection):
+def require_feature(feature: str, user: dict, session):
     try:
-        check_and_increment_limit(user, feature, 0, connection)
+        check_and_increment_limit(user, feature, 0, session)
     except UsageLimitExceeded as e:
         raise HTTPException(status_code=403, detail=str(e))
 
-def can_use_feature(feature: str, user: dict, connection) -> bool:
+def can_use_feature(feature: str, user: dict, session) -> bool:
     try:
-        check_and_increment_limit(user, feature, 0, connection)
+        check_and_increment_limit(user, feature, 0, session)
         return True
     except UsageLimitExceeded:
         return False
@@ -74,7 +74,7 @@ def check_admin_modification_clearance(user_id: int, admin_service: AdminService
     target_user = admin_service.get_user_details(user_id)
     target_is_admin = any(r in target_user.get("roles", []) for r in ["general_admin", "super_admin"])
     if target_is_admin:
-        can_manage_admin = can_use_feature("admin_assign_admin_roles", current_user, admin_service.connection)
+        can_manage_admin = can_use_feature("admin_assign_admin_roles", current_user, admin_service.db)
         if not can_manage_admin:
             raise HTTPException(status_code=403, detail="You don't have permission to modify administrators")
     return target_user
@@ -117,8 +117,8 @@ def get_user_details(user_id: int, admin_service: AdminService = Depends(get_adm
 @router.patch("/users/{user_id}/roles")
 def update_user_roles(user_id: int, payload: RoleUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     # Check if user has any role assignment permission
-    has_user_assign = can_use_feature("admin_assign_user_roles", current_user, admin_service.connection)
-    has_admin_assign = can_use_feature("admin_assign_admin_roles", current_user, admin_service.connection)
+    has_user_assign = can_use_feature("admin_assign_user_roles", current_user, admin_service.db)
+    has_admin_assign = can_use_feature("admin_assign_admin_roles", current_user, admin_service.db)
 
     if not (has_user_assign or has_admin_assign):
         raise HTTPException(status_code=403, detail="You don't have permission to assign roles")
@@ -142,7 +142,7 @@ def update_user_roles(user_id: int, payload: RoleUpdatePayload, admin_service: A
 
 @router.post("/users/{user_id}/toggle-status")
 def toggle_user_status(user_id: int, payload: StatusUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_suspend_user", current_user, admin_service.connection)
+    require_feature("admin_suspend_user", current_user, admin_service.db)
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
         return admin_service.toggle_user_status(current_user["id"], user_id, payload.is_active)
@@ -151,7 +151,7 @@ def toggle_user_status(user_id: int, payload: StatusUpdatePayload, admin_service
 
 @router.post("/users/{user_id}/toggle-block")
 def toggle_user_block(user_id: int, payload: BlockUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_suspend_user", current_user, admin_service.connection) # Using same feature flag for now
+    require_feature("admin_suspend_user", current_user, admin_service.db) # Using same feature flag for now
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
         return admin_service.toggle_user_block(current_user["id"], user_id, payload.is_blocked)
@@ -160,7 +160,7 @@ def toggle_user_block(user_id: int, payload: BlockUpdatePayload, admin_service: 
 
 @router.post("/users/{user_id}/revoke")
 def revoke_tokens(user_id: int, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_revoke_user", current_user, admin_service.connection)
+    require_feature("admin_revoke_user", current_user, admin_service.db)
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
         return admin_service.revoke_tokens(current_user["id"], user_id)
@@ -169,12 +169,12 @@ def revoke_tokens(user_id: int, admin_service: AdminService = Depends(get_admin_
 
 @router.get("/invites")
 def list_invite_codes(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invites", current_user, admin_service.connection)
+    require_feature("admin_manage_invites", current_user, admin_service.db)
     return admin_service.list_invite_codes()
 
 @router.post("/invites")
 def create_invite_code(payload: InviteCodePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invites", current_user, admin_service.connection)
+    require_feature("admin_manage_invites", current_user, admin_service.db)
     expires_at = None
     if payload.expiration_hours is not None and payload.expiration_hours > 0:
         expires_at = (datetime.utcnow() + timedelta(hours=payload.expiration_hours)).isoformat()
@@ -182,7 +182,7 @@ def create_invite_code(payload: InviteCodePayload, admin_service: AdminService =
 
 @router.delete("/invites/{code}")
 def delete_invite_code(code: str, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invites", current_user, admin_service.connection)
+    require_feature("admin_manage_invites", current_user, admin_service.db)
     try:
         admin_service.delete_invite_code(current_user["id"], code)
         return {"status": "success"}
@@ -191,7 +191,7 @@ def delete_invite_code(code: str, admin_service: AdminService = Depends(get_admi
 
 @router.get("/invites/{code}/usages")
 def get_invite_usages(code: str, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invites", current_user, admin_service.connection)
+    require_feature("admin_manage_invites", current_user, admin_service.db)
     try:
         return admin_service.get_invite_usages(current_user["id"], code)
     except LookupError as e:
@@ -199,7 +199,7 @@ def get_invite_usages(code: str, admin_service: AdminService = Depends(get_admin
 
 @router.post("/users")
 def create_user(payload: UserCreatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_create_user", current_user, admin_service.connection)
+    require_feature("admin_create_user", current_user, admin_service.db)
 
     # Validate password
     if not validate_password_strength(payload.password):
@@ -211,7 +211,7 @@ def create_user(payload: UserCreatePayload, admin_service: AdminService = Depend
     requested_roles = payload.roles or ["general_user"]
 
     try:
-        can_manage_admin = can_use_feature("admin_assign_admin_roles", current_user, admin_service.connection)
+        can_manage_admin = can_use_feature("admin_assign_admin_roles", current_user, admin_service.db)
         validate_roles_assignment(requested_roles, can_manage_admin)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -228,7 +228,7 @@ def send_admin_notifications(
     admin_service: AdminService = Depends(get_admin_service),
     current_user: dict = Depends(get_current_user),
 ):
-    require_feature("admin_send_notifications", current_user, admin_service.connection)
+    require_feature("admin_send_notifications", current_user, admin_service.db)
     try:
         return admin_service.send_notifications(
             current_user["id"],
@@ -249,9 +249,9 @@ def list_role_limits(admin_service: AdminService = Depends(get_admin_service)):
 @router.post("/limits/{role}/reset")
 def reset_role_limits(role: str, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     if role.endswith('_admin'):
-        require_feature("admin_manage_admin_roles", current_user, admin_service.connection)
+        require_feature("admin_manage_admin_roles", current_user, admin_service.db)
     else:
-        require_feature("admin_manage_user_roles", current_user, admin_service.connection)
+        require_feature("admin_manage_user_roles", current_user, admin_service.db)
     try:
         return admin_service.reset_role_limits(current_user["id"], role)
     except ValueError as e:
@@ -261,14 +261,14 @@ def reset_role_limits(role: str, admin_service: AdminService = Depends(get_admin
 def update_role_limit(role: str, feature: str, payload: LimitUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     # Check appropriate permission based on role type
     if role.endswith('_admin'):
-        require_feature("admin_manage_admin_roles", current_user, admin_service.connection)
+        require_feature("admin_manage_admin_roles", current_user, admin_service.db)
     else:
-        require_feature("admin_manage_user_roles", current_user, admin_service.connection)
+        require_feature("admin_manage_user_roles", current_user, admin_service.db)
     return admin_service.update_role_limit(current_user["id"], role, feature, payload.limit_count, payload.reset_period)
 
 @router.get("/audit-logs")
 def list_audit_logs(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_view_audit_logs", current_user, admin_service.connection)
+    require_feature("admin_view_audit_logs", current_user, admin_service.db)
     return admin_service.list_audit_logs()
 
 @router.get("/plan-requests")
@@ -278,7 +278,7 @@ def list_plan_requests(
     current_user: dict = Depends(get_current_user),
 ):
     normalized_type = request_type.lower() if request_type and request_type.lower() != "all" else None
-    require_feature("admin_manage_plan_requests", current_user, admin_service.connection)
+    require_feature("admin_manage_plan_requests", current_user, admin_service.db)
     return admin_service.list_plan_requests(normalized_type)
 
 @router.post("/plan-requests/{request_id}/review")
@@ -289,7 +289,7 @@ def review_plan_request(request_id: int, payload: PlanRequestReviewPayload, admi
     ).fetchone()
     if not request_row:
         raise HTTPException(status_code=404, detail="Request not found")
-    require_feature("admin_manage_plan_requests", current_user, admin_service.connection)
+    require_feature("admin_manage_plan_requests", current_user, admin_service.db)
     try:
         return admin_service.resolve_plan_request(current_user["id"], request_id, payload.action)
     except LookupError as e:
@@ -299,12 +299,12 @@ def review_plan_request(request_id: int, payload: PlanRequestReviewPayload, admi
 
 @router.get("/invite-requests")
 def list_invite_requests(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invite_requests", current_user, admin_service.connection)
+    require_feature("admin_manage_invite_requests", current_user, admin_service.db)
     return admin_service.list_invite_requests()
 
 @router.post("/invite-requests/{request_id}/review")
 def review_invite_request(request_id: int, payload: InviteRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_invite_requests", current_user, admin_service.connection)
+    require_feature("admin_manage_invite_requests", current_user, admin_service.db)
     try:
         return admin_service.resolve_invite_request(current_user["id"], request_id, payload.action)
     except LookupError as e:
@@ -317,12 +317,12 @@ class SuspensionAppealReviewPayload(BaseModel):
 
 @router.get("/suspension-appeals")
 def list_suspension_appeals(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_suspension_appeals", current_user, admin_service.connection)
+    require_feature("admin_manage_suspension_appeals", current_user, admin_service.db)
     return admin_service.list_suspension_appeals()
 
 @router.post("/suspension-appeals/{appeal_id}/resolve")
 def resolve_suspension_appeal(appeal_id: int, payload: SuspensionAppealReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_suspension_appeals", current_user, admin_service.connection)
+    require_feature("admin_manage_suspension_appeals", current_user, admin_service.db)
     try:
         return admin_service.resolve_suspension_appeal(current_user["id"], appeal_id, payload.action)
     except LookupError as e:
@@ -332,10 +332,10 @@ def resolve_suspension_appeal(appeal_id: int, payload: SuspensionAppealReviewPay
 
 @router.get("/settings")
 def list_app_settings(admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_settings", current_user, admin_service.connection)
+    require_feature("admin_manage_settings", current_user, admin_service.db)
     return admin_service.get_app_settings()
 
 @router.patch("/settings/{key}")
 def update_app_setting(key: str, payload: SettingUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_manage_settings", current_user, admin_service.connection)
+    require_feature("admin_manage_settings", current_user, admin_service.db)
     return admin_service.update_app_setting(current_user["id"], key, payload.value)

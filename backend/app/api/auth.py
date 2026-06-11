@@ -80,7 +80,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
         )
 
     # Validate invite code
-    invite = store.connection.execute(
+    invite = store.legacy_connection.execute(
         "SELECT * FROM invite_codes WHERE code = ?", (payload.invite_code,)
     ).fetchone()
     
@@ -94,7 +94,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
         raise HTTPException(status_code=400, detail="Invite code usage limit reached.")
 
     # Check if email already exists
-    existing_user = store.connection.execute(
+    existing_user = store.legacy_connection.execute(
         "SELECT id FROM users WHERE email = ?", (payload.email,)
     ).fetchone()
     
@@ -108,7 +108,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     plan_started_at = datetime.utcnow().isoformat()
     plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
     
-    cursor = store.connection.execute(
+    cursor = store.legacy_connection.execute(
         """
         INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id)
         VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?)
@@ -118,7 +118,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     user_id = cursor.lastrowid
     
     # Initialize local_profile
-    store.connection.execute(
+    store.legacy_connection.execute(
         """
         INSERT INTO local_profiles (user_id, display_name, email)
         VALUES (?, ?, ?)
@@ -130,7 +130,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     features = ['ai_messages_per_session', 'daily_ai_chats', 'monthly_ai_chats', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project', 
                 'records_per_sheet', 'total_documents_bytes', 'total_sticky_notes', 'total_whiteboards']
     for feature in features:
-        store.connection.execute(
+        store.legacy_connection.execute(
             """
             INSERT INTO user_usage_stats (user_id, feature, current_count, last_reset_at)
             VALUES (?, ?, 0, CURRENT_TIMESTAMP)
@@ -140,16 +140,16 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     # Seed default document categories for the new user
     from app.core.categories import DEFAULT_MEDIA_CATEGORIES
     for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
-        store.connection.execute(
+        store.legacy_connection.execute(
             "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
             (slug, label, index, user_id)
         )
 
     # Increment invite code usage
-    store.connection.execute(
+    store.legacy_connection.execute(
         "UPDATE invite_codes SET used_count = used_count + 1 WHERE id = ?", (invite["id"],)
     )
-    store.connection.commit()
+    store.legacy_connection.commit()
     
     return {"status": "success", "message": "User registered successfully."}
 
@@ -162,7 +162,7 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     if len(_login_attempts[client_ip]) >= MAX_LOGIN_ATTEMPTS:
         raise HTTPException(status_code=429, detail="Too many login attempts. Please try again later.")
         
-    user = store.connection.execute(
+    user = store.legacy_connection.execute(
         "SELECT * FROM users WHERE email = ?", (payload.email,)
     ).fetchone()
     
@@ -176,14 +176,14 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     roles = json.loads(user["roles"])
     
     # Update last login
-    store.connection.execute(
+    store.legacy_connection.execute(
         "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user["id"],)
     )
-    store.connection.commit()
+    store.legacy_connection.commit()
 
     # Fetch JWT settings
-    secret_key_row = store.connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
-    expiration_row = store.connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_expiration_days'").fetchone()
+    secret_key_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
+    expiration_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_expiration_days'").fetchone()
     secret_key = secret_key_row["value"] if secret_key_row else "scholar-dock-local-first-secret-key-do-not-use-in-cloud"
     expiration_days = int(expiration_row["value"]) if expiration_row else 30
 
@@ -217,7 +217,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.post("/me/password")
 def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
-    user = store.connection.execute(
+    user = store.legacy_connection.execute(
         "SELECT * FROM users WHERE id = ?", (current_user["id"],)
     ).fetchone()
     
@@ -233,11 +233,11 @@ def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(ge
     new_hash = hash_password(payload.new_password)
     
     # Update password and increment token_version to invalidate all existing sessions
-    store.connection.execute(
+    store.legacy_connection.execute(
         "UPDATE users SET password_hash = ?, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (new_hash, current_user["id"])
     )
-    store.connection.commit()
+    store.legacy_connection.commit()
     return {"status": "success", "message": "Password updated successfully. All other sessions have been logged out."}
 
 @router.post("/logout")
@@ -252,7 +252,7 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
 
     if not primary_role:
         # Admin-only users have no user-tier entitlement; report zeroed user features.
-        user_features = store.connection.execute(
+        user_features = store.legacy_connection.execute(
             "SELECT feature FROM role_limits WHERE role = ? ORDER BY feature",
             ("general_user",)
         ).fetchall()
@@ -263,11 +263,11 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
             "usage": zero_usage
         }
 
-    limits = store.connection.execute(
+    limits = store.legacy_connection.execute(
         "SELECT feature, limit_count FROM role_limits WHERE role = ?", (primary_role,)
     ).fetchall()
     
-    usage = store.connection.execute(
+    usage = store.legacy_connection.execute(
         "SELECT feature, current_count FROM user_usage_stats WHERE user_id = ?", (user_id,)
     ).fetchall()
     
@@ -282,7 +282,7 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
 @router.get("/plans")
 def get_plans(store: Store = Depends(get_store)):
     # Returns the limits for all tiers
-    limits = store.connection.execute(
+    limits = store.legacy_connection.execute(
         "SELECT role, feature, limit_count, reset_period FROM role_limits ORDER BY role, feature"
     ).fetchall()
     
@@ -293,7 +293,7 @@ def get_plans(store: Store = Depends(get_store)):
             "reset_period": row["reset_period"]
         }
         
-    settings_rows = store.connection.execute(
+    settings_rows = store.legacy_connection.execute(
         "SELECT key, value FROM app_settings WHERE key LIKE 'plan_price_%'"
     ).fetchall()
     
@@ -311,7 +311,7 @@ def get_plans(store: Store = Depends(get_store)):
 
 @router.get("/plans/requests")
 def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
-    rows = store.connection.execute(
+    rows = store.legacy_connection.execute(
         """
         SELECT id, request_type, requested_plan, billing_cycle, message, status, reviewed_at, created_at
         FROM plan_upgrade_requests
@@ -332,14 +332,14 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
         raise HTTPException(status_code=429, detail="You can only request one invite code every 30 minutes. Please try again later.")
 
     # Check if email is already registered
-    existing_user = store.connection.execute(
+    existing_user = store.legacy_connection.execute(
         "SELECT id FROM users WHERE email = ?", (payload.email,)
     ).fetchone()
     if existing_user:
         raise HTTPException(status_code=400, detail="This email is already registered.")
         
     # Check if an invite request is already pending or approved for this email
-    existing_request = store.connection.execute(
+    existing_request = store.legacy_connection.execute(
         "SELECT id, status FROM invite_requests WHERE email = ? AND status IN ('Pending', 'Approved')", (payload.email,)
     ).fetchone()
     if existing_request:
@@ -350,14 +350,14 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
         
     _invite_request_attempts[client_ip].append(now)
 
-    store.connection.execute(
+    store.legacy_connection.execute(
         """
         INSERT INTO invite_requests (name, email, phone, description, ip_address, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 'Pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         (payload.name, payload.email, payload.phone, payload.description, client_ip)
     )
-    store.connection.commit()
+    store.legacy_connection.commit()
     
     return {"status": "success", "message": "Your request has been submitted successfully. We will review it shortly."}
 
@@ -366,7 +366,7 @@ def contact_admin(payload: ContactAdminPayload, request: Request, store: Store =
     client_ip = request.client.host if request.client else "unknown"
     
     # Check if there is already a pending appeal
-    existing = store.connection.execute(
+    existing = store.legacy_connection.execute(
         "SELECT id FROM suspension_appeals WHERE email = ? AND status = 'Pending'",
         (payload.email,)
     ).fetchone()
@@ -374,20 +374,20 @@ def contact_admin(payload: ContactAdminPayload, request: Request, store: Store =
         raise HTTPException(status_code=400, detail="You already have a pending suspension appeal.")
 
     # Store it in suspension_appeals table so the admin can review it in the dedicated dashboard
-    store.connection.execute(
+    store.legacy_connection.execute(
         """
         INSERT INTO suspension_appeals (email, message, ip_address, status, created_at, updated_at)
         VALUES (?, ?, ?, 'Pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """,
         (payload.email, payload.message, client_ip)
     )
-    store.connection.commit()
+    store.legacy_connection.commit()
     
     return {"status": "success", "message": "Your message has been sent to the administrator."}
 
 @router.post("/plans/request")
 def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
-    existing_request = store.connection.execute(
+    existing_request = store.legacy_connection.execute(
         "SELECT id FROM plan_upgrade_requests WHERE user_id = ? AND status = 'Pending'",
         (current_user["id"],)
     ).fetchone()
@@ -396,16 +396,16 @@ def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get
         raise HTTPException(status_code=400, detail="You already have a pending plan request. Please wait for it to be reviewed before submitting another.")
 
     try:
-        store.connection.execute(
+        store.legacy_connection.execute(
             """
             INSERT INTO plan_upgrade_requests (user_id, request_type, requested_plan, billing_cycle, message)
             VALUES (?, ?, ?, ?, ?)
             """,
             (current_user["id"], payload.request_type, payload.requested_plan, payload.billing_cycle, payload.message)
         )
-        store.connection.commit()
+        store.legacy_connection.commit()
         message = "Plan extension request submitted successfully." if payload.request_type == "extension" else "Plan upgrade request submitted successfully."
         return {"status": "success", "message": message}
     except Exception as e:
-        store.connection.rollback()
+        store.legacy_connection.rollback()
         raise HTTPException(status_code=500, detail=str(e))

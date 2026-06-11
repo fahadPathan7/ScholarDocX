@@ -14,8 +14,12 @@ from app.services.store import Store
 def make_store(tmp_path):
     database_path = tmp_path / "app.db"
     initialize_database(database_path)
-    connection = connect(database_path)
-    return Store(connection), connection
+    from app.db.connection import get_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = SessionLocal()
+    return Store(session), session.connection().connection.dbapi_connection
 
 
 def seed_user(connection, user_id, email, roles, plan_started_at=None, plan_ends_at=None):
@@ -74,7 +78,7 @@ def test_plan_request_endpoint_persists_request_type(tmp_path):
         assert row["requested_plan"] == "pro_user"
         assert row["billing_cycle"] == "monthly"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_list_my_plan_requests_returns_user_history(tmp_path):
@@ -97,7 +101,7 @@ def test_list_my_plan_requests_returns_user_history(tmp_path):
         assert len(response["requests"]) == 2
         assert {request["request_type"] for request in response["requests"]} == {"upgrade", "extension"}
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_approve_plan_extension_extends_active_plan_from_current_end(tmp_path):
@@ -120,7 +124,7 @@ def test_approve_plan_extension_extends_active_plan_from_current_end(tmp_path):
         connection.commit()
 
         with mock.patch("app.services.admin.datetime", FixedDatetime):
-            result = AdminService(connection).resolve_plan_request(1, request_id, "approve")
+            result = AdminService(store.db).resolve_plan_request(1, request_id, "approve")
 
         updated_user = connection.execute(
             "SELECT roles, plan_started_at, plan_ends_at FROM users WHERE id = 2"
@@ -131,7 +135,7 @@ def test_approve_plan_extension_extends_active_plan_from_current_end(tmp_path):
         assert updated_user["plan_started_at"] == "2026-06-01T00:00:00"
         assert updated_user["plan_ends_at"] == "2026-07-20T00:00:00"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_approve_expired_plan_extension_starts_from_approval_time(tmp_path):
@@ -154,7 +158,7 @@ def test_approve_expired_plan_extension_starts_from_approval_time(tmp_path):
         connection.commit()
 
         with mock.patch("app.services.admin.datetime", FixedDatetime):
-            result = AdminService(connection).resolve_plan_request(1, request_id, "approve")
+            result = AdminService(store.db).resolve_plan_request(1, request_id, "approve")
 
         updated_user = connection.execute(
             "SELECT roles, plan_started_at, plan_ends_at FROM users WHERE id = 2"
@@ -165,7 +169,7 @@ def test_approve_expired_plan_extension_starts_from_approval_time(tmp_path):
         assert updated_user["plan_started_at"] == "2026-06-06T12:00:00"
         assert updated_user["plan_ends_at"] == "2027-06-06T12:00:00"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_upgrade_request_replaces_current_plan(tmp_path):
@@ -188,7 +192,7 @@ def test_upgrade_request_replaces_current_plan(tmp_path):
         connection.commit()
 
         with mock.patch("app.services.admin.datetime", FixedDatetime):
-            result = AdminService(connection).resolve_plan_request(1, request_id, "approve")
+            result = AdminService(store.db).resolve_plan_request(1, request_id, "approve")
 
         updated_user = connection.execute(
             "SELECT roles, plan_started_at, plan_ends_at FROM users WHERE id = 2"
@@ -199,7 +203,7 @@ def test_upgrade_request_replaces_current_plan(tmp_path):
         assert updated_user["plan_started_at"] == "2026-06-06T12:00:00"
         assert updated_user["plan_ends_at"] == "2026-07-06T12:00:00"
     finally:
-        connection.close()
+        store.db.close()
 
 
 
@@ -227,12 +231,12 @@ def test_admin_plan_request_listing_uses_requests_permission_for_extension_reque
         connection.commit()
         invalidate_limits_cache()
 
-        rows = list_admin_plan_requests("all", AdminService(connection), current_user)
+        rows = list_admin_plan_requests("all", AdminService(store.db), current_user)
 
         assert len(rows) == 1
         assert rows[0]["request_type"] == "extension"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_cannot_request_multiple_pending_plans(tmp_path):
@@ -271,7 +275,7 @@ def test_cannot_request_multiple_pending_plans(tmp_path):
             assert e.status_code == 400
             assert "already have a pending plan request" in e.detail
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_admin_plan_request_review_blocks_extension_without_requests_permission(tmp_path):
@@ -302,7 +306,7 @@ def test_admin_plan_request_review_blocks_extension_without_requests_permission(
             review_plan_request(
                 request_id,
                 PlanRequestReviewPayload(action="Approve"),
-                AdminService(connection),
+                AdminService(store.db),
                 current_user,
             )
             assert False, "Expected HTTPException for missing requests permission"
@@ -310,4 +314,4 @@ def test_admin_plan_request_review_blocks_extension_without_requests_permission(
             assert exc.status_code == 403
             assert "PLAN_REQUESTS" in str(exc.detail) or "plan_requests" in str(exc.detail).lower()
     finally:
-        connection.close()
+        store.db.close()

@@ -7,7 +7,7 @@ description: Use for ScholarDock product code changes in the React/Vite frontend
 
 ## Required Start
 
-1. Read root rules: `AGENTS.md`, `CLAUDE.md`, `CODE_RULES.md`.
+1. Read root rules: `AGENTS.md`, `CLAUDE.md`, `AI-Context/CODE_RULES.md`.
 2. Read `AI-Context/README.md`, the active Jira task, and only relevant business, functional, and technical context.
 3. If behavior is new or changed, update context before product code.
 4. Check line count before editing any large source file:

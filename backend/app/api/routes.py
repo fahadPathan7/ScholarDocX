@@ -123,13 +123,13 @@ def create_project_sheet(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    limit_count = get_user_limit(current_user, "sheets_per_project", store.connection)
+    limit_count = get_user_limit(current_user, "sheets_per_project", store.db)
     if limit_count != -1:
-        current_sheet_count = store.connection.execute("SELECT COUNT(*) FROM project_sheets WHERE project_id = ?", (project_id,)).fetchone()[0]
+        current_sheet_count = store.legacy_connection.execute("SELECT COUNT(*) FROM project_sheets WHERE project_id = ?", (project_id,)).fetchone()[0]
         if current_sheet_count >= limit_count:
             raise UsageLimitExceeded(f"Limit exceeded for sheets_per_project. Your plan allows {limit_count}.")
             
-    check_and_increment_limit(current_user, "total_sheets", 1, store.connection)
+    check_and_increment_limit(current_user, "total_sheets", 1, store.db)
     try:
         return store.create_sheet_with_defaults(project_id, payload.name)
     except LookupError as exc:
@@ -197,7 +197,7 @@ def _crud_routes(table: str):
         feature = feature_map.get(table_name)
         if feature:
             from app.auth.limits import check_and_increment_limit
-            check_and_increment_limit(current_user, feature, 1, store.connection)
+            check_and_increment_limit(current_user, feature, 1, store.db)
             
         try:
             return store.create_record(table_name, payload.data)
@@ -215,7 +215,7 @@ def _crud_routes(table: str):
         if table_name == "project_pages" and "rows_json" in payload.data:
             import json
             from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-            old_record = store.connection.execute("SELECT rows_json FROM project_pages WHERE id = ?", (record_id,)).fetchone()
+            old_record = store.legacy_connection.execute("SELECT rows_json FROM project_pages WHERE id = ?", (record_id,)).fetchone()
             if old_record:
                 old_rows = json.loads(old_record["rows_json"] or "[]")
                 new_rows = payload.data["rows_json"]
@@ -224,12 +224,12 @@ def _crud_routes(table: str):
                 
                 rows_diff = len(new_rows) - len(old_rows)
                 
-                limit_count = get_user_limit(current_user, "records_per_sheet", store.connection)
+                limit_count = get_user_limit(current_user, "records_per_sheet", store.db)
                 if limit_count != -1 and len(new_rows) > limit_count:
                     raise UsageLimitExceeded(f"Limit exceeded for records_per_sheet. Your plan allows {limit_count}.")
                 
                 if rows_diff != 0:
-                    check_and_increment_limit(current_user, "total_records", rows_diff, store.connection)
+                    check_and_increment_limit(current_user, "total_records", rows_diff, store.db)
 
         try:
             return store.update_record(table_name, record_id, payload.data)
@@ -285,7 +285,7 @@ def upload_file(
     from app.auth.limits import check_and_increment_limit
     try:
         file_size = file.size or 0
-        check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.connection)
+        check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.db)
         
         category_slug = normalize_media_category(category)
         file_type_slug = normalize_media_category(file_type or category_slug)
@@ -357,10 +357,10 @@ async def ai_chat(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.connection)
+    verify_model_permission(payload.model, current_user, store.db)
     
     # Enforce per-session limit without persisting a global counter
-    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.connection)
+    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
             context_list = json.loads(payload.context) if payload.context else []
@@ -370,8 +370,8 @@ async def ai_chat(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.connection)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.connection)
+    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
+    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
     return await AiService(settings).chat(
         payload.message, 
         payload.context, 
@@ -387,11 +387,11 @@ async def ai_research(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.connection)
+    verify_model_permission(payload.model, current_user, store.db)
     if payload.background_model:
-        verify_model_permission(payload.background_model, current_user, store.connection)
+        verify_model_permission(payload.background_model, current_user, store.db)
         
-    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.connection)
+    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
             context_list = json.loads(payload.context) if payload.context else []
@@ -401,12 +401,12 @@ async def ai_research(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.connection)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.connection)
+    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
+    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
     if payload.web_search_max_results > 0:
-        check_and_increment_limit(current_user, "can_use_web_search", 0, store.connection)
-        check_and_increment_limit(current_user, "web_searches_per_day", 1, store.connection)
-        check_and_increment_limit(current_user, "web_searches_per_month", 1, store.connection)
+        check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
+        check_and_increment_limit(current_user, "web_searches_per_day", 1, store.db)
+        check_and_increment_limit(current_user, "web_searches_per_month", 1, store.db)
     return await AiService(settings).research(
         payload.message,
         payload.context,
@@ -424,7 +424,7 @@ async def ai_summarize(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    verify_model_permission(payload.model, current_user, store.connection)
+    verify_model_permission(payload.model, current_user, store.db)
     return await AiService(settings).summarize_memory(payload.text, payload.model)
 
 
@@ -436,10 +436,10 @@ async def ai_action_plan(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.connection)
-    check_and_increment_limit(current_user, "can_use_agents", 0, store.connection)
+    verify_model_permission(payload.model, current_user, store.db)
+    check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
     
-    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.connection)
+    session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
             context_list = json.loads(payload.context) if payload.context else []
@@ -449,15 +449,15 @@ async def ai_action_plan(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.connection)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.connection)
+    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
+    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
     return await AiActionService(settings, store).plan(payload.message, payload.context, payload.model)
 
 
 @router.post("/ai/actions/execute")
 def ai_action_execute(payload: AiActionExecutePayload, store: Store = Depends(get_user_store), settings: Settings = Depends(get_settings), current_user: dict = Depends(get_current_user)) -> dict:
     from app.auth.limits import check_and_increment_limit
-    check_and_increment_limit(current_user, "can_use_agents", 0, store.connection)
+    check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
     try:
         return AiActionService(settings, store).execute(payload.plan)
     except (LookupError, ValueError) as exc:

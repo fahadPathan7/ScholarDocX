@@ -60,13 +60,13 @@ def _check_search_limits(user: dict, store: Store) -> None:
             user,
             "news_searches_per_month",
             increment=0,
-            connection=store.connection,
+            session=store.db,
         )
         check_and_increment_limit(
             user,
             "news_searches_per_day",
             increment=0,
-            connection=store.connection,
+            session=store.db,
         )
     except UsageLimitExceeded as error:
         raise HTTPException(status_code=429, detail=str(error.detail))
@@ -89,7 +89,7 @@ async def preview_news_query(
         _filter_kwargs(payload.filters)
     )
     feedback_id = create_query_preview_feedback(
-        store.connection,
+        store.db,
         int(user["id"]),
         generated["query"],
         _filter_kwargs(payload.filters),
@@ -98,13 +98,13 @@ async def preview_news_query(
         user,
         "news_searches_per_month",
         increment=1,
-        connection=store.connection,
+        session=store.db,
     )
     check_and_increment_limit(
         user,
         "news_searches_per_day",
         increment=1,
-        connection=store.connection,
+        session=store.db,
     )
     return {
         "preview_feedback_id": feedback_id,
@@ -142,7 +142,7 @@ async def search_news_confirmed(
 
     try:
         initial_query = claim_query_preview_feedback(
-            store.connection,
+            store.db,
             payload.preview_feedback_id,
             int(user["id"]),
             approved_query,
@@ -161,14 +161,14 @@ async def search_news_confirmed(
         )
     except Exception:
         complete_search_feedback(
-            store.connection,
+            store.db,
             feedback_id,
             "failed",
         )
         raise
 
     complete_search_feedback(
-        store.connection,
+        store.db,
         feedback_id,
         "success",
         int(results.get("totalResults") or 0),
@@ -213,8 +213,8 @@ async def search_news(
     )
     
     # Increment after successful API call
-    check_and_increment_limit(user, "news_searches_per_month", increment=1, connection=store.connection)
-    check_and_increment_limit(user, "news_searches_per_day", increment=1, connection=store.connection)
+    check_and_increment_limit(user, "news_searches_per_month", increment=1, session=store.db)
+    check_and_increment_limit(user, "news_searches_per_day", increment=1, session=store.db)
     
     return results
 

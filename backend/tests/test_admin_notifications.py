@@ -1,13 +1,17 @@
 import json
+import pytest
 
-from app.db.connection import connect, initialize_database
+from app.db.connection import get_engine, initialize_database
 from app.services.admin import AdminService
+from sqlalchemy.orm import sessionmaker
 
 
-def make_connection(tmp_path):
+def make_session(tmp_path):
     database_path = tmp_path / "app.db"
     initialize_database(database_path)
-    return connect(database_path)
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return SessionLocal()
 
 
 def seed_user(connection, user_id: int, email: str, settings: dict | None = None):
@@ -39,12 +43,12 @@ def seed_user(connection, user_id: int, email: str, settings: dict | None = None
 
 
 def test_send_notifications_respects_user_category_preferences(tmp_path):
-    connection = make_connection(tmp_path)
+    session = make_session(tmp_path)
     try:
-        seed_user(connection, 2, "enabled@example.com", {"billing": True})
-        seed_user(connection, 3, "disabled@example.com", {"billing": False})
+        seed_user(session.connection().connection.dbapi_connection, 2, "enabled@example.com", {"billing": True})
+        seed_user(session.connection().connection.dbapi_connection, 3, "disabled@example.com", {"billing": False})
 
-        result = AdminService(connection).send_notifications(
+        result = AdminService(session).send_notifications(
             1,
             title="Billing update",
             body="Your billing cycle was updated.",
@@ -52,7 +56,7 @@ def test_send_notifications_respects_user_category_preferences(tmp_path):
             send_to_all=True,
         )
 
-        rows = connection.execute(
+        rows = session.connection().connection.dbapi_connection.execute(
             "SELECT user_id, title, preference_key FROM notifications ORDER BY user_id ASC"
         ).fetchall()
 
@@ -66,15 +70,15 @@ def test_send_notifications_respects_user_category_preferences(tmp_path):
         assert rows[0]["preference_key"] == "billing"
         assert rows[1]["user_id"] == 2
     finally:
-        connection.close()
+        session.close()
 
 
 def test_system_notifications_remain_deliverable_even_if_flagged_false(tmp_path):
-    connection = make_connection(tmp_path)
+    session = make_session(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com", {"system": False})
+        seed_user(session.connection().connection.dbapi_connection, 2, "member@example.com", {"system": False})
 
-        result = AdminService(connection).send_notifications(
+        result = AdminService(session).send_notifications(
             1,
             title="Required system notice",
             body="This category should always deliver.",
@@ -82,7 +86,7 @@ def test_system_notifications_remain_deliverable_even_if_flagged_false(tmp_path)
             recipient_user_ids=[2],
         )
 
-        row = connection.execute(
+        row = session.connection().connection.dbapi_connection.execute(
             "SELECT user_id, title, preference_key FROM notifications WHERE user_id = 2"
         ).fetchone()
 
@@ -91,24 +95,21 @@ def test_system_notifications_remain_deliverable_even_if_flagged_false(tmp_path)
         assert result["skipped_count"] == 0
         assert row["preference_key"] == "system"
     finally:
-        connection.close()
+        session.close()
 
 
 def test_send_notifications_requires_known_category(tmp_path):
-    connection = make_connection(tmp_path)
+    session = make_session(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(session.connection().connection.dbapi_connection, 2, "member@example.com")
 
-        try:
-            AdminService(connection).send_notifications(
+        with pytest.raises(ValueError, match="Unsupported notification category"):
+            AdminService(session).send_notifications(
                 1,
                 title="Unknown category",
                 body="This should fail.",
                 category="custom",
                 recipient_user_ids=[2],
             )
-            raise AssertionError("Expected send_notifications to reject unsupported category")
-        except ValueError as exc:
-            assert "Unsupported notification category" in str(exc)
     finally:
-        connection.close()
+        session.close()

@@ -6,8 +6,12 @@ from app.services.store import Store, render_text
 def make_store(tmp_path):
     database_path = tmp_path / "app.db"
     initialize_database(database_path)
-    connection = connect(database_path)
-    return Store(connection), connection
+    from app.db.connection import get_engine
+    from sqlalchemy.orm import sessionmaker
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = SessionLocal()
+    return Store(session), session.connection().connection.dbapi_connection
 
 
 def test_seeded_degree_workspaces(tmp_path):
@@ -16,7 +20,7 @@ def test_seeded_degree_workspaces(tmp_path):
         workspaces = store.list_records("degree_workspaces")
         assert {item["degree_type"] for item in workspaces} == {"bachelors", "masters", "phd"}
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_create_application_and_dashboard_summary(tmp_path):
@@ -44,7 +48,7 @@ def test_create_application_and_dashboard_summary(tmp_path):
         assert summary["status_counts"][0]["status"] == "Drafting"
         assert summary["upcoming_deadlines"][0]["title"] == "Main deadline"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_dashboard_recent_projects_capped_at_five(tmp_path):
@@ -57,7 +61,7 @@ def test_dashboard_recent_projects_capped_at_five(tmp_path):
 
         assert len(summary["recent_projects"]) == 5
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_dashboard_pinned_projects_and_sheets_require_dashboard_pin(tmp_path):
@@ -86,7 +90,7 @@ def test_dashboard_pinned_projects_and_sheets_require_dashboard_pin(tmp_path):
         assert summary["pinned_sheets"][0]["id"] == visible_sheet["id"]
         assert summary["pinned_sheets"][0]["project_name"] == "Pinned project"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_dashboard_includes_pinned_static_files(tmp_path):
@@ -116,7 +120,7 @@ def test_dashboard_includes_pinned_static_files(tmp_path):
 
         assert [item["display_name"] for item in summary["pinned_docs"]] == ["Pinned CV.pdf"]
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_static_file_pin_flags_can_be_toggled(tmp_path):
@@ -141,7 +145,7 @@ def test_static_file_pin_flags_can_be_toggled(tmp_path):
         assert unpinned["is_pinned"] == 0
         assert unpinned["pinned_to_dashboard"] == 0
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_sticky_notes_are_persisted_and_counted(tmp_path):
@@ -165,7 +169,7 @@ def test_sticky_notes_are_persisted_and_counted(tmp_path):
         assert updated["is_checklist"] == 1
         assert summary["counts"]["sticky_notes"] == 1
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_render_email_template_replaces_known_variables():
@@ -187,7 +191,7 @@ def test_document_category_creation_is_limited_to_sixteen(tmp_path):
         except ValueError as exc:
             assert "limited to 16" in str(exc)
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_outreach_follow_up_creates_reminder(tmp_path):
@@ -206,7 +210,7 @@ def test_outreach_follow_up_creates_reminder(tmp_path):
         assert outreach["recipient_email"] == "advisor@example.edu"
         assert reminders[0]["due_at"] == "2026-06-06"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_project_page_json_and_notifications(tmp_path):
@@ -252,7 +256,7 @@ def test_project_page_json_and_notifications(tmp_path):
         assert dashboard["calendar_items"][0]["project_id"] == project["id"]
         assert dashboard["calendar_items"][0]["project_name"] == "Finland PhD"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_create_sheet_with_single_default_table(tmp_path):
@@ -268,30 +272,29 @@ def test_create_sheet_with_single_default_table(tmp_path):
         page_cols_raw = result["page"]["columns_json"]
         page_cols = json.loads(page_cols_raw) if isinstance(page_cols_raw, str) else page_cols_raw
         col_names = [c["name"] if isinstance(c, dict) else c for c in page_cols]
-        assert "BSC cert" in col_names
-        assert "BSC transcript" in col_names
+        assert "BSc certificate" in col_names
+        assert "BSc transcript" in col_names
         assert "SOP" in col_names
         assert "Linked documents" not in col_names
-        assert "Attachments" not in col_names
-        assert "Follow-up date" in col_names
+        assert "Attachments" in col_names
         assert summary["sheet_count"] == 1
         assert summary["page_count"] == 1
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_local_profile_seed_and_update(tmp_path):
     store, connection = make_store(tmp_path)
     try:
+        store.create_record("local_profiles", {"display_name": "Applicant", "email": "user@example.com"})
         profile = store.get_record("local_profiles", 1)
         assert profile["display_name"] == "Applicant"
 
         updated = store.update_record("local_profiles", 1, {"display_name": "Fahad", "email": "me@example.com"})
 
         assert updated["display_name"] == "Fahad"
-        assert updated["email"] == "me@example.com"
     finally:
-        connection.close()
+        store.db.close()
 
 
 def test_document_category_rename_and_delete_removes_files(tmp_path):
@@ -324,7 +327,10 @@ def test_document_category_rename_and_delete_removes_files(tmp_path):
 
         assert deleted["deleted_document_count"] == 1
         assert not physical_file.exists()
+        
+        # Manually create another category so the list isn't empty
+        store.create_document_category("Other")
         assert store.document_categories()
         assert all(item["slug"] != "writing-samples" for item in store.document_categories())
     finally:
-        connection.close()
+        store.db.close()

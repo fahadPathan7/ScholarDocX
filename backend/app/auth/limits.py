@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import HTTPException
-from app.db.connection import connect
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 class UsageLimitExceeded(HTTPException):
     def __init__(self, detail: str):
@@ -40,7 +41,7 @@ def invalidate_limits_cache():
     global _role_limits_cache
     _role_limits_cache.clear()
 
-def get_user_limit(user: dict, feature: str, connection) -> int:
+def get_user_limit(user: dict, feature: str, session: Session) -> int:
     """Returns the limit_count for a given user and feature, or -1 if unlimited/not found."""
     primary_role = get_primary_user_role(user)
     if not primary_role:
@@ -50,10 +51,10 @@ def get_user_limit(user: dict, feature: str, connection) -> int:
     limit_record = _role_limits_cache.get(cache_key)
     
     if not limit_record:
-        limit_record = connection.execute(
-            "SELECT * FROM role_limits WHERE role = ? AND feature = ?",
-            (primary_role, feature)
-        ).fetchone()
+        limit_record = session.execute(
+            text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
+            {"role": primary_role, "feature": feature}
+        ).mappings().fetchone()
         
         if limit_record:
             limit_record = dict(limit_record)
@@ -61,9 +62,9 @@ def get_user_limit(user: dict, feature: str, connection) -> int:
             
     return limit_record["limit_count"] if limit_record else -1
 
-def check_and_increment_limit(user: dict, feature: str, increment: int = 1, connection=None):
-    if connection is None:
-        raise ValueError("Database connection required for limit checks")
+def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Session = None):
+    if session is None:
+        raise ValueError("Database session required for limit checks")
         
     roles = user.get("roles", [])
     
@@ -76,10 +77,10 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
         limit_record = _role_limits_cache.get(cache_key)
         
         if not limit_record:
-            limit_record = connection.execute(
-                "SELECT * FROM role_limits WHERE role = ? AND feature = ?",
-                (admin_role, feature)
-            ).fetchone()
+            limit_record = session.execute(
+                text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
+                {"role": admin_role, "feature": feature}
+            ).mappings().fetchone()
             if limit_record:
                 limit_record = dict(limit_record)
                 _role_limits_cache[cache_key] = limit_record
@@ -94,9 +95,6 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
         raise UsageLimitExceeded("You must have a user-level role to use this feature.")
 
     # ── Plan date guard ─────────────────────────────────────────────────────
-    # If the user's plan has explicit dates, enforce them.
-    # plan_started_at: the plan must have started (not a future plan).
-    # plan_ends_at:    the plan must not be expired.
     now = datetime.utcnow()
     plan_started_at = user.get("plan_started_at")
     plan_ends_at = user.get("plan_ends_at")
@@ -109,7 +107,7 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
                     "Your plan has expired. Please contact an administrator to renew your access."
                 )
         except (ValueError, AttributeError):
-            pass  # Malformed date — fail open to avoid locking out on bad data
+            pass
 
     if plan_started_at:
         try:
@@ -120,7 +118,7 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
                     + start_dt.strftime("%d %b %Y") + "."
                 )
         except (ValueError, AttributeError):
-            pass  # Malformed date — fail open
+            pass
     # ────────────────────────────────────────────────────────────────────────
 
     
@@ -129,10 +127,10 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
     limit_record = _role_limits_cache.get(cache_key)
     
     if not limit_record:
-        limit_record = connection.execute(
-            "SELECT * FROM role_limits WHERE role = ? AND feature = ?",
-            (primary_role, feature)
-        ).fetchone()
+        limit_record = session.execute(
+            text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
+            {"role": primary_role, "feature": feature}
+        ).mappings().fetchone()
         
         if limit_record:
             limit_record = dict(limit_record)
@@ -142,18 +140,18 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
         return True # Default to allow if no limit defined
         
     # Get user usage
-    usage_record = connection.execute(
-        "SELECT * FROM user_usage_stats WHERE user_id = ? AND feature = ?",
-        (user["id"], feature)
-    ).fetchone()
+    usage_record = session.execute(
+        text("SELECT * FROM user_usage_stats WHERE user_id = :uid AND feature = :feature"),
+        {"uid": user["id"], "feature": feature}
+    ).mappings().fetchone()
     
     if not usage_record:
         # Initialize usage stat
-        connection.execute(
-            """
+        session.execute(
+            text("""
             INSERT INTO user_usage_stats (user_id, feature, current_count, last_reset_at)
-            VALUES (?, ?, 0, CURRENT_TIMESTAMP)
-            """, (user["id"], feature)
+            VALUES (:uid, :feature, 0, CURRENT_TIMESTAMP)
+            """), {"uid": user["id"], "feature": feature}
         )
         current_count = 0
         last_reset_at = datetime.utcnow().isoformat()
@@ -164,9 +162,9 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
     # Check for reset
     if should_reset(last_reset_at, limit_record["reset_period"]):
         current_count = 0
-        connection.execute(
-            "UPDATE user_usage_stats SET current_count = 0, last_reset_at = CURRENT_TIMESTAMP WHERE user_id = ? AND feature = ?",
-            (user["id"], feature)
+        session.execute(
+            text("UPDATE user_usage_stats SET current_count = 0, last_reset_at = CURRENT_TIMESTAMP WHERE user_id = :uid AND feature = :feature"),
+            {"uid": user["id"], "feature": feature}
         )
         
     # Check limit
@@ -179,10 +177,10 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, conn
         
     # Increment usage
     if increment != 0:
-        connection.execute(
-            "UPDATE user_usage_stats SET current_count = MAX(0, current_count + ?) WHERE user_id = ? AND feature = ?",
-            (increment, user["id"], feature)
+        session.execute(
+            text("UPDATE user_usage_stats SET current_count = MAX(0, current_count + :inc) WHERE user_id = :uid AND feature = :feature"),
+            {"inc": increment, "uid": user["id"], "feature": feature}
         )
-        connection.commit()
+        session.commit()
         
     return True

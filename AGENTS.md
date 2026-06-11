@@ -35,7 +35,7 @@ Use only the skills relevant to the current task. Skills supplement the source-o
 Use this order when resolving conflicts:
 
 1. The user's latest explicit instruction.
-2. Root rules: this file, [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDock/CLAUDE.md), and [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/CODE_RULES.md).
+2. Root rules: this file, [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDock/CLAUDE.md), and [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/CODE_RULES.md).
 3. Current Jira task file.
 4. AI-Context files.
 5. Existing codebase patterns.

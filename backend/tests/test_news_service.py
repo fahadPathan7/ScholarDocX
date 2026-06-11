@@ -314,11 +314,13 @@ async def test_news_route_keeps_separate_news_usage_limits(monkeypatch):
         search_calls.append(kwargs)
         return {"status": "success", "totalResults": 0, "results": []}
 
-    def fake_limit(user, feature, increment, connection):
-        limit_calls.append((feature, increment, connection))
+    def fake_limit(user, feature, increment, session):
+        limit_calls.append((feature, increment, session))
 
     class FakeStore:
-        connection = object()
+        db = object()
+        def connection(self):
+            return object()
 
     monkeypatch.setattr(news_api.news_service, "api_key", "test-tavily-key")
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fake_search)
@@ -357,11 +359,13 @@ async def test_news_route_does_not_consume_usage_after_provider_failure(monkeypa
     async def fail_search(**kwargs):
         raise news_api.HTTPException(status_code=502, detail="Provider failed.")
 
-    def fake_limit(user, feature, increment, connection):
+    def fake_limit(user, feature, increment, session):
         limit_calls.append((feature, increment))
 
     class FakeStore:
-        connection = object()
+        db = object()
+        def connection(self):
+            return object()
 
     monkeypatch.setattr(news_api.news_service, "api_key", "test-tavily-key")
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fail_search)

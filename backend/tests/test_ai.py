@@ -191,6 +191,8 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
     settings = Settings()
     settings.glm_api_key = ""
     settings.gemini_api_key = "test-gemini-key"
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
     service = AiService(settings)
     calls = []
 
@@ -217,6 +219,8 @@ async def test_auto_chat_falls_back_to_gemini_after_glm_rate_limit(monkeypatch):
     settings = Settings()
     settings.glm_api_key = "test-glm-key"
     settings.gemini_api_key = "test-gemini-key"
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
     service = AiService(settings)
 
     async def fake_glm(model_name, system_prompt, message, max_tokens=None):
@@ -245,6 +249,8 @@ async def test_explicit_gemini_model_without_key_returns_local_fallback():
     settings = Settings()
     settings.glm_api_key = "test-glm-key"
     settings.gemini_api_key = ""
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
     service = AiService(settings)
 
     response = await service.chat("Review this SOP", model="gemini:gemini-2.5-flash-lite")

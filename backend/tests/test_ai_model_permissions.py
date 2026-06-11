@@ -36,7 +36,7 @@ def test_verify_model_permission_skips_empty_model() -> None:
 def test_ai_action_execute_checks_agent_permission_without_consuming_usage() -> None:
     current_user = {"id": 1, "roles": ["pro_user"]}
     store = Mock()
-    store.connection = Mock()
+    store.db = Mock()
     settings = Mock()
     payload = AiActionExecutePayload(plan={"actions": []})
 
@@ -47,4 +47,4 @@ def test_ai_action_execute_checks_agent_permission_without_consuming_usage() -> 
             response = ai_action_execute(payload, store=store, settings=settings, current_user=current_user)
 
     assert response == {"ok": True}
-    mock_check.assert_called_once_with(current_user, "can_use_agents", 0, store.connection)
+    mock_check.assert_called_once_with(current_user, "can_use_agents", 0, store.db)

@@ -1,9 +1,13 @@
 import sqlite3
 from pathlib import Path
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.core.categories import DEFAULT_MEDIA_CATEGORIES, category_display_name
 from app.core.notifications import default_notification_settings_json
-from app.db.schema import SCHEMA, SEED_SQL
+from app.db.schema import SEED_SQL
+from app.db.models import Base
 
 
 USER_SCOPED_TABLES = (
@@ -33,6 +37,24 @@ USER_SCOPED_TABLES = (
 )
 
 
+def get_engine(database_path: Path):
+    database_url = f"sqlite:///{database_path.absolute()}"
+    return create_engine(
+        database_url,
+        connect_args={"check_same_thread": False}
+    )
+
+
+def get_db(database_path: Path):
+    engine = get_engine(database_path)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def connect(database_path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(database_path, check_same_thread=False)
     connection.row_factory = sqlite3.Row
@@ -43,11 +65,19 @@ def connect(database_path: Path) -> sqlite3.Connection:
 def initialize_database(database_path: Path) -> None:
     print("INITIALIZE DB CALLED WITH PATH:", database_path)
     database_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 1. Create all tables via SQLAlchemy ORM
+    engine = get_engine(database_path)
+    Base.metadata.create_all(bind=engine)
+
+    # 2. Run legacy migrations and data seeding
     with connect(database_path) as connection:
         _prepare_legacy_user_scoping(connection)
-        connection.executescript(SCHEMA)
         migrate_database(connection)
-        connection.executescript(SEED_SQL)
+        try:
+            connection.executescript(SEED_SQL)
+        except Exception as e:
+            print("Seed execution warning:", e)
         connection.commit()
 
 

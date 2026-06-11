@@ -132,7 +132,7 @@ npm run build
 
 Before implementing a new feature or modifying an existing feature:
 
-1. Read [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), and [CODE_RULES.md](CODE_RULES.md).
+1. Read [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), and [CODE_RULES.md](AI-Context/CODE_RULES.md).
 2. Read [AI-Context/README.md](AI-Context/README.md).
 3. Read the relevant business, functional, and technical context files.
 4. Create or update a Jira task in [AI-Context/jira-tasks](AI-Context/jira-tasks).

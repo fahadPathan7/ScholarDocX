@@ -35,9 +35,20 @@ def generate_random_password(length: int = 16) -> str:
 def validate_password_strength(password: str) -> bool:
     """
     Check password complexity:
-    - Minimum 3 characters
-    - Maximum 10 characters
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character
     """
-    if len(password) < 3 or len(password) > 10:
+    if len(password) < 8:
+        return False
+    if not any(c.isupper() for c in password):
+        return False
+    if not any(c.islower() for c in password):
+        return False
+    if not any(c.isdigit() for c in password):
+        return False
+    if not any(c in "!@#$%^&*" for c in password):
         return False
     return True

@@ -66,7 +66,7 @@ class AdvisorAtlasService:
                     "No professor candidates were discovered. Add an official department URL or use Focused Dossier with a professor name."
                 )
 
-            max_candidates = 8 if run["search_depth"] == "quick" else 20
+            max_candidates = 20
             candidates = candidates[:max_candidates]
             self.repository.update_run(
                 run_id,
@@ -223,9 +223,8 @@ class AdvisorAtlasService:
             except (httpx.HTTPError, PermissionError, ValueError) as exc:
                 logger.info("Candidate profile fetch skipped for %s: %s", candidate["display_name"], exc)
 
-        if run["search_depth"] != "quick":
-            detail_query = self._candidate_query(candidate, run)
-            candidate_sources.extend(await self._tavily_search(detail_query, max_results=10))
+        detail_query = self._candidate_query(candidate, run)
+        candidate_sources.extend(await self._tavily_search(detail_query, max_results=10))
 
         candidate_sources = self._dedupe_sources(candidate_sources)
         candidate_sources.extend(
@@ -384,17 +383,16 @@ class AdvisorAtlasService:
                 f'"{run["professor_name"]}" {run.get("university_name", "")} '
                 f'{run.get("department", "")} official profile lab publications students funding recruiting'
             )
+        interests = " ".join(run.get("research_profile", {}).get("interests", []))
         return (
             f'{run.get("university_name", "")} {run.get("department", "")} '
-            "official faculty directory professors research labs graduate faculty"
+            f'professors faculty research {interests}'
         )
 
     def _candidate_query(self, candidate: dict[str, Any], run: dict[str, Any]) -> str:
-        interests = " ".join(run.get("research_profile", {}).get("keywords", [])[:8])
         return (
             f'"{candidate["display_name"]}" {candidate.get("institution", "")} '
-            f'{candidate.get("department", "")} lab students latest publications Google Scholar '
-            f'funding grant recruiting PhD masters accepting students {interests}'
+            f'LinkedIn "Google Scholar" lab students publications grants funding recruiting PhD accepting students'
         )
 
     def _candidates_from_search(
@@ -472,24 +470,25 @@ class AdvisorAtlasService:
             reverse=True,
         )
         return {
-            "top_candidates": [
+            "matching_open": [
+                {
+                    "candidate_id": item["id"],
+                    "name": item["display_name"],
+                    "state": item["recruitment_state"],
+                    "summary": item.get("recruitment_summary") or item.get("research_summary", "")[:180],
+                }
+                for item in ranked
+                if item.get("match_score", 0) >= 60 and item["recruitment_state"] in {"confirmed_open", "strong_signal"}
+            ],
+            "matching_only": [
                 {
                     "candidate_id": item["id"],
                     "name": item["display_name"],
                     "match_score": item["match_score"],
                     "reason": item.get("research_summary", "")[:180],
                 }
-                for item in ranked[:5]
-            ],
-            "time_sensitive": [
-                {
-                    "candidate_id": item["id"],
-                    "name": item["display_name"],
-                    "state": item["recruitment_state"],
-                    "summary": item.get("recruitment_summary"),
-                }
                 for item in ranked
-                if item["recruitment_state"] in {"confirmed_open", "strong_signal"}
+                if item.get("match_score", 0) >= 60 and item["recruitment_state"] not in {"confirmed_open", "strong_signal"}
             ],
             "reading_plan": [
                 f"Open the Advisor Dossier for {item['display_name']} and read the highest-priority paper."

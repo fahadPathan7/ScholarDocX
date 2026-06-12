@@ -63,8 +63,8 @@ def deterministic_analysis(
         for value in profile.values()
         if value and not isinstance(value, (dict, list))
     )
-    if isinstance(profile.get("keywords"), list):
-        profile_text += " " + " ".join(profile["keywords"])
+    if isinstance(profile.get("interests"), list):
+        profile_text += " " + " ".join(profile["interests"])
     source_tokens = tokenize(combined)
     profile_tokens = tokenize(profile_text)
     overlap = sorted(source_tokens & profile_tokens)
@@ -239,6 +239,10 @@ async def analyze_with_glm(
             "email": "string|null",
             "lab_name": "string|null",
             "lab_url": "string|null",
+            "linkedin_url": "string|null",
+            "google_scholar_url": "string|null",
+            "recent_funds": "string|null",
+            "lab_students_summary": "string|null",
             "research_summary": "string",
             "match_score": "integer 0-100",
             "evidence_confidence": "integer 0-100",
@@ -274,10 +278,12 @@ async def analyze_with_glm(
     system = (
         "You are the structured analysis engine for ScholarDock Advisor Atlas. "
         "Use only supplied sources. Never invent names, URLs, papers, grants, dates, "
-        "students, openings, or lab facts. Funding alone can only support "
-        "possible_opportunity, never confirmed_open. Return one JSON object only, "
-        "matching the requested schema. Every uncertain area must be marked unknown "
-        "or incomplete. Keep summaries concise."
+        "students, openings, or lab facts. "
+        "Aggressively look for LinkedIn profiles, Google Scholar profiles, specific recent funds/grants, "
+        "and brief descriptions of the lab's current students. "
+        "Funding alone can only support possible_opportunity, never confirmed_open. "
+        "Return one JSON object only, matching the requested schema. "
+        "Every uncertain area must be marked unknown or incomplete. Keep summaries concise."
     )
     prompt = (
         f"Candidate:\n{json.dumps(candidate)}\n\n"

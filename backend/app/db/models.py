@@ -753,6 +753,8 @@ class AdvisorAtlasCandidates(Base):
     email: Mapped[Optional[str]] = mapped_column(Text)
     official_profile_url: Mapped[Optional[str]] = mapped_column(Text)
     personal_url: Mapped[Optional[str]] = mapped_column(Text)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(Text)
+    google_scholar_url: Mapped[Optional[str]] = mapped_column(Text)
     lab_name: Mapped[Optional[str]] = mapped_column(Text)
     lab_url: Mapped[Optional[str]] = mapped_column(Text)
     research_summary: Mapped[Optional[str]] = mapped_column(Text)

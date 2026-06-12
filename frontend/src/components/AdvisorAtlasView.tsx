@@ -6,6 +6,7 @@ import {
   History,
   Map,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useDialog } from "./DialogProvider";
 import {
@@ -31,6 +32,7 @@ export function AdvisorAtlasView({ onToast }: Props) {
   const [activeRun, setActiveRun] = useState<AdvisorRun | null>(null);
   const [showNewSearch, setShowNewSearch] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [candidateId, setCandidateId] = useState<number | null>(null);
   const [refreshingCandidateId, setRefreshingCandidateId] = useState<number | null>(null);
@@ -129,6 +131,27 @@ export function AdvisorAtlasView({ onToast }: Props) {
     onToast("Advisor Atlas resumed.");
   };
 
+  const deleteRun = async (runId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = await showConfirm(
+      "Are you sure you want to delete this search? All discovered candidates will be removed. This cannot be undone.",
+      "Delete search history?",
+      "danger",
+    );
+    if (!confirmed) return;
+    try {
+      await advisorAtlasApi.deleteRun(runId);
+      if (activeRun?.id === runId) {
+        setActiveRun(null);
+        setShowNewSearch(true);
+      }
+      await loadRuns();
+      onToast("Search deleted.");
+    } catch (error) {
+      onToast((error as Error).message || "Could not delete search.");
+    }
+  };
+
   const shortlist = async (candidate: AdvisorCandidate) => {
     const status = candidate.shortlist_status === "shortlisted" ? "unreviewed" : "shortlisted";
     await advisorAtlasApi.updateCandidate(candidate.id, { shortlist_status: status });
@@ -160,9 +183,11 @@ export function AdvisorAtlasView({ onToast }: Props) {
     <div className="advisor-atlas-view">
       <header className="atlas-hero">
         <div className="atlas-hero-mark"><Map size={28} /></div>
-        <div>
-          <span className="atlas-eyebrow">AI-powered supervisor intelligence</span>
-          <h1>Advisor Atlas</h1>
+        <div className="atlas-hero-titles">
+          <h1>
+            Advisor Atlas
+            <span className="atlas-badge">AI-powered</span>
+          </h1>
           <p>Find and compare potential supervisors.</p>
         </div>
         <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
@@ -170,29 +195,63 @@ export function AdvisorAtlasView({ onToast }: Props) {
         </button>
       </header>
 
-      <div className="atlas-shell">
+      <div className={`atlas-shell ${isSidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <aside className="atlas-history-panel">
-          <div className="atlas-history-title"><History size={17} /><span>Research history</span></div>
+          <div className="atlas-history-title">
+            {isSidebarOpen && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <History size={17} />
+                <span>Research history</span>
+              </div>
+            )}
+            <button 
+              type="button" 
+              className="atlas-sidebar-toggle"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              <ChevronRight size={17} className={isSidebarOpen ? "rotated-180" : ""} />
+            </button>
+          </div>
           {loadingRuns ? (
             <div className="atlas-history-empty"><span className="atlas-spinner" /> Loading runs</div>
           ) : runs.length === 0 ? (
             <div className="atlas-history-empty"><Archive size={24} /><span>Your searches appear here.</span></div>
           ) : (
             <div className="atlas-run-list">
-              {runs.map((run) => (
+              {runs.map((run) => {
+                const title = run.professor_name || run.university_name || "Advisor search";
+                const initial = title.charAt(0).toUpperCase();
+                return (
                 <button
                   key={run.id}
                   className={activeRun?.id === run.id && !showNewSearch ? "active" : ""}
                   onClick={() => selectRun(run.id)}
                 >
-                  <span className={`atlas-run-status ${run.status}`} />
-                  <div>
-                    <strong>{run.professor_name || run.university_name || "Advisor search"}</strong>
-                    <small>{run.department || run.search_depth} · {run.candidate_count || 0} profiles</small>
+                  <div className="atlas-run-avatar">
+                    {initial}
+                    <span className={`atlas-run-status ${run.status}`} />
                   </div>
-                  <ChevronRight size={15} />
+                  <div className="atlas-run-info">
+                    <strong>{title}</strong>
+                    <small>{run.department || run.mode} · {run.candidate_count || 0} profiles</small>
+                  </div>
+                  <div className="atlas-run-actions">
+                    <div
+                      className="atlas-run-delete"
+                      onClick={(e) => deleteRun(run.id, e)}
+                      aria-label="Delete run"
+                      title="Delete this search"
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <Trash2 size={15} />
+                    </div>
+                    <ChevronRight size={15} />
+                  </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
           <div className="atlas-history-note">

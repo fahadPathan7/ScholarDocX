@@ -50,7 +50,7 @@ def test_funding_signal_never_becomes_confirmed_open():
                 "content": "The lab received a major funded grant for a new research project.",
             }
         ],
-        {"keywords": ["research project"], "degree_target": "PhD"},
+        {"interests": ["research project"], "degree_target": "PhD"},
     )
     assert result["candidate"]["recruitment_state"] == "possible_opportunity"
     assert "no explicit student opening" in result["candidate"]["recruitment_summary"]
@@ -71,7 +71,7 @@ def test_explicit_recruitment_becomes_confirmed_open():
                 "content": "We are accepting PhD students for Fall 2027. Students are encouraged to apply.",
             }
         ],
-        {"keywords": ["computer science"], "degree_target": "PhD"},
+        {"interests": ["computer science"], "degree_target": "PhD"},
     )
     assert result["candidate"]["recruitment_state"] == "confirmed_open"
 
@@ -87,7 +87,7 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
             "professor_name": "Ada Scholar",
             "university_name": "Example University",
             "department": "Computer Science",
-            "research_profile": {"keywords": ["accessible AI"]},
+            "research_profile": {"interests": ["accessible AI"]},
         },
     )
     candidate_id = repository.replace_candidate_data(
@@ -175,7 +175,7 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
             "university_name": "Example University",
             "department": "Computer Science",
             "degree_target": "PhD",
-            "research_profile": {"keywords": ["accessible", "AI"]},
+            "research_profile": {"interests": ["accessible", "accepting", "fall", "2027"]},
         },
     )
 
@@ -210,7 +210,7 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
     assert completed["status"] == "completed"
     assert completed["candidates"][0]["display_name"] == "Ada Scholar"
     assert completed["candidates"][0]["recruitment_state"] == "confirmed_open"
-    assert completed["action_center"]["top_candidates"][0]["name"] == "Ada Scholar"
+    assert completed["action_center"]["matching_open"][0]["name"] == "Ada Scholar"
 
 
 @pytest.mark.asyncio

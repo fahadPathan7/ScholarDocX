@@ -1,26 +1,13 @@
 import { api } from "./api";
 
 export type SearchMode = "department" | "professor";
-export type SearchDepth = "quick" | "deep" | "focused";
 
 export type ResearchProfile = {
-  field?: string;
-  subfields?: string[];
-  research_question?: string;
-  keywords?: string[];
-  methods_known?: string[];
-  methods_to_learn?: string[];
-  tools_and_datasets?: string[];
-  prior_experience?: string;
-  work_style?: string;
-  constraints?: string;
-  exclusions?: string[];
-  career_direction?: string;
+  interests: string[];
 };
 
 export type CreateAdvisorRun = {
   mode: SearchMode;
-  search_depth: SearchDepth;
   university_name?: string;
   university_url?: string;
   department?: string;
@@ -40,6 +27,8 @@ export type AdvisorCandidate = {
   department?: string;
   email?: string;
   official_profile_url?: string;
+  linkedin_url?: string;
+  google_scholar_url?: string;
   lab_name?: string;
   lab_url?: string;
   research_summary?: string;
@@ -58,7 +47,6 @@ export type AdvisorCandidate = {
 export type AdvisorRun = {
   id: number;
   mode: SearchMode;
-  search_depth: SearchDepth;
   university_name?: string;
   university_url?: string;
   department?: string;
@@ -129,6 +117,8 @@ export const advisorAtlasApi = {
   listRuns: () => api.get<AdvisorRun[]>("/advisor-atlas/runs"),
   getRun: (runId: number) =>
     api.get<AdvisorRun>(`/advisor-atlas/runs/${runId}`),
+  deleteRun: (runId: number) =>
+    api.delete(`/advisor-atlas/runs/${runId}`),
   cancelRun: (runId: number) =>
     api.post<AdvisorRun>(`/advisor-atlas/runs/${runId}/cancel`, {}),
   resumeRun: (runId: number) =>

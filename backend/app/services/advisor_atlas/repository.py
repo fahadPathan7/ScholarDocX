@@ -75,7 +75,7 @@ class AdvisorAtlasRepository:
                 ),
             )
             db.commit()
-            return self.get_run(int(cursor.lastrowid), user_id)
+            return self.get_run((cursor.lastrowid or 0), user_id)
 
     def list_runs(self, user_id: int) -> list[dict[str, Any]]:
         with connect(self.database_path) as db:
@@ -215,6 +215,8 @@ class AdvisorAtlasRepository:
                 candidate.get("email"),
                 candidate.get("official_profile_url"),
                 candidate.get("personal_url"),
+                candidate.get("linkedin_url"),
+                candidate.get("google_scholar_url"),
                 candidate.get("lab_name"),
                 candidate.get("lab_url"),
                 candidate.get("research_summary"),
@@ -232,7 +234,8 @@ class AdvisorAtlasRepository:
                     """
                     UPDATE advisor_atlas_candidates SET
                       display_name=?, title=?, institution=?, department=?, email=?,
-                      official_profile_url=?, personal_url=?, lab_name=?, lab_url=?,
+                      official_profile_url=?, personal_url=?, linkedin_url=?, google_scholar_url=?, 
+                      lab_name=?, lab_url=?,
                       research_summary=?, match_score=?, evidence_confidence=?,
                       recruitment_state=?, recruitment_summary=?, decision_lane=?,
                       coverage_json=?, risk_flags_json=?, updated_at=CURRENT_TIMESTAMP
@@ -268,14 +271,14 @@ class AdvisorAtlasRepository:
                     INSERT INTO advisor_atlas_candidates (
                       run_id, user_id, normalized_name, display_name, title,
                       institution, department, email, official_profile_url,
-                      personal_url, lab_name, lab_url, research_summary,
+                      personal_url, linkedin_url, google_scholar_url, lab_name, lab_url, research_summary,
                       match_score, evidence_confidence, recruitment_state,
                       recruitment_summary, decision_lane, coverage_json, risk_flags_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (run_id, user_id, normalized_name, *values),
                 )
-                candidate_id = int(cursor.lastrowid)
+                candidate_id = (cursor.lastrowid or 0)
 
             for item in evidence:
                 db.execute(
@@ -394,6 +397,15 @@ class AdvisorAtlasRepository:
             ]
             return candidate
 
+    def delete_run(self, run_id: int, user_id: int) -> bool:
+        with connect(self.database_path) as db:
+            db.execute("PRAGMA foreign_keys = ON;")
+            cursor = db.execute(
+                "DELETE FROM advisor_atlas_runs WHERE id = ? AND user_id = ?",
+                (run_id, user_id),
+            )
+            return cursor.rowcount > 0
+
     def update_candidate(self, candidate_id: int, user_id: int, values: dict[str, Any]) -> dict[str, Any]:
         allowed = {"shortlist_status", "decision_lane", "user_notes"}
         clean = {key: value for key, value in values.items() if key in allowed}
@@ -467,7 +479,7 @@ class AdvisorAtlasRepository:
                         candidate.get("user_notes"),
                     ),
                 )
-                professor_id = int(cursor.lastrowid)
+                professor_id = (cursor.lastrowid or 0)
             db.execute(
                 "UPDATE advisor_atlas_candidates SET saved_professor_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (professor_id, candidate_id),

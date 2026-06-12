@@ -149,6 +149,8 @@ export function AdvisorDossierDrawer({
                 {candidate.saved_professor_id ? "Saved to professors" : "Save to professors"}
               </button>
               {candidate.official_profile_url && <a href={candidate.official_profile_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Official profile</a>}
+              {candidate.linkedin_url && <a href={candidate.linkedin_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> LinkedIn</a>}
+              {candidate.google_scholar_url && <a href={candidate.google_scholar_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Google Scholar</a>}
             </div>
 
             <section className="atlas-decision-snapshot">

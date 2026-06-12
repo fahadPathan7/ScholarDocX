@@ -81,7 +81,7 @@ export function AdvisorRunWorkspace({
     <div className="atlas-run-workspace">
       <section className="atlas-run-header">
         <div>
-          <span className="atlas-eyebrow">{run.search_depth.replace(/_/g, " ")} search · {run.status}</span>
+          <span className="atlas-eyebrow">{run.mode === "professor" ? "Individual Professor search" : "Broad Discovery search"} · {run.status}</span>
           <h2>{run.professor_name || `${run.university_name} · ${run.department}`}</h2>
           <p>{progress.message || "Review the evidence-backed advisor landscape."}</p>
         </div>
@@ -168,9 +168,9 @@ export function AdvisorRunWorkspace({
         <section className="atlas-action-center">
           <div className="atlas-action-heading"><ClipboardList size={22} /><div><span className="atlas-eyebrow">Student action center</span><h2>Turn the research into momentum.</h2></div></div>
           <div className="atlas-action-grid">
-            <ActionList title="Top candidates" icon={<SearchCheck size={18} />} values={(run.action_center.top_candidates || []).map((item: any) => `${item.name} · ${item.match_score}% fit`)} />
+            <ActionList title="Matches & Open Positions" icon={<SearchCheck size={18} />} values={(run.action_center.matching_open || []).map((item: any) => `${item.name} · ${item.state.replace(/_/g, " ")}`)} />
+            <ActionList title="Matches Interests" icon={<SearchCheck size={18} />} values={(run.action_center.matching_only || []).map((item: any) => `${item.name} · ${item.match_score}% fit`)} />
             <ActionList title="Read next" icon={<BookOpen size={18} />} values={run.action_center.reading_plan || []} />
-            <ActionList title="Verify" icon={<SearchCheck size={18} />} values={run.action_center.verification_plan || []} />
             <ActionList title="Prepare" icon={<ClipboardList size={18} />} values={run.action_center.preparation_plan || []} />
           </div>
         </section>

@@ -15,23 +15,11 @@ router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
 
 
 class ResearchProfile(BaseModel):
-    field: Optional[str] = Field(default=None, max_length=200)
-    subfields: list[str] = Field(default_factory=list, max_length=20)
-    research_question: Optional[str] = Field(default=None, max_length=1500)
-    keywords: list[str] = Field(default_factory=list, max_length=30)
-    methods_known: list[str] = Field(default_factory=list, max_length=30)
-    methods_to_learn: list[str] = Field(default_factory=list, max_length=30)
-    tools_and_datasets: list[str] = Field(default_factory=list, max_length=30)
-    prior_experience: Optional[str] = Field(default=None, max_length=2500)
-    work_style: Optional[str] = Field(default=None, max_length=200)
-    constraints: Optional[str] = Field(default=None, max_length=1200)
-    exclusions: list[str] = Field(default_factory=list, max_length=20)
-    career_direction: Optional[str] = Field(default=None, max_length=800)
+    interests: list[str] = Field(default_factory=list, max_length=5)
 
 
 class CreateRunRequest(BaseModel):
     mode: Literal["department", "professor"]
-    search_depth: Literal["quick", "deep", "focused"] = "deep"
     university_name: Optional[str] = Field(default=None, max_length=300)
     university_url: Optional[str] = Field(default=None, max_length=1000)
     department: Optional[str] = Field(default=None, max_length=300)
@@ -46,8 +34,11 @@ class CreateRunRequest(BaseModel):
         if self.mode == "department":
             if not self.university_name or not self.department:
                 raise ValueError("University name and department are required.")
-        if self.mode == "professor" and not self.professor_name:
-            raise ValueError("Professor name is required for Focused Dossier.")
+            if not self.research_profile.interests:
+                raise ValueError("At least one research interest is required for a department search.")
+        if self.mode == "professor":
+            if not self.professor_name or not self.university_name:
+                raise ValueError("Professor name and university name are required for a professor search.")
         return self
 
 
@@ -99,6 +90,17 @@ def get_run(
         return service.repository.get_run(run_id, int(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.delete("/runs/{run_id}", status_code=204)
+def delete_run(
+    run_id: int,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    success = service.repository.delete_run(run_id, int(user["id"]))
+    if not success:
+        raise HTTPException(status_code=404, detail="Run not found.")
 
 
 @router.post("/runs/{run_id}/cancel")

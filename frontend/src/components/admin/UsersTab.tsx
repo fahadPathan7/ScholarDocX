@@ -5,10 +5,13 @@ import {
   BellRing,
   Calendar,
   CheckCircle,
+  ChevronDown,
   Clock,
   KeyRound,
   Megaphone,
+  MoreVertical,
   Pencil,
+  Search,
   Send,
   ShieldAlert,
   Users,
@@ -25,6 +28,7 @@ import DateRangeCalendar from "../DateRangeCalendar";
 type UserRecord = {
   id: number;
   email: string;
+  display_name: string;
   roles: string[];
   is_active: boolean;
   last_login_at?: string | null;
@@ -82,6 +86,9 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [planStatusFilter, setPlanStatusFilter] = useState<PlanStatusFilter>("all");
   const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
 
   const [creatingUser, setCreatingUser] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
@@ -108,6 +115,14 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenActionMenuId(null);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
   const availableRoles = adminPermissions["admin_assign_admin_roles"]
     ? ["general_user", "pro_user", "max_user", "general_admin", "super_admin"]
     : ["general_user", "pro_user", "max_user"];
@@ -129,20 +144,31 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
     return filter === "active" ? user.is_active : !user.is_active;
   };
 
+  const matchesSearch = (user: UserRecord, query: string) => {
+    if (!query) return true;
+    const lowerQuery = query.toLowerCase();
+    return (
+      user.email.toLowerCase().includes(lowerQuery) ||
+      (user.display_name && user.display_name.toLowerCase().includes(lowerQuery))
+    );
+  };
+
   const filterUsers = ({
     role = roleFilter,
     plan = planStatusFilter,
     status = statusFilter,
+    query = searchQuery,
   }: {
     role?: RoleFilter;
     plan?: PlanStatusFilter;
     status?: AccountStatusFilter;
+    query?: string;
   }) =>
-    users.filter((user) => matchesRole(user, role) && matchesPlan(user, plan) && matchesStatus(user, status));
+    users.filter((user) => matchesRole(user, role) && matchesPlan(user, plan) && matchesStatus(user, status) && matchesSearch(user, query));
 
   const filteredUsers = useMemo(
     () => filterUsers({}),
-    [users, roleFilter, planStatusFilter, statusFilter]
+    [users, roleFilter, planStatusFilter, statusFilter, searchQuery]
   );
 
   const openBroadcastNotificationModal = () => {
@@ -379,7 +405,17 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
             Manage user access, statuses, active tokens, plans, and targeted admin notices.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="relative mr-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-2 bg-white border border-slate-200/50 rounded-xl text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+            />
+          </div>
           {adminPermissions["admin_send_notifications"] && (
             <button onClick={openBroadcastNotificationModal} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition-colors">
               <Megaphone size={16} />
@@ -393,77 +429,85 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
         </div>
       </div>
 
-      <div className="flex overflow-x-auto items-center gap-3 shrink-0 bg-slate-100/50 p-1.5 rounded-xl border border-slate-200/50">
-        <div className="flex items-center gap-1.5">
+      <div className="flex overflow-x-auto items-start gap-4 shrink-0 bg-slate-100/50 p-2 rounded-xl border border-slate-200/50">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
-          {roleTabs.map((tab) => {
-            const isActive = roleFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setRoleFilter(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                  }`}
-              >
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex items-center gap-1.5">
+            {roleTabs.map((tab) => {
+              const isActive = roleFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setRoleFilter(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                    }`}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan</span>
-          {planTabs.map((tab) => {
-            const isActive = planStatusFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setPlanStatusFilter(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                  }`}
-              >
-                {tab.icon && <tab.icon size={14} />}
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex items-center gap-1.5">
+            {planTabs.map((tab) => {
+              const isActive = planStatusFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setPlanStatusFilter(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                    }`}
+                >
+                  {tab.icon && <tab.icon size={14} />}
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Status</span>
-          {statusTabs.map((tab) => {
-            const isActive = statusFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                  }`}
-              >
-                {tab.icon && <tab.icon size={14} />}
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex items-center gap-1.5">
+            {statusTabs.map((tab) => {
+              const isActive = statusFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                    }`}
+                >
+                  {tab.icon && <tab.icon size={14} />}
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="w-px bg-slate-200 self-stretch hidden sm:block ml-auto" />
 
-        <div className="flex items-center gap-2 pr-2 sm:ml-0 ml-auto">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selection</span>
-          <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
-            {filteredUsers.length}
-          </span>
+        <div className="flex flex-col gap-1.5 pr-2 sm:ml-0 ml-auto justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+          <div className="flex items-center px-2 py-2">
+            <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
+              {filteredUsers.length}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -473,7 +517,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200/50 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 font-semibold">ID</th>
-                <th className="px-6 py-4 font-semibold">Email</th>
+                <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-6 py-4 font-semibold">Roles</th>
                 <th className="px-6 py-4 font-semibold">Plan Duration</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
@@ -487,7 +531,10 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                 return (
                   <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-slate-500">{user.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-800">{user.email}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-800">{user.display_name || "Unknown User"}</div>
+                      <div className="text-xs text-slate-500">{user.email}</div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5">
                         {user.roles.map((role) => (
@@ -565,58 +612,64 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        {adminPermissions["admin_send_notifications"] && (
-                          <button
-                            onClick={() => openUserNotificationModal(user)}
-                            className="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
-                            title="Send notification"
-                          >
-                            <BellRing size={12} />
-                            <span>Notify</span>
-                          </button>
-                        )}
-                        {(!user.roles.some((role) => ["general_admin", "super_admin"].includes(role)) || adminPermissions["admin_assign_admin_roles"]) ? (
-                          <>
-                            {(adminPermissions["admin_assign_user_roles"] || adminPermissions["admin_assign_admin_roles"]) && (
+                      <div className="relative inline-block text-left">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenActionMenuId(openActionMenuId === user.id ? null : user.id); }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 rounded-lg text-xs font-semibold transition-all shadow-sm"
+                        >
+                          Manage
+                          <ChevronDown size={14} className={`transition-transform duration-200 ${openActionMenuId === user.id ? "rotate-180" : ""}`} />
+                        </button>
+                        {openActionMenuId === user.id && (
+                          <div className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-slate-200 z-50 flex flex-col p-1.5 gap-1">
+                            {adminPermissions["admin_send_notifications"] && (
                               <button
-                                onClick={() => { setEditingUser(user); setEditingMode("user"); }}
-                                className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
-                                title="Edit User Plan"
+                                onClick={() => { setOpenActionMenuId(null); openUserNotificationModal(user); }}
+                                className="px-3 py-2 bg-transparent text-sky-700 hover:bg-sky-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-left"
                               >
-                                <Pencil size={12} />
-                                <span>Plan</span>
+                                <BellRing size={14} />
+                                <span>Notify</span>
                               </button>
                             )}
-                            {adminPermissions["admin_assign_admin_roles"] && (
-                              <button
-                                onClick={() => { setEditingUser(user); setEditingMode("admin"); }}
-                                className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
-                                title="Edit Admin Roles"
-                              >
-                                <ShieldAlert size={12} />
-                                <span>Admin</span>
-                              </button>
+                            {(!user.roles.some((role) => ["general_admin", "super_admin"].includes(role)) || adminPermissions["admin_assign_admin_roles"]) ? (
+                              <>
+                                {(adminPermissions["admin_assign_user_roles"] || adminPermissions["admin_assign_admin_roles"]) && (
+                                  <button
+                                    onClick={() => { setOpenActionMenuId(null); setEditingUser(user); setEditingMode("user"); }}
+                                    className="px-3 py-2 bg-transparent text-indigo-700 hover:bg-indigo-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-left"
+                                  >
+                                    <Pencil size={14} />
+                                    <span>Plan</span>
+                                  </button>
+                                )}
+                                {adminPermissions["admin_assign_admin_roles"] && (
+                                  <button
+                                    onClick={() => { setOpenActionMenuId(null); setEditingUser(user); setEditingMode("admin"); }}
+                                    className="px-3 py-2 bg-transparent text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-left"
+                                  >
+                                    <ShieldAlert size={14} />
+                                    <span>Admin</span>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => { setOpenActionMenuId(null); handleToggleStatus(user); }}
+                                  className={`px-3 py-2 bg-transparent rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-left ${user.is_active ? "text-amber-700 hover:bg-amber-50" : "text-emerald-700 hover:bg-emerald-50"}`}
+                                >
+                                  {user.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                                  <span>{user.is_active ? "Suspend" : "Activate"}</span>
+                                </button>
+                                <button
+                                  onClick={() => { setOpenActionMenuId(null); handleRevoke(user); }}
+                                  className="px-3 py-2 bg-transparent text-rose-700 hover:bg-rose-50 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-left"
+                                >
+                                  <KeyRound size={14} />
+                                  <span>Revoke</span>
+                                </button>
+                              </>
+                            ) : (
+                              <div className="px-3 py-2 text-xs text-slate-400 italic">Protected Admin</div>
                             )}
-                            <button
-                              onClick={() => handleToggleStatus(user)}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${user.is_active ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
-                              title={user.is_active ? "Suspend User" : "Activate User"}
-                            >
-                              {user.is_active ? <XCircle size={12} /> : <CheckCircle size={12} />}
-                              <span>{user.is_active ? "Suspend" : "Activate"}</span>
-                            </button>
-                            <button
-                              onClick={() => handleRevoke(user)}
-                              className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
-                              title="Revoke All Sessions"
-                            >
-                              <KeyRound size={12} />
-                              <span>Revoke</span>
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">Protected</span>
+                          </div>
                         )}
                       </div>
                     </td>

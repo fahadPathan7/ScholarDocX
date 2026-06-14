@@ -3,12 +3,14 @@ import {
   Archive,
   ChevronRight,
   Compass,
+  Gauge,
   History,
   Map,
   Plus,
   Trash2,
 } from "lucide-react";
 import { useDialog } from "./DialogProvider";
+import { useUsage } from "../contexts/UsageContext";
 import {
   AdvisorCandidate,
   AdvisorCandidateDetail,
@@ -21,6 +23,9 @@ import { AdvisorRunWorkspace } from "./advisor-atlas/AdvisorRunWorkspace";
 import { AdvisorDossierDrawer } from "./advisor-atlas/AdvisorDossierDrawer";
 import "./advisor-atlas/advisor-atlas.css";
 import "./advisor-atlas/advisor-atlas-detail.css";
+import "./advisor-atlas/advisor-atlas-intelligence.css";
+import "./advisor-atlas/advisor-atlas-discovery.css";
+import "./advisor-atlas/advisor-atlas-profile-sections.css";
 
 type Props = {
   onToast: (message: string) => void;
@@ -28,6 +33,7 @@ type Props = {
 
 export function AdvisorAtlasView({ onToast }: Props) {
   const { showConfirm } = useDialog();
+  const { usageData, refreshUsage } = useUsage();
   const [runs, setRuns] = useState<AdvisorRun[]>([]);
   const [activeRun, setActiveRun] = useState<AdvisorRun | null>(null);
   const [showNewSearch, setShowNewSearch] = useState(true);
@@ -104,6 +110,7 @@ export function AdvisorAtlasView({ onToast }: Props) {
       setActiveRun(run);
       setShowNewSearch(false);
       await loadRuns();
+      await refreshUsage();
       onToast("Advisor Atlas started.");
     } catch (error) {
       onToast((error as Error).message || "Could not start Advisor Atlas.");
@@ -164,6 +171,7 @@ export function AdvisorAtlasView({ onToast }: Props) {
     try {
       await advisorAtlasApi.refreshCandidate(id);
       await reloadActive();
+      await refreshUsage();
       onToast("Professor evidence refreshed.");
     } catch {
       onToast("Could not refresh that professor.");
@@ -178,6 +186,17 @@ export function AdvisorAtlasView({ onToast }: Props) {
       `Save ${candidate.display_name}?`,
       "success",
     );
+  const monthlyQuota = usageData
+    ? {
+        used: usageData.usage.advisor_atlas_searches_per_month ?? 0,
+        limit: usageData.limits.advisor_atlas_searches_per_month ?? -1,
+      }
+    : undefined;
+  const monthlyQuotaReached = Boolean(
+    monthlyQuota
+      && monthlyQuota.limit !== -1
+      && monthlyQuota.used >= monthlyQuota.limit,
+  );
 
   return (
     <div className="advisor-atlas-view">
@@ -186,13 +205,31 @@ export function AdvisorAtlasView({ onToast }: Props) {
         <div className="atlas-hero-titles">
           <h1>
             Advisor Atlas
-            <span className="atlas-badge">AI-powered</span>
+            <span className="atlas-badge">Flagship intelligence</span>
           </h1>
-          <p>Find and compare potential supervisors.</p>
+          <p>Map the university. Find the fit. See the opportunity.</p>
         </div>
-        <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
-          <Plus size={18} /> New search
-        </button>
+        <div className="atlas-hero-actions">
+          {monthlyQuota && (
+            <div
+              className={`atlas-header-quota${monthlyQuotaReached ? " exhausted" : ""}`}
+              title="New searches and evidence refreshes share this monthly limit."
+            >
+              <Gauge size={17} aria-hidden="true" />
+              <span>
+                Monthly limit
+                <strong>
+                  {monthlyQuota.limit === -1
+                    ? "Unlimited"
+                    : `${monthlyQuota.used} of ${monthlyQuota.limit} used`}
+                </strong>
+              </span>
+            </div>
+          )}
+          <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
+            <Plus size={18} /> New search
+          </button>
+        </div>
       </header>
 
       <div className={`atlas-shell ${isSidebarOpen ? '' : 'sidebar-collapsed'}`}>
@@ -262,7 +299,11 @@ export function AdvisorAtlasView({ onToast }: Props) {
 
         <main className="atlas-main">
           {showNewSearch || !activeRun ? (
-            <AdvisorAtlasSearchForm submitting={submitting} onSubmit={createRun} />
+            <AdvisorAtlasSearchForm
+              submitting={submitting}
+              monthlyQuota={monthlyQuota}
+              onSubmit={createRun}
+            />
           ) : (
             <AdvisorRunWorkspace
               run={activeRun}

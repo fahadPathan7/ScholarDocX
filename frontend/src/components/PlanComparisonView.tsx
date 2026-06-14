@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Map } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
@@ -167,6 +167,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     { key: "daily_ai_chats", label: "AI Messages / Day", icon: MessageSquare },
     { key: "web_searches_per_day", label: "Web Searches / Day", icon: Globe },
     { key: "web_searches_per_month", label: "Web Searches / Month", icon: Globe },
+    { key: "advisor_atlas_searches_per_month", label: "Advisor Atlas / Month", icon: Map },
     { key: "total_sheets", label: "Total Sheets", icon: Table },
     { key: "sheets_per_project", label: "Sheets per Project", icon: Layers },
     { key: "records_per_sheet", label: "Records per Sheet", icon: Database },

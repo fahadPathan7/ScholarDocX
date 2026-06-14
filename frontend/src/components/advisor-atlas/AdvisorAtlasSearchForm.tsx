@@ -1,9 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, Building2, Compass, Search, Sparkles, UserRoundSearch } from "lucide-react";
+import { ArrowRight, Compass, Plus, Search, Sparkles, UserRoundSearch, X } from "lucide-react";
 import { CreateAdvisorRun, SearchMode } from "../../lib/advisorAtlasApi";
 
 type Props = {
   submitting: boolean;
+  monthlyQuota?: {
+    used: number;
+    limit: number;
+  };
   onSubmit: (payload: CreateAdvisorRun) => Promise<void>;
 };
 
@@ -16,7 +20,7 @@ function splitList(value: string) {
 
 
 
-export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
+export function AdvisorAtlasSearchForm({ submitting, monthlyQuota, onSubmit }: Props) {
   const [mode, setMode] = useState<SearchMode>("department");
   const [showProfile, setShowProfile] = useState(true);
   const [form, setForm] = useState({
@@ -29,14 +33,29 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
     interests: [""],
   });
   const [error, setError] = useState("");
-  const externalContext = useMemo(
-    () => [
-      form.universityName,
-      form.department,
-      form.professorName,
-      ...form.interests.filter(Boolean),
-    ].filter(Boolean),
-    [form],
+  const completedRequired = useMemo(() => {
+    const hasInterest = form.interests.some((interest) => interest.trim().length >= 2);
+    return mode === "professor"
+      ? [
+          form.universityName,
+          form.universityUrl,
+          form.department,
+          form.professorName,
+          form.intakeTerm,
+          form.degreeTarget,
+          hasInterest ? "interest" : "",
+        ].filter((value) => value.trim()).length
+      : [
+          form.universityName,
+          form.department,
+          hasInterest ? "interest" : "",
+        ].filter((value) => value.trim()).length;
+  }, [form, mode]);
+  const requiredTotal = mode === "professor" ? 7 : 3;
+  const quotaReached = Boolean(
+    monthlyQuota
+    && monthlyQuota.limit !== -1
+    && monthlyQuota.used >= monthlyQuota.limit
   );
 
   const update = (key: keyof typeof form, value: string) => {
@@ -73,13 +92,42 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
       setError("University and department are required for a discovery search.");
       return;
     }
-    if (mode === "professor" && (!form.professorName.trim() || !form.universityName.trim())) {
-      setError("Professor name and university name are required for a professor search.");
-      return;
+    if (mode === "professor") {
+      const missing = [
+        ["university name", form.universityName],
+        ["official university or professor URL", form.universityUrl],
+        ["department or research area", form.department],
+        ["professor name", form.professorName],
+        ["intended intake", form.intakeTerm],
+        ["degree target", form.degreeTarget],
+      ].filter(([, value]) => !value.trim()).map(([label]) => label);
+      if (missing.length) {
+        setError(`Professor search requires ${missing.join(", ")}.`);
+        return;
+      }
+      if (form.professorName.trim().split(/\s+/).length < 2) {
+        setError("Enter the professor's full name, including at least first and last name.");
+        return;
+      }
+      try {
+        const officialUrl = new URL(form.universityUrl.trim());
+        if (!["http:", "https:"].includes(officialUrl.protocol)) throw new Error();
+      } catch {
+        setError("Enter a complete official HTTP or HTTPS university or professor URL.");
+        return;
+      }
+      if (!/^(Spring|Summer|Fall|Autumn|Winter)\s+20\d{2}$/i.test(form.intakeTerm.trim())) {
+        setError("Enter an intake term and year, for example Fall 2027.");
+        return;
+      }
     }
     const validInterests = form.interests.map(i => i.trim()).filter(Boolean);
-    if (mode === "department" && validInterests.length === 0) {
-      setError("At least one research interest is required for a discovery search.");
+    if (validInterests.length === 0) {
+      setError(`At least one research interest is required for ${mode === "department" ? "discovery" : "professor matching"}.`);
+      return;
+    }
+    if (validInterests.some((interest) => interest.length < 2)) {
+      setError("Each research interest must contain at least two characters.");
       return;
     }
 
@@ -102,8 +150,13 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
     <form className="atlas-search-card" onSubmit={submit}>
       <div className="atlas-search-heading">
         <div>
-          <span className="atlas-eyebrow">New search</span>
-          <h2>Find the right supervisor.</h2>
+          <span className="atlas-eyebrow">Advisor intelligence engine</span>
+          <h2>{mode === "department" ? "Map an entire advisor landscape." : "Investigate one professor deeply."}</h2>
+          <p>
+            {mode === "department"
+              ? "We map related departments first, then narrow verified faculty by research fit and PhD opportunity."
+              : "Build a source-backed brief across background, lab, students, papers, funding, and recruitment."}
+          </p>
         </div>
         <div className="atlas-mode-toggle" role="group" aria-label="Search mode">
           <button
@@ -128,29 +181,52 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
       <div className="atlas-form-grid">
         <label>
           <span>University name *</span>
-          <input value={form.universityName} onChange={(e) => update("universityName", e.target.value)} placeholder="e.g. University of Toronto" />
+          <input required value={form.universityName} onChange={(e) => update("universityName", e.target.value)} placeholder="e.g. University of Toronto" />
         </label>
         <label>
-          <span>Official URL</span>
-          <input type="url" value={form.universityUrl} onChange={(e) => update("universityUrl", e.target.value)} placeholder="https://..." />
+          <span>Official university or professor URL {mode === "professor" ? "*" : ""}</span>
+          <input
+            id="atlas-official-url"
+            type="url"
+            required={mode === "professor"}
+            aria-describedby={mode === "professor" ? "atlas-official-url-help" : undefined}
+            value={form.universityUrl}
+            onChange={(e) => update("universityUrl", e.target.value)}
+            placeholder="https://www.university.edu/..."
+          />
+          {mode === "professor" && <small id="atlas-official-url-help" className="atlas-field-help">Anchors identity to the correct institution and faculty domain.</small>}
         </label>
         <label>
-          <span>Department {mode === "department" ? "*" : ""}</span>
-          <input value={form.department} onChange={(e) => update("department", e.target.value)} placeholder="Computer Science" />
+          <span>{mode === "department" ? "Research field *" : "Department or research area *"}</span>
+          <input
+            required
+            aria-describedby={mode === "professor" ? "atlas-department-help" : undefined}
+            value={form.department}
+            onChange={(e) => update("department", e.target.value)}
+            placeholder="e.g. Computer Science"
+          />
+          {mode === "professor" && <small id="atlas-department-help" className="atlas-field-help">Disambiguates names and focuses lab, paper, and funding searches.</small>}
         </label>
         {mode === "professor" ? (
           <>
             <label>
               <span>Professor name *</span>
-              <input value={form.professorName} onChange={(e) => update("professorName", e.target.value)} placeholder="Professor full name" />
+              <input required value={form.professorName} onChange={(e) => update("professorName", e.target.value)} placeholder="Professor full name" />
             </label>
             <label>
-              <span>Intake</span>
-              <input value={form.intakeTerm} onChange={(e) => update("intakeTerm", e.target.value)} placeholder="Fall 2027" />
+              <span>Intended intake *</span>
+              <input
+                required
+                aria-describedby="atlas-intake-help"
+                value={form.intakeTerm}
+                onChange={(e) => update("intakeTerm", e.target.value)}
+                placeholder="Fall 2027"
+              />
+              <small id="atlas-intake-help" className="atlas-field-help">Required for the next two-to-three-semester recruitment outlook.</small>
             </label>
             <label>
-              <span>Degree target</span>
-              <select value={form.degreeTarget} onChange={(e) => update("degreeTarget", e.target.value)}>
+              <span>Degree target *</span>
+              <select required value={form.degreeTarget} onChange={(e) => update("degreeTarget", e.target.value)}>
                 <option>PhD</option>
                 <option>Research Master's</option>
                 <option>Either</option>
@@ -169,52 +245,66 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
         )}
       </div>
 
-      {mode === "department" && (
-        <>
-          <button type="button" className="atlas-profile-toggle" onClick={() => setShowProfile((value) => !value)} aria-expanded={showProfile}>
-            <Sparkles size={17} />
-            <span><strong>Add research interests</strong><small>Required for broad discovery search</small></span>
-            <ArrowRight size={17} className={showProfile ? "rotated" : ""} />
-          </button>
+      <button type="button" className="atlas-profile-toggle" onClick={() => setShowProfile((value) => !value)} aria-expanded={showProfile}>
+        <Sparkles size={17} />
+        <span>
+          <strong>Your research interests *</strong>
+          <small>
+            {mode === "professor"
+              ? "Compared semantically with this professor's verified research"
+              : "Used for semantic similarity, not exact keyword matching"}
+          </small>
+        </span>
+        <ArrowRight size={17} className={showProfile ? "rotated" : ""} />
+      </button>
 
-          {showProfile && (
-            <div className="atlas-profile-builder">
-              <div className="atlas-interests-list">
-                {form.interests.map((interest, index) => (
-                  <label key={index} className="wide">
-                    <span>Research Interest {index + 1} {index === 0 ? "*" : ""}</span>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <input
-                        value={interest}
-                        onChange={(e) => updateInterest(index, e.target.value)}
-                        placeholder={index === 0 ? "e.g., Human-computer interaction" : "e.g., AI literacy"}
-                        style={{ flex: 1 }}
-                      />
-                      {form.interests.length > 1 && (
-                        <button type="button" onClick={() => removeInterest(index)} className="atlas-remove-interest" aria-label="Remove interest" style={{ background: "transparent", border: "1px solid #ddd", borderRadius: "6px", padding: "0 12px", cursor: "pointer", color: "#666" }}>✕</button>
-                      )}
-                    </div>
-                  </label>
-                ))}
-                {form.interests.length < 5 && (
-                  <button type="button" onClick={addInterest} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "var(--atlas-teal)", fontWeight: 600, cursor: "pointer", fontSize: "0.85rem", padding: "4px 0" }}>
-                    + Add another interest
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+      {showProfile && (
+        <div className="atlas-profile-builder">
+          <div className="atlas-interests-list">
+            {form.interests.map((interest, index) => (
+              <label key={index} className="wide">
+                <span>Research Interest {index + 1} {index === 0 ? "*" : ""}</span>
+                <div className="atlas-interest-row">
+                  <input
+                    required={index === 0}
+                    minLength={index === 0 ? 2 : undefined}
+                    maxLength={200}
+                    value={interest}
+                    onChange={(e) => updateInterest(index, e.target.value)}
+                    placeholder={index === 0 ? "e.g., Human-computer interaction" : "e.g., AI literacy"}
+                  />
+                  {form.interests.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeInterest(index)}
+                      className="atlas-remove-interest"
+                      aria-label={`Remove research interest ${index + 1}`}
+                    >
+                      <X size={17} />
+                    </button>
+                  )}
+                </div>
+              </label>
+            ))}
+            {form.interests.length < 5 && (
+              <button type="button" onClick={addInterest} className="atlas-add-interest">
+                <Plus size={16} /> Add another interest
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="atlas-search-footer">
-        <div className="atlas-privacy-note">
-          {externalContext.length} profile fields · public web only · saved locally
+        <div>
+          <div className="atlas-privacy-note">
+            {completedRequired}/{requiredTotal} required inputs ready · public web only · saved locally
+          </div>
         </div>
         {error && <div className="atlas-inline-error" role="alert">{error}</div>}
-        <button className="atlas-primary-button" disabled={submitting}>
+        <button className="atlas-primary-button" disabled={submitting || quotaReached}>
           {submitting ? <span className="atlas-spinner" /> : <Search size={18} />}
-          {submitting ? "Starting..." : "Start search"}
+          {submitting ? "Starting..." : quotaReached ? "Monthly limit reached" : "Start search"}
         </button>
       </div>
     </form>

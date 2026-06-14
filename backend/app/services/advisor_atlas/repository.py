@@ -14,6 +14,7 @@ JSON_FIELDS = {
     "action_center_json",
     "coverage_json",
     "risk_flags_json",
+    "intelligence_json",
     "authors_json",
     "metadata_json",
     "decision_snapshot_json",
@@ -225,6 +226,7 @@ class AdvisorAtlasRepository:
                 candidate.get("recruitment_state", "unknown"),
                 candidate.get("recruitment_summary"),
                 candidate.get("decision_lane", "Needs Verification"),
+                _json(candidate.get("intelligence", {})),
                 _json(candidate.get("coverage", {})),
                 _json(candidate.get("risk_flags", [])),
             )
@@ -238,7 +240,8 @@ class AdvisorAtlasRepository:
                       lab_name=?, lab_url=?,
                       research_summary=?, match_score=?, evidence_confidence=?,
                       recruitment_state=?, recruitment_summary=?, decision_lane=?,
-                      coverage_json=?, risk_flags_json=?, updated_at=CURRENT_TIMESTAMP
+                      intelligence_json=?, coverage_json=?, risk_flags_json=?,
+                      updated_at=CURRENT_TIMESTAMP
                     WHERE id=?
                     """,
                     (*values, candidate_id),
@@ -273,8 +276,9 @@ class AdvisorAtlasRepository:
                       institution, department, email, official_profile_url,
                       personal_url, linkedin_url, google_scholar_url, lab_name, lab_url, research_summary,
                       match_score, evidence_confidence, recruitment_state,
-                      recruitment_summary, decision_lane, coverage_json, risk_flags_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      recruitment_summary, decision_lane, intelligence_json,
+                      coverage_json, risk_flags_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (run_id, user_id, normalized_name, *values),
                 )
@@ -372,14 +376,23 @@ class AdvisorAtlasRepository:
             candidate["evidence"] = [
                 _decode_row(item)
                 for item in db.execute(
-                    "SELECT * FROM advisor_atlas_evidence WHERE candidate_id = ? ORDER BY confidence DESC, retrieved_at DESC",
+                    """
+                    SELECT * FROM advisor_atlas_evidence
+                    WHERE candidate_id = ?
+                    ORDER BY confidence DESC, retrieved_at DESC
+                    LIMIT 5
+                    """,
                     (candidate_id,),
                 ).fetchall()
             ]
             candidate["publications"] = [
                 _decode_row(item)
                 for item in db.execute(
-                    "SELECT * FROM advisor_atlas_publications WHERE candidate_id = ? ORDER BY reading_priority DESC, publication_year DESC",
+                    """
+                    SELECT * FROM advisor_atlas_publications
+                    WHERE candidate_id = ?
+                    ORDER BY publication_year DESC, reading_priority DESC
+                    """,
                     (candidate_id,),
                 ).fetchall()
             ]

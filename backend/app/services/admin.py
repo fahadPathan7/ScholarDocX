@@ -29,6 +29,9 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 31457280, 'never'),
         ('total_sticky_notes', 5, 'never'),
         ('total_whiteboards', 1, 'never'),
+        ('news_searches_per_day', 3, 'daily'),
+        ('news_searches_per_month', 30, 'monthly'),
+        ('advisor_atlas_searches_per_month', 3, 'monthly'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
@@ -50,6 +53,9 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 104857600, 'never'),
         ('total_sticky_notes', 20, 'never'),
         ('total_whiteboards', 3, 'never'),
+        ('news_searches_per_day', 10, 'daily'),
+        ('news_searches_per_month', 100, 'monthly'),
+        ('advisor_atlas_searches_per_month', 10, 'monthly'),
     ],
     'max_user': [
         ('ai_messages_per_session', 100, 'per_session'),
@@ -71,6 +77,9 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 314572800, 'never'),
         ('total_sticky_notes', 50, 'never'),
         ('total_whiteboards', 10, 'never'),
+        ('news_searches_per_day', 30, 'daily'),
+        ('news_searches_per_month', 300, 'monthly'),
+        ('advisor_atlas_searches_per_month', 30, 'monthly'),
     ],
     'general_admin': [
         ('admin_create_user', 1, 'never'),
@@ -502,7 +511,7 @@ class AdminService:
         user_id = cursor.lastrowid
 
         # Initialize usage stats
-        features = ['ai_messages_per_session', 'daily_ai_chats', 'monthly_ai_chats', 'web_searches_per_day', 'web_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project', 
+        features = ['ai_messages_per_session', 'daily_ai_chats', 'monthly_ai_chats', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'advisor_atlas_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
                     'records_per_sheet', 'total_documents_bytes', 'total_sticky_notes', 'total_whiteboards']
         for feature in features:
             self.connection.execute(

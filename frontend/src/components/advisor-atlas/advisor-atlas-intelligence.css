@@ -1,0 +1,974 @@
+.advisor-atlas-view {
+  --atlas-night: #102f35;
+  --atlas-emerald: #197267;
+  --atlas-cyan: #3f9e91;
+  --atlas-amber: #b8751a;
+  --atlas-cloud: #eef7f3;
+}
+
+.atlas-search-heading > div:first-child {
+  max-width: 680px;
+}
+
+.atlas-search-heading > div:first-child > p {
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: #5d7471;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.atlas-intelligence-hero,
+.atlas-professor-spotlight {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(29, 105, 96, 0.16);
+  background:
+    radial-gradient(circle at 92% 5%, rgba(230, 172, 70, 0.2), transparent 27%),
+    radial-gradient(circle at 12% 0%, rgba(76, 164, 149, 0.2), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 248, 244, 0.94));
+  box-shadow: 0 18px 48px rgba(21, 74, 69, 0.09);
+}
+
+.atlas-intelligence-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  border-radius: 20px;
+}
+
+.atlas-intelligence-hero h2,
+.atlas-professor-spotlight h2 {
+  margin: 5px 0 7px;
+  color: var(--atlas-night);
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.atlas-intelligence-hero p,
+.atlas-professor-spotlight p {
+  max-width: 690px;
+  margin: 0;
+  color: #58716d;
+  line-height: 1.55;
+}
+
+.atlas-coverage-seal {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 185px;
+  padding: 13px 15px;
+  color: #ecfffa;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #173f46, #226d68);
+  box-shadow: 0 12px 28px rgba(19, 69, 67, 0.2);
+}
+
+.atlas-coverage-seal strong,
+.atlas-coverage-seal span {
+  display: block;
+}
+
+.atlas-coverage-seal strong {
+  font-size: 1.15rem;
+}
+
+.atlas-coverage-seal span {
+  margin-top: 2px;
+  color: rgba(236, 255, 250, 0.76);
+  font-size: 0.68rem;
+}
+
+.atlas-map-panel {
+  margin-top: 14px;
+  padding: 17px;
+  border: 1px solid rgba(29, 105, 96, 0.13);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.atlas-map-panel > header,
+.atlas-department-group > header,
+.atlas-brief-grid article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.atlas-map-panel > header > div,
+.atlas-department-group > header > div,
+.atlas-brief-grid article > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.atlas-map-panel > header strong,
+.atlas-map-panel > header span {
+  display: block;
+}
+
+.atlas-map-panel > header strong {
+  color: var(--atlas-night);
+  font-size: 0.88rem;
+}
+
+.atlas-map-panel > header span {
+  color: #69807c;
+  font-size: 0.7rem;
+}
+
+.atlas-unit-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.atlas-unit-chip {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(35, 106, 97, 0.12);
+  border-radius: 13px;
+  background: #f8fcfa;
+}
+
+.atlas-unit-chip > span {
+  display: inline-flex;
+  padding: 3px 7px;
+  color: #1f6d63;
+  border-radius: 999px;
+  background: #def1eb;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.atlas-unit-chip.adjacent > span {
+  color: #775016;
+  background: #fff0cf;
+}
+
+.atlas-unit-chip.interdisciplinary > span {
+  color: #59438b;
+  background: #eee8ff;
+}
+
+.atlas-unit-chip strong,
+.atlas-unit-chip small {
+  display: block;
+}
+
+.atlas-unit-chip strong {
+  margin-top: 8px;
+  color: #234943;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.atlas-unit-chip small {
+  margin-top: 5px;
+  color: #71837f;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.atlas-coverage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 13px 0 0;
+  padding-top: 12px;
+  color: #657b77;
+  border-top: 1px solid rgba(29, 105, 96, 0.09);
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
+.atlas-coverage-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #318171;
+}
+
+.atlas-funnel-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.atlas-funnel-step-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.atlas-funnel-step-wrap > button {
+  width: 100%;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  text-align: left;
+  color: #59716d;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.82);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.atlas-funnel-step-wrap > button:hover,
+.atlas-funnel-step-wrap > button.active {
+  transform: translateY(-1px);
+  color: var(--atlas-night);
+  border-color: rgba(32, 123, 111, 0.36);
+  box-shadow: 0 12px 28px rgba(28, 91, 84, 0.1);
+}
+
+.atlas-funnel-step-wrap > button.active {
+  background: linear-gradient(145deg, #ffffff, #edf8f4);
+}
+
+.atlas-funnel-number {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  color: white;
+  border-radius: 8px;
+  background: #2b776e;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.atlas-funnel-step-wrap strong,
+.atlas-funnel-step-wrap small {
+  display: block;
+}
+
+.atlas-funnel-step-wrap strong {
+  color: inherit;
+  font-size: 0.78rem;
+}
+
+.atlas-funnel-step-wrap small {
+  margin-top: 3px;
+  color: #7a8d89;
+  font-size: 0.65rem;
+}
+
+.atlas-funnel-arrow {
+  display: none;
+}
+
+.atlas-stage-panel {
+  padding: 18px;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 18px;
+  background: rgba(251, 254, 252, 0.92);
+}
+
+.atlas-stage-panel > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(31, 101, 94, 0.09);
+}
+
+.atlas-stage-title > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #2f7d72;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.atlas-stage-title h3 {
+  margin: 5px 0 4px;
+  color: var(--atlas-night);
+  font-size: 1.05rem;
+}
+
+.atlas-stage-title p {
+  margin: 0;
+  color: #6c817d;
+  font-size: 0.73rem;
+}
+
+.atlas-stage-search {
+  width: min(290px, 100%);
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 11px;
+  background: white;
+}
+
+.atlas-stage-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.atlas-department-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 17px;
+}
+
+.atlas-department-group > header {
+  margin-bottom: 9px;
+  color: #31534e;
+  font-size: 0.76rem;
+}
+
+.atlas-department-group > header > span {
+  min-width: 25px;
+  padding: 3px 7px;
+  text-align: center;
+  color: #2c7369;
+  border-radius: 999px;
+  background: #e4f3ee;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.atlas-stage-empty {
+  display: grid;
+  justify-items: center;
+  min-height: 240px;
+  align-content: center;
+  text-align: center;
+  color: #738682;
+}
+
+.atlas-stage-empty h3 {
+  margin: 12px 0 4px;
+  color: #31534e;
+}
+
+.atlas-stage-empty p {
+  max-width: 490px;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.atlas-floating-compare {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.atlas-floating-compare button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  color: #2b6962;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 10px;
+  background: white;
+}
+
+.atlas-floating-compare button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.atlas-relation-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 6px;
+  color: #246d63;
+  border-radius: 999px;
+  background: #e1f2ed;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.atlas-relation-pill.adjacent {
+  color: #865b1c;
+  background: #fff1d2;
+}
+
+.atlas-relation-pill.interdisciplinary {
+  color: #5c478c;
+  background: #eee9ff;
+}
+
+.atlas-match-bridge {
+  margin: 10px 0;
+  padding: 9px 10px;
+  border-left: 3px solid #4a9c8d;
+  border-radius: 0 9px 9px 0;
+  background: #f1f8f5;
+}
+
+.atlas-match-bridge strong,
+.atlas-match-bridge span {
+  display: block;
+}
+
+.atlas-match-bridge strong {
+  color: #2d6d64;
+  font-size: 0.61rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.atlas-match-bridge span {
+  margin-top: 4px;
+  color: #5f7672;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.atlas-outlook-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 9px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  color: #5a4a27;
+  background: #fff8e8;
+}
+
+.atlas-outlook-line span,
+.atlas-outlook-line strong {
+  font-size: 0.67rem;
+  text-transform: capitalize;
+}
+
+.atlas-outlook-line small {
+  grid-column: 1 / -1;
+  color: #7a6a48;
+  font-size: 0.61rem;
+}
+
+.atlas-professor-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.atlas-professor-spotlight {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 26px;
+  border-radius: 22px;
+}
+
+.atlas-professor-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.atlas-professor-links span,
+.atlas-professor-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  color: #386861;
+  border-radius: 999px;
+  background: rgba(224, 242, 236, 0.86);
+  font-size: 0.65rem;
+  text-transform: capitalize;
+  text-decoration: none;
+}
+
+.atlas-professor-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atlas-professor-cta button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  color: #315f59;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 11px;
+  background: white;
+}
+
+.atlas-professor-cta button.primary {
+  color: white;
+  border-color: transparent;
+  background: linear-gradient(135deg, #1b625e, #3a927f);
+}
+
+.atlas-brief-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.atlas-brief-metrics > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 9px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(31, 101, 94, 0.12);
+  border-radius: 14px;
+  background: white;
+}
+
+.atlas-brief-metrics svg {
+  grid-row: 1 / 3;
+  color: #39877b;
+}
+
+.atlas-brief-metrics span {
+  color: #768884;
+  font-size: 0.64rem;
+}
+
+.atlas-brief-metrics strong {
+  color: #294f4a;
+  font-size: 0.74rem;
+  text-transform: capitalize;
+}
+
+.atlas-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.atlas-brief-grid article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(31, 101, 94, 0.12);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.atlas-brief-grid article > header {
+  justify-content: flex-start;
+  color: #347c71;
+}
+
+.atlas-brief-grid h3 {
+  margin: 0;
+  color: #294f4a;
+  font-size: 0.82rem;
+}
+
+.atlas-brief-grid p {
+  margin: 10px 0 0;
+  color: #647a76;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.atlas-brief-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.atlas-brief-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.atlas-brief-topics span {
+  padding: 5px 8px;
+  color: #356a63;
+  border-radius: 999px;
+  background: #edf7f3;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.atlas-outlook-strip {
+  display: grid;
+  grid-template-columns: minmax(190px, auto) minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: center;
+  padding: 17px;
+  color: #f2fffb;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #163d44, #276f68);
+}
+
+.atlas-outlook-strip > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.atlas-outlook-strip h3 {
+  margin: 3px 0 0;
+  font-size: 0.87rem;
+}
+
+.atlas-outlook-timeline {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+.atlas-outlook-term {
+  position: relative;
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+  padding: 7px 12px;
+}
+
+.atlas-outlook-term:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 12px;
+  height: 1px;
+  background: rgba(224, 245, 238, 0.42);
+  content: "";
+}
+
+.atlas-outlook-term > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(224, 245, 238, 0.34);
+  border-radius: 50%;
+  color: #173f3e;
+  background: #dff2eb;
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+.atlas-outlook-term small,
+.atlas-outlook-term strong { display: block; }
+.atlas-outlook-term small {
+  color: rgba(235, 252, 247, 0.66);
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.atlas-outlook-term strong {
+  margin-top: 2px;
+  color: #f5fffc;
+  font-size: 0.72rem;
+}
+
+.atlas-outlook-strip > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: rgba(242, 255, 251, 0.72);
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+
+.atlas-dossier-feature {
+  border-color: rgba(188, 126, 31, 0.24);
+  background: linear-gradient(145deg, #fffdf7, #fff7e6);
+}
+
+.atlas-dossier-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.atlas-dossier-intelligence-grid .atlas-dossier-section {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .atlas-intelligence-hero,
+  .atlas-professor-spotlight {
+    align-items: flex-start;
+  }
+
+  .atlas-professor-spotlight {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .atlas-professor-cta {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .atlas-professor-cta button {
+    flex: 1;
+  }
+
+  .atlas-brief-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .atlas-dossier-intelligence-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .atlas-dossier-intelligence-grid .atlas-dossier-section {
+    margin: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .advisor-atlas-view {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .atlas-hero {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  .atlas-hero-titles {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .atlas-new-search {
+    min-height: 42px;
+    margin-left: 0;
+    padding: 8px 12px;
+  }
+
+  .atlas-badge {
+    display: none;
+  }
+
+  .atlas-shell,
+  .atlas-shell.sidebar-collapsed {
+    display: flex;
+    max-height: none;
+    flex-direction: column;
+  }
+
+  .atlas-history-panel {
+    flex: 0 0 auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(34, 94, 91, 0.12);
+  }
+
+  .atlas-history-title {
+    min-height: 46px;
+  }
+
+  .atlas-run-list {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 12px;
+    scrollbar-width: none;
+  }
+
+  .atlas-run-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .atlas-run-list button,
+  .atlas-shell.sidebar-collapsed .atlas-run-list button {
+    flex: 0 0 220px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 56px;
+    padding: 8px;
+  }
+
+  .atlas-shell.sidebar-collapsed .atlas-run-list button > .atlas-run-info,
+  .atlas-shell.sidebar-collapsed .atlas-run-list button > .atlas-run-actions {
+    display: flex;
+  }
+
+  .atlas-history-note {
+    display: none;
+  }
+
+  .atlas-main {
+    max-height: none;
+    overflow: visible;
+    padding: 14px;
+  }
+
+  .atlas-search-card,
+  .atlas-run-workspace {
+    max-height: none;
+    overflow: visible;
+    padding: 17px 14px;
+    border-radius: 15px;
+  }
+
+  .atlas-search-heading,
+  .atlas-run-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .atlas-mode-toggle {
+    width: 100%;
+  }
+
+  .atlas-mode-toggle button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .atlas-form-grid,
+  .atlas-profile-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-search-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-search-footer .atlas-primary-button {
+    width: 100%;
+  }
+
+  .atlas-run-actions {
+    width: 100%;
+  }
+
+  .atlas-run-actions button {
+    flex: 1;
+  }
+
+  .atlas-candidate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-intelligence-hero {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .atlas-coverage-seal {
+    width: 100%;
+  }
+
+  .atlas-unit-ribbon {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .atlas-unit-chip {
+    flex: 0 0 min(82vw, 260px);
+    scroll-snap-align: start;
+  }
+
+  .atlas-funnel-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-funnel-step-wrap > button {
+    min-height: 64px;
+  }
+
+  .atlas-stage-panel {
+    padding: 14px;
+  }
+
+  .atlas-stage-panel > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .atlas-stage-search {
+    width: 100%;
+  }
+
+  .atlas-professor-spotlight {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .atlas-professor-cta {
+    grid-column: auto;
+    flex-direction: column;
+  }
+
+  .atlas-brief-metrics,
+  .atlas-brief-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-outlook-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-outlook-timeline {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-outlook-term {
+    min-width: 0;
+    padding: 7px 0;
+  }
+
+  .atlas-outlook-term:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -5px;
+    left: 12px;
+    width: 1px;
+    height: 10px;
+  }
+
+  .atlas-dossier-intelligence-grid {
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-funnel-step-wrap > button {
+    transition: none;
+  }
+}

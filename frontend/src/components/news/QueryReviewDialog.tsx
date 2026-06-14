@@ -10,7 +10,7 @@ interface QueryReviewDialogProps {
   generationNotice: string;
   isSearching: boolean;
   onCancel: () => void;
-  onConfirm: (approvedQuery: string) => void;
+  onConfirm: (approvedQuery: string, saveAsName?: string) => void;
 }
 
 export function QueryReviewDialog({
@@ -25,6 +25,8 @@ export function QueryReviewDialog({
 }: QueryReviewDialogProps) {
   const [query, setQuery] = useState(initialQuery);
   const [isApproved, setIsApproved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveQueryName, setSaveQueryName] = useState("");
   const queryId = useId();
   const approvalId = useId();
   const normalizedQuery = query.trim();
@@ -57,7 +59,12 @@ export function QueryReviewDialog({
         onMouseDown={(event) => event.stopPropagation()}
         onSubmit={(event) => {
           event.preventDefault();
-          if (canSubmit) onConfirm(normalizedQuery);
+          if (canSubmit) {
+            onConfirm(
+              normalizedQuery, 
+              isSaving ? (saveQueryName.trim() || "Saved Query") : undefined
+            );
+          }
         }}
       >
         <header className="query-review-header">
@@ -97,15 +104,7 @@ export function QueryReviewDialog({
               </span>
             </div>
           </div>
-          <div className="query-review-note">
-            <CheckCircle2 size={17} aria-hidden="true" />
-            <p>
-              This Search click already used one Scholarship Hunt credit to
-              prepare the run. You can still refine or cancel this query before
-              Tavily is called, and all returned pages for the final confirmed
-              query will be shown.
-            </p>
-          </div>
+
           <div className="query-review-tips" aria-label="Query tuning tips">
             <span>Try adding `official` for university or scholarship portals.</span>
             <span>Use `deadline`, `application`, or `eligibility` to tighten intent.</span>
@@ -148,28 +147,70 @@ export function QueryReviewDialog({
             </div>
           </div>
 
-          <label className="query-approval-check" htmlFor={approvalId}>
-            <input
-              id={approvalId}
-              type="checkbox"
-              checked={isApproved}
-              disabled={isSearching || normalizedQuery.length < 3}
-              onChange={(event) => setIsApproved(event.target.checked)}
-            />
-            <span>
-              I reviewed this query and want to search the web with it.
-            </span>
-          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+            <div className="query-review-save-query">
+              <label 
+                className="query-approval-check" 
+                htmlFor={`${approvalId}-save`} 
+                style={{ 
+                  margin: 0, 
+                  ...(isSaving ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottom: 'none' } : {}) 
+                }}
+              >
+                <input
+                  id={`${approvalId}-save`}
+                  type="checkbox"
+                  checked={isSaving}
+                  disabled={isSearching || normalizedQuery.length < 3}
+                  onChange={(event) => setIsSaving(event.target.checked)}
+                />
+                <span style={{ fontWeight: 600, color: "#1f4f5a" }}>
+                  Save this query for later use
+                </span>
+              </label>
+              {isSaving && (
+                <div style={{ 
+                  padding: "0 12px 14px 12px", 
+                  backgroundColor: "#edf8f3", 
+                  border: "1px solid rgba(56, 163, 127, 0.28)", 
+                  borderTop: "none", 
+                  borderBottomLeftRadius: "12px", 
+                  borderBottomRightRadius: "12px" 
+                }}>
+                  <input 
+                    type="text" 
+                    placeholder="Query name (e.g. Master's in USA)" 
+                    value={saveQueryName}
+                    onChange={(e) => setSaveQueryName(e.target.value)}
+                    disabled={isSearching}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(47, 109, 122, 0.2)",
+                      fontSize: "0.95rem",
+                      color: "#1f4f5a",
+                      marginTop: "4px"
+                    }}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
 
-          <p className="query-review-privacy">
-            The generated and approved versions are stored only in your local
-            ScholarDock database to improve this beta feature later.
-          </p>
-          <p className="query-review-warning">
-            <CircleAlert size={15} aria-hidden="true" />
-            Closing this dialog stops the Tavily call, but the credit from this
-            Search click stays consumed.
-          </p>
+            <label className="query-approval-check" htmlFor={approvalId} style={{ margin: 0 }}>
+              <input
+                id={approvalId}
+                type="checkbox"
+                checked={isApproved}
+                disabled={isSearching || normalizedQuery.length < 3}
+                onChange={(event) => setIsApproved(event.target.checked)}
+              />
+              <span>
+                I reviewed this query and want to search the web with it.
+              </span>
+            </label>
+          </div>
         </div>
 
         <footer className="query-review-actions">

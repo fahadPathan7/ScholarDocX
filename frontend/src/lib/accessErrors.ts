@@ -15,6 +15,7 @@ const FEATURE_LABELS: Record<string, string> = {
   total_documents_bytes: "document storage",
   total_sticky_notes: "sticky notes",
   total_whiteboards: "whiteboards",
+  advisor_atlas_searches_per_month: "monthly Advisor Atlas searches and refreshes",
 };
 
 function toFeatureLabel(feature?: string) {

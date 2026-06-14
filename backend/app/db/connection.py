@@ -36,6 +36,7 @@ USER_SCOPED_TABLES = (
     "bookmarked_news",
     "advisor_atlas_runs",
     "advisor_atlas_candidates",
+    "saved_scholarship_queries",
 )
 
 
@@ -173,6 +174,17 @@ def migrate_database(connection: sqlite3.Connection) -> None:
     if plan_request_columns and "request_type" not in plan_request_columns:
         connection.execute("ALTER TABLE plan_upgrade_requests ADD COLUMN request_type TEXT NOT NULL DEFAULT 'upgrade'")
 
+    advisor_candidate_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(advisor_atlas_candidates)"
+        ).fetchall()
+    }
+    if advisor_candidate_columns and "intelligence_json" not in advisor_candidate_columns:
+        connection.execute(
+            "ALTER TABLE advisor_atlas_candidates "
+            "ADD COLUMN intelligence_json TEXT NOT NULL DEFAULT '{}'"
+        )
 
     # Set user_id in related tables where missing
     for table in USER_SCOPED_TABLES:
@@ -247,6 +259,19 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         web_search_permission_defaults,
     )
 
+    advisor_atlas_limit_defaults = [
+        ("general_user", "advisor_atlas_searches_per_month", 3, "monthly"),
+        ("pro_user", "advisor_atlas_searches_per_month", 10, "monthly"),
+        ("max_user", "advisor_atlas_searches_per_month", 30, "monthly"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        advisor_atlas_limit_defaults,
+    )
+
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
@@ -310,6 +335,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "sheets_per_project", "records_per_sheet",
         "total_documents_bytes", "total_sticky_notes", "total_whiteboards",
         "news_searches_per_day", "news_searches_per_month",
+        "advisor_atlas_searches_per_month",
         # Admin permissions
         "admin_create_user", "admin_assign_user_roles", "admin_assign_admin_roles",
         "admin_manage_user_roles", "admin_manage_admin_roles",

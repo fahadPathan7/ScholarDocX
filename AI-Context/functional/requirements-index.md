@@ -140,3 +140,5 @@ for the complete workflow and requirements.
 - FR-9.19: Confirm before saving into core professor records.
 - FR-9.20: Respect public access restrictions.
 - FR-9.21: Provide responsive and accessible workflow states.
+- FR-9.53: Enforce and display tiered monthly Advisor Atlas search/refresh
+  quotas: General 3, Pro 10, Max 30.

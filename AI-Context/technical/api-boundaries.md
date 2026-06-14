@@ -84,12 +84,22 @@ development.
   storage before returning normalized results
 - `/news/bookmarks`
 - `/advisor-atlas/runs` creates and lists user-scoped persisted discovery runs
+  and validates Professor-mode identity context: professor name, university
+  name, official university/professor URL, department or research area, degree
+  target, intake term with year, and at least one research interest. Creating a
+  run consumes one `advisor_atlas_searches_per_month` unit after request
+  validation and before the background run is accepted.
 - `/advisor-atlas/runs/{run_id}` returns progress, candidates, dossiers, and the
-  run action center
+  run intelligence summary, including related-unit coverage and the nested
+  faculty, research-match, and opportunity populations. Discovery summaries
+  also include per-unit counts plus inspected, accessible, and inaccessible
+  faculty-directory coverage.
 - `/advisor-atlas/runs/{run_id}/cancel` stops an active local run
 - `/advisor-atlas/runs/{run_id}/resume` resumes an eligible incomplete run
 - `/advisor-atlas/candidates/{candidate_id}` returns the full evidence dossier
-- `/advisor-atlas/candidates/{candidate_id}/refresh` refreshes public evidence
+- `/advisor-atlas/candidates/{candidate_id}/refresh` verifies candidate
+  ownership, consumes one `advisor_atlas_searches_per_month` unit, and refreshes
+  public evidence
 - `/advisor-atlas/candidates/{candidate_id}` updates shortlist, lane, notes, and
   reading state
 - `/advisor-atlas/candidates/{candidate_id}/save` confirms creation of a core

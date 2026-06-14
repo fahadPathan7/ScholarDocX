@@ -132,11 +132,20 @@ class ScholarshipQueryGenerator:
             )
             if (values := _selected_values(filters, key))
         }
-        return (
-            f"Current date: {today.isoformat()}\n"
-            f"Target application cycles: {today.year}-{today.year + 1} and later\n"
-            f"Selected filters: {json.dumps(selected, ensure_ascii=True, sort_keys=True)}\n"
-            f"Safe baseline query: {fallback_query}\n\n"
+        custom_prompt = filters.get("custom_prompt")
+        
+        prompt_lines = [
+            f"Current date: {today.isoformat()}",
+            f"Target application cycles: {today.year}-{today.year + 1} and later",
+        ]
+        
+        if custom_prompt:
+            prompt_lines.append(f"User's custom search intent: {custom_prompt}")
+        elif selected:
+            prompt_lines.append(f"Selected filters: {json.dumps(selected, ensure_ascii=True, sort_keys=True)}")
+            
+        prompt_lines.append(f"Safe baseline query: {fallback_query}\n")
+        prompt_lines.append(
             "Improve the baseline into one strong public-web query for Scholarship Hunt. "
             "Keep destination names and named scholarship names verbatim. Prefer wording "
             "that finds application pages, official program pages, scholarship portals, "
@@ -145,6 +154,7 @@ class ScholarshipQueryGenerator:
             "expired, and past. Keep it compact enough for Tavily search and return "
             "exactly {\"query\":\"your query\"}."
         )
+        return "\n".join(prompt_lines)
 
     def _extract_query(self, response_data: Dict[str, Any]) -> str:
         content = response_data["choices"][0]["message"]["content"]

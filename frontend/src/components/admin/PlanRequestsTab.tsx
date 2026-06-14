@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle, RefreshCcw, ShieldAlert } from "lucide-react";
+import { CheckCircle, RefreshCcw, Search, ShieldAlert } from "lucide-react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
@@ -39,6 +39,7 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<"all" | "upgrade" | "extension">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchRequests = async () => {
     try {
@@ -64,8 +65,12 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
     if (filterStatus !== "all") {
       base = base.filter(req => req.status === filterStatus);
     }
+    if (searchQuery) {
+      const lowerQ = searchQuery.toLowerCase();
+      base = base.filter(req => req.user_email.toLowerCase().includes(lowerQ));
+    }
     return base;
-  }, [requests, requestType, filterType, filterStatus]);
+  }, [requests, requestType, filterType, filterStatus, searchQuery]);
 
   const handleReview = async (id: number, action: "Approve" | "Reject") => {
     try {
@@ -89,69 +94,85 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
           <p className="text-slate-500 text-xs mt-0.5">{description}</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative mr-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200/50 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+            />
+          </div>
           <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
             Refresh
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 shrink-0 bg-slate-100/50 p-1.5 rounded-xl border border-slate-200/50">
-        <div className="flex items-center gap-1.5">
+      <div className="flex overflow-x-auto items-start gap-4 shrink-0 bg-slate-100/50 p-2 rounded-xl border border-slate-200/50">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Type</span>
-          {[
-            { id: "all", label: "All Types" },
-            { id: "upgrade", label: "Change" },
-            { id: "extension", label: "Renewal" }
-          ].map((tab) => {
-            const isActive = filterType === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFilterType(tab.id as any)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                }`}
-              >
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex items-center gap-1.5">
+            {[
+              { id: "all", label: "All Types" },
+              { id: "upgrade", label: "Change" },
+              { id: "extension", label: "Renewal" }
+            ].map((tab) => {
+              const isActive = filterType === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterType(tab.id as any)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Status</span>
-          {[
-            { id: "all", label: "All Statuses" },
-            { id: "Pending", label: "Pending" },
-            { id: "Approved", label: "Approved" },
-            { id: "Rejected", label: "Rejected" }
-          ].map((tab) => {
-            const isActive = filterStatus === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFilterStatus(tab.id as any)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                  ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                }`}
-              >
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex items-center gap-1.5">
+            {[
+              { id: "all", label: "All Statuses" },
+              { id: "Pending", label: "Pending" },
+              { id: "Approved", label: "Approved" },
+              { id: "Rejected", label: "Rejected" }
+            ].map((tab) => {
+              const isActive = filterStatus === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterStatus(tab.id as any)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         
         <div className="w-px bg-slate-200 self-stretch hidden sm:block ml-auto" />
 
-        <div className="flex items-center gap-2 pr-2 sm:ml-0 ml-auto">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selection</span>
-          <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
-            {visibleRequests.length}
-          </span>
+        <div className="flex flex-col gap-1.5 pr-2 sm:ml-0 ml-auto justify-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+          <div className="flex items-center px-2 py-2">
+            <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
+              {visibleRequests.length}
+            </span>
+          </div>
         </div>
       </div>
 

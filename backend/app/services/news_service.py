@@ -498,9 +498,13 @@ def _has_conflicting_level(
 
 
 def _refine_description(description: str) -> str:
+    # Clean markdown hashes and asterisks
+    clean_desc = re.sub(r'(?:^|\s)#+\s+', ' ', description)
+    clean_desc = re.sub(r'\*{1,2}', '', clean_desc)
+    
     sentences = [
         sentence.strip()
-        for sentence in re.split(r"(?<=[.!?])\s+", description)
+        for sentence in re.split(r"(?<=[.!?])\s+", clean_desc)
         if sentence.strip()
     ]
     if not sentences:
@@ -550,6 +554,7 @@ class NewsService:
         funding_types: Optional[List[str]] = None,
         fields_of_study: Optional[List[str]] = None,
         popular_scholarships: Optional[List[str]] = None,
+        custom_prompt: Optional[str] = None,
         language: str = "en",
         sort_by: str = "latest",
     ) -> str:
@@ -583,7 +588,10 @@ class NewsService:
             for level in levels or []
         ]
         opportunity_terms = primary_names or degree_terms
-        if primary_names:
+        if custom_prompt:
+            query = custom_prompt.strip()
+            destination_prefix = ""
+        elif primary_names:
             query = f"Open {' or '.join(_unique(primary_names))} applications"
             query = _append_query_section(
                 query,
@@ -599,12 +607,13 @@ class NewsService:
             query = "Open scholarships, fellowships, and academic funding"
             destination_prefix = "for study at universities in"
 
-        query = _append_query_section(
-            query,
-            destination_prefix,
-            destination_query_terms(countries),
-            content_limit,
-        )
+        if destination_prefix:
+            query = _append_query_section(
+                query,
+                destination_prefix,
+                destination_query_terms(countries),
+                content_limit,
+            )
         query = _append_query_section(
             query,
             "in the field of",
@@ -706,6 +715,7 @@ class NewsService:
         funding_types: Optional[List[str]] = None,
         fields_of_study: Optional[List[str]] = None,
         popular_scholarships: Optional[List[str]] = None,
+        custom_prompt: Optional[str] = None,
         language: str = "en",
         sort_by: str = "latest",
         page: Optional[str] = None,
@@ -720,6 +730,7 @@ class NewsService:
             funding_types=funding_types,
             fields_of_study=fields_of_study,
             popular_scholarships=popular_scholarships,
+            custom_prompt=custom_prompt,
             language=language,
             sort_by=sort_by,
         )

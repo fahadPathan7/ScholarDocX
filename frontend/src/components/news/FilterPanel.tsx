@@ -1,5 +1,6 @@
 import React, { useId, useState } from "react";
-import { ChevronDown, Filter, Search, X } from "lucide-react";
+import { ChevronDown, Filter, Search, Sparkles, X, Bookmark } from "lucide-react";
+import { SavedQueriesDialog } from "./SavedQueriesDialog";
 import "./news.css";
 
 interface FilterPanelProps {
@@ -7,6 +8,7 @@ interface FilterPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isPreparingQuery?: boolean;
+  onRunSavedQuery?: (queryString: string, filtersJson: string) => void;
 }
 
 interface FilterSectionProps {
@@ -17,7 +19,16 @@ interface FilterSectionProps {
 }
 
 const FilterSection = ({ title, children, count = 0, defaultOpen = true }: FilterSectionProps) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem(`scholarshipHunt_FilterSection_${title}`);
+    if (saved !== null) return JSON.parse(saved);
+    return defaultOpen;
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem(`scholarshipHunt_FilterSection_${title}`, JSON.stringify(isOpen));
+  }, [isOpen, title]);
+
   const contentId = useId();
 
   return (
@@ -52,7 +63,16 @@ interface FilterGroupProps {
 }
 
 const FilterGroup = ({ title, children, count = 0, defaultOpen = false }: FilterGroupProps) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem(`scholarshipHunt_FilterGroup_${title}`);
+    if (saved !== null) return JSON.parse(saved);
+    return defaultOpen;
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem(`scholarshipHunt_FilterGroup_${title}`, JSON.stringify(isOpen));
+  }, [isOpen, title]);
+
   const contentId = useId();
 
   return (
@@ -80,6 +100,7 @@ export function FilterPanel({
   isOpen,
   onClose,
   isPreparingQuery = false,
+  onRunSavedQuery,
 }: FilterPanelProps) {
   const [levels, setLevels] = useState<string[]>([]);
   const [seasons, setSeasons] = useState<string[]>([]);
@@ -87,13 +108,18 @@ export function FilterPanel({
   const [regions, setRegions] = useState<string[]>([]);
   const [fieldsOfStudy, setFieldsOfStudy] = useState<string[]>([]);
   const [popularScholarships, setPopularScholarships] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isSavedQueriesOpen, setIsSavedQueriesOpen] = useState(false);
+
   const selectedCount = levels.length
     + seasons.length
     + fundingTypes.length
     + regions.length
     + fieldsOfStudy.length
-    + popularScholarships.length;
+    + popularScholarships.length
+    + years.length;
 
   const toggleLevel = (val: string) => {
     setError(null);
@@ -115,6 +141,9 @@ export function FilterPanel({
     setError(null);
     setPopularScholarships(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
   };
+  const toggleYear = (val: string) => {
+    setYears(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  };
 
   const handleApply = () => {
     if (levels.length === 0 && popularScholarships.length === 0) {
@@ -129,6 +158,7 @@ export function FilterPanel({
       countries: regions.length ? regions : undefined,
       fields_of_study: fieldsOfStudy.length ? fieldsOfStudy : undefined,
       popular_scholarships: popularScholarships.length ? popularScholarships : undefined,
+      years: years.length ? years : undefined,
     });
     if (window.innerWidth <= 768) {
       onClose();
@@ -142,6 +172,7 @@ export function FilterPanel({
     setRegions([]);
     setFieldsOfStudy([]);
     setPopularScholarships([]);
+    setYears([]);
     setError(null);
     onApplyFilters({});
   };
@@ -170,6 +201,7 @@ export function FilterPanel({
   ];
 
   return (
+    <>
     <aside className={`filter-panel ${isOpen ? "open" : "closed"}`}>
       <div className="filter-header">
         <div className="filter-title">
@@ -256,6 +288,15 @@ export function FilterPanel({
           ))}
         </FilterSection>
 
+        <FilterSection title="Year" count={years.length} defaultOpen={false}>
+          {["2025", "2026", "2027", "2028", "2029"].map(year => (
+            <label key={year} className="checkbox-label">
+              <input type="checkbox" checked={years.includes(year)} onChange={() => toggleYear(year)} />
+              <span>{year}</span>
+            </label>
+          ))}
+        </FilterSection>
+
         <FilterSection title="Funding type" count={fundingTypes.length} defaultOpen={false}>
           {["Fully Funded", "Partially Funded", "Tuition Waiver", "Stipend", "Travel Grant"].map(funding => (
             <label key={funding} className="checkbox-label">
@@ -268,14 +309,29 @@ export function FilterPanel({
 
       <div className="filter-actions">
         {error && <div className="filter-error" role="alert">{error}</div>}
-        <div className="filter-action-buttons">
-          <button className="button-secondary" onClick={handleClear} disabled={selectedCount === 0}>Clear</button>
-          <button className="button-primary" onClick={handleApply} disabled={isPreparingQuery}>
-            <Search size={16} aria-hidden="true" />
-            {isPreparingQuery ? "Preparing query..." : "Search"}
-          </button>
+        <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+          <button className="button-secondary" style={{ padding: "0 12px", minWidth: "64px" }} onClick={handleClear} disabled={selectedCount === 0}>Clear</button>
+          <div style={{ display: "flex", gap: "6px", flex: 1 }}>
+            <button className="button-secondary" style={{ width: "42px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} onClick={() => setIsSavedQueriesOpen(true)} disabled={isPreparingQuery} title="Load Saved Query">
+              <Bookmark size={16} aria-hidden="true" />
+            </button>
+            <button className="button-secondary" style={{ width: "42px", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} onClick={() => onApplyFilters({ isCustomPrompt: true })} disabled={isPreparingQuery} title="Custom AI Search">
+              <Sparkles size={16} aria-hidden="true" />
+            </button>
+            <button className="button-primary" style={{ flex: 1, padding: "0 12px", minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} onClick={handleApply} disabled={isPreparingQuery}>
+              <Search size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+              {isPreparingQuery ? "..." : "Search"}
+            </button>
+          </div>
         </div>
       </div>
     </aside>
+      <SavedQueriesDialog 
+        isOpen={isSavedQueriesOpen} 
+        onClose={() => setIsSavedQueriesOpen(false)} 
+        onRunSavedQuery={onRunSavedQuery} 
+        isPreparingQuery={isPreparingQuery} 
+      />
+    </>
   );
 }

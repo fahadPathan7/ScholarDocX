@@ -97,3 +97,15 @@ This requires:
 Remote signup or signin must not be required for core local workflows unless a later explicit business decision changes the product direction.
 
 Google OAuth can be supported as an optional identity provider when it creates clear value, such as Google Calendar, Gmail, or Drive integration.
+
+## BR-010: Tiered Advisor Intelligence Usage
+
+Advisor Atlas must use transparent monthly entitlements that reflect the cost
+and depth of external professor research:
+
+- General User: 3 searches or evidence refreshes per calendar month.
+- Pro User: 10 searches or evidence refreshes per calendar month.
+- Max User: 30 searches or evidence refreshes per calendar month.
+
+The entitlement must be visible in plan comparison, role-limit administration,
+and the user's current usage view.

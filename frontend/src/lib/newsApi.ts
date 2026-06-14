@@ -8,6 +8,7 @@ export interface NewsSearchParams {
   funding_types?: string[];
   fields_of_study?: string[];
   popular_scholarships?: string[];
+  custom_prompt?: string;
   language?: string;
   sort_by?: string;
   page?: string;
@@ -85,4 +86,28 @@ export const addBookmark = async (article: NewsArticle): Promise<any> => {
 
 export const removeBookmark = async (articleId: string): Promise<any> => {
   return api.delete(`/news/bookmarks/${articleId}`);
+};
+
+export interface SavedNewsQuery {
+  id: number;
+  name: string;
+  query_string: string;
+  filters_json: string;
+  created_at: string;
+}
+
+export const getSavedQueries = async (): Promise<SavedNewsQuery[]> => {
+  return listRecords("news/saved-queries");
+};
+
+export const saveQuery = async (name: string, query_string: string, filters_json: string): Promise<SavedNewsQuery> => {
+  return api.post("/news/saved-queries", {
+    name,
+    query_string,
+    filters_json,
+  });
+};
+
+export const deleteSavedQuery = async (id: number): Promise<any> => {
+  return api.delete(`/news/saved-queries/${id}`);
 };

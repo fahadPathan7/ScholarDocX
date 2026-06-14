@@ -1,0 +1,278 @@
+.atlas-profile-intelligence-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
+  grid-template-areas:
+    "background funding"
+    "background lab";
+  gap: 16px;
+  align-items: stretch;
+}
+
+.atlas-background-section { grid-area: background; }
+.atlas-funding-section { grid-area: funding; }
+.atlas-lab-section { grid-area: lab; }
+
+.atlas-background-overview {
+  display: grid;
+  gap: 15px;
+}
+
+.atlas-background-summary {
+  margin: 0;
+  padding: 11px 13px;
+  border-left: 3px solid #4a9186;
+  border-radius: 0 10px 10px 0;
+  color: #456660;
+  background: #f2f8f5;
+  font-size: 0.73rem;
+  line-height: 1.55;
+}
+
+.atlas-background-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+  gap: 18px;
+}
+
+.atlas-background-columns > section {
+  min-width: 0;
+}
+
+.atlas-profile-subheading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: #347b70;
+}
+
+.atlas-profile-subheading strong,
+.atlas-profile-subheading span {
+  display: block;
+}
+
+.atlas-profile-subheading strong {
+  color: #2a524d;
+  font-size: 0.75rem;
+}
+
+.atlas-profile-subheading span {
+  margin-top: 2px;
+  color: #82918e;
+  font-size: 0.61rem;
+}
+
+.atlas-profile-timeline {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atlas-profile-timeline li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 14px;
+}
+
+.atlas-profile-timeline li:not(:last-child)::after {
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: 5px;
+  width: 1px;
+  background: rgba(50, 130, 118, 0.19);
+  content: "";
+}
+
+.atlas-profile-timeline-marker {
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border: 3px solid #e0f1eb;
+  border-radius: 999px;
+  background: #37877b;
+}
+
+.atlas-profile-timeline-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.atlas-profile-timeline-title strong {
+  color: #315752;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.atlas-profile-timeline-title span {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #246b60;
+  background: #e4f3ee;
+  font-size: 0.56rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.atlas-profile-timeline p {
+  margin: 3px 0 0;
+  color: #627a75;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.atlas-profile-timeline small {
+  display: block;
+  margin-top: 4px;
+  color: #8a9895;
+  font-size: 0.6rem;
+}
+
+.atlas-funding-section {
+  border-color: rgba(191, 133, 38, 0.2);
+  background: linear-gradient(145deg, #fffdf8, #fffaf0);
+}
+
+.atlas-funding-status {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid rgba(191, 133, 38, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 247, 228, 0.78);
+}
+
+.atlas-funding-status > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8c651f;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.atlas-funding-status strong {
+  color: #59491f;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.atlas-funding-status small {
+  color: #88795d;
+  font-size: 0.62rem;
+}
+
+.atlas-funding-section .atlas-insight-list {
+  gap: 7px;
+  margin-top: 13px;
+  font-size: 0.7rem;
+}
+
+.atlas-funding-section .atlas-insight-list li::before {
+  background: #c3923f;
+}
+
+.atlas-funding-list article {
+  position: relative;
+}
+
+.atlas-funding-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  float: none;
+  margin-top: 8px;
+  font-weight: 750;
+}
+
+.atlas-lab-body {
+  display: grid;
+  gap: 13px;
+}
+
+.atlas-lab-status {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px;
+  border: 1px dashed rgba(60, 118, 110, 0.24);
+  border-radius: 12px;
+  color: #55736e;
+  background: #f5f9f7;
+}
+
+.atlas-lab-status > svg {
+  flex: 0 0 auto;
+  color: #5e8b84;
+}
+
+.atlas-lab-status strong,
+.atlas-lab-status span {
+  display: block;
+}
+
+.atlas-lab-status strong {
+  color: #345b56;
+  font-size: 0.76rem;
+}
+
+.atlas-lab-status span {
+  margin-top: 3px;
+  color: #798a87;
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.atlas-lab-status.has-members {
+  border-style: solid;
+  border-color: rgba(48, 132, 119, 0.18);
+  background: #edf7f3;
+}
+
+.atlas-lab-body .atlas-narrative-summary,
+.atlas-lab-body .atlas-insight-list {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.atlas-lab-member-list {
+  display: grid;
+  gap: 8px;
+}
+
+.atlas-lab-member-list article {
+  padding: 11px 12px;
+  border: 1px solid rgba(42, 99, 94, 0.09);
+  border-radius: 10px;
+  background: #f8fbfa;
+}
+
+@media (max-width: 1100px) {
+  .atlas-profile-intelligence-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "background"
+      "funding"
+      "lab";
+  }
+
+  .atlas-background-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .atlas-background-columns {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+}

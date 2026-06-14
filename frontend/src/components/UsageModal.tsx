@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 const USAGE_LABELS: Record<string, string> = {
   news_searches_per_day: "Scholarship Hunt Searches Per Day",
   news_searches_per_month: "Scholarship Hunt Searches Per Month",
+  advisor_atlas_searches_per_month: "Advisor Atlas Searches & Refreshes Per Month",
 };
 
 function ModalPortal({ children }: { children: React.ReactNode }) {

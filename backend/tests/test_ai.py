@@ -211,6 +211,32 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
     assert calls[0][3] == 64
 
 
+@pytest.mark.asyncio
+async def test_chat_uses_explicit_internal_operation_label(monkeypatch, capsys):
+    settings = Settings()
+    settings.glm_api_key = ""
+    settings.gemini_api_key = "test-gemini-key"
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
+    service = AiService(settings)
+
+    async def fake_gemini(model_name, system_prompt, message, max_tokens=None):
+        return "Structured result"
+
+    monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)
+
+    await service.chat(
+        "Analyze professor evidence",
+        model="gemini:gemini-2.5-flash-lite",
+        override_system_prompt="Return JSON.",
+        request_label="Advisor Atlas · Final Synthesis",
+    )
+
+    output = capsys.readouterr().out
+    assert "[Advisor Atlas · Final Synthesis]" in output
+    assert "[Standard Chat]" not in output
+
+
 
 
 

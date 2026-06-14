@@ -42,6 +42,11 @@ ScholarDock is privacy-first. Private academic data should remain local unless t
 - Advisor Atlas fetching must reject loopback, private-network, file, and unsafe
   redirect targets; limit content type and size; sanitize remote HTML; and
   respect robots and public access restrictions.
+- Advisor Atlas new-run and evidence-refresh endpoints must enforce the
+  authenticated user's `advisor_atlas_searches_per_month` role limit on the
+  backend. Candidate ownership must be verified before a refresh consumes
+  quota, and frontend controls are informational rather than the security
+  boundary.
 
 ## Authentication Rules
 

@@ -2,13 +2,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_user_store
 from app.api.dependencies import get_store
 from app.services.store import Store
 from app.services.news_feedback import (
     claim_query_preview_feedback,
     complete_search_feedback,
     create_query_preview_feedback,
+    create_search_feedback,
 )
 from app.services.news_service import MAX_TAVILY_QUERY_LENGTH, news_service
 from app.services.news_query_generator import scholarship_query_generator
@@ -27,6 +28,12 @@ class BookmarkCreate(BaseModel):
     country: Optional[str] = None
 
 
+class SavedQueryCreate(BaseModel):
+    name: str
+    query_string: str
+    filters_json: str
+
+
 class ScholarshipSearchFilters(BaseModel):
     levels: Optional[List[str]] = None
     countries: Optional[List[str]] = None
@@ -35,6 +42,7 @@ class ScholarshipSearchFilters(BaseModel):
     funding_types: Optional[List[str]] = None
     fields_of_study: Optional[List[str]] = None
     popular_scholarships: Optional[List[str]] = None
+    custom_prompt: Optional[str] = None
     language: str = "en"
     sort_by: str = "latest"
 
@@ -45,7 +53,7 @@ class QueryPreviewRequest(BaseModel):
 
 class ConfirmedSearchRequest(BaseModel):
     filters: ScholarshipSearchFilters
-    preview_feedback_id: int = Field(gt=0)
+    preview_feedback_id: int = Field(ge=0)
     approved_query: str = Field(min_length=3, max_length=MAX_TAVILY_QUERY_LENGTH)
     query_approved: bool
 
@@ -140,19 +148,24 @@ async def search_news_confirmed(
             detail="Approved query must contain at least 3 characters.",
         )
 
-    try:
-        initial_query = claim_query_preview_feedback(
-            store.db,
-            payload.preview_feedback_id,
-            int(user["id"]),
-            approved_query,
-        )
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error))
-    except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error))
-
-    feedback_id = payload.preview_feedback_id
+    if payload.preview_feedback_id == 0:
+        _check_search_limits(user, store)
+        check_and_increment_limit(user, "news_searches_per_month", increment=1, session=store.db)
+        check_and_increment_limit(user, "news_searches_per_day", increment=1, session=store.db)
+        feedback_id = create_search_feedback(store.db, int(user["id"]), approved_query, approved_query, filters)
+    else:
+        try:
+            initial_query = claim_query_preview_feedback(
+                store.db,
+                payload.preview_feedback_id,
+                int(user["id"]),
+                approved_query,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error))
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error))
+        feedback_id = payload.preview_feedback_id
 
     try:
         results = await news_service.search_scholarships(
@@ -185,6 +198,7 @@ async def search_news(
     funding_types: Optional[List[str]] = Query(None),
     fields_of_study: Optional[List[str]] = Query(None),
     popular_scholarships: Optional[List[str]] = Query(None),
+    custom_prompt: Optional[str] = Query(None),
     language: str = "en",
     sort_by: str = "latest",
     page: Optional[str] = None,
@@ -207,6 +221,7 @@ async def search_news(
         funding_types=funding_types,
         fields_of_study=fields_of_study,
         popular_scholarships=popular_scholarships,
+        custom_prompt=custom_prompt,
         language=language,
         sort_by=sort_by,
         page=page,
@@ -229,7 +244,7 @@ async def get_bookmarks(
 async def add_bookmark(
     bookmark: BookmarkCreate,
     user: dict = Depends(get_current_user),
-    store: Store = Depends(get_store),
+    store: Store = Depends(get_user_store),
 ):
     try:
         return store.create_record("bookmarked_news", bookmark.model_dump())
@@ -240,7 +255,7 @@ async def add_bookmark(
 async def delete_bookmark(
     article_id: str,
     user: dict = Depends(get_current_user),
-    store: Store = Depends(get_store),
+    store: Store = Depends(get_user_store),
 ):
     # need to find the record ID first to delete
     record = store.connection.execute(
@@ -252,3 +267,31 @@ async def delete_bookmark(
         raise HTTPException(status_code=404, detail="Bookmark not found")
         
     return store.delete_record("bookmarked_news", record["id"])
+
+
+@router.get("/news/saved-queries")
+async def get_saved_queries(
+    user: dict = Depends(get_current_user),
+    store: Store = Depends(get_user_store),
+):
+    return store.list_records("saved_scholarship_queries")
+
+@router.post("/news/saved-queries")
+async def add_saved_query(
+    saved_query: SavedQueryCreate,
+    user: dict = Depends(get_current_user),
+    store: Store = Depends(get_user_store),
+):
+    try:
+        return store.create_record("saved_scholarship_queries", saved_query.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/news/saved-queries/{query_id}")
+async def delete_saved_query(
+    query_id: int,
+    user: dict = Depends(get_current_user),
+    store: Store = Depends(get_user_store),
+):
+    return store.delete_record("saved_scholarship_queries", query_id)
+

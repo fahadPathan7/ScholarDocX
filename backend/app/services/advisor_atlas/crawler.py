@@ -6,7 +6,7 @@ import ipaddress
 import re
 import socket
 from typing import Any
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -34,6 +34,10 @@ class PageParser(HTMLParser):
         self.links: list[tuple[str, str]] = []
         self._current_href: str | None = None
         self._link_text: list[str] = []
+        self._in_table_cell = False
+        self._table_cell_text: list[str] = []
+        self._table_row: list[str] = []
+        self.table_rows: list[list[str]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_dict = dict(attrs)
@@ -44,6 +48,11 @@ class PageParser(HTMLParser):
         if tag == "a":
             self._current_href = attrs_dict.get("href")
             self._link_text = []
+        if tag == "tr":
+            self._table_row = []
+        if tag in {"td", "th"}:
+            self._in_table_cell = True
+            self._table_cell_text = []
 
     def handle_endtag(self, tag: str) -> None:
         if tag in {"script", "style", "noscript", "svg"} and self._skip_depth:
@@ -55,6 +64,15 @@ class PageParser(HTMLParser):
             self.links.append((self._current_href, text))
             self._current_href = None
             self._link_text = []
+        if tag in {"td", "th"} and self._in_table_cell:
+            value = " ".join(self._table_cell_text).strip()
+            if value:
+                self._table_row.append(value)
+            self._in_table_cell = False
+            self._table_cell_text = []
+        if tag == "tr" and self._table_row:
+            self.table_rows.append(self._table_row)
+            self._table_row = []
 
     def handle_data(self, data: str) -> None:
         if self._skip_depth:
@@ -67,17 +85,31 @@ class PageParser(HTMLParser):
         self.text_parts.append(clean)
         if self._current_href is not None:
             self._link_text.append(clean)
+        if self._in_table_cell:
+            self._table_cell_text.append(clean)
 
 
 def canonicalize_url(url: str) -> str:
     parsed = urlparse(url.strip())
+    path = parsed.path.rstrip("/") or "/"
+    query = ""
+    if "scholar.google." in parsed.netloc.lower():
+        identity_query = [
+            (key, value)
+            for key, value in parse_qsl(parsed.query, keep_blank_values=False)
+            if key == "user"
+        ]
+        params_user = re.search(r"(?:^|;)user=([^;]+)", parsed.params)
+        if params_user and not identity_query:
+            identity_query = [("user", params_user.group(1))]
+        query = urlencode(identity_query)
     return urlunparse(
         (
             parsed.scheme.lower(),
             parsed.netloc.lower(),
-            parsed.path.rstrip("/") or "/",
+            path,
             "",
-            "",
+            query,
             "",
         )
     )
@@ -191,6 +223,7 @@ class PublicCrawler:
             "text": clean_text[:120_000],
             "links": links,
             "emails": sorted(set(EMAIL_PATTERN.findall(clean_text))),
+            "table_rows": parser.table_rows[:500],
         }
 
     async def inspect_visual(self, url: str) -> dict[str, Any]:

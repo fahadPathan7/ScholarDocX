@@ -6,6 +6,89 @@ export type ResearchProfile = {
   interests: string[];
 };
 
+export type AdvisorDepartmentRelation = {
+  name?: string;
+  relation?: "direct" | "adjacent" | "interdisciplinary" | string;
+  relevance_score?: number;
+  reason?: string;
+  source_url?: string;
+  confidence?: number;
+  faculty_count?: number;
+  research_match_count?: number;
+  opportunity_count?: number;
+};
+
+export type AdvisorOpportunityOutlook = {
+  status?: "current_open" | "high_likelihood" | "possible" | "low_likelihood" | "unknown" | string;
+  likelihood?: number;
+  confidence?: number;
+  likely_semesters?: string[];
+  signals?: string[];
+  counter_signals?: string[];
+  limitation?: string;
+};
+
+export type AdvisorIntelligence = {
+  is_research_match?: boolean;
+  semantic_score?: number;
+  matched_interests?: string[];
+  match_reasons?: string[];
+  matching_method?: string;
+  matching_limitation?: string;
+  department_relation?: AdvisorDepartmentRelation;
+  opportunity_outlook?: AdvisorOpportunityOutlook;
+  background?: Record<string, any>;
+  funding?: Record<string, any>;
+  lab_members?: Record<string, any>;
+  research_interests?: {
+    summary?: string;
+    themes?: string[];
+    methods?: string[];
+    applications?: string[];
+  };
+  academic_profiles?: Record<string, any>;
+  contact?: Record<string, any>;
+  collaborations?: Record<string, any>;
+  recent_activity?: Record<string, any>;
+  research_metrics?: {
+    tavily_searches?: number;
+    pages_crawled?: number;
+    ai_calls?: number;
+    estimated_input_tokens?: number;
+    estimated_output_tokens?: number;
+    estimated_total_tokens?: number;
+    sources_inspected?: number;
+    elapsed_seconds?: number;
+    token_measurement?: string;
+  };
+  source_gaps?: string[];
+};
+
+export type AdvisorDiscoverySummary = {
+  mode?: SearchMode;
+  requested_field?: string;
+  department_map?: AdvisorDepartmentRelation[];
+  coverage?: {
+    units_mapped?: number;
+    direct_units?: number;
+    adjacent_units?: number;
+    interdisciplinary_units?: number;
+    sources_inspected?: number;
+    directories_inspected?: number;
+    directories_accessible?: number;
+    directories_inaccessible?: number;
+    verified_faculty?: number;
+    research_matches?: number;
+    opportunity_matches?: number;
+    completeness?: string;
+    completeness_note?: string;
+    coverage_gaps?: string[];
+  };
+  faculty_ids?: number[];
+  research_match_ids?: number[];
+  opportunity_match_ids?: number[];
+};
+
 export type CreateAdvisorRun = {
   mode: SearchMode;
   university_name?: string;
@@ -27,6 +110,7 @@ export type AdvisorCandidate = {
   department?: string;
   email?: string;
   official_profile_url?: string;
+  personal_url?: string;
   linkedin_url?: string;
   google_scholar_url?: string;
   lab_name?: string;
@@ -37,6 +121,7 @@ export type AdvisorCandidate = {
   recruitment_state: string;
   recruitment_summary?: string;
   decision_lane: string;
+  intelligence: AdvisorIntelligence;
   shortlist_status: string;
   user_notes?: string;
   coverage: Record<string, string>;

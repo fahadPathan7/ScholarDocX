@@ -90,7 +90,8 @@ class AiService:
         max_tokens: int = None,
         override_system_prompt: str = None,
         web_search_max_results: int = None,
-        web_search_max_chars: int = None
+        web_search_max_chars: int = None,
+        request_label: str = None,
     ) -> dict:
         candidates = self._candidate_models(model)
         if not candidates:
@@ -145,18 +146,18 @@ class AiService:
                     other_context_tokens = 0
 
             # Determine prompt type for logging
-            prompt_type = "Standard Chat"
-            if override_system_prompt == ROUTING_SYSTEM_PROMPT:
+            prompt_type = request_label or "Standard Chat"
+            if not request_label and override_system_prompt == ROUTING_SYSTEM_PROMPT:
                 prompt_type = "Web Search Decide"
-            elif override_system_prompt == MEMORY_SUMMARY_SYSTEM_PROMPT:
+            elif not request_label and override_system_prompt == MEMORY_SUMMARY_SYSTEM_PROMPT:
                 prompt_type = "Background Summarization"
                 user_input_tokens = len(full_message) // 4
                 summary_tokens = 0
                 last_turn_tokens = 0
                 other_context_tokens = 0
-            elif override_system_prompt and "action planner" in override_system_prompt.lower():
+            elif not request_label and override_system_prompt and "action planner" in override_system_prompt.lower():
                 prompt_type = "Action Planner"
-            elif context and "Web Search Results:" in context:
+            elif not request_label and context and "Web Search Results:" in context:
                 prompt_type = "Standard Chat + Web"
 
             # Calculate web search max tokens if results are present

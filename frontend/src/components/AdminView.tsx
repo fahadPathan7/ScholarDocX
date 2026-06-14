@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { hasRole } from "../lib/auth";
@@ -26,7 +26,8 @@ import {
   StickyNote,
   Presentation,
   FileSpreadsheet,
-  Database
+  Database,
+  Search
 } from "lucide-react";
 import { notificationCategories } from "../config/notificationLabels";
 import { PlanRequestsTab as PlanRequestsReviewTab } from "./admin/PlanRequestsTab";
@@ -45,7 +46,7 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, root);
 }
 
-function DashboardTab() {
+function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
@@ -137,17 +138,44 @@ function DashboardTab() {
   return (
     <div className="admin-dashboard-tab animate-in fade-in duration-300">
       <div className="admin-dashboard-stat-grid">
-        {statCards.map((card) => (
-          <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
-            <div className="admin-dashboard-stat-card__header">
-              <div className="admin-dashboard-stat-card__icon">
-                <card.icon size={19} />
+        {statCards.map((card) => {
+          const isHighlightable = ["Invite Requests", "Plan Requests", "Suspension Appeals"].includes(card.label);
+          const hasValue = typeof card.value === 'number' && card.value > 0;
+          return (
+            <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
+              <div className="admin-dashboard-stat-card__header">
+                <div className="admin-dashboard-stat-card__icon">
+                  <card.icon size={19} />
+                </div>
+                <p>{card.label}</p>
               </div>
-              <p>{card.label}</p>
+              {isHighlightable && hasValue ? (
+                <div className="flex items-center justify-between mt-1">
+                  <p 
+                    className="admin-dashboard-stat-card__value text-white px-4 py-0.5 rounded-xl shadow-md animate-[pulse_2s_ease-in-out_infinite]"
+                    style={{ backgroundColor: "var(--admin-stat-color)" }}
+                  >
+                    {card.value}
+                  </p>
+                  <button 
+                    onClick={() => {
+                      if (!onNavigate) return;
+                      if (card.label === "Invite Requests") onNavigate("invite_requests");
+                      else if (card.label === "Plan Requests") onNavigate("plan_requests");
+                      else if (card.label === "Suspension Appeals") onNavigate("suspension_appeals");
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-sm hover:opacity-80 transition-opacity cursor-pointer border-none"
+                    style={{ backgroundColor: "var(--admin-stat-bg)", color: "var(--admin-stat-color)" }}
+                  >
+                    Needs Action
+                  </button>
+                </div>
+              ) : (
+                <p className="admin-dashboard-stat-card__value">{card.value}</p>
+              )}
             </div>
-            <p className="admin-dashboard-stat-card__value">{card.value}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="admin-dashboard-activity-grid">
@@ -324,6 +352,11 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       resetInfo: "Resets on the 1st of each month at midnight UTC.",
       example: "If limit is 500, the user can run 500 scholarship hunts this month. Counter resets on the 1st of next month."
     },
+    advisor_atlas_searches_per_month: {
+      description: "Limits the combined number of new Advisor Atlas searches and professor evidence refreshes in a calendar month.",
+      resetInfo: "Resets on the 1st of each month at midnight UTC.",
+      example: "If limit is 10, the user can start or refresh Advisor Atlas research 10 times this month."
+    },
     total_projects: {
       description: "Limits the total number of projects a user can create.",
       resetInfo: "Never resets. This is a cumulative limit.",
@@ -404,6 +437,12 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       features: [
         { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
         { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
+      ]
+    },
+    {
+      name: "Advisor Atlas",
+      features: [
+        { key: "advisor_atlas_searches_per_month", label: "Maximum Advisor Atlas Searches & Refreshes Per Month", description: "Limits the combined number of new Discovery searches, Professor searches, and professor evidence refreshes in a calendar month." }
       ]
     },
     {
@@ -784,6 +823,13 @@ function InvitesTab() {
   const [usages, setUsages] = useState<any[]>([]);
   const [loadingUsages, setLoadingUsages] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const visibleInvites = useMemo<any[]>(() => {
+    if (!searchQuery) return invites;
+    const lowerQ = searchQuery.toLowerCase();
+    return invites.filter(inv => inv.code.toLowerCase().includes(lowerQ));
+  }, [invites, searchQuery]);
 
   const fetchInvites = () => {
     api.get<any[]>("/admin/invites").then(setInvites).catch(console.error);
@@ -866,6 +912,21 @@ function InvitesTab() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+            />
+          </div>
+          <button onClick={fetchInvites} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
+            Refresh
+          </button>
+        </div>
         <div className="overflow-auto flex-1 bg-white relative">
           <table className="w-full text-sm text-left relative">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
@@ -879,7 +940,7 @@ function InvitesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invites.map((inv) => (
+              {visibleInvites.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 flex items-center gap-2">
                     <span className="font-mono text-indigo-700 font-bold tracking-widest bg-indigo-50 px-3 py-1 rounded border border-indigo-100">{inv.code}</span>
@@ -989,6 +1050,17 @@ function InvitesTab() {
 
 function AuditLogsTab() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const visibleLogs = useMemo<any[]>(() => {
+    if (!searchQuery) return logs;
+    const lowerQ = searchQuery.toLowerCase();
+    return logs.filter(log => 
+      (log.user_email || "").toLowerCase().includes(lowerQ) || 
+      String(log.user_id || "").includes(lowerQ) ||
+      log.action.toLowerCase().includes(lowerQ)
+    );
+  }, [logs, searchQuery]);
 
   useEffect(() => {
     api.get<any[]>("/admin/audit-logs").then(setLogs).catch(console.error);
@@ -997,6 +1069,18 @@ function AuditLogsTab() {
   return (
     <div className="h-full flex flex-col animate-in fade-in duration-300">
       <div className="profile-system-card glass-panel flex-1 flex flex-col min-h-0 overflow-hidden" style={{ padding: '0' }}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search user or action..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+            />
+          </div>
+        </div>
         <div className="overflow-auto flex-1 relative">
           <table className="w-full text-sm text-left relative">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200/50 sticky top-0 z-10">
@@ -1009,7 +1093,7 @@ function AuditLogsTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100/50">
-            {logs.map((log) => (
+            {visibleLogs.map((log) => (
               <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><Clock size={12} className="inline mr-1" />{new Date(log.created_at).toLocaleString("en-GB")}</td>
                 <td className="px-6 py-4 font-medium text-slate-700">{log.user_email || log.user_id}</td>
@@ -1088,6 +1172,16 @@ function NotificationTextsTab() {
 function InviteRequestsTab() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const visibleRequests = useMemo<any[]>(() => {
+    if (!searchQuery) return requests;
+    const lowerQ = searchQuery.toLowerCase();
+    return requests.filter(req => 
+      (req.name || "").toLowerCase().includes(lowerQ) || 
+      (req.email || "").toLowerCase().includes(lowerQ)
+    );
+  }, [requests, searchQuery]);
 
   const fetchRequests = async () => {
     try {
@@ -1134,9 +1228,21 @@ function InviteRequestsTab() {
       <div className="profile-system-card glass-panel flex flex-col min-h-[400px]" style={{ padding: '0' }}>
         <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
           <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2"><Users size={18} className="text-indigo-600" /> Invite Requests</h2>
-          <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative mr-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="Search name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+              />
+            </div>
+            <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
+              Refresh
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-auto">
           {requests.length === 0 ? (
@@ -1158,7 +1264,7 @@ function InviteRequestsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {requests.map((r) => (
+                {visibleRequests.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-700">{r.name}</td>
                     <td className="px-4 py-3 text-slate-500">{r.email}</td>
@@ -1531,6 +1637,15 @@ function SettingsTab() {
 export function SuspensionAppealsTab() {
   const [appeals, setAppeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const visibleAppeals = useMemo<any[]>(() => {
+    if (!searchQuery) return appeals;
+    const lowerQ = searchQuery.toLowerCase();
+    return appeals.filter(a => 
+      (a.email || "").toLowerCase().includes(lowerQ)
+    );
+  }, [appeals, searchQuery]);
 
   const fetchAppeals = async () => {
     try {
@@ -1571,9 +1686,21 @@ export function SuspensionAppealsTab() {
           <ShieldAlert className="h-5 w-5 text-indigo-500" />
           Suspension Appeals
         </h2>
-        <button onClick={fetchAppeals} className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100">
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative mr-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-white border border-zinc-200/80 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+            />
+          </div>
+          <button onClick={fetchAppeals} className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100">
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto">
@@ -1595,7 +1722,7 @@ export function SuspensionAppealsTab() {
                 </td>
               </tr>
             ) : (
-              appeals.map((a) => (
+              visibleAppeals.map((a) => (
                 <tr key={a.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-6 py-4 font-medium text-zinc-900">{a.email}</td>
                   <td className="px-6 py-4 max-w-md truncate" title={a.message}>{a.message}</td>
@@ -1762,7 +1889,7 @@ export function AdminView() {
       </div>
 
         <div className="flex-1 min-h-0 flex flex-col pb-8">
-          {activeTab === "dashboard" && <DashboardTab />}
+          {activeTab === "dashboard" && <DashboardTab onNavigate={setActiveTab} />}
           {activeTab === "users" && <UsersTab adminPermissions={adminPermissions} />}
           {activeTab === "limits" && <LimitsTab onLimitsUpdated={fetchAdminPermissions} />}
           {activeTab === "notification_texts" && adminPermissions["admin_manage_notification_texts"] && <NotificationTextsTab />}

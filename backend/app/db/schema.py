@@ -34,6 +34,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_user', 'total_whiteboards', 1, 'never'),
   ('general_user', 'news_searches_per_day', 3, 'daily'),
   ('general_user', 'news_searches_per_month', 30, 'monthly'),
+  ('general_user', 'advisor_atlas_searches_per_month', 3, 'monthly'),
 
   ('pro_user', 'ai_messages_per_session', 30, 'per_session'),
   ('pro_user', 'daily_ai_chats', 50, 'daily'),
@@ -56,6 +57,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('pro_user', 'total_whiteboards', 3, 'never'),
   ('pro_user', 'news_searches_per_day', 10, 'daily'),
   ('pro_user', 'news_searches_per_month', 100, 'monthly'),
+  ('pro_user', 'advisor_atlas_searches_per_month', 10, 'monthly'),
 
   ('max_user', 'ai_messages_per_session', 100, 'per_session'),
   ('max_user', 'daily_ai_chats', 200, 'daily'),
@@ -78,6 +80,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('max_user', 'total_whiteboards', 10, 'never'),
   ('max_user', 'news_searches_per_day', 30, 'daily'),
   ('max_user', 'news_searches_per_month', 300, 'monthly'),
+  ('max_user', 'advisor_atlas_searches_per_month', 30, 'monthly'),
 
   ('general_admin', 'admin_create_user', 1, 'never'),
   ('general_admin', 'admin_assign_user_roles', 1, 'never'),

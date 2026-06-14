@@ -122,6 +122,7 @@ class Users(Base):
     static_files: Mapped[list['StaticFiles']] = relationship('StaticFiles', back_populates='user')
     outreach_logs: Mapped[list['OutreachLogs']] = relationship('OutreachLogs', back_populates='user')
     reminders: Mapped[list['Reminders']] = relationship('Reminders', back_populates='user')
+    saved_scholarship_queries: Mapped[list['SavedScholarshipQueries']] = relationship('SavedScholarshipQueries', back_populates='user')
 
 
 class AiConversations(Base):
@@ -763,6 +764,7 @@ class AdvisorAtlasCandidates(Base):
     recruitment_state: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unknown'"))
     recruitment_summary: Mapped[Optional[str]] = mapped_column(Text)
     decision_lane: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Needs Verification'"))
+    intelligence_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     shortlist_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unreviewed'"))
     user_notes: Mapped[Optional[str]] = mapped_column(Text)
     coverage_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
@@ -851,3 +853,18 @@ class AdvisorAtlasWatchEvents(Base):
     detected_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     acknowledged_at: Mapped[Optional[str]] = mapped_column(Text)
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class SavedScholarshipQueries(Base):
+    __tablename__ = 'saved_scholarship_queries'
+    
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    query_string: Mapped[str] = mapped_column(Text, nullable=False)
+    filters_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    last_used_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+
+    user: Mapped[Optional['Users']] = relationship('Users', back_populates='saved_scholarship_queries')

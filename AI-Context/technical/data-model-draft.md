@@ -236,15 +236,26 @@ Persist user-scoped supervisor discovery work and evidence.
 Tables:
 
 - `advisor_atlas_runs`: search inputs, profile, depth, status, progress, and
-  action center.
+  persisted intelligence summary. Discovery summaries include mapped academic
+  units, source coverage, and the three nested candidate-ID populations.
 - `advisor_atlas_candidates`: normalized professor identity, lane, scores,
-  recruitment state, shortlist, notes, and save link.
+  recruitment state, shortlist, notes, save link, and `intelligence_json`.
+  Candidate intelligence stores semantic-fit explanations, actual department
+  relationship, semester-aware opportunity outlook, background, funding, lab
+  members, academic profiles, and source gaps.
 - `advisor_atlas_evidence`: claim-level source metadata and excerpts.
 - `advisor_atlas_publications`: latest and relevant publications plus reading
   status.
 - `advisor_atlas_dossiers`: structured research, lab, opportunity, readiness,
   risk, verification, and next-action sections.
 - `advisor_atlas_watch_events`: meaningful changes found during refresh.
+
+Usage accounting reuses the shared tables:
+
+- `role_limits.advisor_atlas_searches_per_month`: monthly entitlement for each
+  user tier.
+- `user_usage_stats.advisor_atlas_searches_per_month`: per-user count shared by
+  accepted new searches and evidence refreshes.
 
 ## identity
 

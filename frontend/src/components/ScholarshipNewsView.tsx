@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Filter, Bookmark } from "lucide-react";
+import { Filter, Bookmark, ChevronRight } from "lucide-react";
 import { FilterPanel } from "./news/FilterPanel";
 import { NewsFeed } from "./news/NewsFeed";
 import { QueryReviewDialog } from "./news/QueryReviewDialog";
+import { CustomPromptDialog } from "./news/CustomPromptDialog";
 import {
-  searchNews,
-  previewNewsQuery,
-  getBookmarkedNews,
   addBookmark,
-  removeBookmark,
+  getBookmarkedNews,
   NewsArticle,
+  NewsQueryPreview,
   NewsSearchParams,
+  previewNewsQuery,
+  removeBookmark,
+  searchNews,
+  saveQuery,
 } from "../lib/newsApi";
 import { useUsage } from "../contexts/UsageContext";
 import "./news/news.css";
@@ -27,7 +30,16 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const isLoadingRef = React.useRef(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(window.innerWidth > 768);
+  const [isFilterOpen, setIsFilterOpen] = useState(() => {
+    const saved = localStorage.getItem("scholarshipHunt_isFilterOpen");
+    if (saved !== null) return JSON.parse(saved);
+    return window.innerWidth > 768;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("scholarshipHunt_isFilterOpen", JSON.stringify(isFilterOpen));
+  }, [isFilterOpen]);
+
   const [filters, setFilters] = useState<NewsSearchParams>({});
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [isPreparingQuery, setIsPreparingQuery] = useState(false);
@@ -46,6 +58,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     generationModel: string;
     generationNotice: string;
   } | null>(null);
+  const [showCustomPromptDialog, setShowCustomPromptDialog] = useState(false);
 
   const hasAnyFilter = (params: NewsSearchParams) => {
     return Object.values(params).some(val => Array.isArray(val) ? val.length > 0 : !!val);
@@ -69,8 +82,10 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     append = false,
   ) => {
     if (showBookmarksOnly) return; // Don't fetch from API when viewing bookmarks
-    if (!hasAnyFilter(currentFilters)) {
+    if (!hasAnyFilter(currentFilters) && !approvedQuery) {
       setArticles([]);
+      setSearchFlow("idle");
+      setIsLoading(false);
       return;
     }
     
@@ -118,7 +133,12 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleApplyFilters = async (newFilters: NewsSearchParams) => {
+  const handleApplyFilters = async (newFilters: any) => {
+    if (newFilters.isCustomPrompt) {
+      setShowCustomPromptDialog(true);
+      return;
+    }
+
     if (!hasAnyFilter(newFilters)) {
       setFilters({});
       setPendingFilters(null);
@@ -157,7 +177,38 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     }
   };
 
-  const handleConfirmQuery = async (approvedQuery: string) => {
+  const handleRefineCustomPrompt = async (promptText: string) => {
+    setSearchFlow("preparing");
+    setIsPreparingQuery(true);
+    try {
+      const payload: NewsSearchParams = { custom_prompt: promptText };
+      const preview = await previewNewsQuery(payload);
+      setPendingFilters(payload);
+      setQueryPreview({
+        previewFeedbackId: preview.preview_feedback_id,
+        initialQuery: preview.initial_query,
+        maxLength: preview.max_length,
+        generationSource: preview.generation_source,
+        generationModel: preview.generation_model,
+        generationNotice: preview.generation_notice,
+      });
+      setSearchFlow("review");
+      setShowCustomPromptDialog(false);
+      await refreshUsage();
+    } catch (error) {
+      console.error("Failed to prepare Scholarship Hunt custom query:", error);
+      if ((error as Error)?.message?.includes("429") || (error as Error)?.message?.includes("Limit exceeded")) {
+        onToast("Rate limit exceeded. Upgrade your plan for more searches.");
+      } else {
+        onToast("Could not refine your custom prompt.");
+      }
+      setSearchFlow("idle");
+    } finally {
+      setIsPreparingQuery(false);
+    }
+  };
+
+  const handleConfirmQuery = async (approvedQuery: string, saveAsName?: string) => {
     if (!pendingFilters || !queryPreview) return;
     const confirmedFilters = pendingFilters;
     const previewFeedbackId = queryPreview.previewFeedbackId;
@@ -165,7 +216,32 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     setShowBookmarksOnly(false);
     setSearchFlow("searching");
     setQueryPreview(null);
+    
+    if (saveAsName) {
+      try {
+        await saveQuery(saveAsName, approvedQuery, JSON.stringify(confirmedFilters));
+        onToast("Query saved successfully");
+      } catch (e) {
+        onToast("Failed to save query");
+      }
+    }
+    
     await fetchNews(confirmedFilters, previewFeedbackId, approvedQuery, false);
+  };
+
+  const handleRunSavedQuery = async (queryString: string, filtersJson: string) => {
+    let parsedFilters = {};
+    try {
+      parsedFilters = JSON.parse(filtersJson);
+    } catch(e) {}
+    
+    setFilters(parsedFilters);
+    setPendingFilters(parsedFilters);
+    setShowBookmarksOnly(false);
+    setSearchFlow("searching");
+    
+    // Use 0 or null equivalent for preview feedback since it's pre-approved
+    await fetchNews(parsedFilters, 0, queryString, false);
   };
 
   const handleToggleBookmark = async (article: NewsArticle) => {
@@ -280,26 +356,27 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
             <Bookmark size={18} className={showBookmarksOnly ? "fill-current" : ""} />
             <span className="hidden sm:inline">{showBookmarksOnly ? "Feed" : "Saved"}</span>
           </button>
-          {!showBookmarksOnly && (
-            <button 
-              className={`button-secondary ${isFilterOpen ? 'active' : ''}`} 
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Filter size={18} className={isFilterOpen ? "fill-current" : ""} />
-              <span className="hidden sm:inline">Query</span>
-            </button>
-          )}
         </div>
       </div>
       
       <div className="news-layout">
+        {!showBookmarksOnly && !isFilterOpen && (
+          <button
+            className="filter-panel-expand-button"
+            onClick={() => setIsFilterOpen(true)}
+            aria-label="Expand query builder"
+            title="Expand query builder"
+          >
+            <ChevronRight size={20} />
+          </button>
+        )}
         {!showBookmarksOnly && (
           <FilterPanel 
             isOpen={isFilterOpen} 
             onClose={() => setIsFilterOpen(false)} 
             onApplyFilters={handleApplyFilters}
             isPreparingQuery={isPreparingQuery}
+            onRunSavedQuery={handleRunSavedQuery}
           />
         )}
         
@@ -321,7 +398,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
               ? "Preparing a fresh Scholarship Hunt query..."
               : "Running your approved Scholarship Hunt query..."}
             hasMore={false}
-            hasFilters={showBookmarksOnly || hasFiltersSelected}
+            hasFilters={showBookmarksOnly || hasFiltersSelected || !!latestSearch}
             onLoadMore={() => undefined}
             onToggleBookmark={handleToggleBookmark}
           />
@@ -343,6 +420,15 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
             }
           }}
           onConfirm={handleConfirmQuery}
+        />
+      )}
+      {showCustomPromptDialog && (
+        <CustomPromptDialog
+          isRefining={isPreparingQuery}
+          onCancel={() => {
+            if (!isPreparingQuery) setShowCustomPromptDialog(false);
+          }}
+          onConfirm={handleRefineCustomPrompt}
         />
       )}
     </div>

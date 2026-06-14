@@ -65,6 +65,59 @@ backend/app/services/ai_assistant/
 - Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.1
   for bounded structured extraction, fit analysis, dossier generation, and
   next-action guidance.
+- Advisor Atlas text and vision analysis omit provider output-token fields,
+  matching standard AI chat behavior. Schema prompts, source compaction, and
+  response validation bound the work without an arbitrary feature-level token
+  ceiling.
+- Individual-professor research uses a purpose-specific query plan instead of a
+  single Tavily query. Identity, profiles, research/lab, publications,
+  funding/grants, and recruitment are searched independently and tagged before
+  deduplication.
+- High-value accessible results are crawled selectively, prioritizing official
+  university pages, lab or personal sites, scholarly profiles, DOI/publisher
+  pages, and authoritative grant sources. Search snippets remain secondary
+  evidence.
+- Professor analysis may use multiple GLM calls: specialist extraction passes
+  for identity/research and activity/opportunity, followed by a schema-validated
+  synthesis. Missing keys still use deterministic local analysis.
+- Research telemetry remains local operational metadata and is separate from
+  product quota accounting. The role-limit key
+  `advisor_atlas_searches_per_month` counts accepted new Advisor Atlas runs and
+  professor evidence refreshes as one action each, regardless of their internal
+  Tavily, crawl, or AI-call counts. General, Pro, and Max defaults are 3, 10,
+  and 30 per calendar month.
+- Full internal evidence may be persisted, while the candidate API and dossier
+  UI expose only the top five diverse sources by authority and confidence.
+- Advisor Atlas source normalization preserves identity-bearing query
+  parameters such as the Google Scholar `user` ID. Generic Scholar search pages
+  are not accepted as professor profiles.
+- Repeated URLs found by multiple search passes merge their purposes and retain
+  the strongest content instead of being overwritten by the final pass.
+- Verified professor pages may trigger one bounded linked-page crawl for
+  publications, activities/CV, homepage, scholarly profiles, code profiles,
+  and lab pages. Linked pages remain subject to the public URL, robots, size,
+  and content-type controls.
+- Deterministic identity reconciliation runs after AI synthesis. Candidate
+  section extraction, name-matched email selection, profile ownership,
+  structured HTML table rows, and publication authorship checks override or
+  remove conflicting generated values.
+- `AiService.chat` accepts a non-user-controlled operation label for diagnostic
+  logs. Advisor Atlas supplies explicit labels for each specialist pass and
+  final synthesis; normal assistant requests retain standard chat labels.
+- Department discovery uses a separate bounded university-map pass before
+  professor discovery. It returns related academic units with relationship
+  class, rationale, source URL, and confidence.
+- Discovery uses more than one bounded map query, then performs a faculty
+  directory query per selected unit. High-value official directory results are
+  crawled selectively, and a bounded fallback query is used only when a unit
+  yields too few verified candidates. Directory fetch outcomes are retained in
+  the run summary for transparent coverage reporting.
+- Discovery analysis returns explainable semantic bridges and an opportunity
+  forecast for the next two or three academic semesters. Current explicit
+  openings and future likelihood are separate fields.
+- When GLM is unavailable, deterministic matching uses curated academic concept
+  families and weighted phrase/token evidence. The UI must label this as a
+  limited fallback rather than equivalent semantic inference.
 - The configured GLM vision model is optional and reserved for public visual
   documents that cannot be extracted as text.
 - Provider calls remain backend-only and receive only public source excerpts
@@ -73,6 +126,9 @@ backend/app/services/ai_assistant/
   supplied or discoverable public pages where possible.
 - AI output must validate against the feature schema and cite source IDs.
 - Unsupported claims are removed or marked unknown.
+- Forecast confidence cannot exceed evidence confidence. Funding, publication
+  velocity, or lab activity may support a future-likelihood signal but never a
+  confirmed current opening.
 - Google Scholar access restrictions are not bypassed; publication enrichment
   may use official pages, DOI records, Crossref, OpenAlex, ORCID, or Semantic
   Scholar alternatives.

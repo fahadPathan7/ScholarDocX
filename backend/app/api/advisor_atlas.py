@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user
+from app.auth.limits import check_and_increment_limit
 from app.core.config import Settings, get_settings
 from app.services.advisor_atlas import AdvisorAtlasService
+from app.services.store import Store
 
 
 router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
@@ -16,6 +21,23 @@ router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
 
 class ResearchProfile(BaseModel):
     interests: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("interests")
+    @classmethod
+    def normalize_interests(cls, interests: list[str]) -> list[str]:
+        normalized = []
+        seen = set()
+        for interest in interests:
+            value = interest.strip()
+            key = value.casefold()
+            if value and len(value) < 2:
+                raise ValueError("Each research interest must contain at least two characters.")
+            if len(value) > 200:
+                raise ValueError("Each research interest must be 200 characters or fewer.")
+            if value and key not in seen:
+                normalized.append(value)
+                seen.add(key)
+        return normalized
 
 
 class CreateRunRequest(BaseModel):
@@ -29,16 +51,60 @@ class CreateRunRequest(BaseModel):
     research_profile: ResearchProfile = Field(default_factory=ResearchProfile)
     approved_domains: list[str] = Field(default_factory=list, max_length=30)
 
+    @field_validator(
+        "university_name",
+        "university_url",
+        "department",
+        "professor_name",
+        "degree_target",
+        "intake_term",
+    )
+    @classmethod
+    def normalize_optional_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = re.sub(r"\s+", " ", value).strip()
+        return normalized or None
+
     @model_validator(mode="after")
     def validate_mode_inputs(self):
+        if self.university_url:
+            parsed = urlparse(self.university_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                raise ValueError(
+                    "Official URL must be a complete HTTP or HTTPS university or professor URL."
+                )
         if self.mode == "department":
             if not self.university_name or not self.department:
                 raise ValueError("University name and department are required.")
-            if not self.research_profile.interests:
-                raise ValueError("At least one research interest is required for a department search.")
         if self.mode == "professor":
-            if not self.professor_name or not self.university_name:
-                raise ValueError("Professor name and university name are required for a professor search.")
+            required = {
+                "professor name": self.professor_name,
+                "university name": self.university_name,
+                "official university or professor URL": self.university_url,
+                "department or research area": self.department,
+                "degree target": self.degree_target,
+                "intended intake": self.intake_term,
+            }
+            missing = [label for label, value in required.items() if not value]
+            if missing:
+                raise ValueError(
+                    "Professor search requires " + ", ".join(missing) + "."
+                )
+            if len((self.professor_name or "").split()) < 2:
+                raise ValueError("Professor name must include at least a first and last name.")
+            if self.degree_target not in {"PhD", "Research Master's", "Either"}:
+                raise ValueError("Degree target must be PhD, Research Master's, or Either.")
+            if not re.fullmatch(
+                r"(Spring|Summer|Fall|Autumn|Winter)\s+20\d{2}",
+                self.intake_term or "",
+                re.IGNORECASE,
+            ):
+                raise ValueError(
+                    "Intended intake must include an academic term and year, for example Fall 2027."
+                )
+        if not self.research_profile.interests:
+            raise ValueError("At least one research interest is required for research matching.")
         return self
 
 
@@ -63,7 +129,14 @@ async def create_run(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
+    store: Store = Depends(get_store),
 ):
+    check_and_increment_limit(
+        user,
+        "advisor_atlas_searches_per_month",
+        increment=1,
+        session=store.db,
+    )
     run = service.repository.create_run(
         int(user["id"]),
         payload.model_dump(),
@@ -185,8 +258,16 @@ async def refresh_candidate(
     candidate_id: int,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
+    store: Store = Depends(get_store),
 ):
     try:
+        service.repository.get_candidate(candidate_id, int(user["id"]))
+        check_and_increment_limit(
+            user,
+            "advisor_atlas_searches_per_month",
+            increment=1,
+            session=store.db,
+        )
         return await service.refresh_candidate(candidate_id, int(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

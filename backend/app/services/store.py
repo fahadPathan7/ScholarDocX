@@ -42,6 +42,7 @@ MODEL_MAP = {
     "whiteboards": models.Whiteboards,
     "bookmarked_news": models.BookmarkedNews,
     "scholarship_search_feedback": models.ScholarshipSearchFeedback,
+    "saved_scholarship_queries": models.SavedScholarshipQueries,
 }
 
 TABLE_COLUMNS = {
@@ -119,6 +120,13 @@ TABLE_COLUMNS = {
         "provider_status",
         "result_count",
     },
+    "saved_scholarship_queries": {
+        "user_id",
+        "name",
+        "query_string",
+        "filters_json",
+        "last_used_at",
+    },
 }
 
 DEFAULT_SORT = {
@@ -135,6 +143,7 @@ DEFAULT_SORT = {
     "document_versions": "created_at DESC",
     "whiteboards": "last_used_at DESC",
     "scholarship_search_feedback": "created_at DESC",
+    "saved_scholarship_queries": "last_used_at DESC",
 }
 
 def get_columns_for_degree(degree_type: str) -> list[dict]:

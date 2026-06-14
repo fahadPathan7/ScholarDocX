@@ -8,6 +8,17 @@ from typing import Any
 import httpx
 
 from app.services.ai import AiService
+from app.services.advisor_atlas.intelligence import (
+    opportunity_forecast,
+    semantic_fallback,
+)
+from app.services.advisor_atlas.professor_research import (
+    candidate_excerpt,
+    discover_profile_links,
+    estimate_tokens,
+    extract_verified_professor_facts,
+    is_scholarly_publication,
+)
 
 
 RECRUIT_OPEN = re.compile(
@@ -99,17 +110,6 @@ def deterministic_analysis(
         risks.append("stale_visible_activity")
     if recruitment_state == "unknown":
         risks.append("recruitment_unverified")
-    lane = (
-        "Open or Funded Signals"
-        if recruitment_state in {"confirmed_open", "strong_signal", "possible_opportunity"}
-        else "Best Supported Matches"
-        if match_score >= 75 and confidence >= 65
-        else "High Potential"
-        if match_score >= 65
-        else "Explore Further"
-        if match_score >= 45
-        else "Not Recommended"
-    )
     coverage = {
         "identity": "Strong" if candidate.get("official_profile_url") else "Partial",
         "research": "Strong" if len(combined) > 600 else "Partial",
@@ -119,9 +119,29 @@ def deterministic_analysis(
         "application": "Partial" if profile.get("degree_target") else "Unavailable",
     }
     strongest = overlap[:6]
+    semantic = semantic_fallback(profile.get("interests", []), combined)
+    verified = extract_verified_professor_facts(candidate, sources)
+    academic_profiles = verified.get("profiles") or discover_profile_links(
+        sources, candidate["display_name"]
+    )
+    match_score = semantic["semantic_score"]
+    forecast = opportunity_forecast(combined, recruitment_state, confidence)
+    lane = (
+        "Open or Funded Signals"
+        if semantic["is_research_match"] and forecast["status"] in {
+            "current_open", "high_likelihood", "possible",
+        }
+        else "Best Supported Matches"
+        if match_score >= 75 and confidence >= 65
+        else "High Potential"
+        if match_score >= 65
+        else "Explore Further"
+        if match_score >= 45
+        else "Not Recommended"
+    )
     why_match = (
-        f"Shared research terms: {', '.join(strongest)}."
-        if strongest
+        " ".join(semantic["match_reasons"][:2])
+        if semantic["match_reasons"]
         else "The public profile is relevant to the selected department, but the research bridge needs verification."
     )
     return {
@@ -133,12 +153,55 @@ def deterministic_analysis(
             "recruitment_state": recruitment_state,
             "recruitment_summary": recruitment_summary,
             "decision_lane": lane,
+            "intelligence": {
+                **semantic,
+                "department_relation": candidate.get("department_relation", {}),
+                "opportunity_outlook": forecast,
+                "background": {
+                    **verified.get("background", {}),
+                },
+                "funding": {
+                    "summary": recruitment_summary if funded else "No recent funding was verified.",
+                    "items": [],
+                },
+                "lab_members": {
+                    "summary": "Public lab-member details were not reliably extracted.",
+                    "members": [],
+                },
+                "academic_profiles": academic_profiles,
+                "research_interests": {
+                    **(
+                        verified.get("research_interests")
+                        or {
+                            "summary": "Research interests were not verified.",
+                            "themes": [],
+                            "methods": [],
+                            "applications": [],
+                        }
+                    ),
+                },
+                "contact": {
+                    "email": candidate.get("email"),
+                    "application_path": "Confirm current openings through an official professor or lab page.",
+                },
+                "collaborations": {"summary": "No collaborations were reliably extracted.", "items": []},
+                "recent_activity": verified.get("recent_activity")
+                or {"summary": "Recent visible activity requires verification.", "items": []},
+                "source_gaps": risks,
+            },
             "coverage": coverage,
             "risk_flags": risks,
         },
-        "publications": _publication_fallback(sources, candidate, profile),
+        "publications": verified.get("publications") or _publication_fallback(
+            sources, candidate, profile
+        ),
         "dossier": {
             "decision_snapshot": {
+                "recommendation": lane,
+                "fit_summary": why_match,
+                "strongest_evidence": semantic["match_reasons"][:3],
+                "key_risks": risks,
+                "next_action": "Read the latest verified papers and confirm current recruitment directly.",
                 "why_this_professor": why_match,
                 "why_this_may_not_work": "Public evidence is incomplete." if risks else "No material mismatch was detected in available sources.",
                 "recommended_next_action": "Read the recommended papers and verify current recruitment directly.",
@@ -146,7 +209,7 @@ def deterministic_analysis(
             },
             "research_bridge": {
                 "summary": why_match,
-                "shared_terms": strongest,
+                "shared_terms": semantic["matched_interests"],
                 "evidence_limit": "Generated from available public source text.",
             },
             "method_bridge": {
@@ -162,6 +225,7 @@ def deterministic_analysis(
             "trajectory": {
                 "latest_visible_year": latest_year,
                 "summary": "Recent direction is inferred from visible public projects and publications.",
+                "opportunity_outlook": forecast,
             },
             "application_fit": {
                 "degree_target": profile.get("degree_target"),
@@ -188,32 +252,7 @@ def _publication_fallback(
     candidate: dict[str, Any],
     profile: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    publications = []
-    seen = set()
-    for item in sources:
-        title = re.sub(r"\s+", " ", item.get("title", "")).strip()
-        if not title or title.lower() in seen:
-            continue
-        text = f"{title} {item.get('content', '')}"
-        if not any(word in text.lower() for word in ("paper", "publication", "journal", "conference", "doi", "research")):
-            continue
-        years = YEAR_PATTERN.findall(text)
-        publications.append(
-            {
-                "title": title,
-                "authors": [candidate["display_name"]],
-                "publication_year": int(years[-1]) if years else None,
-                "venue": None,
-                "doi": None,
-                "source_url": item.get("url"),
-                "relevance_reason": "Publicly indexed source related to the professor's recent research.",
-                "reading_priority": max(1, 5 - len(publications)),
-            }
-        )
-        seen.add(title.lower())
-        if len(publications) == 5:
-            break
-    return publications
+    return extract_verified_professor_facts(candidate, sources).get("publications", [])
 
 
 async def analyze_with_glm(
@@ -221,6 +260,8 @@ async def analyze_with_glm(
     candidate: dict[str, Any],
     sources: list[dict[str, Any]],
     profile: dict[str, Any],
+    specialist_context: dict[str, Any] | None = None,
+    usage: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     if not ai_service.settings.glm_api_key:
         return None
@@ -229,9 +270,14 @@ async def analyze_with_glm(
             "source_id": index + 1,
             "title": item.get("title"),
             "url": item.get("url"),
-            "excerpt": (item.get("content") or item.get("text") or "")[:1800],
+            "purpose": item.get("source_kind"),
+            "excerpt": candidate_excerpt(
+                item.get("content") or item.get("text") or "",
+                candidate["display_name"],
+                1800,
+            ),
         }
-        for index, item in enumerate(sources[:10])
+        for index, item in enumerate(sources[:18])
     ]
     schema = {
         "candidate": {
@@ -239,6 +285,7 @@ async def analyze_with_glm(
             "email": "string|null",
             "lab_name": "string|null",
             "lab_url": "string|null",
+            "personal_url": "string|null",
             "linkedin_url": "string|null",
             "google_scholar_url": "string|null",
             "recent_funds": "string|null",
@@ -249,6 +296,51 @@ async def analyze_with_glm(
             "recruitment_state": "confirmed_open|strong_signal|possible_opportunity|no_current_evidence|unknown",
             "recruitment_summary": "string",
             "decision_lane": "Best Supported Matches|High Potential|Open or Funded Signals|Explore Further|Needs Verification|Not Recommended",
+            "intelligence": {
+                "is_research_match": "boolean",
+                "semantic_score": "integer 0-100",
+                "matched_interests": ["string"],
+                "match_reasons": ["string"],
+                "matching_method": "glm_semantic",
+                "matching_limitation": "string",
+                "department_relation": "object copied from candidate when supplied",
+                "opportunity_outlook": {
+                    "status": "current_open|high_likelihood|possible|low_likelihood|unknown",
+                    "likelihood": "integer 0-100",
+                    "confidence": "integer 0-100",
+                    "likely_semesters": ["next three academic semesters"],
+                    "signals": ["string"],
+                    "counter_signals": ["string"],
+                    "limitation": "string",
+                },
+                "background": {
+                    "summary": "string",
+                    "positions": ["string"],
+                    "education": ["string"],
+                },
+                "funding": {"summary": "string", "items": ["object"]},
+                "lab_members": {"summary": "string", "members": ["object"]},
+                "research_interests": {
+                    "summary": "string",
+                    "themes": ["string"],
+                    "methods": ["string"],
+                    "applications": ["string"],
+                },
+                "academic_profiles": {
+                    "official_profile_url": "string|null",
+                    "personal_url": "string|null",
+                    "linkedin_url": "string|null",
+                    "google_scholar_url": "string|null",
+                    "orcid_url": "string|null",
+                    "semantic_scholar_url": "string|null",
+                    "researchgate_url": "string|null",
+                    "other_profiles": ["object"],
+                },
+                "contact": "object with verified email and application path",
+                "collaborations": {"summary": "string", "items": ["object"]},
+                "recent_activity": {"summary": "string", "items": ["object"]},
+                "source_gaps": ["string"],
+            },
             "coverage": "object with Identity/Research/Publications/Laboratory/Opportunity/Application values",
             "risk_flags": ["string"],
         },
@@ -279,8 +371,15 @@ async def analyze_with_glm(
         "You are the structured analysis engine for ScholarDock Advisor Atlas. "
         "Use only supplied sources. Never invent names, URLs, papers, grants, dates, "
         "students, openings, or lab facts. "
-        "Aggressively look for LinkedIn profiles, Google Scholar profiles, specific recent funds/grants, "
-        "and brief descriptions of the lab's current students. "
+        "Separate identity, profiles, research, publications, funding, lab, contact, "
+        "collaboration, and recruitment evidence. A publication must be an actual "
+        "scholarly work; never return a faculty page, recruitment advertisement, "
+        "search page, or professor biography as a publication. Every publication "
+        "must visibly name this professor as an author. "
+        "Evaluate research similarity by meaning, methods, research problems, and application areas, "
+        "not exact wording. Mark is_research_match true only when at least one student interest has "
+        "a defensible semantic bridge. Forecast the next three academic semesters separately from "
+        "current recruitment and explain signals, counter-signals, confidence, and limitations. "
         "Funding alone can only support possible_opportunity, never confirmed_open. "
         "Return one JSON object only, matching the requested schema. "
         "Every uncertain area must be marked unknown or incomplete. Keep summaries concise."
@@ -288,24 +387,117 @@ async def analyze_with_glm(
     prompt = (
         f"Candidate:\n{json.dumps(candidate)}\n\n"
         f"Student profile:\n{json.dumps(profile)}\n\n"
+        f"Specialist analyses:\n{json.dumps(specialist_context or {})}\n\n"
         f"Sources:\n{json.dumps(compact_sources)}\n\n"
         f"Required schema:\n{json.dumps(schema)}"
     )
     response = await ai_service.chat(
         prompt,
         model=ai_service.settings.advisor_atlas_glm_model,
-        max_tokens=3000,
         override_system_prompt=system,
+        request_label="Advisor Atlas · Final Synthesis",
     )
+    _record_ai_usage(usage, system, prompt, response.get("answer", ""))
     if response.get("mode") in {"local-fallback", "provider-error"}:
         return None
     return extract_json_object(response.get("answer", ""))
+
+
+async def analyze_professor_specialists(
+    ai_service: AiService,
+    candidate: dict[str, Any],
+    sources: list[dict[str, Any]],
+    profile: dict[str, Any],
+    usage: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if not ai_service.settings.glm_api_key:
+        return {}
+    passes = [
+        (
+            "identity_research",
+            {"identity", "profiles", "research", "official_profile"},
+            (
+                "Extract verified identity/background, all professional or academic profile URLs, "
+                "research themes, methods, applications, lab identity, contact/application path, "
+                "collaborations, and recent activity. Return JSON only. Unknown values must be null "
+                "or empty arrays."
+            ),
+        ),
+        (
+            "opportunity_publications",
+            {"publications", "funding", "recruitment", "research"},
+            (
+                "Extract the latest 3 to 5 actual scholarly publications, structured grants/funding, "
+                "lab members, explicit current recruitment, and evidence-based future opportunity "
+                "signals. Reject recruitment ads, faculty pages, and search pages as publications. "
+                "Return JSON only and keep source URLs attached to every item."
+            ),
+        ),
+    ]
+    results: dict[str, Any] = {}
+    for key, kinds, instruction in passes:
+        selected = [
+            {
+                "title": item.get("title"),
+                "url": item.get("url"),
+                "purpose": item.get("source_kind"),
+                "excerpt": candidate_excerpt(
+                    item.get("content") or item.get("text") or "",
+                    candidate["display_name"],
+                    2200,
+                ),
+            }
+            for item in sources
+            if item.get("source_kind") in kinds
+        ][:14]
+        if not selected:
+            continue
+        system = (
+            "You are a rigorous academic web-research specialist. Use only supplied evidence. "
+            "Do not infer facts that are not visible. Preserve source URLs. " + instruction
+        )
+        prompt = (
+            f"Professor:\n{json.dumps(candidate)}\n\n"
+            f"Student context:\n{json.dumps(profile)}\n\n"
+            f"Purpose-tagged sources:\n{json.dumps(selected)}"
+        )
+        response = await ai_service.chat(
+            prompt,
+            model=ai_service.settings.advisor_atlas_glm_model,
+            override_system_prompt=system,
+            request_label=(
+                "Advisor Atlas · Identity & Research"
+                if key == "identity_research"
+                else "Advisor Atlas · Publications & Opportunity"
+            ),
+        )
+        _record_ai_usage(usage, system, prompt, response.get("answer", ""))
+        parsed = extract_json_object(response.get("answer", ""))
+        if parsed:
+            results[key] = parsed
+    return results
+
+
+def _record_ai_usage(
+    usage: dict[str, Any] | None,
+    system: str,
+    prompt: str,
+    answer: str,
+) -> None:
+    if usage is None:
+        return
+    usage["ai_calls"] = int(usage.get("ai_calls", 0)) + 1
+    usage["estimated_input_tokens"] = int(usage.get("estimated_input_tokens", 0)) + estimate_tokens(
+        f"{system}\n{prompt}"
+    )
+    usage["estimated_output_tokens"] = int(usage.get("estimated_output_tokens", 0)) + estimate_tokens(answer)
 
 
 async def analyze_visual_source(
     ai_service: AiService,
     visual: dict[str, Any],
     candidate_name: str,
+    usage: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     if not ai_service.settings.glm_api_key:
         return None
@@ -330,7 +522,6 @@ async def analyze_visual_source(
         ],
         "thinking": {"type": "enabled"},
         "temperature": 0.1,
-        "max_tokens": 1800,
     }
     headers = {
         "Authorization": f"Bearer {ai_service.settings.glm_api_key}",
@@ -352,6 +543,7 @@ async def analyze_visual_source(
         .get("message", {})
         .get("content", "")
     )
+    _record_ai_usage(usage, "", prompt, answer)
     result = extract_json_object(answer)
     if not result or not result.get("relevant"):
         return None

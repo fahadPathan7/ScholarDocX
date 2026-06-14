@@ -381,10 +381,14 @@ class AdvisorAtlasService:
         if not isinstance(provided_forecast, dict):
             intelligence["opportunity_outlook"] = forecast
         else:
-            provided_forecast["confidence"] = min(
-                int(provided_forecast.get("confidence", forecast["confidence"])),
-                int(normalized_candidate.get("evidence_confidence", 0)),
-            )
+            p_conf_raw = provided_forecast.get("confidence")
+            f_conf_raw = forecast.get("confidence", 0)
+            p_conf = int(p_conf_raw) if p_conf_raw is not None else int(f_conf_raw)
+            
+            e_conf_raw = normalized_candidate.get("evidence_confidence", 0)
+            e_conf = int(e_conf_raw) if e_conf_raw is not None else 0
+
+            provided_forecast["confidence"] = min(p_conf, e_conf)
             provided_forecast.setdefault("likely_semesters", forecast["likely_semesters"])
             provided_forecast.setdefault("limitation", forecast["limitation"])
         self._research_usage["sources_inspected"] = len(candidate_sources)

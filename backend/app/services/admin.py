@@ -3,7 +3,7 @@ from typing import Any, Optional, List, Dict
 import sqlite3
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.auth.limits import invalidate_limits_cache
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
@@ -114,8 +114,11 @@ DEFAULT_ROLE_LIMITS = {
 class AdminService:
     def __init__(self, db: Session):
         self.db = db
+        from typing import cast
         import sqlite3
-        self.connection = db.connection().connection.dbapi_connection
+        conn = db.connection().connection.dbapi_connection
+        assert conn is not None
+        self.connection = cast(sqlite3.Connection, conn)
         self.connection.row_factory = sqlite3.Row
 
     @staticmethod
@@ -128,7 +131,7 @@ class AdminService:
             return None
 
     def _calculate_plan_extension_window(self, user: dict, billing_cycle: str) -> tuple[str, str]:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         current_start = self._parse_iso_datetime(user.get("plan_started_at"))
         current_end = self._parse_iso_datetime(user.get("plan_ends_at"))
         duration_days = 365 if billing_cycle == "yearly" else 30
@@ -234,7 +237,7 @@ class AdminService:
         if category not in ADMIN_NOTIFICATION_KEYS:
             raise ValueError("Unsupported notification category")
 
-        explicit_ids = sorted({int(user_id) for user_id in (recipient_user_ids or []) if user_id})
+        explicit_ids = sorted({user_id for user_id in (recipient_user_ids or []) if user_id})
         if send_to_all:
             recipient_rows = self.connection.execute("SELECT id FROM users ORDER BY id ASC").fetchall()
             target_user_ids = [int(row["id"]) for row in recipient_rows]
@@ -331,10 +334,10 @@ class AdminService:
                 plan_ends_at = plan_end_date
                 audit_details = {"new_roles": roles, "custom_dates": {"start": plan_start_date, "end": plan_end_date}}
             else:
-                plan_started_at = datetime.utcnow().isoformat()
+                plan_started_at = datetime.now(timezone.utc).isoformat()
                 # Use provided duration or default to 30 days
                 days = plan_duration_days if plan_duration_days is not None else 30
-                plan_ends_at = (datetime.utcnow() + timedelta(days=days)).isoformat()
+                plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
                 audit_details = {"new_roles": roles, "plan_duration_days": days}
 
             self.connection.execute(
@@ -490,16 +493,16 @@ class AdminService:
             raise ValueError("Email already registered.")
 
         roles_json = json.dumps(roles)
-        plan_started_at = datetime.utcnow().isoformat()
+        plan_started_at = datetime.now(timezone.utc).isoformat()
 
         # Calculate plan_ends_at based on plan_duration
         if plan_duration == "1_month":
-            plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         elif plan_duration == "1_year":
-            plan_ends_at = (datetime.utcnow() + timedelta(days=365)).isoformat()
+            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
         else:
             # Default to 1 month if invalid value
-            plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         
         cursor = self.connection.execute(
             """
@@ -509,6 +512,7 @@ class AdminService:
             (email, password_hash, display_name, roles_json, plan_started_at, plan_ends_at)
         )
         user_id = cursor.lastrowid
+        assert user_id is not None
 
         # Initialize usage stats
         features = ['ai_messages_per_session', 'daily_ai_chats', 'monthly_ai_chats', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'advisor_atlas_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
@@ -662,7 +666,7 @@ class AdminService:
             user = self.get_user_details(req["user_id"])
             current_roles = user.get("roles", [])
             request_type = req["request_type"] or "upgrade"
-            plan_started_at = datetime.utcnow().isoformat()
+            plan_started_at = datetime.now(timezone.utc).isoformat()
             days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
             audit_details = {
                 "request_type": request_type,
@@ -679,7 +683,7 @@ class AdminService:
                 # Add requested plan
                 if req["requested_plan"] not in new_roles:
                     new_roles.append(req["requested_plan"])
-                plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+                plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days_to_add)).isoformat()
             roles_json = json.dumps(new_roles)
             audit_details.update({
                 "plan_started_at": plan_started_at,

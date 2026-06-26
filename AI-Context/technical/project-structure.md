@@ -15,14 +15,14 @@ AI-agent workflow skills are stored in `AI-Context/agent-skills/` as repo-carrie
 
 AI-Context/
   agent-skills/
-    scholardock-coding/
-    scholardock-context-update/
-    scholardock-test-cases/
-    scholardock-context-review/
+    scholardocx-coding/
+    scholardocx-context-update/
+    scholardocx-test-cases/
+    scholardocx-context-review/
 
-    scholardock-ai-integrations/
-    scholardock-security-privacy/
-    scholardock-handoff/
+    scholardocx-ai-integrations/
+    scholardocx-security-privacy/
+    scholardocx-handoff/
 
 frontend/
   index.html

@@ -37,7 +37,7 @@ export function SplashScreen({ message }: { message: string }) {
             )}
             <Sparkles size={20} className="splash-sparkle" />
           </div>
-          <h1>ScholarDock</h1>
+          <h1>ScholarDocX</h1>
           <p className="splash-tagline">Application planning workspace</p>
         </div>
 

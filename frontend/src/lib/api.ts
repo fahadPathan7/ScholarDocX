@@ -46,7 +46,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch (e) {}
     
     if (response.status === 401) {
-      localStorage.removeItem("scholar_dock_token");
+      localStorage.removeItem("scholar_docx_token");
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }

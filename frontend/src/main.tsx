@@ -8,6 +8,7 @@ import "./documents-refresh.css";
 import "./about-refresh.css";
 import "./sheet-table-polish.css";
 import { installHorizontalDragScroll } from "./lib/horizontalDragScroll";
+import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { UsageProvider } from "./contexts/UsageContext";
@@ -18,6 +19,7 @@ import { RegisterPage } from "./components/RegisterPage";
 import { FullScreenSheet } from "./components/FullScreenSheet";
 
 installHorizontalDragScroll();
+migrateLegacyStorageKeys();
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

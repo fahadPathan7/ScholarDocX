@@ -1,6 +1,6 @@
 # Product Vision
 
-ScholarDock is a locally hosted, privacy-first application management portal for higher education applicants.
+ScholarDocX is a locally hosted, privacy-first application management portal for higher education applicants.
 
 It helps users coordinate complex international application cycles for Bachelor's, Master's, and PhD programs by consolidating:
 
@@ -15,7 +15,7 @@ It helps users coordinate complex international application cycles for Bachelor'
 
 ## Core Promise
 
-ScholarDock reduces the cognitive load of higher education applications without forcing users to surrender private academic documents to a remote platform.
+ScholarDocX reduces the cognitive load of higher education applications without forcing users to surrender private academic documents to a remote platform.
 
 ## Product Principles
 

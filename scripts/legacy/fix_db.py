@@ -5,7 +5,7 @@ def column_exists(cursor, table, column):
     columns = [row[1] for row in cursor.fetchall()]
     return column in columns
 
-conn = sqlite3.connect("backend/scholardock.db")
+conn = sqlite3.connect("backend/scholardocx.db")
 cursor = conn.cursor()
 
 # Fix users table

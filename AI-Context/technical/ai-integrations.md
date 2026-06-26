@@ -33,7 +33,7 @@ Gemini support is built around free-tier local use:
 - Default to `http://localhost:20128/v1`.
 - Send assistant requests to `/chat/completions` and discover the user's
   connected models from `/models`.
-- Send `stream: false` because ScholarDock expects one OpenAI-compatible JSON
+- Send `stream: false` because ScholarDocX expects one OpenAI-compatible JSON
   response rather than a server-sent event stream.
 - Always include `NINE_ROUTER_DEFAULT_MODEL` in the assistant model list when
   configured, because custom/no-auth provider models may not appear in

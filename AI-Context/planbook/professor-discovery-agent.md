@@ -2,11 +2,11 @@
 
 Status: Implemented 2026-06-11
 
-Jira: [SCHOLAR-0078](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLAR-0078-professor-discovery-agent.md)
+Jira: [SCHOLARDOCX-0078](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0078-professor-discovery-agent.md)
 
 ## 1. Product Definition
 
-`Advisor Atlas` is a dedicated ScholarDock tab for finding, enriching,
+`Advisor Atlas` is a dedicated ScholarDocX tab for finding, enriching,
 comparing, and saving potential supervisors from public university, department,
 faculty, laboratory, funding, and publication sources.
 
@@ -119,7 +119,7 @@ The feature uses public pages only.
 It must:
 
 - respect `robots.txt`, public terms, and site access restrictions;
-- identify itself with a ScholarDock crawler user agent where appropriate;
+- identify itself with a ScholarDocX crawler user agent where appropriate;
 - use low per-domain concurrency, delays, caching, and retry backoff;
 - stay within the selected university, department, lab, and approved linked
   public domains;
@@ -217,7 +217,7 @@ mode still requires evidence-backed claims.
 1. User opens the `Advisor Atlas` tab.
 2. User selects university/department discovery or professor-specific search.
 3. User enters required and optional matching context.
-4. ScholarDock resolves ambiguous universities before starting.
+4. ScholarDocX resolves ambiguous universities before starting.
 5. The UI previews the public domains and user profile context that will be
    used.
 6. User starts the run.
@@ -387,7 +387,7 @@ Users can:
 - compare selected professors;
 - shortlist or dismiss candidates;
 - add local notes and tags;
-- save a professor into ScholarDock's existing professor records;
+- save a professor into ScholarDocX's existing professor records;
 - link a result to a university, program, project, or application;
 - open original sources;
 - rerun or refresh selected candidates.
@@ -872,7 +872,7 @@ professor profiles from the same run.
 - organized advisor dossiers, evidence coverage, reading paths, risk flags,
   verification questions, and next-action plans;
 - change detection for refreshed shortlisted professors;
-- explicit save into existing ScholarDock professor data;
+- explicit save into existing ScholarDocX professor data;
 - focused unit, integration, and browser tests.
 
 ### Out of scope for this story
@@ -921,7 +921,7 @@ professor profiles from the same run.
 - recent grants and active projects;
 - recruitment-state classifier with freshness and evidence rules.
 
-### Phase 5: ScholarDock integration
+### Phase 5: ScholarDocX integration
 
 - decision lanes, dossiers, shortlist, compare, notes, reading path, and refresh;
 - change detection, watch events, and action center;

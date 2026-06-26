@@ -78,7 +78,7 @@ ACTION_TARGET_RE = re.compile(
 NOTE_COLORS = {"sun", "mint", "sky", "rose", "lilac", "sand"}
 
 ACTION_PLANNER_SYSTEM_PROMPT = (
-    "You are ScholarDock's local workspace action planner. Convert user requests "
+    "You are ScholarDocX's local workspace action planner. Convert user requests "
     "into precise JSON action plans. You are smart, concise, and thorough.\n\n"
     "CRITICAL RULES:\n"
     "1. Return ONLY valid JSON. No markdown, no explanations, no code blocks.\n"
@@ -457,7 +457,7 @@ class AiActionService:
 
         return {
             "status": "needs_confirmation",
-            "message": plan.get("message") or "Review these local ScholarDock actions before I run them.",
+            "message": plan.get("message") or "Review these local ScholarDocX actions before I run them.",
             "missing": [],
             "actions": normalized_actions,
             "summary": self._describe_actions(normalized_actions),
@@ -1800,7 +1800,7 @@ class AiActionService:
 
             # Standard WRITE / Basic READ messages
             if not lines:
-                lines.append("Done. I updated your local ScholarDock workspace:")
+                lines.append("Done. I updated your local ScholarDocX workspace:")
                 
             if result["type"] == "create_project":
                 lines.append(f"- Created project **{result['project']['name']}**.")

@@ -33,7 +33,7 @@ Keep user-facing work screens focused on work. Product/system details such as lo
 ## About Page UX
 
 The About page should use the full workspace width instead of a narrow centered
-column. It should explain ScholarDock's purpose, local-first privacy model, AI
+column. It should explain ScholarDocX's purpose, local-first privacy model, AI
 boundaries, document storage, and outreach support in a visually engaging but
 work-focused way. Subtle motion is acceptable when it helps the page feel alive
 without distracting from the app's calm planning theme. Utility cards inside

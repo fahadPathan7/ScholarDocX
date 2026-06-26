@@ -1,4 +1,4 @@
-# SCHOLAR-XXXX: Task Title
+# SCHOLARDOCX-XXXX: Task Title
 
 Status: Draft
 

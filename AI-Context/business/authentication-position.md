@@ -2,7 +2,7 @@
 
 ## Current Recommendation
 
-ScholarDock should not require signup or signin for the local-first MVP.
+ScholarDocX should not require signup or signin for the local-first MVP.
 
 Reason:
 

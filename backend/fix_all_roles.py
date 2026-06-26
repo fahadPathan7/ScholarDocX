@@ -25,5 +25,5 @@ def inject(path):
     except Exception as e:
         pass
 
-for p in ['/Users/fahadpathan/Documents/ScholarDock/backend/workspace/db/app.db', '/Users/fahadpathan/Documents/ScholarDock/workspace/db/app.db']:
+for p in ['/Users/fahadpathan/Documents/ScholarDocX/backend/workspace/db/app.db', '/Users/fahadpathan/Documents/ScholarDocX/workspace/db/app.db']:
     inject(p)

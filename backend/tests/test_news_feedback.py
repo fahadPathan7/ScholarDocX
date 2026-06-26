@@ -10,7 +10,7 @@ from app.services.store import Store
 
 
 def _store(tmp_path):
-    database_path = tmp_path / "scholardock.db"
+    database_path = tmp_path / "scholardocx.db"
     initialize_database(database_path)
     from app.db.connection import get_engine
     from sqlalchemy.orm import sessionmaker

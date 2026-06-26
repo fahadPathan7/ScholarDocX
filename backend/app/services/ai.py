@@ -45,8 +45,8 @@ PROVIDER_ENV_VARS = {
 MAX_SUMMARY_TOKENS = 200
 WEB_SEARCH_MAX_CHARS_PER_RESULT = 400  # Each search result limited to 400 chars
 
-SCHOLARDOCK_SYSTEM_PROMPT = (
-    "You are Lumi, the AI assistant for ScholarDock, a higher education application "
+SCHOLARDOCX_SYSTEM_PROMPT = (
+    "You are Lumi, the AI assistant for ScholarDocX, a higher education application "
     "management portal. You help applicants manage universities, programs, professors, and deadlines.\n\n"
     "CRITICAL CONVERSATIONAL RULES:\n"
     "- Keep responses short and conversational.\n"
@@ -57,7 +57,7 @@ SCHOLARDOCK_SYSTEM_PROMPT = (
     "capability if asked. The current System Time is injected at the end of this prompt; you MUST use it to "
     "answer questions about the current date or time, never claim you do not have access to the date. "
     "If the user asks outside the higher-education domain, answer briefly without forcing "
-    "an academic disclaimer, then offer a ScholarDock-relevant next step only if it is useful."
+    "an academic disclaimer, then offer a ScholarDocX-relevant next step only if it is useful."
 )
 
 ROUTING_SYSTEM_PROMPT = (
@@ -71,7 +71,7 @@ ROUTING_SYSTEM_PROMPT = (
 )
 
 MEMORY_SUMMARY_SYSTEM_PROMPT = (
-    "You compress ScholarDock assistant conversations into durable rolling memory. Return only the summary text, "
+    "You compress ScholarDocX assistant conversations into durable rolling memory. Return only the summary text, "
     "under 600 tokens. Preserve user goals, application targets, decisions, unresolved tasks, important names, "
     "deadlines, and constraints. Drop greetings, filler, duplicate wording, and transient provider errors. Do "
     "not invent facts."
@@ -113,7 +113,7 @@ class AiService:
             model_name = candidate["model"]
             tried_models.append(f"{provider}:{model_name}")
 
-            sys_prompt = override_system_prompt if override_system_prompt else SCHOLARDOCK_SYSTEM_PROMPT
+            sys_prompt = override_system_prompt if override_system_prompt else SCHOLARDOCX_SYSTEM_PROMPT
 
             # Inject temporal context so the AI knows the current date and local time
             current_time = datetime.now().astimezone().strftime("%A, %B %d, %Y %I:%M %p %Z")
@@ -320,7 +320,7 @@ class AiService:
 
         summary_model = model or self._default_fast_model()
         prompt = (
-            "Summarize the following ScholarDock conversation memory input.\n\n"
+            "Summarize the following ScholarDocX conversation memory input.\n\n"
             "Rules:\n"
             "- Stay under 150 tokens. Be highly concise.\n"
             "- Preserve durable user intent, decisions, constraints, deadlines, named schools/programs/professors, and open tasks.\n"

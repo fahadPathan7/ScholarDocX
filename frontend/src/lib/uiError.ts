@@ -9,5 +9,5 @@ export type UiErrorDetail = {
 
 export function emitUiError(detail: UiErrorDetail) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<UiErrorDetail>("scholardock:ui-error", { detail }));
+  window.dispatchEvent(new CustomEvent<UiErrorDetail>("scholardocx:ui-error", { detail }));
 }

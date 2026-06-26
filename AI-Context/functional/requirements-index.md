@@ -116,7 +116,7 @@
 ## FR-9: Advisor Atlas
 
 See
-[feature-advisor-atlas.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-advisor-atlas.md)
+[feature-advisor-atlas.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-advisor-atlas.md)
 for the complete workflow and requirements.
 
 - FR-9.1: Add the Advisor Atlas navigation workspace.

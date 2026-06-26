@@ -208,7 +208,7 @@ Future customization should allow users to edit thresholds and colors per projec
 
 Browser links can open Gmail or Outlook compose screens with recipient, subject, and body prefilled.
 
-Local attachments cannot be automatically attached to Gmail/Outlook web compose through ordinary browser links. To support real automatic attachments later, ScholarDock would need a deeper provider integration such as Gmail API or Microsoft Graph with explicit OAuth scopes.
+Local attachments cannot be automatically attached to Gmail/Outlook web compose through ordinary browser links. To support real automatic attachments later, ScholarDocX would need a deeper provider integration such as Gmail API or Microsoft Graph with explicit OAuth scopes.
 
 MVP behavior:
 

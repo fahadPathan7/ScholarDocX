@@ -1,7 +1,7 @@
 import sqlite3
 import json
 
-conn = sqlite3.connect("backend/scholardock.db")
+conn = sqlite3.connect("backend/scholardocx.db")
 conn.row_factory = sqlite3.Row
 
 # Get super_admin usage

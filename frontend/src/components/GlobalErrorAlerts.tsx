@@ -42,8 +42,8 @@ export function GlobalErrorAlerts() {
       );
     };
 
-    window.addEventListener("scholardock:ui-error", handler as EventListener);
-    return () => window.removeEventListener("scholardock:ui-error", handler as EventListener);
+    window.addEventListener("scholardocx:ui-error", handler as EventListener);
+    return () => window.removeEventListener("scholardocx:ui-error", handler as EventListener);
   }, [showAlert]);
 
   return null;

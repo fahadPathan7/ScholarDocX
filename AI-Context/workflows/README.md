@@ -1,12 +1,12 @@
 # Workflows
 
-This folder describes how AI-DLC work should happen in ScholarDock.
+This folder describes how AI-DLC work should happen in ScholarDocX.
 
 ## Files
 
-- [ai-dlc-process.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows/ai-dlc-process.md): standard context-first development loop.
-- [context-update-checklist.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows/context-update-checklist.md): what to update before and after implementation.
-- [agent-handoff.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows/agent-handoff.md): how one AI agent leaves useful state for the next.
+- [ai-dlc-process.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/workflows/ai-dlc-process.md): standard context-first development loop.
+- [context-update-checklist.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/workflows/context-update-checklist.md): what to update before and after implementation.
+- [agent-handoff.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/workflows/agent-handoff.md): how one AI agent leaves useful state for the next.
 
 ## Core Rule
 

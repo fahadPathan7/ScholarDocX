@@ -100,7 +100,7 @@ export function QueryReviewDialog({
               <span>
                 {generationSource === "openrouter"
                   ? `Generated from your choices${generationModel ? ` via ${generationModel}` : ""}.`
-                  : `${generationNotice || "OpenRouter was unavailable."} Using ScholarDock's local template.`}
+                  : `${generationNotice || "OpenRouter was unavailable."} Using ScholarDocX's local template.`}
               </span>
             </div>
           </div>

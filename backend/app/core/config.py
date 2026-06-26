@@ -6,7 +6,7 @@ import os
 class Settings:
     def __init__(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
-        workspace = os.getenv("SCHOLARDOCK_WORKSPACE")
+        workspace = os.getenv("SCHOLARDOCX_WORKSPACE")
         self.repo_root = repo_root
         self.workspace_path = Path(workspace).expanduser().resolve() if workspace else repo_root / "workspace"
         self.database_path = self.workspace_path / "db" / "app.db"

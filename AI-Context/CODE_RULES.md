@@ -1,6 +1,6 @@
 # CODE_RULES.md
 
-These are repository-wide coding rules for ScholarDock.
+These are repository-wide coding rules for ScholarDocX.
 
 ## Architecture Rules
 
@@ -23,8 +23,8 @@ Initial recommended stack from project context:
 
 Final stack selection must be recorded in:
 
-- [AI-Context/technical/stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/stack-and-runtime.md)
-- [AI-Context/business/decisions.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/business/decisions.md)
+- [AI-Context/technical/stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/stack-and-runtime.md)
+- [AI-Context/business/decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
 
 ## File Size Rules
 

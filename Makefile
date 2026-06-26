@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────
-# ScholarDock – Development Makefile
+# ScholarDocX – Development Makefile
 # Local-first, privacy-first higher education app portal
 # ──────────────────────────────────────────────────────────
 
@@ -20,6 +20,15 @@ UVICORN      := $(VENV_BIN)/uvicorn
 BACKEND_PORT  := 8000
 FRONTEND_PORT := 5173
 
+# Bind the dev servers to all interfaces so the app is reachable from other
+# devices on the LAN (e.g. a phone for mobile testing). The frontend already
+# binds 0.0.0.0 (see frontend/package.json "dev" script). The backend MUST
+# match — otherwise opening the app via a non-localhost origin (e.g.
+# http://192.168.x.x:5173) loads the page but every API call to
+# http://192.168.x.x:8000 is refused, surfacing as "Failed to fetch" on login.
+# Data stays local: this is a LAN-only dev server, not a remote backend.
+BACKEND_HOST  := 0.0.0.0
+
 # ──────────────────────────────────────────────────────────
 # Help
 # ──────────────────────────────────────────────────────────
@@ -27,7 +36,7 @@ FRONTEND_PORT := 5173
 .PHONY: help
 help: ## Show this help message
 	@echo ""
-	@echo "  ScholarDock — Development Commands"
+	@echo "  ScholarDocX — Development Commands"
 	@echo "  ───────────────────────────────────"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -62,7 +71,7 @@ setup-frontend: ## Install frontend npm packages
 .PHONY: run-backend
 run-backend: ## Start FastAPI backend (port 8000)
 	@echo "🚀 Starting backend on http://localhost:$(BACKEND_PORT) ..."
-	@cd $(BACKEND_DIR) && $(realpath $(UVICORN)) app.main:app --reload --port $(BACKEND_PORT)
+	@cd $(BACKEND_DIR) && $(realpath $(UVICORN)) app.main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)
 
 .PHONY: run-frontend
 run-frontend: ## Start Vite frontend (port 5173)
@@ -75,13 +84,13 @@ run-frontend: ## Start Vite frontend (port 5173)
 
 .PHONY: run
 run: ## Start backend + frontend concurrently (Ctrl-C stops both)
-	@echo "🚀 Starting ScholarDock (backend + frontend)..."
+	@echo "🚀 Starting ScholarDocX (backend + frontend)..."
 	@echo "   Backend  → http://localhost:$(BACKEND_PORT)"
 	@echo "   Frontend → http://localhost:$(FRONTEND_PORT)"
 	@echo "   Press Ctrl-C to stop both."
 	@echo ""
 	@trap 'kill 0' INT TERM; \
-		(cd $(BACKEND_DIR) && $(realpath $(UVICORN)) app.main:app --reload --port $(BACKEND_PORT)) & \
+		(cd $(BACKEND_DIR) && $(realpath $(UVICORN)) app.main:app --reload --host $(BACKEND_HOST) --port $(BACKEND_PORT)) & \
 		(cd $(FRONTEND_DIR) && npm run dev -- --port $(FRONTEND_PORT)) & \
 		wait
 

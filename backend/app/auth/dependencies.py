@@ -17,7 +17,7 @@ def get_current_user(
     token = credentials.credentials
     try:
         secret_key_row = store.connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
-        secret_key = secret_key_row["value"] if secret_key_row else "scholar-dock-local-first-secret-key-do-not-use-in-cloud"
+        secret_key = secret_key_row["value"] if secret_key_row else "scholar-docx-local-first-secret-key-do-not-use-in-cloud"
         payload = decode_token(token, secret_key)
     except ValueError as e:
         raise HTTPException(

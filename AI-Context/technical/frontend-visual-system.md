@@ -2,7 +2,7 @@
 
 ## Direction
 
-ScholarDock should feel like a local research command center: focused,
+ScholarDocX should feel like a local research command center: focused,
 interactive, and polished without becoming decorative marketing UI.
 
 

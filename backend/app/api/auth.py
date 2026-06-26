@@ -184,7 +184,7 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     # Fetch JWT settings
     secret_key_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
     expiration_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_expiration_days'").fetchone()
-    secret_key = secret_key_row["value"] if secret_key_row else "scholar-dock-local-first-secret-key-do-not-use-in-cloud"
+    secret_key = secret_key_row["value"] if secret_key_row else "scholar-docx-local-first-secret-key-do-not-use-in-cloud"
     expiration_days = int(expiration_row["value"]) if expiration_row else 30
 
     # Generate token

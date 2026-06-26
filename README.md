@@ -1,6 +1,6 @@
-# ScholarDock
+# ScholarDocX
 
-ScholarDock is a local-first, privacy-first higher education application management portal.
+ScholarDocX is a local-first, privacy-first higher education application management portal.
 
 It is designed for students and researchers applying to Bachelor's, Master's, and PhD programs who need one private workspace for applications, deadlines, documents, outreach, and AI-assisted academic research.
 
@@ -49,7 +49,7 @@ Not included yet:
 
 ## Core Product Direction
 
-ScholarDock should help users manage:
+ScholarDocX should help users manage:
 
 - Degree workspaces for Bachelor's, Master's, and PhD
 - Projects for each application campaign
@@ -89,7 +89,9 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# Bind 0.0.0.0 so the API is reachable from other devices on the LAN (matches the
+# frontend's `vite --host 0.0.0.0`). Without it, mobile/LAN access fails on login.
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Frontend:
@@ -151,7 +153,7 @@ Before implementing a new feature or modifying an existing feature:
 - Google OAuth 2.0 / OpenID Connect may be added later as an optional identity provider.
 - Gmail/Outlook compose links can prefill to, subject, and body, but cannot automatically attach local files without Gmail API or Microsoft Graph integration.
 - Records and outreach live inside project sheets, not separate navigation areas.
-- Documents are uploaded and linked; ScholarDock does not author SOPs or proposals internally.
+- Documents are uploaded and linked; ScholarDocX does not author SOPs or proposals internally.
 - Do not commit secrets or real API keys.
 - Keep source files under 1000 lines when possible.
 - A file may temporarily reach about 1150 lines during a cohesive feature, but split it before adding more work.

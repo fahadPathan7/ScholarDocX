@@ -52,7 +52,7 @@ workspace/
 Override with:
 
 ```text
-SCHOLARDOCK_WORKSPACE=/absolute/path/to/workspace
+SCHOLARDOCX_WORKSPACE=/absolute/path/to/workspace
 ```
 
 ## Development Run Commands
@@ -64,7 +64,9 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# Bind 0.0.0.0 so the API is reachable from other devices on the LAN (matches the
+# frontend's `vite --host 0.0.0.0`). Without it, mobile/LAN access fails on login.
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Frontend:

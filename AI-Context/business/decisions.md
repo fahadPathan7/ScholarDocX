@@ -8,7 +8,7 @@ Status: Accepted
 
 Decision:
 
-ScholarDock will store user application data locally by default.
+ScholarDocX will store user application data locally by default.
 
 Rationale:
 
@@ -27,7 +27,7 @@ Status: Accepted
 
 Decision:
 
-ScholarDock is designed for individual students and researchers managing their own application process.
+ScholarDocX is designed for individual students and researchers managing their own application process.
 
 Rationale:
 
@@ -98,7 +98,7 @@ Status: Proposed
 
 Decision:
 
-ScholarDock should not require signup or signin for the local-first MVP. Google OAuth 2.0 / OpenID Connect can be added later as an optional identity provider.
+ScholarDocX should not require signup or signin for the local-first MVP. Google OAuth 2.0 / OpenID Connect can be added later as an optional identity provider.
 
 Rationale:
 
@@ -136,7 +136,7 @@ Status: Accepted
 
 Decision:
 
-ScholarDock may support multiple user-configured AI providers, starting with
+ScholarDocX may support multiple user-configured AI providers, starting with
 GLM and Google AI Studio Gemini API, while Tavily remains the dedicated web
 research provider.
 
@@ -152,8 +152,28 @@ Implications:
 - Free-tier Gemini defaults should use text-only Flash-Lite/Flash models.
 - Do not enable paid-only Gemini media models, Google Search grounding, or
   Google Cloud-only workflows unless a later task explicitly approves them.
-- Provider selection should not require Google OAuth or remote ScholarDock data
+- Provider selection should not require Google OAuth or remote ScholarDocX data
   storage.
+
+## BD-009: Rebrand to ScholarDocX
+
+Status: Accepted
+
+Decision:
+
+The product formerly named ScholarDock is renamed to ScholarDocX across the codebase, configuration, identifiers, agent skills, task tracking, and the project directory.
+
+Rationale:
+
+The owner selected a new brand name. Applying it consistently — including technical identifiers (package name, env var, localStorage keys, auth token key, code constants), not only display text — avoids a half-renamed codebase where prose says one name while storage keys say another.
+
+Implications:
+
+- Display name, docs, API title, and every identifier casing now use ScholarDocX / scholardocx.
+- Existing local data is preserved via a one-time localStorage and token migration shim (frontend/src/lib/migrateStorageKeys.ts), so upgrading users keep their settings, chat history, and login.
+- Agent-skill folders and Jira task IDs use the scholardocx / SCHOLARDOCX prefixes.
+- The project root directory is renamed to ScholarDocX as a final manual step.
+- backend/backend.log is intentionally left with its historical entries.
 
 ## Pending Decisions
 

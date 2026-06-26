@@ -4,7 +4,7 @@ Requirement group: FR-3
 
 ## Goal
 
-Users upload and link externally prepared documents. ScholarDock should not be a document writing surface.
+Users upload and link externally prepared documents. ScholarDocX should not be a document writing surface.
 
 ## Document Types
 
@@ -22,7 +22,7 @@ Initial document types:
 
 ## Document Authoring Rule
 
-Users should not write SOPs, proposals, or other academic documents inside ScholarDock.
+Users should not write SOPs, proposals, or other academic documents inside ScholarDocX.
 
 They should upload files prepared elsewhere and link those files to project sheet records.
 

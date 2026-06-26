@@ -53,7 +53,7 @@ Enforce file-size and modularity rules in root docs and Jira tasks.
 
 ## Open Questions
 
-- Should ScholarDock be packaged later as a desktop app?
+- Should ScholarDocX be packaged later as a desktop app?
 - Should document editor content be exportable to PDF/DOCX in MVP?
 - Should calendar reminders integrate with local OS calendars or remain in-app only?
 - Should SMTP email sending be included early, or should MVP use mailto/copy only?

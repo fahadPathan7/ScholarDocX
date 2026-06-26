@@ -148,7 +148,7 @@ def is_visual_url(url: str) -> bool:
 
 
 class PublicCrawler:
-    def __init__(self, user_agent: str = "ScholarDock-AdvisorAtlas/1.0") -> None:
+    def __init__(self, user_agent: str = "ScholarDocX-AdvisorAtlas/1.0") -> None:
         self.user_agent = user_agent
         self._robots: dict[str, RobotFileParser] = {}
         self._last_request: dict[str, float] = {}

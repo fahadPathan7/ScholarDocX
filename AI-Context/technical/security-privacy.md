@@ -2,7 +2,7 @@
 
 ## Privacy Baseline
 
-ScholarDock is privacy-first. Private academic data should remain local unless the user explicitly invokes an external AI/search action.
+ScholarDocX is privacy-first. Private academic data should remain local unless the user explicitly invokes an external AI/search action.
 
 ## Sensitive Data Types
 

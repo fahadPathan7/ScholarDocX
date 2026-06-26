@@ -80,7 +80,7 @@ const emptyDashboard: Dashboard = {
   calendar_items: []
 };
 
-function ScholarDockMark() {
+function ScholarDocXMark() {
   return (
     <svg
       width="52"
@@ -140,7 +140,7 @@ export function App() {
   const [files, setFiles] = useState<RecordMap[]>([]);
   const [documentCategories, setDocumentCategories] = useState<RecordMap[]>([]);
   const [notifications, setNotifications] = useState<RecordMap[]>([]);
-  const [message, setMessage] = useState("Loading ScholarDock...");
+  const [message, setMessage] = useState("Loading ScholarDocX...");
   const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [navCollapsed, setNavCollapsed] = useState(false);
@@ -344,9 +344,9 @@ export function App() {
       <GlobalErrorAlerts />
       <aside className="sidebar">
         <div className="brand logoCardPremium">
-          <ScholarDockMark />
+          <ScholarDocXMark />
           <div className="logoContent">
-            <strong className="logoText">ScholarDock</strong>
+            <strong className="logoText">ScholarDocX</strong>
             <div className="logoUnderline" />
             <span className="logoTagline">Chase Your Dream</span>
           </div>

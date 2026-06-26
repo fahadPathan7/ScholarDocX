@@ -18,12 +18,12 @@ The task file gives future AI agents:
 
 ## Files
 
-- [task-template.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/task-template.md): template for new tasks.
-- [backlog.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/backlog.md): initial task backlog.
-- [SCHOLAR-0001-context-foundation.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLAR-0001-context-foundation.md): current context setup task.
-- [SCHOLAR-0002-project-scaffold.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLAR-0002-project-scaffold.md): future scaffold task draft.
-- `SCHOLAR-0010`: optional Google signin task is listed in [backlog.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/backlog.md).
-- [SCHOLAR-0012-root-readme.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLAR-0012-root-readme.md): root README creation task.
+- [task-template.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/task-template.md): template for new tasks.
+- [backlog.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/backlog.md): initial task backlog.
+- [SCHOLARDOCX-0001-context-foundation.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0001-context-foundation.md): current context setup task.
+- [SCHOLARDOCX-0002-project-scaffold.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0002-project-scaffold.md): future scaffold task draft.
+- `SCHOLARDOCX-0010`: optional Google signin task is listed in [backlog.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/backlog.md).
+- [SCHOLARDOCX-0012-root-readme.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0012-root-readme.md): root README creation task.
 
 ## Task Statuses
 

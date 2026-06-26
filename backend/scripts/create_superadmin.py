@@ -21,7 +21,7 @@ def create_superadmin():
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
 
-    email = "admin@scholardock.com"
+    email = "admin@scholardocx.com"
     password = "admin"
     hashed = hash_password(password)
 

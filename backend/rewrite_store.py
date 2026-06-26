@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-store_path = Path("/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py")
+store_path = Path("/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py")
 content = store_path.read_text()
 
 # Add imports

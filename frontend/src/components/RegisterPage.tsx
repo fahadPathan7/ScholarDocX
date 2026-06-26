@@ -51,7 +51,7 @@ export function RegisterPage() {
             <UserPlus size={24} />
           </div>
           <h1 className="text-2xl font-bold text-zinc-100">Create Account</h1>
-          <p className="mt-2 text-sm text-zinc-400">Join ScholarDock with your invite code</p>
+          <p className="mt-2 text-sm text-zinc-400">Join ScholarDocX with your invite code</p>
         </div>
 
         {error && (
@@ -70,7 +70,7 @@ export function RegisterPage() {
               type="text"
               required
               className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              placeholder="e.g. SCHOLAR-2026-XYZ"
+              placeholder="e.g. SCHOLARDOCX-2026-XYZ"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
             />

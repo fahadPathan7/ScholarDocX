@@ -1,6 +1,6 @@
 # Configuration Files
 
-This directory contains configuration files for various features of ScholarDock.
+This directory contains configuration files for various features of ScholarDocX.
 
 ## notificationLabels.ts
 

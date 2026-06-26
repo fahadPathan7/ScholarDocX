@@ -4,12 +4,12 @@ from pathlib import Path
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "db.sqlite3"  # Adjust if needed, looks like it might be scholar_dock.db
+DB_PATH = BASE_DIR / "db.sqlite3"  # Adjust if needed, looks like it might be scholar_docx.db
 
 # In app/db/connection.py we have settings.database_path.
-# Checking the directory, there's `scholar_dock.db` and `db.sqlite3`.
-# The app usually uses the one from settings. Let's try scholar_dock.db first.
-DB_FILE = BASE_DIR / "scholardock.db"
+# Checking the directory, there's `scholar_docx.db` and `db.sqlite3`.
+# The app usually uses the one from settings. Let's try scholar_docx.db first.
+DB_FILE = BASE_DIR / "scholardocx.db"
 
 if not DB_FILE.exists():
     DB_FILE = BASE_DIR / "app.db"

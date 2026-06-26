@@ -4,7 +4,7 @@ Initial backlog from source requirements. These are planning items only; do not 
 
 ## Ready Or Draft Tasks
 
-## SCHOLAR-0001: Context Foundation
+## SCHOLARDOCX-0001: Context Foundation
 
 Status: Done
 
@@ -12,7 +12,7 @@ Goal:
 
 Create AI-DLC context folders, root agent instructions, and code rules.
 
-## SCHOLAR-0002: Project Scaffold
+## SCHOLARDOCX-0002: Project Scaffold
 
 Status: Done
 
@@ -26,7 +26,7 @@ Needs context update:
 - Project structure
 - Run commands
 
-## SCHOLAR-0003: Local Workspace Initialization
+## SCHOLARDOCX-0003: Local Workspace Initialization
 
 Status: Done
 
@@ -41,7 +41,7 @@ Relevant requirements:
 - FR-1.3
 - FR-1.4
 
-## SCHOLAR-0004: Application Hierarchy Data Model
+## SCHOLARDOCX-0004: Application Hierarchy Data Model
 
 Status: Done
 
@@ -55,7 +55,7 @@ Relevant requirements:
 - FR-2.2
 - FR-2.3
 
-## SCHOLAR-0005: Unified Dashboard MVP
+## SCHOLARDOCX-0005: Unified Dashboard MVP
 
 Status: Done
 
@@ -68,7 +68,7 @@ Relevant requirements:
 - FR-2.4
 - FR-2.5
 
-## SCHOLAR-0006: Document Playground MVP
+## SCHOLARDOCX-0006: Document Playground MVP
 
 Status: Done
 
@@ -81,7 +81,7 @@ Relevant requirements:
 - FR-3.1
 - FR-3.2
 
-## SCHOLAR-0007: Static File Storage MVP
+## SCHOLARDOCX-0007: Static File Storage MVP
 
 Status: Done
 
@@ -95,7 +95,7 @@ Relevant requirements:
 - FR-3.4
 - FR-3.5
 
-## SCHOLAR-0008: Email Outreach MVP
+## SCHOLARDOCX-0008: Email Outreach MVP
 
 Status: Done
 
@@ -110,7 +110,7 @@ Relevant requirements:
 - FR-4.3
 - FR-4.4
 
-## SCHOLAR-0009: AI Assistant MVP
+## SCHOLARDOCX-0009: AI Assistant MVP
 
 Status: Done
 
@@ -125,7 +125,7 @@ Relevant requirements:
 - FR-5.3
 - FR-5.4
 
-## SCHOLAR-0010: Optional Google Signin
+## SCHOLARDOCX-0010: Optional Google Signin
 
 Status: Draft
 
@@ -147,7 +147,7 @@ Notes:
 - Not recommended before core local MVP unless the user prioritizes auth.
 - Must include unit tests for provider config, callback handling, profile linking, disconnect behavior, and scope handling.
 
-## SCHOLAR-0014: Project Workspaces
+## SCHOLARDOCX-0014: Project Workspaces
 
 Status: Done
 
@@ -159,7 +159,7 @@ Relevant requirements:
 
 - FR-7.1 through FR-7.10
 
-## SCHOLAR-0015: Project UX Refinement
+## SCHOLARDOCX-0015: Project UX Refinement
 
 Status: Done
 
@@ -172,7 +172,7 @@ Relevant requirements:
 - FR-7.1 through FR-7.10
 - FR-8.1 through FR-8.4
 
-## SCHOLAR-0016: Sheet Records And Upload-Only Documents
+## SCHOLARDOCX-0016: Sheet Records And Upload-Only Documents
 
 Status: Done
 
@@ -185,7 +185,7 @@ Relevant requirements:
 - FR-3 upload/link-only behavior
 - FR-7.11 through FR-7.16
 
-## SCHOLAR-0017: Single Sheet Detail Flow
+## SCHOLARDOCX-0017: Single Sheet Detail Flow
 
 Status: Done
 

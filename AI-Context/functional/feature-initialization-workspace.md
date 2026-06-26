@@ -4,7 +4,7 @@ Requirement group: FR-1
 
 ## Goal
 
-On first launch, ScholarDock creates the local folders and database needed for private application management.
+On first launch, ScholarDocX creates the local folders and database needed for private application management.
 
 ## Required Workspace Shape
 

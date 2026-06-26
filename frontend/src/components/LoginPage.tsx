@@ -104,7 +104,7 @@ export function LoginPage() {
             {showInviteRequest ? "Request Invite" : "Welcome Back"}
           </h1>
           <p className="mt-2 text-sm text-zinc-400 text-center">
-            {showInviteRequest ? "Tell us about yourself to get an invite code" : "Log in to your ScholarDock account"}
+            {showInviteRequest ? "Tell us about yourself to get an invite code" : "Log in to your ScholarDocX account"}
           </p>
         </div>
 
@@ -270,7 +270,7 @@ export function LoginPage() {
             ) : (
               <>
                 <p className="mb-6 text-sm text-zinc-300 leading-relaxed">
-                  Your account has been suspended from ScholarDock. If you think this was a mistake, please contact an administrator.
+                  Your account has been suspended from ScholarDocX. If you think this was a mistake, please contact an administrator.
                 </p>
                 <div className="flex justify-end gap-3">
                   <button

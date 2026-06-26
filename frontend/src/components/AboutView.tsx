@@ -95,7 +95,7 @@ export function AboutView() {
   }, []);
 
   const getEmailComposeUrl = () => {
-    const subject = encodeURIComponent("ScholarDock Support");
+    const subject = encodeURIComponent("ScholarDocX Support");
     const recipient = "fahad.pathan.bd@gmail.com";
 
     if (emailProvider === "outlook") {
@@ -127,7 +127,7 @@ export function AboutView() {
             </div>
             <div>
               <p className="eyebrow">Local-first application workspace</p>
-              <h2>ScholarDock</h2>
+              <h2>ScholarDocX</h2>
             </div>
           </div>
           <p>
@@ -363,7 +363,7 @@ export function AboutView() {
       </div>
 
 
-      <p className="about-footer">ScholarDock · Local-first · Privacy-first · Built for academic planning</p>
+      <p className="about-footer">ScholarDocX · Local-first · Privacy-first · Built for academic planning</p>
     </div>
   </>
   );

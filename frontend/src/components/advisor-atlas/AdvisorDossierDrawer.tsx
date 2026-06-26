@@ -496,7 +496,7 @@ export function AdvisorDossierDrawer({
       await advisorAtlasApi.saveCandidate(candidate.id);
       await load();
       onChanged();
-      onToast("Professor saved to ScholarDock.");
+      onToast("Professor saved to ScholarDocX.");
     } finally {
       setWorking("");
     }

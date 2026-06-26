@@ -85,12 +85,12 @@ Only send context that is needed for the user's explicit AI request.
 When the user asks outside the higher-education domain, the assistant may answer
 briefly and directly if the user explicitly invoked chat or web search. It
 should not force an academic-admissions disclaimer into every off-domain answer,
-but it may offer a ScholarDock-relevant follow-up when useful.
+but it may offer a ScholarDocX-relevant follow-up when useful.
 
 ## Agentic Workspace Actions
 
 The assistant may prepare local workspace actions when the user explicitly asks
-it to create, edit, delete, or read ScholarDock data. Supported actions include:
+it to create, edit, delete, or read ScholarDocX data. Supported actions include:
 
 - **Create**: Projects, sheets (and duplicates), rows, sticky notes.
 - **Update/Modify**: Rename projects/sheets, update/bulk update rows, add columns/groups, pin/unpin items, dashboard management.

@@ -368,7 +368,7 @@ async def analyze_with_glm(
         },
     }
     system = (
-        "You are the structured analysis engine for ScholarDock Advisor Atlas. "
+        "You are the structured analysis engine for ScholarDocX Advisor Atlas. "
         "Use only supplied sources. Never invent names, URLs, papers, grants, dates, "
         "students, openings, or lab facts. "
         "Separate identity, profiles, research, publications, funding, lab, contact, "

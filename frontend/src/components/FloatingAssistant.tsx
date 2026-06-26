@@ -46,7 +46,7 @@ type ActionPlan = {
 
 
 const MAX_HISTORY = 5;
-const STORAGE_KEY = "scholardock_chat_history";
+const STORAGE_KEY = "scholardocx_chat_history";
 const SUMMARY_MIN_MESSAGES = 2;
 const FAILED_SUMMARY_MODES = new Set(["local-fallback", "provider-error"]);
 const ACTION_REQUEST_RE = /\b(create|make|add|start|set up|setup|new|update|edit|change|modify|delete|remove|get|show|list|find|search|count|how many)\b/i;
@@ -108,7 +108,7 @@ function buildMemoryContext(session: ChatSession, useSummary: boolean, useExact:
 
 const createInitialGreeting = () => ({
   role: "assistant" as const,
-  content: "Hi there! 👋 I'm **Lumi**, your ScholarDock AI assistant. 🌟\n\nI can help you with:\n🎓 Organizing your university applications\n📅 Tracking important deadlines\n👩‍🏫 Finding the right professors\n🔍 Researching academic programs\n\n🛠️ I can also **manage your workspace** — just ask me to create projects, add sheets, count rows, or show your data!\n\nHow can I assist you today?",
+  content: "Hi there! 👋 I'm **Lumi**, your ScholarDocX AI assistant. 🌟\n\nI can help you with:\n🎓 Organizing your university applications\n📅 Tracking important deadlines\n👩‍🏫 Finding the right professors\n🔍 Researching academic programs\n\n🛠️ I can also **manage your workspace** — just ask me to create projects, add sheets, count rows, or show your data!\n\nHow can I assist you today?",
   timestamp: Date.now()
 });
 
@@ -127,36 +127,31 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(() => {
-    return localStorage.getItem("scholarDock_webSearchEnabled") === "true";
+    return localStorage.getItem("scholarDocX_webSearchEnabled") === "true";
   });
   const [useSummaryContext, setUseSummaryContext] = useState<boolean>(() => {
-    return localStorage.getItem("scholarDock_useSummaryContext") !== "false";
+    return localStorage.getItem("scholarDocX_useSummaryContext") !== "false";
   });
   const [useExactContext, setUseExactContext] = useState<boolean>(() => {
-    return localStorage.getItem("scholarDock_useExactContext") !== "false";
+    return localStorage.getItem("scholarDocX_useExactContext") !== "false";
   });
   const [exactChatCount, setExactChatCount] = useState<number>(() => {
-    return parseInt(localStorage.getItem("scholarDock_exactChatCount") || "2", 10);
+    return parseInt(localStorage.getItem("scholarDocX_exactChatCount") || "2", 10);
   });
   const [showSettings, setShowSettings] = useState(false);
   const [webSearchCount, setWebSearchCount] = useState<number>(() => {
-    const legacy = localStorage.getItem("scholarDock_webSearch");
-    if (legacy !== null) {
-      localStorage.removeItem("scholarDock_webSearch");
-      return legacy === "true" ? 2 : 0;
-    }
-    const val = localStorage.getItem("scholarDock_webSearchCount");
+    const val = localStorage.getItem("scholarDocX_webSearchCount");
     return val ? parseInt(val, 10) : 2;
   });
   const [webSearchMaxChars, setWebSearchMaxChars] = useState<number>(() => {
-    const val = localStorage.getItem("scholarDock_webSearchMaxChars");
+    const val = localStorage.getItem("scholarDocX_webSearchMaxChars");
     return val ? parseInt(val, 10) : 300;
   });
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem("scholarDock_selectedModel") || "gemini:gemini-2.5-flash";
+    return localStorage.getItem("scholarDocX_selectedModel") || "gemini:gemini-2.5-flash";
   });
   const [backgroundModel, setBackgroundModel] = useState<string>(() => {
-    return localStorage.getItem("scholarDock_backgroundModel") || "gemini:gemini-2.5-flash-lite";
+    return localStorage.getItem("scholarDocX_backgroundModel") || "gemini:gemini-2.5-flash-lite";
   });
 
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);
@@ -179,15 +174,15 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
   // Persist settings
   useEffect(() => {
-    localStorage.setItem("scholarDock_webSearchCount", String(webSearchCount));
+    localStorage.setItem("scholarDocX_webSearchCount", String(webSearchCount));
   }, [webSearchCount]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_webSearchMaxChars", String(webSearchMaxChars));
+    localStorage.setItem("scholarDocX_webSearchMaxChars", String(webSearchMaxChars));
   }, [webSearchMaxChars]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_webSearchEnabled", String(webSearchEnabled));
+    localStorage.setItem("scholarDocX_webSearchEnabled", String(webSearchEnabled));
   }, [webSearchEnabled]);
 
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
@@ -254,30 +249,30 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       emitUiError({
         title: "Model access updated",
         kind: "permission",
-        message: `Your saved ${changedTargets} was not allowed for this role, so ScholarDock switched you to an available provider automatically.`,
+        message: `Your saved ${changedTargets} was not allowed for this role, so ScholarDocX switched you to an available provider automatically.`,
       });
       hasAdjustedRestrictedModelsRef.current = true;
     }
   }, [usageData, allowedProviders, selectedModel, backgroundModel]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_useSummaryContext", String(useSummaryContext));
+    localStorage.setItem("scholarDocX_useSummaryContext", String(useSummaryContext));
   }, [useSummaryContext]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_useExactContext", String(useExactContext));
+    localStorage.setItem("scholarDocX_useExactContext", String(useExactContext));
   }, [useExactContext]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_exactChatCount", String(exactChatCount));
+    localStorage.setItem("scholarDocX_exactChatCount", String(exactChatCount));
   }, [exactChatCount]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_selectedModel", selectedModel);
+    localStorage.setItem("scholarDocX_selectedModel", selectedModel);
   }, [selectedModel]);
 
   useEffect(() => {
-    localStorage.setItem("scholarDock_backgroundModel", backgroundModel);
+    localStorage.setItem("scholarDocX_backgroundModel", backgroundModel);
   }, [backgroundModel]);
 
   // Load history from localStorage
@@ -464,7 +459,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
               role: "assistant",
               content: actionPlan.message || (actionPlan.status === "needs_info"
                 ? "I need a little more information before I can prepare that."
-                : "Review these local ScholarDock actions before I run them."),
+                : "Review these local ScholarDocX actions before I run them."),
               timestamp: Date.now(),
               mode: "agentic-action-plan",
               actionPlan,
@@ -582,7 +577,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       const response = await api.post<RecordMap>("/ai/actions/execute", { plan: actionPlan });
       const assistantMessage: Message = {
         role: "assistant",
-        content: response.message || "Done. I updated your local ScholarDock workspace.",
+        content: response.message || "Done. I updated your local ScholarDocX workspace.",
         timestamp: Date.now(),
         mode: "agentic-action-executed"
       };

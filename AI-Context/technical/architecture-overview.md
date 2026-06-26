@@ -1,6 +1,6 @@
 # Architecture Overview
 
-ScholarDock should be built as a local-first application with a frontend UI, local backend API, SQLite database, and local media workspace.
+ScholarDocX should be built as a local-first application with a frontend UI, local backend API, SQLite database, and local media workspace.
 
 ## Initial Architecture
 

@@ -103,7 +103,7 @@ development.
 - `/advisor-atlas/candidates/{candidate_id}` updates shortlist, lane, notes, and
   reading state
 - `/advisor-atlas/candidates/{candidate_id}/save` confirms creation of a core
-  ScholarDock professor record
+  ScholarDocX professor record
 - `/auth/google/start` if optional Google signin is implemented
 - `/auth/google/callback` if optional Google signin is implemented
 - `/auth/session` if optional signin or local profile sessions are implemented

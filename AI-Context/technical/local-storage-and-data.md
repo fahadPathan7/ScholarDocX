@@ -68,7 +68,7 @@ The backend creates the workspace automatically on startup and through `POST /ap
 The default workspace can be overridden with:
 
 ```text
-SCHOLARDOCK_WORKSPACE=/absolute/path/to/workspace
+SCHOLARDOCX_WORKSPACE=/absolute/path/to/workspace
 ```
 
 ## Backup Consideration

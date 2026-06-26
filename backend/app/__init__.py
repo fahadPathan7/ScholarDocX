@@ -1,2 +1,2 @@
-"""ScholarDock backend package."""
+"""ScholarDocX backend package."""
 

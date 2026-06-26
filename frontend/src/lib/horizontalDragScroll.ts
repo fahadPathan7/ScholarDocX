@@ -28,7 +28,7 @@ const CONTROL_SELECTOR = [
 
 declare global {
   interface Window {
-    __scholarDockHorizontalDragScrollInstalled?: boolean;
+    __scholarDocXHorizontalDragScrollInstalled?: boolean;
   }
 }
 
@@ -79,8 +79,8 @@ function endDrag() {
 }
 
 export function installHorizontalDragScroll() {
-  if (typeof window === "undefined" || window.__scholarDockHorizontalDragScrollInstalled) return;
-  window.__scholarDockHorizontalDragScrollInstalled = true;
+  if (typeof window === "undefined" || window.__scholarDocXHorizontalDragScrollInstalled) return;
+  window.__scholarDocXHorizontalDragScrollInstalled = true;
 
   document.addEventListener(
     "pointerdown",

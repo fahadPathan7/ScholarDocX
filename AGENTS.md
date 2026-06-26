@@ -1,21 +1,21 @@
 # AGENTS.md
 
-Project: ScholarDock
+Project: ScholarDocX
 
 This file is the root instruction file for AI agents working in this repository.
 
 ## Mission
 
-ScholarDock is a local-first, privacy-first higher education application management portal. It helps applicants manage universities, programs, professors, deadlines, documents, outreach emails, and AI-assisted academic research from one local workspace.
+ScholarDocX is a local-first, privacy-first higher education application management portal. It helps applicants manage universities, programs, professors, deadlines, documents, outreach emails, and AI-assisted academic research from one local workspace.
 
 ## Mandatory AI-DLC Workflow
 
 Before writing or changing product code:
 
-1. Read [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/README.md).
-2. Read the relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills).
+1. Read [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md).
+2. Read the relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills).
 3. Read the relevant business, functional, and technical context files for the requested work.
-4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks).
+4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks).
 5. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
 6. Only then implement code.
 7. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
@@ -24,7 +24,7 @@ Do not skip context refinement for new features or feature modifications.
 
 ## Repo-Carried Agent Skills
 
-ScholarDock keeps project-specific `SKILL.md` files in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDock/AI-Context/agent-skills). These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
+ScholarDocX keeps project-specific `SKILL.md` files in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills). These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
 
 Use only the skills relevant to the current task. Skills supplement the source-of-truth order below; they do not override the user's latest instruction, root rules, the active Jira task, or AI-Context.
 
@@ -35,11 +35,11 @@ Use only the skills relevant to the current task. Skills supplement the source-o
 Use this order when resolving conflicts:
 
 1. The user's latest explicit instruction.
-2. Root rules: this file, [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDock/CLAUDE.md), and [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/CODE_RULES.md).
+2. Root rules: this file, [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDocX/CLAUDE.md), and [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/CODE_RULES.md).
 3. Current Jira task file.
 4. AI-Context files.
 5. Existing codebase patterns.
-6. Historical source notes, now absorbed into [AI-Context](/Users/fahadpathan/Documents/ScholarDock/AI-Context/README.md).
+6. Historical source notes, now absorbed into [AI-Context](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md).
 
 ## Non-Negotiable Product Constraints
 

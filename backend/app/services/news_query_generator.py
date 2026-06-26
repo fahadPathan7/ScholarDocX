@@ -88,7 +88,7 @@ class ScholarshipQueryGenerator:
                         "Authorization": f"Bearer {self.settings.openrouter_api_key}",
                         "Content-Type": "application/json",
                         "HTTP-Referer": "http://localhost",
-                        "X-Title": "ScholarDock Scholarship Hunt",
+                        "X-Title": "ScholarDocX Scholarship Hunt",
                     },
                     json=payload,
                 )

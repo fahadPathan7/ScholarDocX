@@ -35,7 +35,7 @@ export function NewsFeed({
       return (
         <div className="news-empty-state">
           <p>Select at least one query input.</p>
-          <p className="news-empty-subtext">ScholarDock will turn your choices into an editable scholarship search query before using a credit.</p>
+          <p className="news-empty-subtext">ScholarDocX will turn your choices into an editable scholarship search query before using a credit.</p>
         </div>
       );
     }

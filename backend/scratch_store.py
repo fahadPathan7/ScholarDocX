@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-store_path = Path("/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py")
+store_path = Path("/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py")
 content = store_path.read_text()
 
 # We will just write a python script to do regex replaces to convert sqlite3 connection to SQLAlchemy Session

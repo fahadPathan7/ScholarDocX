@@ -1,4 +1,4 @@
-export const TOKEN_KEY = "scholar_dock_token";
+export const TOKEN_KEY = "scholar_docx_token";
 
 export interface User {
   id: number;

@@ -1204,8 +1204,8 @@ function InviteRequestsTab() {
       const res = await api.post<any>(`/admin/invite-requests/${id}/review`, { action });
       
       if (action === 'approve' && res.invite_code) {
-        const subject = encodeURIComponent("Welcome to ScholarDock - Your Invite Code");
-        const body = encodeURIComponent(`Hi ${req.name},\n\nWe are excited to welcome you to ScholarDock! Here is your single-use invite code to create your account:\n\n${res.invite_code}\n\nPlease head to the registration page and sign up with this code.\n\nBest,\nThe ScholarDock Team`);
+        const subject = encodeURIComponent("Welcome to ScholarDocX - Your Invite Code");
+        const body = encodeURIComponent(`Hi ${req.name},\n\nWe are excited to welcome you to ScholarDocX! Here is your single-use invite code to create your account:\n\n${res.invite_code}\n\nPlease head to the registration page and sign up with this code.\n\nBest,\nThe ScholarDocX Team`);
         const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(req.email)}&su=${subject}&body=${body}`;
         const a = document.createElement('a');
         a.href = gmailLink;
@@ -1417,7 +1417,7 @@ function SettingsTab() {
                   <div className="relative flex-1">
                     <input 
                       type={showJwt ? "text" : "password"} 
-                      defaultValue={settings["jwt_secret_key"] || "scholar-dock-local-first-secret-key-do-not-use-in-cloud"}
+                      defaultValue={settings["jwt_secret_key"] || "scholar-docx-local-first-secret-key-do-not-use-in-cloud"}
                       id="modal-input-jwt_secret_key"
                       className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                     />

@@ -83,7 +83,7 @@ def test_login_success():
     assert data["status"] == "success"
     assert "token" in data
     assert data["user"]["email"] == "test_user@example.com"
-    assert "general_user" in data["user"]["roles"]
+    assert "free_user" in data["user"]["roles"]
 
 def test_login_invalid_password():
     response = client.post(

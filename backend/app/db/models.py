@@ -899,6 +899,7 @@ class AiTokenBalances(Base):
     subscription_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     subscription_period: Mapped[Optional[str]] = mapped_column(Text)
     purchased_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    purchased_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     last_reset_at: Mapped[Optional[str]] = mapped_column(Text)
     total_spent_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     total_spent_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))

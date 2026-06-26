@@ -12,8 +12,7 @@ gate" stance is superseded):
 - Role guards: `require_admin`, `require_super_admin`, `require_role`. The
   admin router is protected router-wide (`get_current_user` + `require_admin`)
   plus a second fine-grained layer via `require_feature` /
-  `check_and_increment_limit` for destructive admin actions. `super_admin`
-  short-circuits role checks safely because roles come from the DB.
+  `check_and_increment_limit` for destructive admin actions. Note: Admins (including `super_admin`) do NOT short-circuit or bypass regular user role checks. To access user-facing features, an admin must explicitly hold a user role (`general_user`, `pro_user`, `max_user`). Admins only get access to the admin tab.
 
 ## JWT Secret Management
 

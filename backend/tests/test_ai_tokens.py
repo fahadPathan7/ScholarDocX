@@ -79,7 +79,6 @@ def test_seed_defaults(tmp_path):
         {"code": "medium", "token_amount": 500000, "price_usd": 40.0},
         {"code": "large", "token_amount": 1500000, "price_usd": 100.0},
     ]
-    assert allowance["super_admin"] == -1
     assert allowance["general_user"] == 500000
 
 
@@ -244,31 +243,6 @@ def test_charge_at_zero_charges_nothing(tmp_path):
         b = get_balance(settings, user["id"])
         assert b["subscription_remaining"] == 0
         assert b["purchased_remaining"] == 0
-    finally:
-        session.close()
-
-
-# ── super_admin unlimited ────────────────────────────────────────────────────
-
-def test_super_admin_is_unlimited_and_logs_without_deducting(tmp_path):
-    settings = make_settings(tmp_path)
-    set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)
-    user = make_user(settings, ["super_admin"])
-    session = next(get_db(settings.database_path))
-    try:
-        assert ai_tokens.ensure_can_spend(user, session) is True  # no balance row needed
-        res = ai_tokens.charge(
-            user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
-            output_tokens=500, source="chat", session=session,
-        )
-        assert res["charged"] == 0
-        assert res["unlimited"] is True
-        rows = ledger_rows(settings, user["id"])
-        assert len(rows) == 1
-        assert rows[0]["tokens_delta"] == 0
-        assert rows[0]["balance_bucket"] == "unlimited"
-        b = get_balance(settings, user["id"])
-        assert b["total_spent_tokens"] == 20  # tracked but not deducted
     finally:
         session.close()
 

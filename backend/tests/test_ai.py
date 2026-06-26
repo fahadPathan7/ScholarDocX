@@ -10,6 +10,8 @@ async def test_chat_fallback_when_glm_key_missing():
     settings = Settings()
     settings.glm_api_key = ""
     settings.gemini_api_key = ""
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
     service = AiService(settings)
 
     response = await service.chat("Review this SOP", "SOP context")
@@ -24,6 +26,8 @@ async def test_research_fallback_when_keys_missing():
     settings = Settings()
     settings.glm_api_key = ""
     settings.gemini_api_key = ""
+    settings.groq_api_key = ""
+    settings.mistral_api_key = ""
     settings.tavily_api_key = ""
     service = AiService(settings)
 

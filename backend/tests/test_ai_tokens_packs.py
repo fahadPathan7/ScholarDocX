@@ -366,19 +366,6 @@ def test_balance_endpoint_shape(tmp_path):
         store.db.close()
 
 
-def test_super_admin_balance_is_unlimited(tmp_path):
-    settings = make_settings(tmp_path)
-    user = make_user(settings, ["super_admin"])
-    store = make_store(settings)
-    try:
-        view = ai_tokens_api.get_balance(current_user=user, store=store)
-        assert view["is_unlimited"] is True
-        assert view["subscription_remaining"] == -1
-        assert view["monthly_allowance"] == -1
-    finally:
-        store.db.close()
-
-
 # ── permission hygiene ────────────────────────────────────────────────────────
 
 def test_admin_manage_token_requests_seeded(tmp_path):
@@ -406,7 +393,7 @@ def test_ai_tokens_per_month_in_canonical_set(tmp_path):
         count = db.execute(
             "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
         ).fetchone()[0]
-    assert count == 5  # all five roles
+        assert count == 3  # all three user roles
 
 
 def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
@@ -448,8 +435,7 @@ def test_list_models_seeded(tmp_path):
         first = models[0]
         assert {"id", "provider", "model_id", "input_price_per_1m",
                 "output_price_per_1m", "is_active"} <= set(first)
-        # Seeded at $0 until a super_admin prices them.
-        assert first["input_price_per_1m"] == 0.0
+        assert first["input_price_per_1m"] > 0.0
         assert first["is_active"] is True
     finally:
         session.close()

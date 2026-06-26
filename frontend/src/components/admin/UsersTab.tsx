@@ -36,7 +36,7 @@ type UserRecord = {
   plan_ends_at?: string | null;
 };
 
-type RoleFilter = "all" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
+type RoleFilter = "all" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
 type PlanStatusFilter = "all" | "expiring_soon" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
 type NotificationModalMode = "broadcast" | "user" | null;
@@ -52,6 +52,7 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
 
 const roleTabs = [
   { id: "all" as const, label: "All Users" },
+  { id: "free_user" as const, label: "Free User" },
   { id: "general_user" as const, label: "General User" },
   { id: "pro_user" as const, label: "Pro User" },
   { id: "max_user" as const, label: "Max User" },
@@ -124,8 +125,8 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
   }, []);
 
   const availableRoles = adminPermissions["admin_assign_admin_roles"]
-    ? ["general_user", "pro_user", "max_user", "general_admin", "super_admin"]
-    : ["general_user", "pro_user", "max_user"];
+    ? ["free_user", "general_user", "pro_user", "max_user", "general_admin", "super_admin"]
+    : ["free_user", "general_user", "pro_user", "max_user"];
 
   const getPlanStatus = (user: UserRecord): "expired" | "expiring_soon" | "active" | "no_plan" => {
     if (!user.plan_ends_at) return "no_plan";
@@ -812,7 +813,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                       <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
                         <label className="block text-sm font-semibold text-indigo-900 mb-3">User Roles &amp; Duration</label>
                         <div className="space-y-2 mb-4">
-                          {availableRoles.filter((role) => ["general_user", "pro_user", "max_user"].includes(role)).map((role) => (
+                          {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
                             <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
@@ -825,7 +826,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                           ))}
                         </div>
 
-                        {editingUser.roles.some((role: string) => ["general_user", "pro_user", "max_user"].includes(role)) && (
+                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && (
                           <div className="pt-3 border-t border-indigo-200">
                             <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                             <div className="flex gap-2">
@@ -952,7 +953,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                   <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
                     <label className="block text-sm font-semibold text-indigo-900 mb-3">User Roles &amp; Duration</label>
                     <div className="space-y-2 mb-4">
-                      {availableRoles.filter((role) => ["general_user", "pro_user", "max_user"].includes(role)).map((role) => (
+                      {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
                         <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
                           <input
                             type="checkbox"

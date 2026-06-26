@@ -1,4 +1,5 @@
-import { Check, CheckCircle2, Database, FolderOpen, Globe, Mail, Save, Sparkles, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight } from "lucide-react";
+import { Check, CheckCircle2, Database, FolderOpen, Globe, Mail, Save, Sparkles, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, Settings, LogOut, Edit2, Plus, Image as ImageIcon } from "lucide-react";
+import { AiTokenWidget } from "./AiTokenWidget";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
 import { useAuth } from "../contexts/AuthContext";
@@ -56,7 +57,6 @@ export function ProfileView({
   const [justSaved, setJustSaved] = useState(false);
   const [avatarJustSaved, setAvatarJustSaved] = useState(false);
   const [showUsageModal, setShowUsageModal] = useState(false);
-  const [showModelsModal, setShowModelsModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -316,13 +316,8 @@ export function ProfileView({
               Monitor workspace resource usage and explore available AI models.
             </p>
             <div className="profile-actions-stack">
-              <button onClick={() => setShowUsageModal(true)} className="profile-action-row" type="button">
+              <button onClick={() => setShowUsageModal(true)} className="profile-action-row" type="button" style={{ borderBottom: "none" }}>
                 <div className="profile-action-content"><Zap size={16} className="text-slate-500" /> View Usage & Limits</div>
-                <ChevronRight size={16} className="profile-action-chevron" />
-              </button>
-
-              <button onClick={() => setShowModelsModal(true)} className="profile-action-row" type="button">
-                <div className="profile-action-content"><Bot size={16} className="text-slate-500" /> Explore AI Models</div>
                 <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
@@ -370,6 +365,13 @@ export function ProfileView({
                 </div>
               )}
               <div className="profile-actions-stack" style={planCardTone.actionsStyle}>
+                <div className="p-3 border-b border-slate-100/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap size={16} className={planCardTone.iconClass} />
+                    <span className="text-sm font-medium opacity-80">Buy More AI Tokens</span>
+                  </div>
+                  <AiTokenWidget />
+                </div>
                 <button onClick={onViewPlans} className="profile-action-row" type="button">
                   <div className="profile-action-content">
                     <Sparkles size={16} className={planCardTone.iconClass} />
@@ -521,56 +523,6 @@ export function ProfileView({
         </div>
       )}
 
-      {showModelsModal && (
-        <div className="modal-backdrop models-modal-backdrop" onClick={() => setShowModelsModal(false)}>
-          <div className="modal-panel models-modal-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header models-modal-header">
-              <div>
-                <p className="eyebrow">AI Assistant</p>
-                <h2>AI Models Comparison</h2>
-              </div>
-              <button className="icon-button close-btn" type="button" onClick={() => setShowModelsModal(false)} title="Close form">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-content models-modal-content">
-              <table className="about-models-table">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Provider</th>
-                    <th>Model</th>
-                    <th>Context</th>
-                    <th>Reasoning</th>
-                    <th>Speed</th>
-                    <th>Performance</th>
-                    <th>Tool Use</th>
-                    <th>Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="rank-gold"><td><span className="rank-badge">1</span></td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5.1</strong></td><td>203K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-excellent">92</span></td></tr>
-                  <tr className="rank-silver"><td><span className="rank-badge">2</span></td><td><span className="provider-groq">Groq</span></td><td><strong>GPT OSS 120B</strong></td><td>131K</td><td>Excellent</td><td>Very fast</td><td>Excellent</td><td>Very good</td><td><span className="score-excellent">90</span></td></tr>
-                  <tr className="rank-bronze"><td><span className="rank-badge">3</span></td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5</strong></td><td>203K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-excellent">89</span></td></tr>
-                  <tr><td>4</td><td><span className="provider-google">Google AI Studio</span></td><td><strong>Gemini 2.5 Flash</strong></td><td>1M</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Very good</td><td><span className="score-good">87</span></td></tr>
-                  <tr><td>5</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Mistral Large</strong></td><td>256K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-good">86</span></td></tr>
-                  <tr><td>6</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5-Turbo</strong></td><td>203K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">85</span></td></tr>
-                  <tr><td>7</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Mistral Medium 3.5</strong></td><td>256K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">85</span></td></tr>
-                  <tr><td>8</td><td><span className="provider-groq">Groq</span></td><td><strong>Groq Compound</strong></td><td>131K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">84</span></td></tr>
-                  <tr><td>9</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-4.7</strong></td><td>203K</td><td>Very good</td><td>Medium</td><td>Very good</td><td>Excellent</td><td><span className="score-good">83</span></td></tr>
-                  <tr><td>10</td><td><span className="provider-groq">Groq</span></td><td><strong>Qwen 3 32B</strong></td><td>131K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Good</td><td><span className="score-good">80</span></td></tr>
-                  <tr><td>11</td><td><span className="provider-groq">Groq</span></td><td><strong>Llama 3.3 70B Versatile</strong></td><td>131K</td><td>Good</td><td>Fast</td><td>Very good</td><td>Good</td><td><span className="score-good">78</span></td></tr>
-                  <tr><td>12</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-4.6 Vision</strong></td><td>131K</td><td>Good</td><td>Medium</td><td>Good</td><td>Very good</td><td><span className="score-fair">76</span></td></tr>
-                  <tr><td>13</td><td><span className="provider-google">Google AI Studio</span></td><td><strong>Gemini 2.5 Flash-Lite</strong></td><td>1M</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">75</span></td></tr>
-                  <tr><td>14</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Devstral 2512</strong></td><td>256K</td><td>Good</td><td>Medium</td><td>Good</td><td>Very good</td><td><span className="score-fair">75</span></td></tr>
-                  <tr><td>15</td><td><span className="provider-groq">Groq</span></td><td><strong>GPT OSS 20B</strong></td><td>131K</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">74</span></td></tr>
-                  <tr className="rank-lowest"><td>16</td><td><span className="provider-groq">Groq</span></td><td><strong>Llama 4 Scout 17B Instruct</strong></td><td>131K</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">72</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showIdentityModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowIdentityModal(false)}>

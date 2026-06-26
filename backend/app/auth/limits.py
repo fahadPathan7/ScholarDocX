@@ -16,6 +16,8 @@ def get_primary_user_role(user: dict) -> Optional[str]:
         return "pro_user"
     if "general_user" in roles:
         return "general_user"
+    if "free_user" in roles:
+        return "free_user"
     return None
 
 def should_reset(last_reset_at: str, reset_period: str) -> bool:
@@ -45,7 +47,7 @@ def get_user_limit(user: dict, feature: str, session: Session) -> int:
     """Returns the limit_count for a given user and feature, or -1 if unlimited/not found."""
     primary_role = get_primary_user_role(user)
     if not primary_role:
-        return -1
+        return 0
         
     cache_key = f"{primary_role}:{feature}"
     limit_record = _role_limits_cache.get(cache_key)
@@ -59,8 +61,7 @@ def get_user_limit(user: dict, feature: str, session: Session) -> int:
         if limit_record:
             limit_record = dict(limit_record)
             _role_limits_cache[cache_key] = limit_record
-            
-    return limit_record["limit_count"] if limit_record else -1
+    return limit_record["limit_count"] if limit_record else 0
 
 def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Session = None):
     if session is None:
@@ -99,15 +100,6 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
     plan_started_at = user.get("plan_started_at")
     plan_ends_at = user.get("plan_ends_at")
 
-    if plan_ends_at:
-        try:
-            end_dt = datetime.fromisoformat(plan_ends_at.replace("Z", "+00:00").split("+")[0])
-            if end_dt.date() < now.date():
-                raise UsageLimitExceeded(
-                    "Your plan has expired. Please contact an administrator to renew your access."
-                )
-        except (ValueError, AttributeError):
-            pass
 
     if plan_started_at:
         try:

@@ -47,7 +47,7 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
 - Model pricing and pack configuration: **super_admin only**.
 - Monthly allowances, request approval, usage viewing: admin.
 - Buying/requesting packs and using AI: any active user with provider access
-  and a positive token balance (super_admin is unlimited).
+  and a positive token balance. (Note: Admins do NOT get any AI tokens, unlimited or otherwise, by virtue of being an admin. Admins must have a user role to receive any user-facing features or tokens. Admins only get access to the admin tabs.)
 
 ## Related
 

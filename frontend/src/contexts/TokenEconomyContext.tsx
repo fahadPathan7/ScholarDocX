@@ -7,6 +7,7 @@ import { OutOfTokensModal } from "../components/OutOfTokensModal";
 export type AiTokenBalance = {
   subscription_remaining: number; // -1 = unlimited
   purchased_remaining: number;
+  purchased_total: number;
   subscription_period: string | null;
   monthly_allowance: number; // -1 = unlimited
   is_unlimited: boolean;

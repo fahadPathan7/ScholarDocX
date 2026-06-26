@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 import pytest
 
 from app.db.connection import get_engine, initialize_database
@@ -14,7 +15,7 @@ def make_session(tmp_path):
     return SessionLocal()
 
 
-def seed_user(connection, user_id: int, email: str, settings: dict | None = None):
+def seed_user(connection, user_id: int, email: str, settings: Optional[dict] = None):
     connection.execute(
         """
         INSERT INTO users (

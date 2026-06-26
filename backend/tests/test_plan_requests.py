@@ -50,6 +50,12 @@ class FixedDatetime(datetime):
     def utcnow(cls):
         return cls.fixed_now
 
+    @classmethod
+    def now(cls, tz=None):
+        if tz is not None:
+            return cls.fixed_now.replace(tzinfo=tz)
+        return cls.fixed_now
+
 
 def test_plan_request_endpoint_persists_request_type(tmp_path):
     store, connection = make_store(tmp_path)

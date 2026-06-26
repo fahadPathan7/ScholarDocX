@@ -68,14 +68,27 @@ def get_current_user(
         )
         
     user_dict["roles"] = json.loads(user_dict["roles"])
+    
+    # Check plan expiration and fallback to free_user dynamically
+    plan_ends_at = user_dict.get("plan_ends_at")
+    if plan_ends_at:
+        try:
+            from datetime import datetime, timezone
+            end_dt = datetime.fromisoformat(plan_ends_at.replace("Z", "+00:00").split("+")[0])
+            if end_dt.date() < datetime.utcnow().date():
+                user_roles = user_dict["roles"]
+                user_roles = [r for r in user_roles if r not in ["max_user", "pro_user", "general_user"]]
+                if "free_user" not in user_roles:
+                    user_roles.append("free_user")
+                user_dict["roles"] = user_roles
+        except (ValueError, AttributeError):
+            pass
+            
     return user_dict
 
 def require_role(allowed_roles: list[str]):
     def role_checker(current_user: dict = Depends(get_current_user)):
         user_roles = current_user.get("roles", [])
-        if "super_admin" in user_roles:
-            return current_user
-        
         has_role = any(role in user_roles for role in allowed_roles)
         if not has_role:
             raise HTTPException(

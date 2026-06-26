@@ -719,3 +719,21 @@ def update_model(
         {"pk": model_pk},
     ).mappings().fetchone()
     return _model_row(row) if row else None
+
+def cancel_purchase_request(request_id: int, user_id: int, session: Session) -> None:
+    """Cancel a pending purchase request by the user who created it."""
+    row = session.execute(
+        text("SELECT status FROM ai_token_purchase_requests WHERE id = :id AND user_id = :uid"),
+        {"id": request_id, "uid": user_id},
+    ).mappings().fetchone()
+    
+    if row is None:
+        raise LookupError("Request not found.")
+    if str(row["status"]).lower() != "pending":
+        raise ValueError("Only pending requests can be cancelled.")
+        
+    session.execute(
+        text("UPDATE ai_token_purchase_requests SET status = 'Cancelled' WHERE id = :id"),
+        {"id": request_id},
+    )
+    session.commit()

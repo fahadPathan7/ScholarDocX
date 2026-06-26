@@ -1770,3 +1770,61 @@ main {
   opacity: 0.8;
   transform: translateX(2px);
 }
+
+.token-usage-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  height: 42px;
+  background: rgba(35, 58, 55, 0.06);
+  border: none;
+  border-radius: 12px;
+  color: #4a5c55;
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+  cursor: default;
+}
+
+.custom-tooltip-container {
+  position: relative;
+}
+
+.custom-tooltip {
+  visibility: hidden;
+  background-color: #2b3933;
+  color: #fff;
+  text-align: center;
+  border-radius: 8px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 1000;
+  top: 125%; /* Position below the badge since it's in the top bar */
+  right: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Optional tiny triangle for tooltip */
+.custom-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  right: 15px; /* Aligned near the center of the badge */
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent #2b3933 transparent;
+}
+
+.custom-tooltip-container:hover .custom-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}

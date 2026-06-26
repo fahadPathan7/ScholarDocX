@@ -103,10 +103,10 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
 
     # Hash password and create user
     hashed_password = hash_password(payload.password)
-    default_roles = json.dumps(["general_user"])
+    default_roles = json.dumps(["free_user"])
     
     plan_started_at = datetime.utcnow().isoformat()
-    plan_ends_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+    plan_ends_at = None
     
     cursor = store.legacy_connection.execute(
         """
@@ -408,3 +408,23 @@ def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get
     except Exception as e:
         store.legacy_connection.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/plans/requests/{request_id}/cancel")
+def cancel_plan_request(request_id: int, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    request = store.legacy_connection.execute(
+        "SELECT id, status FROM plan_upgrade_requests WHERE id = ? AND user_id = ?",
+        (request_id, current_user["id"])
+    ).fetchone()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found.")
+        
+    if request["status"] != "Pending":
+        raise HTTPException(status_code=400, detail="Only pending requests can be cancelled.")
+        
+    store.legacy_connection.execute(
+        "UPDATE plan_upgrade_requests SET status = 'Cancelled' WHERE id = ?",
+        (request_id,)
+    )
+    store.legacy_connection.commit()
+    return {"status": "success", "message": "Plan request cancelled successfully."}

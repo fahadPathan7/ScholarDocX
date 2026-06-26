@@ -63,6 +63,7 @@ def get_balance(
     return {
         "subscription_remaining": -1 if unlimited else int(balance["subscription_remaining"]),
         "purchased_remaining": int(balance["purchased_remaining"]),
+        "purchased_total": int(balance.get("purchased_total", 0)),
         "subscription_period": balance["subscription_period"],
         "monthly_allowance": allowance,
         "is_unlimited": unlimited,
@@ -104,7 +105,21 @@ def list_my_purchase_requests(
 ):
     return ai_tokens.list_my_purchase_requests(current_user["id"], store.db)
 
-
+@router.post("/purchase-requests/{request_id}/cancel")
+def cancel_my_purchase_request(
+    request_id: int,
+    current_user: dict = Depends(get_current_user),
+    store: Store = Depends(get_store),
+):
+    try:
+        ai_tokens.cancel_purchase_request(request_id, current_user["id"], store.db)
+        return {"status": "success", "message": "Purchase request cancelled successfully."}
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # ── admin-facing ──────────────────────────────────────────────────────────────
 
 @router.get("/admin/packs")

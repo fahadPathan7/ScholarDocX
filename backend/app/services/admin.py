@@ -9,6 +9,28 @@ from app.auth.limits import invalidate_limits_cache
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
 
 DEFAULT_ROLE_LIMITS = {
+    'free_user': [
+        ('ai_messages_per_session', 0, 'per_session'),
+        ('can_use_gemini', 1, 'never'),
+        ('can_use_glm', 0, 'never'),
+        ('can_use_groq', 0, 'never'),
+        ('can_use_mistral', 0, 'never'),
+        ('can_use_agents', 0, 'never'),
+        ('can_use_web_search', 0, 'never'),
+        ('web_searches_per_day', 0, 'daily'),
+        ('web_searches_per_month', 0, 'monthly'),
+        ('total_projects', 1, 'never'),
+        ('total_sheets', 2, 'never'),
+        ('total_records', 100, 'never'),
+        ('sheets_per_project', 2, 'never'),
+        ('records_per_sheet', 50, 'never'),
+        ('total_documents_bytes', 5242880, 'never'),
+        ('total_sticky_notes', 3, 'never'),
+        ('total_whiteboards', 1, 'never'),
+        ('news_searches_per_day', 0, 'daily'),
+        ('news_searches_per_month', 0, 'monthly'),
+        ('ai_tokens_per_month', 0, 'monthly'),
+    ],
     'general_user': [
         ('ai_messages_per_session', 10, 'per_session'),
         ('can_use_gemini', 1, 'never'),
@@ -88,8 +110,6 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
-        ('can_use_agents', 1, 'never'),
-        ('ai_tokens_per_month', 1000000, 'monthly'),
     ],
     'super_admin': [
         ('admin_create_user', 1, 'never'),
@@ -104,8 +124,28 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
-        ('can_use_agents', 1, 'never'),
-        ('ai_tokens_per_month', -1, 'monthly'),
+    ],
+    'free_user': [
+        ('ai_messages_per_session', 0, 'per_session'),
+        ('can_use_gemini', 1, 'never'),
+        ('can_use_glm', 0, 'never'),
+        ('can_use_groq', 0, 'never'),
+        ('can_use_mistral', 0, 'never'),
+        ('can_use_agents', 0, 'never'),
+        ('can_use_web_search', 0, 'never'),
+        ('web_searches_per_day', 0, 'daily'),
+        ('web_searches_per_month', 0, 'monthly'),
+        ('total_projects', 1, 'never'),
+        ('total_sheets', 2, 'never'),
+        ('total_records', 100, 'never'),
+        ('sheets_per_project', 2, 'never'),
+        ('records_per_sheet', 50, 'never'),
+        ('total_documents_bytes', 5242880, 'never'),
+        ('total_sticky_notes', 3, 'never'),
+        ('total_whiteboards', 1, 'never'),
+        ('news_searches_per_day', 3, 'daily'),
+        ('news_searches_per_month', 30, 'monthly'),
+        ('ai_tokens_per_month', 0, 'monthly'),
     ]
 }
 
@@ -129,7 +169,7 @@ class AdminService:
             return None
 
     def _calculate_plan_extension_window(self, user: dict, billing_cycle: str) -> tuple[str, str]:
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         current_start = self._parse_iso_datetime(user.get("plan_started_at"))
         current_end = self._parse_iso_datetime(user.get("plan_ends_at"))
         duration_days = 365 if billing_cycle == "yearly" else 30
@@ -184,6 +224,22 @@ class AdminService:
         pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
         pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
 
+        total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
+
+        ai_usage_30d_rows = self.connection.execute(
+            "SELECT date(created_at) as day, SUM(-tokens_delta) as tokens "
+            "FROM ai_token_ledger "
+            "WHERE tokens_delta < 0 AND created_at >= date('now', '-30 days') "
+            "GROUP BY day ORDER BY day ASC"
+        ).fetchall()
+        
+        # Fill in missing dates for the last 30 days to ensure a continuous chart
+        import datetime
+        today = datetime.date.today()
+        date_list = [(today - datetime.timedelta(days=x)).isoformat() for x in range(29, -1, -1)]
+        usage_map = {row["day"]: row["tokens"] for row in ai_usage_30d_rows}
+        ai_usage_30d = [{"date": d, "tokens": usage_map.get(d, 0)} for d in date_list]
+
         return {
             "counts": {
                 "total_users": total_users,
@@ -197,10 +253,12 @@ class AdminService:
                 "storage_bytes": storage_bytes,
                 "pending_invite_requests": pending_invite_requests,
                 "pending_appeals": pending_appeals,
-                "pending_plan_requests": pending_plan_requests
+                "pending_plan_requests": pending_plan_requests,
+                "total_ai_tokens": total_ai_tokens
             },
             "recent_registrations": recent_registrations,
-            "recent_logins": recent_logins
+            "recent_logins": recent_logins,
+            "ai_usage_30d": ai_usage_30d
         }
 
     def list_users(self) -> list[dict]:
@@ -321,9 +379,9 @@ class AdminService:
     def update_user_roles(self, admin_id: int, user_id: int, roles: list[str], plan_duration_days: Optional[int] = None, plan_start_date: Optional[str] = None, plan_end_date: Optional[str] = None) -> dict:
         roles_json = json.dumps(roles)
 
-        # Only set plan dates for user-level roles (general_user, pro_user, max_user)
+        # Only set plan dates for user-level roles (free_user, general_user, pro_user, max_user)
         # Admin-only users don't have plan expiration
-        has_user_role = any(r in ["general_user", "pro_user", "max_user"] for r in roles)
+        has_user_role = any(r in ["free_user", "general_user", "pro_user", "max_user"] for r in roles)
 
         if has_user_role:
             # Use custom dates if provided, otherwise calculate from duration
@@ -664,7 +722,7 @@ class AdminService:
             user = self.get_user_details(req["user_id"])
             current_roles = user.get("roles", [])
             request_type = req["request_type"] or "upgrade"
-            plan_started_at = datetime.now(timezone.utc).isoformat()
+            plan_started_at = datetime.utcnow().isoformat()
             days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
             audit_details = {
                 "request_type": request_type,
@@ -677,11 +735,11 @@ class AdminService:
                 plan_started_at, plan_ends_at = self._calculate_plan_extension_window(user, req["billing_cycle"])
             else:
                 # Remove old plan roles
-                new_roles = [r for r in current_roles if r not in ["general_user", "pro_user", "max_user"]]
+                new_roles = [r for r in current_roles if r not in ["free_user", "general_user", "pro_user", "max_user"]]
                 # Add requested plan
                 if req["requested_plan"] not in new_roles:
                     new_roles.append(req["requested_plan"])
-                plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days_to_add)).isoformat()
+                plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
             roles_json = json.dumps(new_roles)
             audit_details.update({
                 "plan_started_at": plan_started_at,

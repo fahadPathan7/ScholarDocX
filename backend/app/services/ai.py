@@ -67,7 +67,8 @@ ROUTING_SYSTEM_PROMPT = (
     "CRITICAL RULES:\n"
     "- Set false for greetings, pleasantries, small talk, and questions about who you are.\n"
     "- Set false for questions answerable from the supplied context or timeless general knowledge.\n"
-    "- Set true ONLY when real-time facts, specific external data, or source verification is strictly required."
+    "- Set true ONLY when real-time facts, specific external data, or source verification is strictly required, OR if the user explicitly asks you to search the web.\n"
+    "- If the user explicitly asks to search the web, formulate the best search query based on the Conversation Context."
 )
 
 MEMORY_SUMMARY_SYSTEM_PROMPT = (

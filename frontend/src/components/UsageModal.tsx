@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 
 const USAGE_LABELS: Record<string, string> = {
-  news_searches_per_day: "Scholarship Hunt Searches Per Day",
-  news_searches_per_month: "Scholarship Hunt Searches Per Month",
+  news_searches_per_day: "Daily Scholarship Hunts",
+  news_searches_per_month: "Monthly Scholarship Hunts",
 };
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -81,7 +81,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                             <div>
                               <p className="text-[11px] text-slate-500 font-medium">Subscription (this month)</p>
                               <p className="text-lg font-bold text-slate-800">
-                                {(balance.subscription_remaining).toLocaleString()}
+                                {balance.monthly_allowance === -1 ? "0" : Math.max(0, balance.monthly_allowance - balance.subscription_remaining).toLocaleString()}
                                 <span className="text-xs font-medium text-slate-400">
                                   {" "}/ {balance.monthly_allowance === -1 ? "∞" : balance.monthly_allowance.toLocaleString()}
                                 </span>
@@ -89,7 +89,12 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                             </div>
                             <div>
                               <p className="text-[11px] text-slate-500 font-medium">Purchased (never expire)</p>
-                              <p className="text-lg font-bold text-emerald-600">{balance.purchased_remaining.toLocaleString()}</p>
+                              <p className="text-lg font-bold text-emerald-600">
+                                {Math.max(0, balance.purchased_total - balance.purchased_remaining).toLocaleString()}
+                                <span className="text-xs font-medium text-emerald-400/80">
+                                  {" "}/ {balance.purchased_total.toLocaleString()}
+                                </span>
+                              </p>
                             </div>
                           </div>
                         )}

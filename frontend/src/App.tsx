@@ -28,8 +28,9 @@ import {
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
 import { FloatingAssistant } from "./components/FloatingAssistant";
 import { FloatingNotifications } from "./components/FloatingNotifications";
-import { AiTokenWidget } from "./components/AiTokenWidget";
+
 import { AboutView } from "./components/AboutView";
+import { AiTokenUsageButton } from "./components/AiTokenUsageButton";
 import { SettingsView } from "./components/SettingsView";
 import { ProfileView } from "./components/ProfileView";
 import { AdminView } from "./components/AdminView";
@@ -395,7 +396,8 @@ export function App() {
                   <span className="notification-badge-header">{notifications.filter((item) => !item.read_at).length}</span>
                 )}
               </button>
-              <AiTokenWidget />
+              <AiTokenUsageButton />
+
               <FloatingAssistant
                 onWorkspaceChanged={async () => {
                   await refresh();

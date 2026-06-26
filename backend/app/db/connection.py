@@ -130,6 +130,26 @@ def _seed_ai_token_defaults(connection: sqlite3.Connection) -> None:
         DEFAULT_MISTRAL_MODELS,
     )
 
+    # Set default prices for initial seed.
+    prices = {
+        "gemini-2.5-flash": (0.075, 0.30),
+        "gemini-2.5-flash-lite": (0.0375, 0.15),
+        "GLM-5.2": (2.00, 4.00),
+        "GLM-5.1": (1.00, 2.00),
+        "GLM-5": (1.00, 2.00),
+        "GLM-5-Turbo": (0.50, 1.00),
+        "GLM-4.7": (0.20, 0.40),
+        "openai/gpt-oss-120b": (0.80, 0.80),
+        "groq/compound": (0.50, 0.50),
+        "llama-3.3-70b-versatile": (0.59, 0.79),
+        "qwen/qwen3-32b": (0.70, 0.80),
+        "meta-llama/llama-4-scout-17b-16e-instruct": (0.20, 0.20),
+        "openai/gpt-oss-20b": (0.20, 0.20),
+        "mistral-large-latest": (2.00, 6.00),
+        "mistral-medium-3-5": (0.50, 1.50),
+        "devstral-2512": (0.20, 0.60),
+    }
+
     order = 0
     for provider, model_ids in (
         ("glm", DEFAULT_GLM_MODELS),
@@ -138,12 +158,13 @@ def _seed_ai_token_defaults(connection: sqlite3.Connection) -> None:
         ("mistral", DEFAULT_MISTRAL_MODELS),
     ):
         for model_id in model_ids:
+            in_price, out_price = prices.get(model_id, (0.0, 0.0))
             connection.execute(
                 "INSERT OR IGNORE INTO ai_models "
                 "(provider, model_id, display_name, input_price_per_1m, "
                 "output_price_per_1m, is_active, sort_order) "
-                "VALUES (?, ?, ?, 0, 0, 1, ?)",
-                (provider, model_id, model_id, order),
+                "VALUES (?, ?, ?, ?, ?, 1, ?)",
+                (provider, model_id, model_id, in_price, out_price, order),
             )
             order += 1
 
@@ -225,6 +246,13 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE static_files ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
     if "pinned_to_dashboard" not in file_columns:
         connection.execute("ALTER TABLE static_files ADD COLUMN pinned_to_dashboard INTEGER NOT NULL DEFAULT 0")
+
+    ai_token_balance_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(ai_token_balances)").fetchall()
+    }
+    if ai_token_balance_columns and "purchased_total" not in ai_token_balance_columns:
+        connection.execute("ALTER TABLE ai_token_balances ADD COLUMN purchased_total INTEGER NOT NULL DEFAULT 0")
 
     profile_columns = {
         row["name"]
@@ -351,6 +379,37 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         VALUES (?, ?, ?, ?)
         """,
         admin_permission_defaults,
+    )
+
+    # Ensure free_user role limits exist for existing databases.
+    free_user_defaults = [
+        ('free_user', 'ai_messages_per_session', 0, 'per_session'),
+        ('free_user', 'can_use_gemini', 1, 'never'),
+        ('free_user', 'can_use_glm', 0, 'never'),
+        ('free_user', 'can_use_groq', 0, 'never'),
+        ('free_user', 'can_use_mistral', 0, 'never'),
+        ('free_user', 'can_use_agents', 0, 'never'),
+        ('free_user', 'can_use_web_search', 0, 'never'),
+        ('free_user', 'web_searches_per_day', 0, 'daily'),
+        ('free_user', 'web_searches_per_month', 0, 'monthly'),
+        ('free_user', 'total_projects', 1, 'never'),
+        ('free_user', 'total_sheets', 2, 'never'),
+        ('free_user', 'total_records', 100, 'never'),
+        ('free_user', 'sheets_per_project', 2, 'never'),
+        ('free_user', 'records_per_sheet', 50, 'never'),
+        ('free_user', 'total_documents_bytes', 5242880, 'never'),
+        ('free_user', 'total_sticky_notes', 3, 'never'),
+        ('free_user', 'total_whiteboards', 1, 'never'),
+        ('free_user', 'news_searches_per_day', 0, 'daily'),
+        ('free_user', 'news_searches_per_month', 0, 'monthly'),
+        ('free_user', 'ai_tokens_per_month', 0, 'monthly'),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        free_user_defaults,
     )
 
     # Migrate legacy sticky note / whiteboard defaults to current baseline limits.

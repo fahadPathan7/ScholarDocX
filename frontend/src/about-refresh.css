@@ -45,9 +45,11 @@
 }
 
 /* Support spans a smaller column block */
-.about-support {
+.about-support-wrapper {
   grid-column: 9 / 13;
   grid-row: 4;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Usage section spans full width */
@@ -737,7 +739,6 @@ tr.rank-bronze .rank-badge {
 }
 
 tr.rank-lowest td {
-  opacity: 0.65;
 }
 
 /* Provider badges */
@@ -867,9 +868,9 @@ tr.rank-lowest td {
   right: 0;
   bottom: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 8vh;
+  padding: 40px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   background: rgba(15, 25, 20, 0.55);
@@ -1105,9 +1106,7 @@ tr.rank-bronze .rank-badge {
   height: 24px;
 }
 
-tr.rank-lowest td {
-  opacity: 0.65;
-}
+
 
 /* Provider badges */
 .provider-glm {
@@ -1227,7 +1226,6 @@ tr.rank-lowest td {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-top: 10px;
   padding: 12px 18px;
   box-shadow: var(--ui-shadow-soft);
 }
@@ -1347,7 +1345,7 @@ tr.rank-lowest td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .about-support {
+  .about-support-wrapper {
     grid-row: 6;
   }
 
@@ -1391,6 +1389,10 @@ tr.rank-lowest td {
   .about-ai-guide-grid,
   .about-ai-examples {
     grid-template-columns: 1fr;
+  }
+
+  .about-support-wrapper {
+    grid-column: 1;
   }
 
   .about-support {

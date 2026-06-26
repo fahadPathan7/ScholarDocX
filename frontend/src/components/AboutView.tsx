@@ -21,7 +21,8 @@ import {
   X,
   Zap,
   Bell,
-  Clock
+  Clock,
+  ChevronRight
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, RecordMap } from "../lib/api";
@@ -75,13 +76,8 @@ const aiGuideItems = [
 ];
 
 export function AboutView() {
+  const [showModelsModal, setShowModelsModal] = useState(false);
   const [emailProvider, setEmailProvider] = useState<string>("gmail");
-  const [utcTime, setUtcTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setUtcTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     api.get<RecordMap[]>("/local_profiles").then((rows) => {
@@ -273,55 +269,6 @@ export function AboutView() {
             </div>
           </div>
         ))}
-        
-        <div className="about-card about-clock-card">
-          <div className="about-clock-head">
-            <div className="about-clock-label">
-              <Clock size={16} />
-              <span>System Clock</span>
-            </div>
-            <div className="about-clock-meta">
-              <span className="about-clock-chip">24H</span>
-              <span className="about-clock-chip about-clock-chip-live">
-                <span
-                  className="about-clock-live-dot"
-                  style={{ opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.28 }}
-                />
-                Live
-              </span>
-            </div>
-          </div>
-
-          <div className="about-clock-body">
-            <p className="about-clock-caption">Coordinated Universal Time</p>
-            <div className="about-clock-display" aria-label="Current UTC time">
-              <span className="about-clock-primary">
-                {utcTime.toISOString().substring(11, 13)}
-              </span>
-              <span
-                className="about-clock-separator"
-                style={{ opacity: utcTime.getSeconds() % 2 === 0 ? 1 : 0.22 }}
-              >
-                :
-              </span>
-              <span className="about-clock-primary">
-                {utcTime.toISOString().substring(14, 16)}
-              </span>
-              <span className="about-clock-seconds">
-                {utcTime.toISOString().substring(17, 19)}
-              </span>
-            </div>
-            <div className="about-clock-footer">
-              <span className="about-clock-date">
-                {utcTime.toISOString().substring(0, 10)}
-              </span>
-              <span className="about-clock-zone">UTC</span>
-            </div>
-            <div className="about-clock-date-mobile">
-              {utcTime.toISOString().substring(0, 10)}
-            </div>
-          </div>
-        </div>
       </div>
 
       <section className="about-ai-guide">
@@ -345,25 +292,94 @@ export function AboutView() {
         </div>
       </section>
 
-      <div className="about-support">
-        <div className="about-support-text">
-          <MessageCircle size={16} />
-          <strong>Need help or have feedback?</strong>
+      <div className="about-support-wrapper">
+        <div className="about-support" style={{ marginBottom: "16px" }}>
+          <div className="about-support-text">
+            <Bot size={16} />
+            <strong>Explore available AI models</strong>
+          </div>
+          <button
+            className="about-support-button"
+            onClick={() => setShowModelsModal(true)}
+          >
+            <Bot size={16} />
+            Explore AI Models
+            <ChevronRight size={14} />
+          </button>
         </div>
-        <a
-          className="about-support-button"
-          href={getEmailComposeUrl()}
-          onClick={handleContactClick}
-          rel="noreferrer"
-        >
-          <Mail size={16} />
-          Contact Support
-          <ExternalLink size={14} />
-        </a>
+
+        <div className="about-support">
+          <div className="about-support-text">
+            <MessageCircle size={16} />
+            <strong>Need help or have feedback?</strong>
+          </div>
+          <a
+            className="about-support-button"
+            href={getEmailComposeUrl()}
+            onClick={handleContactClick}
+            rel="noreferrer"
+          >
+            <Mail size={16} />
+            Contact Support
+            <ExternalLink size={14} />
+          </a>
+        </div>
       </div>
 
 
       <p className="about-footer">ScholarDocX · Local-first · Privacy-first · Built for academic planning</p>
+
+      {showModelsModal && (
+        <div className="modal-backdrop models-modal-backdrop" onClick={() => setShowModelsModal(false)}>
+          <div className="modal-panel models-modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header models-modal-header">
+              <div>
+                <p className="eyebrow">AI Assistant</p>
+                <h2>AI Models Comparison</h2>
+              </div>
+              <button className="icon-button close-btn" type="button" onClick={() => setShowModelsModal(false)} title="Close form">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content models-modal-content">
+              <table className="about-models-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Provider</th>
+                    <th>Model</th>
+                    <th>Context</th>
+                    <th>Reasoning</th>
+                    <th>Speed</th>
+                    <th>Performance</th>
+                    <th>Tool Use</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="rank-gold"><td><span className="rank-badge">1</span></td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5.2</strong></td><td>203K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-excellent">94</span></td></tr>
+                  <tr className="rank-silver"><td><span className="rank-badge">2</span></td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5.1</strong></td><td>203K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-excellent">92</span></td></tr>
+                  <tr className="rank-bronze"><td><span className="rank-badge">3</span></td><td><span className="provider-groq">Groq</span></td><td><strong>GPT OSS 120B</strong></td><td>131K</td><td>Excellent</td><td>Very fast</td><td>Excellent</td><td>Very good</td><td><span className="score-excellent">90</span></td></tr>
+                  <tr><td>4</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5</strong></td><td>203K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-excellent">89</span></td></tr>
+                  <tr><td>5</td><td><span className="provider-google">Google AI Studio</span></td><td><strong>Gemini 2.5 Flash</strong></td><td>1M</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Very good</td><td><span className="score-good">87</span></td></tr>
+                  <tr><td>6</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Mistral Large</strong></td><td>256K</td><td>Excellent</td><td>Medium</td><td>Excellent</td><td>Excellent</td><td><span className="score-good">86</span></td></tr>
+                  <tr><td>7</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-5-Turbo</strong></td><td>203K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">85</span></td></tr>
+                  <tr><td>8</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Mistral Medium 3.5</strong></td><td>256K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">85</span></td></tr>
+                  <tr><td>9</td><td><span className="provider-groq">Groq</span></td><td><strong>Groq Compound</strong></td><td>131K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Excellent</td><td><span className="score-good">84</span></td></tr>
+                  <tr><td>10</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-4.7</strong></td><td>203K</td><td>Very good</td><td>Medium</td><td>Very good</td><td>Excellent</td><td><span className="score-good">83</span></td></tr>
+                  <tr><td>11</td><td><span className="provider-groq">Groq</span></td><td><strong>Qwen 3 32B</strong></td><td>131K</td><td>Very good</td><td>Fast</td><td>Very good</td><td>Good</td><td><span className="score-good">80</span></td></tr>
+                  <tr><td>12</td><td><span className="provider-groq">Groq</span></td><td><strong>Llama 3.3 70B Versatile</strong></td><td>131K</td><td>Good</td><td>Fast</td><td>Very good</td><td>Good</td><td><span className="score-good">78</span></td></tr>
+                  <tr><td>13</td><td><span className="provider-glm">GLM</span></td><td><strong>GLM-4.6 Vision</strong></td><td>131K</td><td>Good</td><td>Medium</td><td>Good</td><td>Very good</td><td><span className="score-fair">76</span></td></tr>
+                  <tr><td>14</td><td><span className="provider-google">Google AI Studio</span></td><td><strong>Gemini 2.5 Flash-Lite</strong></td><td>1M</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">75</span></td></tr>
+                  <tr><td>15</td><td><span className="provider-mistral">Mistral</span></td><td><strong>Devstral 2512</strong></td><td>256K</td><td>Good</td><td>Medium</td><td>Good</td><td>Very good</td><td><span className="score-fair">75</span></td></tr>
+                  <tr><td>16</td><td><span className="provider-groq">Groq</span></td><td><strong>GPT OSS 20B</strong></td><td>131K</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">74</span></td></tr>
+                  <tr className="rank-lowest"><td>17</td><td><span className="provider-groq">Groq</span></td><td><strong>Llama 4 Scout 17B Instruct</strong></td><td>131K</td><td>Good</td><td>Very fast</td><td>Good</td><td>Good</td><td><span className="score-fair">72</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </>
   );

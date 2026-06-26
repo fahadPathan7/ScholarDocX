@@ -30,8 +30,12 @@ import {
   Search,
   Coins,
   Package,
-  CircleDollarSign
+  CircleDollarSign,
+  ChevronDown,
+  ChevronUp,
+  Zap
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
 import { PlanRequestsTab as PlanRequestsReviewTab } from "./admin/PlanRequestsTab";
 import { UsersTab } from "./admin/UsersTab";
@@ -61,6 +65,8 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
 
 function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [stats, setStats] = useState<any>(null);
+  const [isRegistrationsOpen, setIsRegistrationsOpen] = useState(true);
+  const [isLoginsOpen, setIsLoginsOpen] = useState(true);
 
   useEffect(() => {
     api.get<any>("/admin/dashboard").then(setStats).catch(console.error);
@@ -145,6 +151,12 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       ),
       icon: HardDrive,
       tone: "amber"
+    },
+    {
+      label: "AI Tokens Used",
+      value: formatTokenCount(stats.counts.total_ai_tokens || 0),
+      icon: Zap,
+      tone: "purple"
     }
   ];
 
@@ -191,65 +203,104 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
         })}
       </div>
 
+      <div className="admin-dashboard-panel admin-dashboard-panel--full-width mt-4 mb-4">
+        <div className="admin-dashboard-panel__header">
+          <div>
+            <Zap size={16} />
+            <h3>30-Day AI Token Usage</h3>
+          </div>
+        </div>
+        <div className="admin-dashboard-chart-wrap" style={{ height: 250, padding: "16px 20px" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={stats.ai_usage_30d || []}>
+              <defs>
+                <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="date" tick={{ fill: "var(--ui-text-dim)", fontSize: 12 }} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatTokenCount} tick={{ fill: "var(--ui-text-dim)", fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: "var(--ui-bg-panel)", border: "1px solid var(--ui-border)", borderRadius: "8px", color: "var(--ui-text)" }}
+                itemStyle={{ color: "#8b5cf6" }}
+              />
+              <Area type="monotone" dataKey="tokens" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="admin-dashboard-activity-grid">
-        <div className="admin-dashboard-panel">
-          <div className="admin-dashboard-panel__header">
+        <div className="admin-dashboard-panel self-start">
+          <div className="admin-dashboard-panel__header cursor-pointer select-none" onClick={() => setIsRegistrationsOpen(!isRegistrationsOpen)}>
             <div>
               <Users size={16} />
               <h3>Recent Registrations</h3>
             </div>
-            <span>{stats.recent_registrations.length}</span>
+            <div className="flex items-center gap-2 text-sm text-ui-text-dim">
+              <span>{stats.recent_registrations.length}</span>
+              {isRegistrationsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
           </div>
-          <div className="admin-dashboard-table-wrap">
-            <table className="admin-dashboard-table">
-              <thead>
-                <tr><th>Email</th><th className="text-right">Time</th></tr>
-              </thead>
-              <tbody>
-                {stats.recent_registrations.map((u: any) => (
-                  <tr key={u.id}>
-                    <td>{u.email}</td>
-                    <td className="text-right">
-                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.created_at + 'Z').toLocaleString("en-GB")}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {stats.recent_registrations.length === 0 && (
-              <div className="admin-dashboard-empty">No new registrations yet.</div>
-            )}
-          </div>
+          {isRegistrationsOpen && (
+            <div className="admin-dashboard-table-wrap">
+              <table className="admin-dashboard-table">
+                <thead>
+                  <tr><th>Email</th><th className="text-right">Time</th></tr>
+                </thead>
+                <tbody>
+                  {stats.recent_registrations.map((u: any) => (
+                    <tr key={u.id}>
+                      <td>{u.email}</td>
+                      <td className="text-right">
+                        <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.created_at + 'Z').toLocaleString("en-GB")}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {stats.recent_registrations.length === 0 && (
+                <div className="admin-dashboard-empty">No new registrations yet.</div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="admin-dashboard-panel">
-          <div className="admin-dashboard-panel__header">
+        <div className="admin-dashboard-panel self-start">
+          <div className="admin-dashboard-panel__header cursor-pointer select-none" onClick={() => setIsLoginsOpen(!isLoginsOpen)}>
             <div>
               <Clock size={16} />
               <h3>Recent Logins</h3>
             </div>
-            <span>{stats.recent_logins.length}</span>
+            <div className="flex items-center gap-2 text-sm text-ui-text-dim">
+              <span>{stats.recent_logins.length}</span>
+              {isLoginsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
           </div>
-          <div className="admin-dashboard-table-wrap">
-            <table className="admin-dashboard-table">
-              <thead>
-                <tr><th>Email</th><th className="text-right">Time</th></tr>
-              </thead>
-              <tbody>
-                {stats.recent_logins.map((u: any) => (
-                  <tr key={u.id}>
-                    <td>{u.email}</td>
-                    <td className="text-right">
-                      <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at + 'Z').toLocaleString("en-GB")}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {stats.recent_logins.length === 0 && (
-              <div className="admin-dashboard-empty">No recent logins yet.</div>
-            )}
-          </div>
+          {isLoginsOpen && (
+            <div className="admin-dashboard-table-wrap">
+              <table className="admin-dashboard-table">
+                <thead>
+                  <tr><th>Email</th><th className="text-right">Time</th></tr>
+                </thead>
+                <tbody>
+                  {stats.recent_logins.map((u: any) => (
+                    <tr key={u.id}>
+                      <td>{u.email}</td>
+                      <td className="text-right">
+                        <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at + 'Z').toLocaleString("en-GB")}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {stats.recent_logins.length === 0 && (
+                <div className="admin-dashboard-empty">No recent logins yet.</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -278,8 +329,8 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
 
   const isSuperAdmin = hasRole("super_admin");
   const availableRoles = isSuperAdmin
-    ? ["general_user", "pro_user", "max_user", "general_admin", "super_admin"]
-    : ["general_user", "pro_user", "max_user"];
+    ? ["free_user", "general_user", "pro_user", "max_user", "general_admin", "super_admin"]
+    : ["free_user", "general_user", "pro_user", "max_user"];
 
   const fetchLimits = () => {
     api.get<any[]>("/admin/limits").then(setLimits).catch(console.error);
@@ -471,7 +522,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       name: "User Management",
       features: [
         { key: "admin_create_user", label: "Can Create Users", description: "Allows creating new user accounts with email, password, and assigned roles." },
-        { key: "admin_assign_user_roles", label: "Can Edit Individual User To User Role", description: "Allows changing a user's role to user-level roles (General User, Pro User, Max User)." },
+        { key: "admin_assign_user_roles", label: "Can Edit Individual User To User Role", description: "Allows changing a user's role to user-level roles (Free User, General User, Pro User, Max User)." },
         { key: "admin_assign_admin_roles", label: "Can Edit Individual User To Admin Role", description: "Allows changing a user's role to admin-level roles (General Admin, Super Admin)." },
         { key: "admin_suspend_user", label: "Can Suspend Users", description: "Allows suspending or activating user accounts to control their access." },
         { key: "admin_revoke_user", label: "Can Revoke User Tokens", description: "Allows revoking all active sessions for a user, forcing them to log in again." }
@@ -480,7 +531,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
     {
       name: "Role Management",
       features: [
-        { key: "admin_manage_user_roles", label: "Can View Role Limits", description: "Allows editing limits and quotas for user-level roles (General User, Pro User, Max User)." },
+        { key: "admin_manage_user_roles", label: "Can View Role Limits", description: "Allows editing limits and quotas for user-level roles (Free User, General User, Pro User, Max User)." },
         { key: "admin_manage_role_limits", label: "Can Manage Role Limits", description: "Allows opening the Role Limits section and viewing role-limit settings and admin permission toggles." },
         { key: "admin_manage_admin_roles", label: "Can Manage Admin Roles", description: "Allows editing permissions for admin-level roles." }
       ]
@@ -501,6 +552,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
     }
   ];
 
+  const formatRole = (r: string) => r.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   const filteredLimits = selectedRole ? limits.filter(l => l.role === selectedRole) : [];
   const isAdminRole = selectedRole?.endsWith('_admin');
   const groups = isAdminRole ? adminFeatureGroups : featureGroups;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, RefreshCcw, Check, RotateCcw, AlertTriangle } from "lucide-react";
+import { Package, RefreshCcw, Check, RotateCcw, AlertTriangle, Info } from "lucide-react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
@@ -115,6 +115,13 @@ export function TokenPacksTab() {
           <p className="text-slate-500 text-xs mt-0.5">
             Configure the packs users can buy. Price is the charge; token amount is granted on approval. Super-admin only.
           </p>
+          <div className="mt-3 bg-indigo-50/70 text-indigo-700 text-xs px-3 py-2 rounded-md border border-indigo-100/80 flex items-start gap-2 max-w-2xl">
+            <Info size={14} className="shrink-0 mt-0.5" />
+            <p>
+              <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 tokens = $1.00</strong> of API usage.
+              To make a profit, ensure the Pack Price you set is higher than the API cost.
+            </p>
+          </div>
         </div>
         <button
           onClick={fetchPacks}
@@ -139,7 +146,7 @@ export function TokenPacksTab() {
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Display Name</th>
                   <th className="px-4 py-3">Token Amount</th>
-                  <th className="px-4 py-3">Price (USD)</th>
+                  <th className="px-4 py-3">Price (BDT)</th>
                   <th className="px-4 py-3">Active</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -153,7 +160,7 @@ export function TokenPacksTab() {
                     <tr key={pack.code} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-mono text-xs text-slate-500">{pack.code}</span>
-                        <div className="text-[11px] text-slate-400">{formatTokens(pack.token_amount)} · ${pack.price_usd.toFixed(2)}</div>
+                        <div className="text-[11px] text-slate-400">{formatTokens(pack.token_amount)} · ৳{pack.price_usd.toFixed(2)}</div>
                       </td>
                       <td className="px-4 py-3">
                         <input
@@ -174,7 +181,7 @@ export function TokenPacksTab() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
                           <input
                             type="number"
                             min={0}

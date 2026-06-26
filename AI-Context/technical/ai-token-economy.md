@@ -34,14 +34,12 @@ Admins see/manage $; users see/spend tokens.
 
 - `refresh_balance(user, session)` — lazy row creation + monthly reset of the
   subscription bucket to the tier allowance.
-- `get_role_monthly_allowance(user, session)` — `-1` means unlimited
-  (super_admin).
+- `get_role_monthly_allowance(user, session)` — returns the allowance for the user's tier (max_user, pro_user, general_user). Admins do not get unlimited tokens or bypass limits; they must have a user role to receive any tokens.
 - `ensure_can_spend(user, session, min_tokens=1)` — raises `OutOfTokens`
   (HTTP 402) on zero balance. Hard stop.
 - `compute_cost(model_id, in, out, session)` → `(cost_usd, tokens)`.
 - `charge(user, model_id, provider, in, out, source, session, ref_id=None)` —
-  atomic: consume subscription first then purchased; append ledger rows;
-  super_admin logs usage but deducts 0.
+  atomic: consume subscription first then purchased; append ledger rows.
 - `grant_purchased(user_id, tokens, session, source, note, ref_id)` — for pack
   approval / admin grants.
 

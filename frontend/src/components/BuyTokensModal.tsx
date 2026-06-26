@@ -29,17 +29,30 @@ function formatTokens(n: number) {
   return `${n}`;
 }
 
-function statusBadge(status: string) {
-  if (status === "Approved") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (status === "Rejected") return "bg-rose-100 text-rose-700 border-rose-200";
-  return "bg-amber-100 text-amber-700 border-amber-200";
-}
+const statusBadge = (s: string) => {
+  switch (s) {
+    case "Approved":
+      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    case "Rejected":
+      return "bg-rose-100 text-rose-700 border-rose-200";
+    case "Cancelled":
+      return "bg-slate-100 text-slate-600 border-slate-200";
+    default:
+      return "bg-amber-100 text-amber-700 border-amber-200";
+  }
+};
 
-function statusIcon(status: string) {
-  if (status === "Approved") return <CheckCircle2 size={13} />;
-  if (status === "Rejected") return <XCircle size={13} />;
-  return <Clock3 size={13} />;
-}
+const statusIcon = (s: string) => {
+  switch (s) {
+    case "Approved":
+      return <CheckCircle2 size={13} />;
+    case "Rejected":
+    case "Cancelled":
+      return <XCircle size={13} />;
+    default:
+      return <Clock3 size={13} />;
+  }
+};
 
 interface Props {
   open: boolean;
@@ -67,6 +80,15 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
       emitUiError({ title: "Couldn't load packs", message: error?.message || "Try again later." });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cancelRequest = async (id: number) => {
+    try {
+      await api.post(`/ai-tokens/purchase-requests/${id}/cancel`, {});
+      fetchAll();
+    } catch (err: any) {
+      console.error(err);
     }
   };
 
@@ -138,7 +160,7 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
                         {formatTokens(pack.token_amount)} tokens
                       </span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">${pack.price_usd.toFixed(2)}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">৳{pack.price_usd.toFixed(2)}</div>
                   </div>
                   <button
                     onClick={() => handleRequest(pack.code)}
@@ -169,10 +191,20 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
                         {req.reviewed_at ? ` · Reviewed ${new Date(req.reviewed_at).toLocaleDateString("en-GB")}` : ""}
                       </div>
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge(req.status)}`}>
-                      {statusIcon(req.status)}
-                      {req.status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {req.status === "Pending" && (
+                        <button
+                          onClick={() => cancelRequest(req.id)}
+                          className="text-[11px] font-medium text-rose-500 hover:text-rose-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge(req.status)}`}>
+                        {statusIcon(req.status)}
+                        {req.status}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

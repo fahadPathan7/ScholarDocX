@@ -14,6 +14,7 @@ from app.services.news_feedback import (
 from app.services.news_service import MAX_TAVILY_QUERY_LENGTH, news_service
 from app.services.news_query_generator import scholarship_query_generator
 from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
+from app.services import ai_tokens
 
 router = APIRouter()
 
@@ -92,27 +93,28 @@ async def preview_news_query(
             detail="Scholarship Hunt Tavily API key is not configured.",
         )
 
-    _check_search_limits(user, store)
+    # Query building is AI-metered (tokens), not search-counted. The actual
+    # Tavily search in /news/search keeps its daily/monthly count limits.
+    ai_tokens.ensure_can_spend(user, store.db)
     generated = await scholarship_query_generator.generate(
         _filter_kwargs(payload.filters)
     )
+    if generated.get("source") == "openrouter":
+        usage = generated.get("usage", {})
+        ai_tokens.charge(
+            user,
+            model_id=generated.get("model"),
+            provider="openrouter",
+            input_tokens=int(usage.get("input_tokens", 0)),
+            output_tokens=int(usage.get("output_tokens", 0)),
+            source="scholarship_query_build",
+            session=store.db,
+        )
     feedback_id = create_query_preview_feedback(
         store.db,
         int(user["id"]),
         generated["query"],
         _filter_kwargs(payload.filters),
-    )
-    check_and_increment_limit(
-        user,
-        "news_searches_per_month",
-        increment=1,
-        session=store.db,
-    )
-    check_and_increment_limit(
-        user,
-        "news_searches_per_day",
-        increment=1,
-        session=store.db,
     )
     return {
         "preview_feedback_id": feedback_id,

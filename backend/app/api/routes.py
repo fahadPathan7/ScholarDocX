@@ -370,9 +370,9 @@ async def ai_chat(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
-    return await AiService(settings).chat(
+    # AI chat is metered by the central AI-token balance (ensure_can_spend +
+    # charge happen inside chat()), not by daily/monthly message counts.
+    return await AiService(settings, user=current_user, session=store.db).chat(
         payload.message, 
         payload.context, 
         payload.model
@@ -401,13 +401,14 @@ async def ai_research(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
+    # External web searches (Tavily) keep their daily/monthly count limits; the
+    # AI routing/synthesis is metered by the central AI-token balance inside
+    # research() -> chat().
     if payload.web_search_max_results > 0:
         check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
         check_and_increment_limit(current_user, "web_searches_per_day", 1, store.db)
         check_and_increment_limit(current_user, "web_searches_per_month", 1, store.db)
-    return await AiService(settings).research(
+    return await AiService(settings, user=current_user, session=store.db).research(
         payload.message,
         payload.context,
         payload.model,
@@ -425,7 +426,7 @@ async def ai_summarize(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     verify_model_permission(payload.model, current_user, store.db)
-    return await AiService(settings).summarize_memory(payload.text, payload.model)
+    return await AiService(settings, user=current_user, session=store.db).summarize_memory(payload.text, payload.model)
 
 
 @router.post("/ai/actions/plan")
@@ -449,9 +450,10 @@ async def ai_action_plan(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    check_and_increment_limit(current_user, "daily_ai_chats", 1, store.db)
-    check_and_increment_limit(current_user, "monthly_ai_chats", 1, store.db)
-    return await AiActionService(settings, store).plan(payload.message, payload.context, payload.model)
+    return await AiActionService(settings, store).plan(
+        payload.message, payload.context, payload.model,
+        user=current_user, session=store.db,
+    )
 
 
 @router.post("/ai/actions/execute")

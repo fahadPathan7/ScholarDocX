@@ -12,6 +12,7 @@ import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { UsageProvider } from "./contexts/UsageContext";
+import { TokenEconomyProvider } from "./contexts/TokenEconomyContext";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./components/LoginPage";
@@ -24,6 +25,7 @@ migrateLegacyStorageKeys();
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
+      <TokenEconomyProvider>
       <UsageProvider>
         <DialogProvider>
           <BrowserRouter>
@@ -38,6 +40,7 @@ createRoot(document.getElementById("root")!).render(
         </BrowserRouter>
       </DialogProvider>
       </UsageProvider>
+      </TokenEconomyProvider>
     </AuthProvider>
   </React.StrictMode>
 );

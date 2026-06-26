@@ -94,18 +94,25 @@ class ScholarshipQueryGenerator:
                 )
                 response.raise_for_status()
             response_data = response.json()
+            usage_meta = response_data.get("usage") or {}
+            usage = {
+                "input_tokens": int(usage_meta.get("prompt_tokens", 0) or 0),
+                "output_tokens": int(usage_meta.get("completion_tokens", 0) or 0),
+            }
             query = self._extract_query(response_data)
             query = self._seal_constraints(query, filters, today)
             if not self._is_valid_query(query, filters, today):
                 return self._fallback(
                     fallback_query,
                     "AI output missed a required search constraint.",
+                    usage=usage,
                 )
             return {
                 "query": query,
                 "source": "openrouter",
                 "model": str(response_data.get("model") or self.settings.openrouter_free_model),
                 "notice": "",
+                "usage": usage,
             }
         except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
             return self._fallback(
@@ -259,12 +266,13 @@ class ScholarshipQueryGenerator:
                 return False
         return True
 
-    def _fallback(self, query: str, notice: str) -> Dict[str, str]:
+    def _fallback(self, query: str, notice: str, usage: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
         return {
             "query": query,
             "source": "fallback",
             "model": "",
             "notice": notice,
+            "usage": usage or {"input_tokens": 0, "output_tokens": 0},
         }
 
 

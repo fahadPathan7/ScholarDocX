@@ -537,13 +537,25 @@ async def analyze_visual_source(
             response.raise_for_status()
     except httpx.HTTPError:
         return None
+    data = response.json()
     answer = (
-        response.json()
-        .get("choices", [{}])[0]
+        data.get("choices", [{}])[0]
         .get("message", {})
         .get("content", "")
     )
     _record_ai_usage(usage, "", prompt, answer)
+    # Meter the vision call against the central token balance. OpenAI-compatible
+    # GLM responses carry prompt/completion token counts. Charge-after (no
+    # pre-check) so an optional enrichment never aborts a run; the next required
+    # call hard-stops if the balance is truly exhausted.
+    usage_meta = data.get("usage") or {}
+    ai_service.charge_tokens(
+        model_id=ai_service.settings.advisor_atlas_vision_model,
+        provider="glm",
+        input_tokens=usage_meta.get("prompt_tokens", 0),
+        output_tokens=usage_meta.get("completion_tokens", 0),
+        source="advisor_atlas_vision",
+    )
     result = extract_json_object(answer)
     if not result or not result.get("relevant"):
         return None

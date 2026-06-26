@@ -177,14 +177,14 @@ class AiActionService:
         self.settings = settings
         self.store = store
 
-    async def plan(self, message: str, context: str = "", model: str = None) -> dict:
+    async def plan(self, message: str, context: str = "", model: str = None, *, user: dict = None, session=None) -> dict:
         if not self._looks_like_action_request(message):
             return self._no_action()
 
         fallback_plan = self._heuristic_plan(message)
         if self.settings.chat_provider_configured:
             prompt = self._build_planner_prompt(message, context)
-            response = await AiService(self.settings).chat(
+            response = await AiService(self.settings, user=user, session=session).chat(
                 prompt,
                 model=model,
                 max_tokens=1200,

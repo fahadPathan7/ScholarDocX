@@ -740,6 +740,11 @@ async def test_advisor_vision_does_not_set_fixed_output_token_limit(monkeypatch)
             },
         )()
 
+        def charge_tokens(self, **kwargs):
+            # Vision charging is metered through the real AiService; the fake
+            # stands in for the HTTP contract only.
+            return None
+
     monkeypatch.setattr(analysis_module.httpx, "AsyncClient", FakeClient)
 
     result = await analyze_visual_source(

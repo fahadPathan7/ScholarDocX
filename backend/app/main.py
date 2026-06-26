@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
     app.include_router(news_router, prefix="/api")
     from app.api.advisor_atlas import router as advisor_atlas_router
     app.include_router(advisor_atlas_router, prefix="/api")
+    from app.api.ai_tokens import router as ai_tokens_router
+    app.include_router(ai_tokens_router, prefix="/api")
     return app
 
 

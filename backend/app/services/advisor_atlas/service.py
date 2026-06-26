@@ -70,7 +70,17 @@ class AdvisorAtlasService:
     async def run(self, run_id: int, user_id: int) -> None:
         run = self.repository.get_run(run_id, user_id, include_candidates=False)
         self._start_research_usage()
+        billing_session = None
         try:
+            from app.db.connection import get_engine
+            from sqlalchemy.orm import sessionmaker
+            from app.services.ai_tokens import load_user_dict
+            billing_session = sessionmaker(
+                autocommit=False, autoflush=False, bind=get_engine(self.settings.database_path)
+            )()
+            self.ai_service.set_billing(
+                load_user_dict(user_id, billing_session), billing_session
+            )
             self.repository.update_run(
                 run_id,
                 status="running",
@@ -146,6 +156,9 @@ class AdvisorAtlasService:
                         "message": "The run stopped before completion",
                     },
                 )
+        finally:
+            if billing_session is not None:
+                billing_session.close()
 
     async def refresh_candidate(self, candidate_id: int, user_id: int) -> dict[str, Any]:
         self._start_research_usage()

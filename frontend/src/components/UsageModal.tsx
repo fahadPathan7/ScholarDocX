@@ -1,12 +1,12 @@
-import { X, Zap } from "lucide-react";
+import { X, Zap, Coins } from "lucide-react";
 import { useUsage } from "../contexts/UsageContext";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 
 const USAGE_LABELS: Record<string, string> = {
   news_searches_per_day: "Scholarship Hunt Searches Per Day",
   news_searches_per_month: "Scholarship Hunt Searches Per Month",
-  advisor_atlas_searches_per_month: "Advisor Atlas Searches & Refreshes Per Month",
 };
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -19,6 +19,7 @@ function ModalPortal({ children }: { children: React.ReactNode }) {
 
 export function UsageModal({ onClose }: { onClose: () => void }) {
   const { usageData } = useUsage();
+  const { balance } = useTokenEconomy();
 
   return (
     <ModalPortal>
@@ -54,9 +55,10 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
               (() => {
                 const isBooleanFeature = (k: string) => k.startsWith("can_use_") || k.startsWith("admin_");
                 const booleanEntries = Object.entries(usageData.limits).filter(([k]) => isBooleanFeature(k));
-                const quotaEntries = Object.entries(usageData.limits).filter(([k]) => 
-                  !isBooleanFeature(k) && 
+                const quotaEntries = Object.entries(usageData.limits).filter(([k]) =>
+                  !isBooleanFeature(k) &&
                   k !== "ai_messages_per_session" &&
+                  k !== "ai_tokens_per_month" &&
                   k !== "records_per_sheet" &&
                   k !== "sheets_per_project"
                 );
@@ -65,6 +67,40 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
 
                 return (
                   <div className="space-y-6">
+                    {/* AI token balance */}
+                    {balance && (
+                      <div className="bg-gradient-to-br from-indigo-50 to-violet-50 p-5 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Coins className="w-4 h-4 text-indigo-600" />
+                          <h3 className="text-xs font-bold text-indigo-700 uppercase tracking-wider">AI Token Balance</h3>
+                        </div>
+                        {balance.is_unlimited ? (
+                          <p className="text-sm font-semibold text-slate-700">Unlimited AI tokens (admin)</p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-[11px] text-slate-500 font-medium">Subscription (this month)</p>
+                              <p className="text-lg font-bold text-slate-800">
+                                {(balance.subscription_remaining).toLocaleString()}
+                                <span className="text-xs font-medium text-slate-400">
+                                  {" "}/ {balance.monthly_allowance === -1 ? "∞" : balance.monthly_allowance.toLocaleString()}
+                                </span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-slate-500 font-medium">Purchased (never expire)</p>
+                              <p className="text-lg font-bold text-emerald-600">{balance.purchased_remaining.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        )}
+                        {(balance.total_spent_tokens > 0 || balance.total_spent_usd > 0) && (
+                          <p className="text-[11px] text-slate-400 mt-2">
+                            Spent {balance.total_spent_tokens.toLocaleString()} tokens all-time.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Quota-based limits */}
                     {quotaEntries.length > 0 && (
                       <div className="mb-2">

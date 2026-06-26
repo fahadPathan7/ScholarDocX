@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user
-from app.auth.limits import check_and_increment_limit
+from app.services import ai_tokens
 from app.core.config import Settings, get_settings
 from app.services.advisor_atlas import AdvisorAtlasService
 from app.services.store import Store
@@ -131,12 +131,10 @@ async def create_run(
     service: AdvisorAtlasService = Depends(_service),
     store: Store = Depends(get_store),
 ):
-    check_and_increment_limit(
-        user,
-        "advisor_atlas_searches_per_month",
-        increment=1,
-        session=store.db,
-    )
+    # Advisor Atlas runs are metered by the central AI-token balance, not by a
+    # monthly search count. Pre-flight check here; the background task charges
+    # the actual usage per AI call.
+    ai_tokens.ensure_can_spend(user, store.db)
     run = service.repository.create_run(
         int(user["id"]),
         payload.model_dump(),
@@ -262,12 +260,10 @@ async def refresh_candidate(
 ):
     try:
         service.repository.get_candidate(candidate_id, int(user["id"]))
-        check_and_increment_limit(
-            user,
-            "advisor_atlas_searches_per_month",
-            increment=1,
-            session=store.db,
-        )
+        # Metered by AI tokens: gate here, then charge via the service's
+        # AiService for each call made during the refresh.
+        ai_tokens.ensure_can_spend(user, store.db)
+        service.ai_service.set_billing(user, store.db)
         return await service.refresh_candidate(candidate_id, int(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

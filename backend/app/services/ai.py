@@ -79,8 +79,55 @@ MEMORY_SUMMARY_SYSTEM_PROMPT = (
 
 
 class AiService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, *, user: dict = None, session=None) -> None:
         self.settings = settings
+        # Optional billing context. When set, chat() meters every provider call
+        # against the central AI-token balance (ensure_can_spend before, charge
+        # after). research()/summarize_memory()/analysis inherit it via self.
+        self._billing_user = user
+        self._billing_session = session
+
+    def set_billing(self, user: dict, session) -> None:
+        """Attach (or replace) the billing context used by chat()."""
+        self._billing_user = user
+        self._billing_session = session
+
+    def can_spend(self) -> bool:
+        """Hard-stop guard against the billing context. No-op (True) when no
+        billing context is attached (internal/system calls) or the user is
+        unlimited; otherwise raises OutOfTokens (HTTP 402) at zero balance."""
+        if self._billing_user is None or self._billing_session is None:
+            return True
+        from app.services import ai_tokens
+        ai_tokens.ensure_can_spend(self._billing_user, self._billing_session)
+        return True
+
+    def charge_tokens(
+        self,
+        *,
+        model_id,
+        provider,
+        input_tokens,
+        output_tokens,
+        source,
+        ref_id=None,
+    ) -> None:
+        """Charge an AI call to the attached billing context. No-op when no
+        billing context is attached. Used by chat() and by external calls that
+        bypass chat() (e.g. Advisor Atlas vision)."""
+        if self._billing_user is None or self._billing_session is None:
+            return
+        from app.services import ai_tokens
+        ai_tokens.charge(
+            self._billing_user,
+            model_id=model_id,
+            provider=provider,
+            input_tokens=int(input_tokens or 0),
+            output_tokens=int(output_tokens or 0),
+            source=source,
+            session=self._billing_session,
+            ref_id=ref_id,
+        )
 
     async def chat(
         self,
@@ -100,12 +147,18 @@ class AiService:
                 "answer": self._missing_provider_answer(model, message, context),
                 "sources": [],
                 "external_call_made": False,
+                "usage": {"input_tokens": 0, "output_tokens": 0},
+                "model_id": None,
+                "provider": None,
             }
         
         # Construct the full message with context if provided.
         # Enforce summary token limit by truncating if needed
         context = self._enforce_summary_limit(context)
         full_message = self._compose_user_message(message, context)
+
+        if self._billing_user is not None and self._billing_session is not None:
+            self.can_spend()
 
         tried_models = []
         for index, candidate in enumerate(candidates):
@@ -185,14 +238,30 @@ class AiService:
 
             try:
                 if provider == "gemini":
-                    answer = await self._chat_with_gemini(model_name, sys_prompt, full_message, max_tokens)
+                    answer, usage = await self._chat_with_gemini(model_name, sys_prompt, full_message, max_tokens)
                 elif provider == "groq":
-                    answer = await self._chat_with_groq(model_name, sys_prompt, full_message, max_tokens)
+                    answer, usage = await self._chat_with_groq(model_name, sys_prompt, full_message, max_tokens)
                 elif provider == "mistral":
-                    answer = await self._chat_with_mistral(model_name, sys_prompt, full_message, max_tokens)
+                    answer, usage = await self._chat_with_mistral(model_name, sys_prompt, full_message, max_tokens)
                 else:
-                    answer = await self._chat_with_glm(model_name, sys_prompt, full_message, max_tokens)
-                return {"mode": f"{provider}-{model_name}", "answer": answer, "sources": [], "external_call_made": True}
+                    answer, usage = await self._chat_with_glm(model_name, sys_prompt, full_message, max_tokens)
+                if self._billing_user is not None and self._billing_session is not None:
+                    self.charge_tokens(
+                        model_id=model_name,
+                        provider=provider,
+                        input_tokens=usage.get("input_tokens", 0),
+                        output_tokens=usage.get("output_tokens", 0),
+                        source=(request_label or "ai_chat"),
+                    )
+                return {
+                    "mode": f"{provider}-{model_name}",
+                    "answer": answer,
+                    "sources": [],
+                    "external_call_made": True,
+                    "usage": usage,
+                    "model_id": model_name,
+                    "provider": provider,
+                }
             except httpx.HTTPStatusError as exc:
                 if index != len(candidates) - 1 and exc.response.status_code in [400, 404, 429, 503]:
                     logger.warning(
@@ -212,6 +281,9 @@ class AiService:
                     ),
                     "sources": [],
                     "external_call_made": True,
+                    "usage": {"input_tokens": 0, "output_tokens": 0},
+                    "model_id": None,
+                    "provider": None,
                 }
             except httpx.HTTPError as exc:
                 if index != len(candidates) - 1:
@@ -227,6 +299,9 @@ class AiService:
                     "answer": f"{provider.upper()} request failed: {exc.__class__.__name__}. Check network connection.",
                     "sources": [],
                     "external_call_made": True,
+                    "usage": {"input_tokens": 0, "output_tokens": 0},
+                    "model_id": None,
+                    "provider": None,
                 }
         
         return {
@@ -234,6 +309,9 @@ class AiService:
             "answer": f"All AI provider models failed. Tried models: {', '.join(tried_models)}.",
             "sources": [],
             "external_call_made": True,
+            "usage": {"input_tokens": 0, "output_tokens": 0},
+            "model_id": None,
+            "provider": None,
         }
 
     async def research(
@@ -380,7 +458,7 @@ class AiService:
             response.raise_for_status()
             
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        return data["choices"][0]["message"]["content"], self._extract_openai_usage(data)
 
 
 
@@ -461,7 +539,8 @@ class AiService:
             response = await client.post(self.settings.glm_base_url, json=payload, headers=headers)
             response.raise_for_status()
         data = response.json()
-        return data.get("choices", [{}])[0].get("message", {}).get("content", "No response from AI")
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "No response from AI")
+        return content, self._extract_openai_usage(data)
 
     async def _chat_with_groq(self, model_name: str, system_prompt: str, message: str, max_tokens: int = None) -> str:
         payload = {
@@ -487,7 +566,7 @@ class AiService:
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "No response from AI")
         # Strip <think>...</think> blocks from DeepSeek/Qwen reasoning models
         content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
-        return content
+        return content, self._extract_openai_usage(data)
 
     async def _chat_with_gemini(self, model_name: str, system_prompt: str, message: str, max_tokens: int = None) -> str:
         generation_config = {"temperature": 0.7, "topP": 0.9}
@@ -512,13 +591,33 @@ class AiService:
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
-        return self._extract_gemini_text(response.json())
+        data = response.json()
+        return self._extract_gemini_text(data), self._extract_gemini_usage(data)
 
     def _extract_gemini_text(self, data: dict[str, Any]) -> str:
         candidates = data.get("candidates") or [{}]
         parts = candidates[0].get("content", {}).get("parts", [])
         text_parts = [part.get("text", "") for part in parts if part.get("text")]
         return "\n".join(text_parts).strip() or "No response from AI"
+
+    def _extract_openai_usage(self, data: dict) -> dict:
+        """Pull input/output token counts from an OpenAI-compatible response.
+
+        GLM/Groq/Mistral all return `usage.prompt_tokens`/`completion_tokens`.
+        """
+        usage = data.get("usage") or {}
+        return {
+            "input_tokens": int(usage.get("prompt_tokens", 0) or 0),
+            "output_tokens": int(usage.get("completion_tokens", 0) or 0),
+        }
+
+    def _extract_gemini_usage(self, data: dict) -> dict:
+        """Pull input/output token counts from a Gemini response."""
+        meta = data.get("usageMetadata") or {}
+        return {
+            "input_tokens": int(meta.get("promptTokenCount", 0) or 0),
+            "output_tokens": int(meta.get("candidatesTokenCount", 0) or 0),
+        }
 
     def _provider_error_detail(self, response) -> str:
         try:

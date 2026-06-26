@@ -1,0 +1,513 @@
+"""Phase 3: pack catalog + purchase request/approve flow.
+
+Covers the service layer (packs CRUD, purchase submit/list, approve→grant,
+reject, double-review guard) and the router's authorization gating
+(super_admin-only pack config; admin_manage_token_requests for review), plus the
+permission-hygiene fixes (ai_tokens_per_month survives reset_role_limits;
+admin_manage_token_requests is seeded).
+"""
+import json
+from pathlib import Path
+
+import pytest
+from fastapi import HTTPException
+
+from app.api import ai_tokens as ai_tokens_api
+from app.api.ai_tokens import PackUpdatePayload, PurchaseRequestPayload, PurchaseReviewPayload
+from app.auth.limits import invalidate_limits_cache
+from app.core.config import Settings
+from app.db.connection import connect, get_db, initialize_database
+from app.services import ai_tokens
+from app.services.admin import AdminService
+from app.services.store import Store
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def make_settings(tmp_path: Path) -> Settings:
+    settings = Settings()
+    settings.workspace_path = tmp_path / "workspace"
+    settings.database_path = settings.workspace_path / "db" / "app.db"
+    settings.media_path = settings.workspace_path / "media"
+    initialize_database(settings.database_path)
+    return settings
+
+
+def make_user(settings: Settings, roles: list, email: str = None) -> dict:
+    with connect(settings.database_path) as db:
+        cur = db.execute(
+            "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
+            "VALUES (?, 'x', 'Test', ?, 1, 0)",
+            (email or f"{roles[0]}-{roles[-1]}@test.local", json.dumps(roles)),
+        )
+        db.commit()
+        uid = cur.lastrowid
+    return {"id": uid, "roles": roles}
+
+
+def get_balance(settings: Settings, uid: int) -> dict:
+    with connect(settings.database_path) as db:
+        return dict(db.execute(
+            "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
+        ).fetchone())
+
+
+def ledger_grants(settings: Settings, uid: int) -> list:
+    with connect(settings.database_path) as db:
+        return [dict(r) for r in db.execute(
+            "SELECT * FROM ai_token_ledger WHERE user_id = ? AND tokens_delta > 0 ORDER BY id",
+            (uid,),
+        ).fetchall()]
+
+
+def make_store(settings: Settings) -> Store:
+    session = next(get_db(settings.database_path))
+    return Store(session)
+
+
+# ── pack catalog ──────────────────────────────────────────────────────────────
+
+def test_list_packs_active_only_by_default(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        packs = ai_tokens.list_packs(session)
+        assert [p["code"] for p in packs] == ["small", "medium", "large"]
+        assert all(p["is_active"] for p in packs)
+        # is_active normalised to bool; token_amount/price_usd typed.
+        small = packs[0]
+        assert small["token_amount"] == 100000
+        assert small["price_usd"] == 10.0
+    finally:
+        session.close()
+
+
+def test_list_packs_include_inactive(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        ai_tokens.update_pack("small", session=session, is_active=False)
+        active = ai_tokens.list_packs(session)
+        all_packs = ai_tokens.list_packs(session, include_inactive=True)
+        assert [p["code"] for p in active] == ["medium", "large"]
+        assert [p["code"] for p in all_packs] == ["small", "medium", "large"]
+        assert next(p for p in all_packs if p["code"] == "small")["is_active"] is False
+    finally:
+        session.close()
+
+
+def test_get_pack_excludes_inactive_by_default(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        assert ai_tokens.get_pack("small", session) is not None
+        ai_tokens.update_pack("small", session=session, is_active=False)
+        assert ai_tokens.get_pack("small", session) is None
+        assert ai_tokens.get_pack("small", session, include_inactive=True) is not None
+    finally:
+        session.close()
+
+
+def test_update_pack_partial_fields(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        updated = ai_tokens.update_pack(
+            "medium", session=session, token_amount=750000, price_usd=55.0,
+            display_name="Medium Plus",
+        )
+        assert updated["token_amount"] == 750000
+        assert updated["price_usd"] == 55.0
+        assert updated["display_name"] == "Medium Plus"
+        # Unprovided fields are untouched.
+        assert updated["is_active"] is True
+        assert updated["code"] == "medium"
+    finally:
+        session.close()
+
+
+def test_update_pack_validates_inputs(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        with pytest.raises(ValueError):
+            ai_tokens.update_pack("small", session=session, token_amount=0)
+        with pytest.raises(ValueError):
+            ai_tokens.update_pack("small", session=session, token_amount=-5)
+        with pytest.raises(ValueError):
+            ai_tokens.update_pack("small", session=session, price_usd=-1.0)
+        # Unknown code -> None (no raise).
+        assert ai_tokens.update_pack("nope", session=session, token_amount=1) is None
+    finally:
+        session.close()
+
+
+# ── purchase submit / list ────────────────────────────────────────────────────
+
+def test_submit_purchase_request_creates_pending(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    session = next(get_db(settings.database_path))
+    try:
+        req = ai_tokens.submit_purchase_request(user["id"], "medium", session)
+        assert req["status"] == "Pending"
+        assert req["user_id"] == user["id"]
+        assert req["pack_code"] == "medium"
+        assert req["token_amount"] == 500000
+        assert req["price_usd"] == 40.0
+        assert req["id"] is not None
+    finally:
+        session.close()
+
+
+def test_submit_purchase_request_rejects_inactive_or_unknown(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    session = next(get_db(settings.database_path))
+    try:
+        ai_tokens.update_pack("large", session=session, is_active=False)
+        with pytest.raises(LookupError):
+            ai_tokens.submit_purchase_request(user["id"], "large", session)
+        with pytest.raises(LookupError):
+            ai_tokens.submit_purchase_request(user["id"], "ghost", session)
+    finally:
+        session.close()
+
+
+def test_list_my_purchase_requests_scoped(tmp_path):
+    settings = make_settings(tmp_path)
+    a = make_user(settings, ["general_user"], email="a@test.local")
+    b = make_user(settings, ["general_user"], email="b@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        ai_tokens.submit_purchase_request(a["id"], "small", session)
+        ai_tokens.submit_purchase_request(b["id"], "medium", session)
+        ai_tokens.submit_purchase_request(a["id"], "large", session)
+        mine = ai_tokens.list_my_purchase_requests(a["id"], session)
+        assert {r["pack_code"] for r in mine} == {"small", "large"}
+        assert all(r["user_id"] == a["id"] for r in mine)
+    finally:
+        session.close()
+
+
+def test_list_purchase_requests_admin_view_joins_user(tmp_path):
+    settings = make_settings(tmp_path)
+    a = make_user(settings, ["general_user"], email="alice@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        ai_tokens.submit_purchase_request(a["id"], "small", session)
+        rows = ai_tokens.list_purchase_requests(session)
+        assert len(rows) == 1
+        assert rows[0]["user_email"] == "alice@test.local"
+        assert rows[0]["pack_code"] == "small"
+
+        # Status filter.
+        ai_tokens.resolve_purchase_request(rows[0]["id"], 1, "approve", session=session)
+        pending = ai_tokens.list_purchase_requests(session, status="pending")
+        approved = ai_tokens.list_purchase_requests(session, status="approved")
+        assert pending == []
+        assert len(approved) == 1
+    finally:
+        session.close()
+
+
+# ── resolve: approve / reject / guards ────────────────────────────────────────
+
+def test_resolve_approve_grants_tokens(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        req = ai_tokens.submit_purchase_request(user["id"], "medium", session)  # 500000 tokens
+        result = ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
+        assert result["status"] == "Approved"
+        assert result["reviewed_by"] == admin["id"]
+        assert result["reviewed_at"] is not None
+
+        b = get_balance(settings, user["id"])
+        assert b["purchased_remaining"] == 500000
+        grants = ledger_grants(settings, user["id"])
+        assert len(grants) == 1
+        assert grants[0]["tokens_delta"] == 500000
+        assert grants[0]["source"] == "pack_purchase"
+        assert grants[0]["ref_id"] == req["id"]
+        assert grants[0]["balance_bucket"] == "purchased"
+    finally:
+        session.close()
+
+
+def test_resolve_reject_grants_nothing(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        req = ai_tokens.submit_purchase_request(user["id"], "large", session)
+        result = ai_tokens.resolve_purchase_request(
+            req["id"], admin["id"], "reject", session=session, admin_notes="no funds",
+        )
+        assert result["status"] == "Rejected"
+        assert result["admin_notes"] == "no funds"
+        # No balance row created, no grant ledgered.
+        with connect(settings.database_path) as db:
+            assert db.execute(
+                "SELECT COUNT(*) FROM ai_token_balances WHERE user_id = ?", (user["id"],)
+            ).fetchone()[0] == 0
+        assert ledger_grants(settings, user["id"]) == []
+    finally:
+        session.close()
+
+
+def test_resolve_double_review_is_guarded(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        req = ai_tokens.submit_purchase_request(user["id"], "small", session)
+        ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
+        with pytest.raises(ValueError):
+            ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
+        # Tokens granted exactly once.
+        assert get_balance(settings, user["id"])["purchased_remaining"] == 100000
+        assert len(ledger_grants(settings, user["id"])) == 1
+    finally:
+        session.close()
+
+
+def test_resolve_unknown_and_bad_action(tmp_path):
+    settings = make_settings(tmp_path)
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_path))
+    try:
+        with pytest.raises(LookupError):
+            ai_tokens.resolve_purchase_request(9999, admin["id"], "approve", session=session)
+        user = make_user(settings, ["general_user"])
+        req = ai_tokens.submit_purchase_request(user["id"], "small", session)
+        with pytest.raises(ValueError):
+            ai_tokens.resolve_purchase_request(req["id"], admin["id"], "maybe", session=session)
+        # Unaffected request stays Pending.
+        again = ai_tokens.list_my_purchase_requests(user["id"], session)
+        assert again[0]["status"] == "Pending"
+    finally:
+        session.close()
+
+
+# ── router authorization gating ───────────────────────────────────────────────
+
+def test_admin_update_pack_requires_super_admin(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["super_admin"], email="admin@test.local")
+    store = make_store(settings)
+    try:
+        payload = PackUpdatePayload(token_amount=123456)
+        with pytest.raises(HTTPException) as exc:
+            ai_tokens_api.admin_update_pack(
+                "small", payload, current_user=user, store=store,
+            )
+        assert exc.value.status_code == 403
+
+        updated = ai_tokens_api.admin_update_pack(
+            "small", payload, current_user=admin, store=store,
+        )
+        assert updated["token_amount"] == 123456
+    finally:
+        store.db.close()
+
+
+def test_admin_review_requires_permission_and_grants(tmp_path):
+    settings = make_settings(tmp_path)
+    invalidate_limits_cache()
+    owner = make_user(settings, ["general_user"], email="owner@test.local")
+    pleb = make_user(settings, ["general_user"], email="pleb@test.local")
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    store = make_store(settings)
+    try:
+        submit = ai_tokens_api.submit_purchase_request(
+            PurchaseRequestPayload(pack_code="medium"), current_user=owner, store=store,
+        )
+        rid = submit["id"]
+
+        # A plain user must not be able to review (no admin permission).
+        with pytest.raises(HTTPException) as exc:
+            ai_tokens_api.admin_review_purchase_request(
+                rid, PurchaseReviewPayload(action="approve"),
+                current_user=pleb, store=store,
+            )
+        assert exc.value.status_code == 403
+
+        # A general_admin (admin_manage_token_requests=1) approves and grants.
+        result = ai_tokens_api.admin_review_purchase_request(
+            rid, PurchaseReviewPayload(action="approve"),
+            current_user=admin, store=store,
+        )
+        assert result["status"] == "Approved"
+        assert get_balance(settings, owner["id"])["purchased_remaining"] == 500000
+    finally:
+        store.db.close()
+        invalidate_limits_cache()
+
+
+def test_balance_endpoint_shape(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    store = make_store(settings)
+    try:
+        view = ai_tokens_api.get_balance(current_user=user, store=store)
+        assert view["subscription_remaining"] == 500000
+        assert view["purchased_remaining"] == 0
+        assert view["monthly_allowance"] == 500000
+        assert view["is_unlimited"] is False
+        assert view["tokens_per_dollar"] == 10000
+        assert view["total_spent_tokens"] == 0
+    finally:
+        store.db.close()
+
+
+def test_super_admin_balance_is_unlimited(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["super_admin"])
+    store = make_store(settings)
+    try:
+        view = ai_tokens_api.get_balance(current_user=user, store=store)
+        assert view["is_unlimited"] is True
+        assert view["subscription_remaining"] == -1
+        assert view["monthly_allowance"] == -1
+    finally:
+        store.db.close()
+
+
+# ── permission hygiene ────────────────────────────────────────────────────────
+
+def test_admin_manage_token_requests_seeded(tmp_path):
+    settings = make_settings(tmp_path)
+    with connect(settings.database_path) as db:
+        rows = {
+            (r["role"], r["limit_count"])
+            for r in db.execute(
+                "SELECT role, limit_count FROM role_limits "
+                "WHERE feature = 'admin_manage_token_requests'"
+            ).fetchall()
+        }
+    assert ("general_admin", 1) in rows
+    assert ("super_admin", 1) in rows
+
+
+def test_ai_tokens_per_month_in_canonical_set(tmp_path):
+    """migrate_database must NOT delete ai_tokens_per_month (regression guard
+    for the canonical_features fix)."""
+    settings = make_settings(tmp_path)
+    # Re-running initialize_database triggers migrate_database's DELETE of
+    # non-canonical features; ai_tokens_per_month must survive.
+    initialize_database(settings.database_path)
+    with connect(settings.database_path) as db:
+        count = db.execute(
+            "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
+        ).fetchone()[0]
+    assert count == 5  # all five roles
+
+
+def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
+    """reset_role_limits re-seeds from DEFAULT_ROLE_LIMITS, which must include
+    ai_tokens_per_month — otherwise an admin 'reset to defaults' would wipe the
+    monthly allowance."""
+    settings = make_settings(tmp_path)
+    admin = make_user(settings, ["super_admin"], email="admin@test.local")
+    store = make_store(settings)
+    try:
+        AdminService(store.db).reset_role_limits(admin["id"], "general_user")
+        with connect(settings.database_path) as db:
+            row = db.execute(
+                "SELECT limit_count FROM role_limits "
+                "WHERE role = 'general_user' AND feature = 'ai_tokens_per_month'"
+            ).fetchone()
+        assert row is not None
+        assert row["limit_count"] == 500000
+    finally:
+        store.db.close()
+        invalidate_limits_cache()
+
+
+# ── model pricing catalog ─────────────────────────────────────────────────────
+
+def _model_pk(settings: Settings, model_id: str) -> int:
+    with connect(settings.database_path) as db:
+        return int(db.execute(
+            "SELECT id FROM ai_models WHERE model_id = ?", (model_id,)
+        ).fetchone()[0])
+
+
+def test_list_models_seeded(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        models = ai_tokens.list_models(session)
+        assert len(models) > 0
+        first = models[0]
+        assert {"id", "provider", "model_id", "input_price_per_1m",
+                "output_price_per_1m", "is_active"} <= set(first)
+        # Seeded at $0 until a super_admin prices them.
+        assert first["input_price_per_1m"] == 0.0
+        assert first["is_active"] is True
+    finally:
+        session.close()
+
+
+def test_update_model_pricing(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        pk = _model_pk(settings, "GLM-4.7")
+        updated = ai_tokens.update_model(
+            pk, session=session, input_price_per_1m=1.5, output_price_per_1m=4.0,
+        )
+        assert updated["input_price_per_1m"] == 1.5
+        assert updated["output_price_per_1m"] == 4.0
+
+        # Pricing now flows through compute_cost.
+        cost_usd, tokens = ai_tokens.compute_cost("GLM-4.7", 1_000_000, 1_000_000, session)
+        assert cost_usd == pytest.approx(5.5)  # 1.5 + 4.0 per 1M each
+        assert tokens == 5.5 * 10000  # ceil at rate 10000
+    finally:
+        session.close()
+
+
+def test_update_model_validates_and_unknown(tmp_path):
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_path))
+    try:
+        pk = _model_pk(settings, "GLM-4.7")
+        with pytest.raises(ValueError):
+            ai_tokens.update_model(pk, session=session, input_price_per_1m=-1)
+        with pytest.raises(ValueError):
+            ai_tokens.update_model(pk, session=session, output_price_per_1m=-0.1)
+        assert ai_tokens.update_model(999999, session=session, input_price_per_1m=1) is None
+    finally:
+        session.close()
+
+
+def test_admin_model_endpoints_gated_to_super_admin(tmp_path):
+    settings = make_settings(tmp_path)
+    super_admin = make_user(settings, ["super_admin"], email="sa@test.local")
+    pleb = make_user(settings, ["general_user"], email="u@test.local")
+    store = make_store(settings)
+    try:
+        # Non-super_admin is blocked from listing models.
+        with pytest.raises(HTTPException) as exc:
+            ai_tokens_api.admin_list_models(current_user=pleb, store=store)
+        assert exc.value.status_code == 403
+
+        models = ai_tokens_api.admin_list_models(current_user=super_admin, store=store)
+        assert len(models) > 0
+        pk = models[0]["id"]
+        updated = ai_tokens_api.admin_update_model(
+            pk,
+            ai_tokens_api.ModelUpdatePayload(input_price_per_1m=2.0),
+            current_user=super_admin,
+            store=store,
+        )
+        assert updated["input_price_per_1m"] == 2.0
+    finally:
+        store.db.close()

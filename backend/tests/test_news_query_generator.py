@@ -76,6 +76,7 @@ async def test_generates_structured_query_with_one_openrouter_call():
         {
             "model": "qwen/free-test",
             "choices": [{"message": {"content": json.dumps({"query": query})}}],
+            "usage": {"prompt_tokens": 42, "completion_tokens": 7},
         }
     )
     fallback = FakeFallbackService()
@@ -99,6 +100,7 @@ async def test_generates_structured_query_with_one_openrouter_call():
         "source": "openrouter",
         "model": "qwen/free-test",
         "notice": "",
+        "usage": {"input_tokens": 42, "output_tokens": 7},
     }
     assert len(calls) == 1
     payload = calls[0]["json"]

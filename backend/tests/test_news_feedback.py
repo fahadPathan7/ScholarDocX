@@ -68,7 +68,8 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
     tmp_path,
     monkeypatch,
 ):
-    usage_calls = []
+    spend_calls = []
+    charge_calls = []
     provider_calls = []
     connection, store = _store(tmp_path)
 
@@ -79,6 +80,7 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
             "source": "openrouter",
             "model": "free-test-model",
             "notice": "",
+            "usage": {"input_tokens": 120, "output_tokens": 30},
         }
 
     async def fake_search(**kwargs):
@@ -92,16 +94,21 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
     monkeypatch.setattr(news_api.news_service, "api_key", "test-key")
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fake_search)
     monkeypatch.setattr(
-        news_api,
-        "check_and_increment_limit",
-        lambda *args, **kwargs: usage_calls.append((args, kwargs)),
+        news_api.ai_tokens,
+        "ensure_can_spend",
+        lambda user, session, min_tokens=1: spend_calls.append((user["id"], min_tokens)) or True,
+    )
+    monkeypatch.setattr(
+        news_api.ai_tokens,
+        "charge",
+        lambda *args, **kwargs: charge_calls.append(kwargs),
     )
 
     response = await news_api.preview_news_query(
         payload=news_api.QueryPreviewRequest(
             filters=news_api.ScholarshipSearchFilters(levels=["Master's"])
         ),
-        user={"id": 1},
+        user={"id": 1, "roles": ["general_user"]},
         store=store,
     )
 
@@ -114,15 +121,12 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
     assert response["generation_model"] == "free-test-model"
     assert row["provider_status"] == "previewed"
     assert row["refined_query"] == "generated master's scholarship query"
-    assert [
-        (args[1], kwargs["increment"])
-        for args, kwargs in usage_calls
-    ] == [
-        ("news_searches_per_month", 0),
-        ("news_searches_per_day", 0),
-        ("news_searches_per_month", 1),
-        ("news_searches_per_day", 1),
-    ]
+    # Query building is metered by AI tokens, not by search counts.
+    assert spend_calls == [(1, 1)]
+    assert len(charge_calls) == 1
+    assert charge_calls[0]["source"] == "scholarship_query_build"
+    assert charge_calls[0]["input_tokens"] == 120
+    assert charge_calls[0]["output_tokens"] == 30
     assert provider_calls == []
     store.db.close()
 

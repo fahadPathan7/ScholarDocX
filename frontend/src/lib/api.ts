@@ -15,6 +15,7 @@ export type RecordMap = Record<string, any>;
 import { getToken } from "./auth";
 import { emitUiError } from "./uiError";
 import { buildAccessErrorDetail } from "./accessErrors";
+import { emitOutOfTokens } from "./tokenEvents";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
@@ -50,6 +51,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
+    }
+    if (response.status === 402) {
+      // Out of AI tokens — surface the buy-packs flow instead of a plain toast.
+      emitOutOfTokens(message);
+      throw new Error(message || "Out of AI tokens");
     }
     const uiError = buildAccessErrorDetail(response.status, message);
     if (uiError) {

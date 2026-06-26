@@ -27,15 +27,28 @@ import {
   Presentation,
   FileSpreadsheet,
   Database,
-  Search
+  Search,
+  Coins,
+  Package,
+  CircleDollarSign
 } from "lucide-react";
 import { notificationCategories } from "../config/notificationLabels";
 import { PlanRequestsTab as PlanRequestsReviewTab } from "./admin/PlanRequestsTab";
 import { UsersTab } from "./admin/UsersTab";
+import { ModelPricingTab } from "./admin/ModelPricingTab";
+import { TokenPacksTab } from "./admin/TokenPacksTab";
+import { TokenPurchaseRequestsTab } from "./admin/TokenPurchaseRequestsTab";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
 import { emitUiError } from "../lib/uiError";
 import { useDialog } from "./DialogProvider";
 import "../admin.css";
+
+/** Compact token formatter for admin displays (e.g. 500K, 1.2M). */
+function formatTokenCount(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0)}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}K`;
+  return `${n}`;
+}
 
 function AdminPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -322,15 +335,10 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       resetInfo: "Resets when the user starts a new conversation or closes the current chat session.",
       example: "If limit is 10, user can send 10 messages per conversation. Starting a new conversation resets the counter to 0."
     },
-    daily_ai_chats: {
-      description: "Limits the total number of AI chat messages across all conversations in a 24-hour period.",
-      resetInfo: "Resets daily at midnight UTC (00:00 UTC).",
-      example: "If limit is 15, user can send 15 messages total across all conversations today. Counter resets at midnight UTC."
-    },
-    monthly_ai_chats: {
-      description: "Limits the total number of AI chat messages across all conversations in a calendar month.",
-      resetInfo: "Resets on the 1st of each month at midnight UTC.",
-      example: "If limit is 150, user can send 150 messages total this month. Counter resets on the 1st of next month."
+    ai_tokens_per_month: {
+      description: "Monthly AI token grant for this role. Each model call is metered at the model's per-1M-token input/output price and deducted from this allowance as tokens (at the configurable tokens-per-dollar rate).",
+      resetInfo: "Resets on the 1st of each month at midnight UTC. Unused subscription tokens do NOT roll over. Purchased tokens (bought via packs) never expire and are consumed after this allowance.",
+      example: "If the allowance is 500,000 tokens, the user can spend up to that much metered AI usage this month. When it runs out, actions are blocked until they buy more tokens or the allowance resets."
     },
     web_searches_per_day: {
       description: "Limits the number of web search requests per day.",
@@ -351,11 +359,6 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       description: "Limits the total number of Scholarship Hunt searches in a calendar month.",
       resetInfo: "Resets on the 1st of each month at midnight UTC.",
       example: "If limit is 500, the user can run 500 scholarship hunts this month. Counter resets on the 1st of next month."
-    },
-    advisor_atlas_searches_per_month: {
-      description: "Limits the combined number of new Advisor Atlas searches and professor evidence refreshes in a calendar month.",
-      resetInfo: "Resets on the 1st of each month at midnight UTC.",
-      example: "If limit is 10, the user can start or refresh Advisor Atlas research 10 times this month."
     },
     total_projects: {
       description: "Limits the total number of projects a user can create.",
@@ -404,9 +407,13 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
     {
       name: "AI Chat",
       features: [
-        { key: "ai_messages_per_session", label: "Maximum AI Messages Per Session", description: "Limits the number of AI messages a user can send in a single conversation session." },
-        { key: "daily_ai_chats", label: "Maximum Daily AI Messages", description: "Limits the total number of AI messages across all conversations in a 24-hour period." },
-        { key: "monthly_ai_chats", label: "Maximum Monthly AI Messages", description: "Limits the total number of AI messages across all conversations in a calendar month." }
+        { key: "ai_messages_per_session", label: "Maximum AI Messages Per Session", description: "Limits the number of AI messages a user can send in a single conversation session." }
+      ]
+    },
+    {
+      name: "AI Tokens",
+      features: [
+        { key: "ai_tokens_per_month", label: "Monthly AI Token Allowance", format: (v: number) => v === -1 ? "Unlimited" : formatTokenCount(v), description: "Monthly AI token grant for this role. Each model call is metered at its per-1M-token price and deducted as tokens. Resets monthly with no rollover; purchased tokens (never expire) are used after this allowance." }
       ]
     },
     {
@@ -437,12 +444,6 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       features: [
         { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
         { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
-      ]
-    },
-    {
-      name: "Advisor Atlas",
-      features: [
-        { key: "advisor_atlas_searches_per_month", label: "Maximum Advisor Atlas Searches & Refreshes Per Month", description: "Limits the combined number of new Discovery searches, Professor searches, and professor evidence refreshes in a calendar month." }
       ]
     },
     {
@@ -490,6 +491,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
         { key: "admin_manage_invites", label: "Can Manage Invite Codes", description: "Allows generating and managing invite codes for new user registration." },
         { key: "admin_manage_invite_requests", label: "Can Manage Invite Requests", description: "Allows approving or rejecting user invite requests." },
         { key: "admin_manage_plan_requests", label: "Can Manage Plan Requests", description: "Allows approving or rejecting user plan upgrade and extension requests." },
+        { key: "admin_manage_token_requests", label: "Can Manage Token Purchase Requests", description: "Allows approving or rejecting user requests to buy AI Extra Token packs. Model pricing and pack configuration remain super-admin only." },
         { key: "admin_manage_suspension_appeals", label: "Can Manage Suspension Appeals", description: "Allows reviewing and resolving user suspension appeals." },
         { key: "admin_manage_notification_texts", label: "Can Manage Notification Texts", description: "Allows editing system-wide notification message templates." },
         { key: "admin_send_notifications", label: "Can Send Notifications", description: "Allows sending categorized notifications to all users, filtered groups, or specific users." },
@@ -1771,6 +1773,7 @@ export function AdminView() {
     admin_manage_settings: isSuperAdmin,
     admin_suspend_user: isSuperAdmin,
     admin_manage_plan_requests: true,
+    admin_manage_token_requests: true,
     admin_manage_suspension_appeals: true
   });
 
@@ -1828,6 +1831,16 @@ export function AdminView() {
 
   if (adminPermissions["admin_manage_plan_requests"]) {
     tabs.push({ id: "plan_requests", label: "Plan Requests", icon: CheckCircle });
+  }
+
+  if (adminPermissions["admin_manage_token_requests"]) {
+    tabs.push({ id: "token_purchase_requests", label: "Token Requests", icon: Coins });
+  }
+
+  // Model pricing + pack config are super-admin only by spec (real-cost metering).
+  if (isSuperAdmin) {
+    tabs.push({ id: "model_pricing", label: "Model Pricing", icon: CircleDollarSign });
+    tabs.push({ id: "token_packs", label: "Token Packs", icon: Package });
   }
 
   if (adminPermissions["admin_manage_role_limits"]) {
@@ -1901,6 +1914,9 @@ export function AdminView() {
               emptyMessage="No plan requests found."
             />
           )}
+          {activeTab === "token_purchase_requests" && adminPermissions["admin_manage_token_requests"] && <TokenPurchaseRequestsTab />}
+          {activeTab === "model_pricing" && isSuperAdmin && <ModelPricingTab />}
+          {activeTab === "token_packs" && isSuperAdmin && <TokenPacksTab />}
           {activeTab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab />}
           {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab />}
           {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}

@@ -5,7 +5,7 @@ from fastapi import BackgroundTasks
 
 from app.api import advisor_atlas as advisor_atlas_api
 from app.api.advisor_atlas import CreateRunRequest
-from app.auth.limits import UsageLimitExceeded, check_and_increment_limit, invalidate_limits_cache
+from app.services import ai_tokens
 from app.core.config import Settings
 from app.db.connection import connect, get_db, initialize_database
 
@@ -32,85 +32,34 @@ def professor_request() -> CreateRunRequest:
     )
 
 
-def test_advisor_atlas_monthly_role_defaults(tmp_path):
+def test_deprecated_count_limits_are_removed(tmp_path):
+    """Phase 5 teardown: the dead AI-count limits (daily/monthly chats, advisor
+    atlas searches) are gone from role_limits on a fresh DB and stay gone after
+    re-init (migrate_database drops non-canonical features)."""
     settings = make_settings(tmp_path)
 
-    with connect(settings.database_path) as db:
-        rows = db.execute(
-            """
-            SELECT role, limit_count, reset_period
-            FROM role_limits
-            WHERE feature = 'advisor_atlas_searches_per_month'
-            ORDER BY role
-            """
-        ).fetchall()
-
-    assert [(row["role"], row["limit_count"], row["reset_period"]) for row in rows] == [
-        ("general_user", 3, "monthly"),
-        ("max_user", 30, "monthly"),
-        ("pro_user", 10, "monthly"),
-    ]
-
-
-def test_database_reinitialization_preserves_custom_advisor_atlas_limit(tmp_path):
-    settings = make_settings(tmp_path)
+    def present(db):
+        return {
+            row["feature"]
+            for row in db.execute(
+                "SELECT feature FROM role_limits "
+                "WHERE feature IN ('daily_ai_chats', 'monthly_ai_chats', "
+                "'advisor_atlas_searches_per_month')"
+            ).fetchall()
+        }
 
     with connect(settings.database_path) as db:
-        db.execute(
-            """
-            UPDATE role_limits
-            SET limit_count = 8
-            WHERE role = 'general_user'
-              AND feature = 'advisor_atlas_searches_per_month'
-            """
-        )
-        db.commit()
+        assert present(db) == set()
 
+    # Re-initializing must not resurrect them.
     initialize_database(settings.database_path)
-
     with connect(settings.database_path) as db:
-        row = db.execute(
-            """
-            SELECT limit_count
-            FROM role_limits
-            WHERE role = 'general_user'
-              AND feature = 'advisor_atlas_searches_per_month'
-            """
-        ).fetchone()
-
-    assert row["limit_count"] == 8
-
-
-def test_general_user_is_blocked_after_three_monthly_actions(tmp_path):
-    settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
-    invalidate_limits_cache()
-    user = {"id": 1, "roles": ["general_user"]}
-
-    try:
-        for _ in range(3):
-            check_and_increment_limit(
-                user,
-                "advisor_atlas_searches_per_month",
-                increment=1,
-                session=session,
-            )
-
-        with pytest.raises(UsageLimitExceeded, match="plan allows 3"):
-            check_and_increment_limit(
-                user,
-                "advisor_atlas_searches_per_month",
-                increment=1,
-                session=session,
-            )
-    finally:
-        session.close()
-        invalidate_limits_cache()
+        assert present(db) == set()
 
 
 @pytest.mark.asyncio
-async def test_create_run_consumes_one_advisor_atlas_unit(monkeypatch):
-    limit_calls = []
+async def test_create_run_gates_on_ai_tokens(monkeypatch):
+    spend_calls = []
     created = []
 
     class FakeRepository:
@@ -127,10 +76,11 @@ async def test_create_run_consumes_one_advisor_atlas_unit(monkeypatch):
     class FakeStore:
         db = object()
 
-    def fake_limit(user, feature, increment, session):
-        limit_calls.append((user["id"], feature, increment, session))
+    def fake_ensure(user, session, min_tokens=1):
+        spend_calls.append((user["id"], min_tokens))
+        return True
 
-    monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", fake_limit)
+    monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
 
     result = await advisor_atlas_api.create_run(
         professor_request(),
@@ -142,13 +92,13 @@ async def test_create_run_consumes_one_advisor_atlas_unit(monkeypatch):
 
     assert result["id"] == 44
     assert len(created) == 1
-    assert [(feature, increment) for _, feature, increment, _ in limit_calls] == [
-        ("advisor_atlas_searches_per_month", 1)
-    ]
+    # Advisor Atlas no longer consumes a monthly search count; it gates on the
+    # AI-token balance instead.
+    assert spend_calls == [(7, 1)]
 
 
 @pytest.mark.asyncio
-async def test_create_run_stops_before_persistence_when_limit_is_reached(monkeypatch):
+async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatch):
     created = []
 
     class FakeRepository:
@@ -162,12 +112,12 @@ async def test_create_run_stops_before_persistence_when_limit_is_reached(monkeyp
     class FakeStore:
         db = object()
 
-    def reject_limit(user, feature, increment, session):
-        raise UsageLimitExceeded("Limit exceeded for advisor_atlas_searches_per_month.")
+    def reject_ensure(user, session, min_tokens=1):
+        raise ai_tokens.OutOfTokens("out of tokens")
 
-    monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", reject_limit)
+    monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", reject_ensure)
 
-    with pytest.raises(UsageLimitExceeded):
+    with pytest.raises(ai_tokens.OutOfTokens):
         await advisor_atlas_api.create_run(
             professor_request(),
             BackgroundTasks(),
@@ -180,8 +130,15 @@ async def test_create_run_stops_before_persistence_when_limit_is_reached(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_owned_candidate_refresh_consumes_one_advisor_atlas_unit(monkeypatch):
-    limit_calls = []
+async def test_owned_candidate_refresh_gates_on_ai_tokens(monkeypatch):
+    spend_calls = []
+
+    class FakeAiService:
+        def __init__(self):
+            self.billed = None
+
+        def set_billing(self, user, session):
+            self.billed = (user, session)
 
     class FakeRepository:
         def get_candidate(self, candidate_id, user_id):
@@ -189,7 +146,9 @@ async def test_owned_candidate_refresh_consumes_one_advisor_atlas_unit(monkeypat
             return {"id": candidate_id}
 
     class FakeService:
-        repository = FakeRepository()
+        def __init__(self):
+            self.repository = FakeRepository()
+            self.ai_service = FakeAiService()
 
         async def refresh_candidate(self, candidate_id, user_id):
             return {"id": candidate_id, "user_id": user_id}
@@ -197,27 +156,30 @@ async def test_owned_candidate_refresh_consumes_one_advisor_atlas_unit(monkeypat
     class FakeStore:
         db = object()
 
-    def fake_limit(user, feature, increment, session):
-        limit_calls.append((feature, increment, session))
+    service = FakeService()
 
-    monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", fake_limit)
+    def fake_ensure(user, session, min_tokens=1):
+        spend_calls.append((user["id"], min_tokens))
+        return True
+
+    monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
 
     result = await advisor_atlas_api.refresh_candidate(
         12,
         user={"id": 7, "roles": ["general_user"]},
-        service=FakeService(),
+        service=service,
         store=FakeStore(),
     )
 
     assert result["id"] == 12
-    assert [(feature, increment) for feature, increment, _ in limit_calls] == [
-        ("advisor_atlas_searches_per_month", 1)
-    ]
+    assert spend_calls == [(7, 1)]
+    # Billing context is attached so the refresh's AI calls are metered.
+    assert service.ai_service.billed == ({"id": 7, "roles": ["general_user"]}, FakeStore.db)
 
 
 @pytest.mark.asyncio
-async def test_missing_candidate_is_rejected_before_quota_charge(monkeypatch):
-    limit_calls = []
+async def test_missing_candidate_is_rejected_before_token_charge(monkeypatch):
+    spend_calls = []
 
     class FakeRepository:
         def get_candidate(self, candidate_id, user_id):
@@ -229,10 +191,11 @@ async def test_missing_candidate_is_rejected_before_quota_charge(monkeypatch):
     class FakeStore:
         db = object()
 
-    def fake_limit(user, feature, increment, session):
-        limit_calls.append((feature, increment))
+    def fake_ensure(user, session, min_tokens=1):
+        spend_calls.append((user["id"], min_tokens))
+        return True
 
-    monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", fake_limit)
+    monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
 
     with pytest.raises(advisor_atlas_api.HTTPException) as error:
         await advisor_atlas_api.refresh_candidate(
@@ -243,4 +206,4 @@ async def test_missing_candidate_is_rejected_before_quota_charge(monkeypatch):
         )
 
     assert error.value.status_code == 404
-    assert limit_calls == []
+    assert spend_calls == []

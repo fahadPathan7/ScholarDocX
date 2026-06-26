@@ -14,8 +14,6 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@scholardocx.com');
 
 INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
   ('general_user', 'ai_messages_per_session', 10, 'per_session'),
-  ('general_user', 'daily_ai_chats', 15, 'daily'),
-  ('general_user', 'monthly_ai_chats', 150, 'monthly'),
   ('general_user', 'can_use_gemini', 1, 'never'),
   ('general_user', 'can_use_glm', 0, 'never'),
   ('general_user', 'can_use_groq', 0, 'never'),
@@ -34,11 +32,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_user', 'total_whiteboards', 1, 'never'),
   ('general_user', 'news_searches_per_day', 3, 'daily'),
   ('general_user', 'news_searches_per_month', 30, 'monthly'),
-  ('general_user', 'advisor_atlas_searches_per_month', 3, 'monthly'),
 
   ('pro_user', 'ai_messages_per_session', 30, 'per_session'),
-  ('pro_user', 'daily_ai_chats', 50, 'daily'),
-  ('pro_user', 'monthly_ai_chats', 500, 'monthly'),
   ('pro_user', 'can_use_gemini', 1, 'never'),
   ('pro_user', 'can_use_groq', 1, 'never'),
   ('pro_user', 'can_use_glm', 0, 'never'),
@@ -57,11 +52,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('pro_user', 'total_whiteboards', 3, 'never'),
   ('pro_user', 'news_searches_per_day', 10, 'daily'),
   ('pro_user', 'news_searches_per_month', 100, 'monthly'),
-  ('pro_user', 'advisor_atlas_searches_per_month', 10, 'monthly'),
 
   ('max_user', 'ai_messages_per_session', 100, 'per_session'),
-  ('max_user', 'daily_ai_chats', 200, 'daily'),
-  ('max_user', 'monthly_ai_chats', 2000, 'monthly'),
   ('max_user', 'can_use_gemini', 1, 'never'),
   ('max_user', 'can_use_groq', 1, 'never'),
   ('max_user', 'can_use_glm', 1, 'never'),
@@ -80,7 +72,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('max_user', 'total_whiteboards', 10, 'never'),
   ('max_user', 'news_searches_per_day', 30, 'daily'),
   ('max_user', 'news_searches_per_month', 300, 'monthly'),
-  ('max_user', 'advisor_atlas_searches_per_month', 30, 'monthly'),
 
   ('general_admin', 'admin_create_user', 1, 'never'),
   ('general_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -92,6 +83,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_invites', 1, 'never'),
   ('general_admin', 'admin_view_audit_logs', 0, 'never'),
   ('general_admin', 'admin_manage_plan_requests', 1, 'never'),
+  ('general_admin', 'admin_manage_token_requests', 1, 'never'),
   ('general_admin', 'admin_manage_invite_requests', 1, 'never'),
   ('general_admin', 'admin_manage_suspension_appeals', 1, 'never'),
   ('general_admin', 'can_use_agents', 1, 'never'),
@@ -112,6 +104,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_manage_invites', 1, 'never'),
   ('super_admin', 'admin_view_audit_logs', 1, 'never'),
   ('super_admin', 'admin_manage_plan_requests', 1, 'never'),
+  ('super_admin', 'admin_manage_token_requests', 1, 'never'),
   ('super_admin', 'admin_manage_invite_requests', 1, 'never'),
   ('super_admin', 'admin_manage_suspension_appeals', 1, 'never'),
   ('super_admin', 'can_use_agents', 1, 'never'),
@@ -121,6 +114,13 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_manage_settings', 1, 'never'),
   ('super_admin', 'news_searches_per_day', -1, 'daily'),
   ('super_admin', 'news_searches_per_month', -1, 'monthly');
+
+INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
+  ('general_user', 'ai_tokens_per_month', 500000, 'monthly'),
+  ('pro_user', 'ai_tokens_per_month', 2000000, 'monthly'),
+  ('max_user', 'ai_tokens_per_month', 5000000, 'monthly'),
+  ('general_admin', 'ai_tokens_per_month', 1000000, 'monthly'),
+  ('super_admin', 'ai_tokens_per_month', -1, 'monthly');
 
 -- NOTE: jwt_secret_key is intentionally NOT seeded here. It is generated as a
 -- strong random value per install in initialize_database() so the signing key
@@ -132,6 +132,7 @@ INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('plan_price_pro_monthly', '50'),
   ('plan_price_pro_yearly', '500'),
   ('plan_price_max_monthly', '180'),
-  ('plan_price_max_yearly', '1500');
+  ('plan_price_max_yearly', '1500'),
+  ('ai_token_rate_tokens_per_dollar', '10000');
 
 """

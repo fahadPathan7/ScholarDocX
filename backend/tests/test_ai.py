@@ -198,7 +198,7 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
 
     async def fake_gemini(model_name, system_prompt, message, max_tokens=None):
         calls.append((model_name, system_prompt, message, max_tokens))
-        return "Gemini answer"
+        return "Gemini answer", {"input_tokens": 12, "output_tokens": 8}
 
     monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)
 
@@ -207,6 +207,9 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
     assert response["mode"] == "gemini-gemini-2.5-flash-lite"
     assert response["answer"] == "Gemini answer"
     assert response["external_call_made"] is True
+    assert response["usage"] == {"input_tokens": 12, "output_tokens": 8}
+    assert response["model_id"] == "gemini-2.5-flash-lite"
+    assert response["provider"] == "gemini"
     assert calls[0][0] == "gemini-2.5-flash-lite"
     assert calls[0][3] == 64
 
@@ -221,7 +224,7 @@ async def test_chat_uses_explicit_internal_operation_label(monkeypatch, capsys):
     service = AiService(settings)
 
     async def fake_gemini(model_name, system_prompt, message, max_tokens=None):
-        return "Structured result"
+        return "Structured result", {"input_tokens": 1, "output_tokens": 1}
 
     monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)
 
@@ -259,7 +262,7 @@ async def test_auto_chat_falls_back_to_gemini_after_glm_rate_limit(monkeypatch):
         raise httpx.HTTPStatusError("Rate limit", request=request, response=response)
 
     async def fake_gemini(model_name, system_prompt, message, max_tokens=None):
-        return f"Fallback via {model_name}"
+        return f"Fallback via {model_name}", {"input_tokens": 3, "output_tokens": 2}
 
     monkeypatch.setattr(service, "_chat_with_glm", fake_glm)
     monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)

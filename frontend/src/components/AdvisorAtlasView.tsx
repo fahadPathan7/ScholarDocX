@@ -3,7 +3,6 @@ import {
   Archive,
   ChevronRight,
   Compass,
-  Gauge,
   History,
   Map,
   Plus,
@@ -33,7 +32,7 @@ type Props = {
 
 export function AdvisorAtlasView({ onToast }: Props) {
   const { showConfirm } = useDialog();
-  const { usageData, refreshUsage } = useUsage();
+  const { refreshUsage } = useUsage();
   const [runs, setRuns] = useState<AdvisorRun[]>([]);
   const [activeRun, setActiveRun] = useState<AdvisorRun | null>(null);
   const [showNewSearch, setShowNewSearch] = useState(true);
@@ -186,17 +185,6 @@ export function AdvisorAtlasView({ onToast }: Props) {
       `Save ${candidate.display_name}?`,
       "success",
     );
-  const monthlyQuota = usageData
-    ? {
-        used: usageData.usage.advisor_atlas_searches_per_month ?? 0,
-        limit: usageData.limits.advisor_atlas_searches_per_month ?? -1,
-      }
-    : undefined;
-  const monthlyQuotaReached = Boolean(
-    monthlyQuota
-      && monthlyQuota.limit !== -1
-      && monthlyQuota.used >= monthlyQuota.limit,
-  );
 
   return (
     <div className="advisor-atlas-view">
@@ -210,22 +198,6 @@ export function AdvisorAtlasView({ onToast }: Props) {
           <p>Map the university. Find the fit. See the opportunity.</p>
         </div>
         <div className="atlas-hero-actions">
-          {monthlyQuota && (
-            <div
-              className={`atlas-header-quota${monthlyQuotaReached ? " exhausted" : ""}`}
-              title="New searches and evidence refreshes share this monthly limit."
-            >
-              <Gauge size={17} aria-hidden="true" />
-              <span>
-                Monthly limit
-                <strong>
-                  {monthlyQuota.limit === -1
-                    ? "Unlimited"
-                    : `${monthlyQuota.used} of ${monthlyQuota.limit} used`}
-                </strong>
-              </span>
-            </div>
-          )}
           <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
             <Plus size={18} /> New search
           </button>
@@ -301,7 +273,6 @@ export function AdvisorAtlasView({ onToast }: Props) {
           {showNewSearch || !activeRun ? (
             <AdvisorAtlasSearchForm
               submitting={submitting}
-              monthlyQuota={monthlyQuota}
               onSubmit={createRun}
             />
           ) : (

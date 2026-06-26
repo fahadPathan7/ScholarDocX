@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from sqlalchemy import Float, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -868,3 +868,91 @@ class SavedScholarshipQueries(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='saved_scholarship_queries')
+
+
+class AiModels(Base):
+    __tablename__ = 'ai_models'
+    __table_args__ = (
+        UniqueConstraint('provider', 'model_id'),
+        Index('idx_ai_models_active', 'is_active'),
+    )
+
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    model_id: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    input_price_per_1m: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
+    output_price_per_1m: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
+    is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AiTokenBalances(Base):
+    __tablename__ = 'ai_token_balances'
+    __table_args__ = (
+        Index('idx_ai_token_balances_period', 'subscription_period'),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    subscription_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    subscription_period: Mapped[Optional[str]] = mapped_column(Text)
+    purchased_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    last_reset_at: Mapped[Optional[str]] = mapped_column(Text)
+    total_spent_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    total_spent_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+
+
+class AiTokenLedger(Base):
+    __tablename__ = 'ai_token_ledger'
+    __table_args__ = (
+        Index('idx_ai_ledger_user', 'user_id'),
+        Index('idx_ai_ledger_created', 'created_at'),
+        Index('idx_ai_ledger_source', 'source'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    model_id: Mapped[Optional[str]] = mapped_column(Text)
+    provider: Mapped[Optional[str]] = mapped_column(Text)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
+    # Signed: negative = consumed, positive = granted (purchase/admin/monthly reset).
+    tokens_delta: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    balance_bucket: Mapped[Optional[str]] = mapped_column(Text)
+    ref_id: Mapped[Optional[int]] = mapped_column(Integer)
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+
+
+class AiTokenPacks(Base):
+    __tablename__ = 'ai_token_packs'
+
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    token_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
+    is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
+class AiTokenPurchaseRequests(Base):
+    __tablename__ = 'ai_token_purchase_requests'
+    __table_args__ = (
+        Index('idx_ai_tpr_user', 'user_id'),
+        Index('idx_ai_tpr_status', 'status'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    pack_id: Mapped[int] = mapped_column(ForeignKey('ai_token_packs.id'), nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
+    requested_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    reviewed_at: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_by: Mapped[Optional[int]] = mapped_column(Integer)
+    admin_notes: Mapped[Optional[str]] = mapped_column(Text)

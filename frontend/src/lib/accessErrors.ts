@@ -2,8 +2,7 @@ import type { UiErrorDetail } from "./uiError";
 
 const FEATURE_LABELS: Record<string, string> = {
   ai_messages_per_session: "AI messages per session",
-  daily_ai_chats: "daily AI chats",
-  monthly_ai_chats: "monthly AI chats",
+  ai_tokens_per_month: "monthly AI tokens",
   can_use_agents: "AI agent actions",
   can_use_web_search: "web search",
   web_searches_per_day: "daily web searches",
@@ -15,7 +14,7 @@ const FEATURE_LABELS: Record<string, string> = {
   total_documents_bytes: "document storage",
   total_sticky_notes: "sticky notes",
   total_whiteboards: "whiteboards",
-  advisor_atlas_searches_per_month: "monthly Advisor Atlas searches and refreshes",
+  admin_manage_token_requests: "manage token purchase requests",
 };
 
 function toFeatureLabel(feature?: string) {

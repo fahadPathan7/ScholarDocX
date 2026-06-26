@@ -4,10 +4,6 @@ import { CreateAdvisorRun, SearchMode } from "../../lib/advisorAtlasApi";
 
 type Props = {
   submitting: boolean;
-  monthlyQuota?: {
-    used: number;
-    limit: number;
-  };
   onSubmit: (payload: CreateAdvisorRun) => Promise<void>;
 };
 
@@ -20,7 +16,7 @@ function splitList(value: string) {
 
 
 
-export function AdvisorAtlasSearchForm({ submitting, monthlyQuota, onSubmit }: Props) {
+export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
   const [mode, setMode] = useState<SearchMode>("department");
   const [showProfile, setShowProfile] = useState(true);
   const [form, setForm] = useState({
@@ -52,11 +48,6 @@ export function AdvisorAtlasSearchForm({ submitting, monthlyQuota, onSubmit }: P
         ].filter((value) => value.trim()).length;
   }, [form, mode]);
   const requiredTotal = mode === "professor" ? 7 : 3;
-  const quotaReached = Boolean(
-    monthlyQuota
-    && monthlyQuota.limit !== -1
-    && monthlyQuota.used >= monthlyQuota.limit
-  );
 
   const update = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -302,9 +293,9 @@ export function AdvisorAtlasSearchForm({ submitting, monthlyQuota, onSubmit }: P
           </div>
         </div>
         {error && <div className="atlas-inline-error" role="alert">{error}</div>}
-        <button className="atlas-primary-button" disabled={submitting || quotaReached}>
+        <button className="atlas-primary-button" disabled={submitting}>
           {submitting ? <span className="atlas-spinner" /> : <Search size={18} />}
-          {submitting ? "Starting..." : quotaReached ? "Monthly limit reached" : "Start search"}
+          {submitting ? "Starting..." : "Start search"}
         </button>
       </div>
     </form>

@@ -11,8 +11,6 @@ from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enab
 DEFAULT_ROLE_LIMITS = {
     'general_user': [
         ('ai_messages_per_session', 10, 'per_session'),
-        ('daily_ai_chats', 15, 'daily'),
-        ('monthly_ai_chats', 150, 'monthly'),
         ('can_use_gemini', 1, 'never'),
         ('can_use_glm', 0, 'never'),
         ('can_use_groq', 0, 'never'),
@@ -31,12 +29,10 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 1, 'never'),
         ('news_searches_per_day', 3, 'daily'),
         ('news_searches_per_month', 30, 'monthly'),
-        ('advisor_atlas_searches_per_month', 3, 'monthly'),
+        ('ai_tokens_per_month', 500000, 'monthly'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
-        ('daily_ai_chats', 50, 'daily'),
-        ('monthly_ai_chats', 500, 'monthly'),
         ('can_use_gemini', 1, 'never'),
         ('can_use_groq', 1, 'never'),
         ('can_use_glm', 0, 'never'),
@@ -55,12 +51,10 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 3, 'never'),
         ('news_searches_per_day', 10, 'daily'),
         ('news_searches_per_month', 100, 'monthly'),
-        ('advisor_atlas_searches_per_month', 10, 'monthly'),
+        ('ai_tokens_per_month', 2000000, 'monthly'),
     ],
     'max_user': [
         ('ai_messages_per_session', 100, 'per_session'),
-        ('daily_ai_chats', 200, 'daily'),
-        ('monthly_ai_chats', 2000, 'monthly'),
         ('can_use_gemini', 1, 'never'),
         ('can_use_groq', 1, 'never'),
         ('can_use_glm', 1, 'never'),
@@ -79,7 +73,7 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 10, 'never'),
         ('news_searches_per_day', 30, 'daily'),
         ('news_searches_per_month', 300, 'monthly'),
-        ('advisor_atlas_searches_per_month', 30, 'monthly'),
+        ('ai_tokens_per_month', 5000000, 'monthly'),
     ],
     'general_admin': [
         ('admin_create_user', 1, 'never'),
@@ -93,7 +87,9 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_view_audit_logs', 0, 'never'),
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
+        ('admin_manage_token_requests', 1, 'never'),
         ('can_use_agents', 1, 'never'),
+        ('ai_tokens_per_month', 1000000, 'monthly'),
     ],
     'super_admin': [
         ('admin_create_user', 1, 'never'),
@@ -107,7 +103,9 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_view_audit_logs', 1, 'never'),
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
+        ('admin_manage_token_requests', 1, 'never'),
         ('can_use_agents', 1, 'never'),
+        ('ai_tokens_per_month', -1, 'monthly'),
     ]
 }
 
@@ -515,7 +513,7 @@ class AdminService:
         assert user_id is not None
 
         # Initialize usage stats
-        features = ['ai_messages_per_session', 'daily_ai_chats', 'monthly_ai_chats', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'advisor_atlas_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
+        features = ['ai_messages_per_session', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
                     'records_per_sheet', 'total_documents_bytes', 'total_sticky_notes', 'total_whiteboards']
         for feature in features:
             self.connection.execute(

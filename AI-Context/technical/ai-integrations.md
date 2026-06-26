@@ -62,9 +62,9 @@ backend/app/services/ai_assistant/
 
 ## Advisor Atlas
 
-- Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.1
-  for bounded structured extraction, fit analysis, dossier generation, and
-  next-action guidance.
+- Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.2
+  (default; override via `ADVISOR_ATLAS_GLM_MODEL`) for bounded structured
+  extraction, fit analysis, dossier generation, and next-action guidance.
 - Advisor Atlas text and vision analysis omit provider output-token fields,
   matching standard AI chat behavior. Schema prompts, source compaction, and
   response validation bound the work without an arbitrary feature-level token

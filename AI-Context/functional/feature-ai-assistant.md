@@ -8,7 +8,9 @@ The AI assistant helps with research, summarization, drafting, and review while 
 
 ## Providers
 
-- GLM AI API: chat, completion, summarization, drafting.
+- GLM AI API: chat, completion, summarization, drafting. GLM-5.2 is the latest
+  selectable model in the assistant picker; GLM-5.1, GLM-5, GLM-5-Turbo, and
+  GLM-4.7 remain available.
 - 9Router: optional local routing for chat and agent-planning models exposed
   through the assistant model picker when the local 9Router service and
   `NINE_ROUTER_API_KEY` are configured.

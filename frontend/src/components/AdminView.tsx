@@ -412,7 +412,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
     {
       name: "AI Models",
       features: [
-        { key: "can_use_glm", label: "Can Use GLM Models", description: "Allows users to access GLM AI models (GLM-5.1, GLM-5, GLM-4.7, etc.)." },
+        { key: "can_use_glm", label: "Can Use GLM Models", description: "Allows users to access GLM AI models (GLM-5.2, GLM-5.1, GLM-5, GLM-4.7, etc.)." },
         { key: "can_use_gemini", label: "Can Use Gemini Models", description: "Allows users to access Google Gemini AI models (gemini-2.5-flash, gemini-2.5-flash-lite)." },
         { key: "can_use_groq", label: "Can Use Groq Models", description: "Allows users to access Groq-hosted models (Llama, Qwen, GPT-OSS, etc.)." },
         { key: "can_use_mistral", label: "Can Use Mistral Models", description: "Allows users to access Mistral AI models (mistral-large, mistral-medium, devstral)." }

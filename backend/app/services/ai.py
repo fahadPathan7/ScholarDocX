@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-DEFAULT_GLM_MODELS = ["GLM-5.1", "GLM-5", "GLM-5-Turbo", "GLM-4.7"]
+DEFAULT_GLM_MODELS = ["GLM-5.2", "GLM-5.1", "GLM-5", "GLM-5-Turbo", "GLM-4.7"]
 DEFAULT_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 DEFAULT_GROQ_MODELS = [
     "openai/gpt-oss-120b",

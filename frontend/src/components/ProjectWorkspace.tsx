@@ -1179,7 +1179,7 @@ export function ProjectWorkspace({
               <button className="secondary btn-edit-columns" onClick={openEditColumns} disabled={showEditColumns} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
                 <Settings size={14} /> Edit columns
               </button>
-              {recordsPerSheetLimit > 0 && !fullScreenMode && (() => {
+              {recordsPerSheetLimit > 0 && (() => {
                 const used = rows.length;
                 const max = recordsPerSheetLimit;
                 const pct = Math.min(100, Math.round((used / max) * 100));

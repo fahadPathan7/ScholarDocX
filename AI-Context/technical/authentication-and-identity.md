@@ -2,12 +2,31 @@
 
 ## Current Technical Position
 
-Authentication is not required for the local-first MVP.
+The local-first MVP ships with a full JWT auth model (the earlier "no auth
+gate" stance is superseded):
 
-The app should start with either:
+- Registration is invite-gated; login returns a signed JWT.
+- `get_current_user` validates the token, loads the user from the DB, enforces
+  `is_active`, and checks `token_version` (revocation). Authorization roles are
+  taken from the DB row, not the token payload.
+- Role guards: `require_admin`, `require_super_admin`, `require_role`. The
+  admin router is protected router-wide (`get_current_user` + `require_admin`)
+  plus a second fine-grained layer via `require_feature` /
+  `check_and_increment_limit` for destructive admin actions. `super_admin`
+  short-circuits role checks safely because roles come from the DB.
 
-- No auth gate, or
-- A lightweight local profile stored in SQLite.
+## JWT Secret Management
+
+- The signing secret is stored in `app_settings.jwt_secret_key`.
+- `initialize_database()` provisions a per-install random secret and rotates
+  any compromised placeholder. There is no constant fallback; `get_jwt_secret`
+  raises HTTP 500 if the secret is missing or still compromised.
+- Rotating the secret invalidates all outstanding tokens (forces re-login) and
+  is the correct response to any suspected key compromise.
+- The algorithm is pinned to HS256 on decode (no `alg:none` confusion).
+
+The earlier "lightweight local profile / no auth gate" notes below are kept as
+historical context.
 
 ## Google OAuth 2.0 Guidance
 

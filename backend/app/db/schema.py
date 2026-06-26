@@ -122,8 +122,10 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'news_searches_per_day', -1, 'daily'),
   ('super_admin', 'news_searches_per_month', -1, 'monthly');
 
+-- NOTE: jwt_secret_key is intentionally NOT seeded here. It is generated as a
+-- strong random value per install in initialize_database() so the signing key
+-- is never a committed, publicly-known constant.
 INSERT OR IGNORE INTO app_settings (key, value) VALUES
-  ('jwt_secret_key', 'scholar-docx-local-first-secret-key-do-not-use-in-cloud'),
   ('jwt_expiration_days', '30'),
   ('plan_price_general_monthly', '0'),
   ('plan_price_general_yearly', '0'),

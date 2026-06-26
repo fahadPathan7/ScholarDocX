@@ -98,3 +98,116 @@ def test_login_invalid_password():
 def test_logout():
     response = client.post("/api/auth/logout")
     assert response.status_code == 200
+
+
+def _register_and_login(email: str, invite_code: str) -> str:
+    client.post(
+        "/api/auth/register",
+        json={
+            "email": email,
+            "password": "StrongPassword123!",
+            "invite_code": invite_code,
+            "display_name": email,
+        },
+    )
+    response = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": "StrongPassword123!"},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["token"]
+
+
+def test_jwt_secret_is_not_the_committed_constant():
+    """The signing secret must be a per-install random value, not the committed placeholder."""
+    conn = connect(settings.database_path)
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_settings WHERE key = 'jwt_secret_key'"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is not None
+    assert row["value"]
+    assert not str(row["value"]).startswith("scholar-docx-local-first")
+
+
+def test_forged_token_with_committed_constant_is_rejected():
+    """A JWT signed with the publicly-known committed secret must NOT authenticate.
+
+    Regression for the role-guard bypass: previously the secret WAS the
+    committed constant, so a forged super_admin token granted full access.
+    """
+    from app.auth.jwt import create_token
+
+    forged = create_token(
+        {
+            "id": 1,
+            "email": "admin@localhost",
+            "display_name": "Forged",
+            "roles": ["super_admin"],
+            "is_active": 1,
+            "token_version": 1,
+        },
+        "scholar-docx-local-first-secret-key-do-not-use-in-cloud",
+        30,
+    )
+    response = client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {forged}"}
+    )
+    assert response.status_code == 401
+
+
+def test_valid_login_token_still_authenticates():
+    """Sanity check: legitimate login tokens still work after the secret change."""
+    token = _register_and_login("valid_token_user@example.com", "TEST_INVITE")
+    response = client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["email"] == "valid_token_user@example.com"
+
+
+def test_news_bookmarks_are_scoped_per_user():
+    """User B must never see user A's bookmarks (IDOR regression)."""
+    conn = connect(settings.database_path)
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO invite_codes (code, max_uses, used_count, created_by) "
+            "VALUES ('INVITE_IDOR_A', 5, 0, 1)"
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO invite_codes (code, max_uses, used_count, created_by) "
+            "VALUES ('INVITE_IDOR_B', 5, 0, 1)"
+        )
+        conn.execute("DELETE FROM bookmarked_news WHERE article_id = 'ART-IDOR-A'")
+        conn.execute(
+            "DELETE FROM users WHERE email IN "
+            "('idor.a@example.com', 'idor.b@example.com')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    token_a = _register_and_login("idor.a@example.com", "INVITE_IDOR_A")
+    token_b = _register_and_login("idor.b@example.com", "INVITE_IDOR_B")
+
+    created = client.post(
+        "/api/news/bookmarks",
+        json={"article_id": "ART-IDOR-A", "title": "A", "link": "https://a.test"},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert created.status_code == 200, created.text
+
+    response = client.get(
+        "/api/news/bookmarks", headers={"Authorization": f"Bearer {token_b}"}
+    )
+    assert response.status_code == 200
+    article_ids = {row["article_id"] for row in response.json()}
+    assert "ART-IDOR-A" not in article_ids
+
+
+def test_plans_requires_authentication():
+    """The role-limit matrix must not leak to anonymous callers."""
+    response = client.get("/api/auth/plans")
+    assert response.status_code in (401, 403)

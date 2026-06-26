@@ -3,12 +3,31 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.auth.jwt import decode_token, verify_token_version
-from app.db.connection import connect
+from app.db.connection import connect, COMPROMISED_JWT_SECRET_PREFIX
 from app.core.config import Settings, get_settings
 from app.api.dependencies import get_store
 from app.services.store import Store
 
 security = HTTPBearer()
+
+def get_jwt_secret(connection) -> str:
+    """Return the per-install JWT signing secret.
+
+    Raises 500 if the secret is missing or still set to a known-compromised
+    placeholder. The secret is always provisioned at startup by
+    initialize_database(), so hitting this error indicates a misconfigured or
+    not-yet-initialized database rather than a fallback path.
+    """
+    row = connection.execute(
+        "SELECT value FROM app_settings WHERE key = 'jwt_secret_key'"
+    ).fetchone()
+    value = row["value"] if row else None
+    if not value or str(value).startswith(COMPROMISED_JWT_SECRET_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="JWT signing secret is not configured. Restart the server to initialize it.",
+        )
+    return value
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -16,9 +35,7 @@ def get_current_user(
 ):
     token = credentials.credentials
     try:
-        secret_key_row = store.connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
-        secret_key = secret_key_row["value"] if secret_key_row else "scholar-docx-local-first-secret-key-do-not-use-in-cloud"
-        payload = decode_token(token, secret_key)
+        payload = decode_token(token, get_jwt_secret(store.connection))
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

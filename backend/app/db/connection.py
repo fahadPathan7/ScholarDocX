@@ -1,3 +1,4 @@
+import secrets
 import sqlite3
 from pathlib import Path
 
@@ -81,7 +82,36 @@ def initialize_database(database_path: Path) -> None:
             connection.executescript(SEED_SQL)
         except Exception as e:
             print("Seed execution warning:", e)
+        _ensure_jwt_secret(connection)
         connection.commit()
+
+
+# A previously-shipped, committed placeholder secret. Any install still using it
+# (or a value derived from it) must be treated as publicly known and rotated.
+COMPROMISED_JWT_SECRET_PREFIX = "scholar-docx-local-first"
+
+
+def _ensure_jwt_secret(connection: sqlite3.Connection) -> None:
+    """Guarantee a strong, unique JWT signing secret for this install.
+
+    Generates a random secret on first init and stores it in app_settings. If a
+    previous install was seeded with the committed placeholder constant, the
+    secret is rotated so any token signed with the public value (including
+    forged super_admin tokens) stops validating.
+    """
+    row = connection.execute(
+        "SELECT value FROM app_settings WHERE key = 'jwt_secret_key'"
+    ).fetchone()
+    current = row["value"] if row else None
+    if (
+        not current
+        or str(current).strip() == ""
+        or str(current).startswith(COMPROMISED_JWT_SECRET_PREFIX)
+    ):
+        connection.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('jwt_secret_key', ?)",
+            (secrets.token_hex(32),),
+        )
 
 
 def _prepare_legacy_user_scoping(connection: sqlite3.Connection) -> None:

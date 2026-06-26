@@ -50,6 +50,21 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
 
 ## Authentication Rules
 
+- JWT signing keys are the root of all role guards. The secret must never be a
+  committed constant. `initialize_database()` provisions a per-install random
+  secret (`secrets.token_hex(32)`) and rotates any value still set to the
+  historical `scholar-docx-local-first...` placeholder. Read sites
+  (`get_jwt_secret`) must raise rather than fall back to a default if the
+  secret is missing or compromised. Never reintroduce a hardcoded secret or a
+  silent fallback.
+- Roles for authorization are read from the database, not from the JWT
+  payload, so a client cannot self-elevate. Do not trust token-embedded roles
+  for permission decisions.
+- Per-user data isolation is enforced server-side via `Store.current_user_id`.
+  Any handler that lists/reads/mutates user-scoped records must inject the
+  store through `get_user_store` (which sets `current_user_id`), never
+  `get_store` — the latter leaves the store unscoped and leaks other users'
+  rows. Known-user-scoped tables are listed in `USER_SCOPED_TABLES`.
 - Do not require remote signin for local-only MVP workflows.
 - If Google OAuth is added, keep it optional unless a later business decision changes this.
 - Request minimal scopes.

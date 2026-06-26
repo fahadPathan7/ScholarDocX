@@ -236,7 +236,7 @@ async def search_news(
 @router.get("/news/bookmarks")
 async def get_bookmarks(
     user: dict = Depends(get_current_user),
-    store: Store = Depends(get_store),
+    store: Store = Depends(get_user_store),
 ):
     return store.list_records("bookmarked_news")
 

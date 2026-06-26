@@ -14,7 +14,7 @@ from app.core.config import Settings, get_settings
 from app.db.connection import connect, initialize_database
 from app.services.store import Store
 from app.api.dependencies import get_store
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_jwt_secret
 from app.auth.limits import get_primary_user_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -182,9 +182,8 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     store.legacy_connection.commit()
 
     # Fetch JWT settings
-    secret_key_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'").fetchone()
+    secret_key = get_jwt_secret(store.legacy_connection)
     expiration_row = store.legacy_connection.execute("SELECT value FROM app_settings WHERE key = 'jwt_expiration_days'").fetchone()
-    secret_key = secret_key_row["value"] if secret_key_row else "scholar-docx-local-first-secret-key-do-not-use-in-cloud"
     expiration_days = int(expiration_row["value"]) if expiration_row else 30
 
     # Generate token
@@ -280,7 +279,7 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
     }
 
 @router.get("/plans")
-def get_plans(store: Store = Depends(get_store)):
+def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
     # Returns the limits for all tiers
     limits = store.legacy_connection.execute(
         "SELECT role, feature, limit_count, reset_period FROM role_limits ORDER BY role, feature"

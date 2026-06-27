@@ -49,6 +49,7 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 1, 'never'),
         ('ai_tokens_per_month', 500000, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
+        ('can_use_purchased_tokens', 0, 'never'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
@@ -70,6 +71,7 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 3, 'never'),
         ('ai_tokens_per_month', 2000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
+        ('can_use_purchased_tokens', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
     ],
     'max_user': [
@@ -92,6 +94,7 @@ DEFAULT_ROLE_LIMITS = {
         ('total_whiteboards', 10, 'never'),
         ('ai_tokens_per_month', 5000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
+        ('can_use_purchased_tokens', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
     ],
     'general_admin': [
@@ -141,6 +144,8 @@ DEFAULT_ROLE_LIMITS = {
         ('total_sticky_notes', 3, 'never'),
         ('total_whiteboards', 1, 'never'),
         ('ai_tokens_per_month', 0, 'monthly'),
+        ('can_purchase_token_packs', 0, 'never'),
+        ('can_use_purchased_tokens', 0, 'never'),
     ]
 }
 
@@ -218,7 +223,7 @@ class AdminService:
         pending_invite_requests = self.connection.execute("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'").fetchone()[0]
         pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
         pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
-        pending_credit_requests = self.connection.execute("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'pending'").fetchone()[0]
+        pending_credit_requests = self.connection.execute("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending'").fetchone()[0]
 
         total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
 

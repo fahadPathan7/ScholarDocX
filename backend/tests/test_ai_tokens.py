@@ -78,6 +78,7 @@ def test_seed_defaults(tmp_path):
         {"code": "small", "token_amount": 100000, "price_usd": 10.0},
         {"code": "medium", "token_amount": 500000, "price_usd": 40.0},
         {"code": "large", "token_amount": 1500000, "price_usd": 100.0},
+        {"code": "extra_large", "token_amount": 5000000, "price_usd": 300.0},
     ]
     assert allowance["general_user"] == 500000
 
@@ -157,18 +158,18 @@ def test_refresh_balance_resets_at_month_boundary_no_rollover(tmp_path):
 def test_charge_consumes_subscription_before_purchased(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)  # 1000/500 -> 20 tokens
-    user = make_user(settings, ["general_user"])
+    user = make_user(settings, ["pro_user"])
     session = next(get_db(settings.database_path))
     try:
         ai_tokens.grant_purchased(user["id"], 100000, session=session, source="test")
-        # Sub has 500000 -> first charge eats from sub only.
+        # Sub has 2000000 -> first charge eats from sub only.
         res1 = ai_tokens.charge(
             user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
             output_tokens=500, source="chat", session=session,
         )
         assert res1["charged"] == 20
         b = get_balance(settings, user["id"])
-        assert b["subscription_remaining"] == 500000 - 20
+        assert b["subscription_remaining"] == 2000000 - 20
         assert b["purchased_remaining"] == 100000
 
         # Exhaust sub, charge again -> spills into purchased.
@@ -222,7 +223,7 @@ def test_ensure_can_spend_hard_stops_at_zero(tmp_path):
 def test_charge_at_zero_charges_nothing(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)
-    user = make_user(settings, ["general_user"])
+    user = make_user(settings, ["pro_user"])
     session = next(get_db(settings.database_path))
     try:
         # Never grant sub/purchased beyond a tiny amount.
@@ -273,7 +274,7 @@ def test_grant_purchased_accumulates(tmp_path):
 
 def test_out_of_tokens_user_recovers_after_grant(tmp_path):
     settings = make_settings(tmp_path)
-    user = make_user(settings, ["general_user"])
+    user = make_user(settings, ["pro_user"])
     session = next(get_db(settings.database_path))
     try:
         ai_tokens.refresh_balance(user, session)

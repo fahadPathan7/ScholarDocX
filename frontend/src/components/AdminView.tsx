@@ -474,7 +474,8 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       name: "AI Credits",
       features: [
         { key: "ai_tokens_per_month", label: "Monthly AI Credit Allowance", format: (v: number) => v === -1 ? "Unlimited" : formatTokenCount(v), description: "Monthly AI credit grant for this role. Each model call is metered at its per-1M-token price and deducted as credits. Resets monthly with no rollover; purchased credits (never expire) are used after this allowance." },
-        { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and General. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." }
+        { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and General. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." },
+        { key: "can_use_purchased_tokens", label: "Can Use Purchased AI Credits", description: "Controls whether users on this plan can consume their purchased extra AI credits. Default ON for Pro and Max, OFF for Free and General. When OFF, purchased credits are locked and unusable until the user upgrades." }
       ]
     },
     {
@@ -509,6 +510,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
     {
       name: "Scholarship Hunt",
       features: [
+        { key: "can_use_scholarship_hunt", label: "Can Use Scholarship Hunt", description: "Controls whether users can access the automated scholarship finding suite." },
         { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
         { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
       ]

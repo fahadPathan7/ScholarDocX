@@ -9,6 +9,14 @@ const USAGE_LABELS: Record<string, string> = {
   news_searches_per_month: "Monthly Scholarship Hunts",
 };
 
+// Friendly labels for boolean permission toggles. These map to role_limits
+// feature codes — the UI says "credits" while the internal keys stay "token".
+const PERMISSION_LABELS: Record<string, string> = {
+  can_purchase_token_packs: "Purchase Credit Packs",
+  can_use_purchased_tokens: "Use Purchased Credits",
+  admin_manage_token_requests: "Manage Credit Purchase Requests",
+};
+
 function ModalPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -53,7 +61,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
           <div className="overflow-y-auto flex-1 p-6">
             {usageData ? (
               (() => {
-                const isBooleanFeature = (k: string) => k.startsWith("can_use_") || k.startsWith("admin_");
+                const isBooleanFeature = (k: string) => k.startsWith("can_") || k.startsWith("admin_");
                 const booleanEntries = Object.entries(usageData.limits).filter(([k]) => isBooleanFeature(k));
                 const quotaEntries = Object.entries(usageData.limits).filter(([k]) =>
                   !isBooleanFeature(k) &&
@@ -63,7 +71,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                   k !== "sheets_per_project"
                 );
                 const formatLabel = (k: string) => USAGE_LABELS[k]
-                  ?? k.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                  ?? k.split("_").map((w) => w === "ai" ? "AI" : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
                 return (
                   <div className="space-y-6">
@@ -72,10 +80,10 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                       <div className="bg-gradient-to-br from-indigo-50 to-violet-50 p-5 rounded-xl border border-indigo-100">
                         <div className="flex items-center gap-2 mb-3">
                           <Coins className="w-4 h-4 text-indigo-600" />
-                          <h3 className="text-xs font-bold text-indigo-700 uppercase tracking-wider">AI Token Balance</h3>
+                          <h3 className="text-xs font-bold text-indigo-700 uppercase tracking-wider">AI Credit Balance</h3>
                         </div>
                         {balance.is_unlimited ? (
-                          <p className="text-sm font-semibold text-slate-700">Unlimited AI tokens (admin)</p>
+                          <p className="text-sm font-semibold text-slate-700">Unlimited AI credits (admin)</p>
                         ) : (
                           <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -88,7 +96,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                               </p>
                             </div>
                             <div>
-                              <p className="text-[11px] text-slate-500 font-medium">Purchased (never expire)</p>
+                              <p className="text-[11px] text-slate-500 font-medium">Purchased Credits (never expire)</p>
                               <p className="text-lg font-bold text-emerald-600">
                                 {Math.max(0, balance.purchased_total - balance.purchased_remaining).toLocaleString()}
                                 <span className="text-xs font-medium text-emerald-400/80">
@@ -100,7 +108,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                         )}
                         {(balance.total_spent_tokens > 0 || balance.total_spent_usd > 0) && (
                           <p className="text-[11px] text-slate-400 mt-2">
-                            Spent {balance.total_spent_tokens.toLocaleString()} tokens all-time.
+                            Spent {balance.total_spent_tokens.toLocaleString()} credits all-time.
                           </p>
                         )}
                       </div>
@@ -153,7 +161,8 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {booleanEntries.map(([key, limit]) => {
                             const isEnabled = limit === 1;
-                            const label = formatLabel(key);
+                            let label = PERMISSION_LABELS[key] ?? formatLabel(key).replace(/^Can Use /, "").replace(/^Can /, "");
+                            if (["Gemini", "Groq", "Glm", "Mistral"].includes(label)) label += " Models";
                             return (
                               <div key={key} className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 flex items-center justify-between">
                                 <span className="text-sm font-medium text-slate-600 truncate mr-3" title={label}>{label}</span>
@@ -181,7 +190,7 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {usageData.limits["ai_messages_per_session"] !== undefined && (
                             <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 flex items-center justify-between">
-                              <span className="text-sm font-medium text-slate-600 truncate mr-3" title="Ai Messages Per Session">Ai Messages Per Session</span>
+                              <span className="text-sm font-medium text-slate-600 truncate mr-3" title="AI Messages Per Session">AI Messages Per Session</span>
                               <span className="text-xs font-bold text-slate-800 whitespace-nowrap">
                                 {usageData.limits["ai_messages_per_session"] === -1 ? "Unlimited" : `${usageData.limits["ai_messages_per_session"]} max`}
                               </span>

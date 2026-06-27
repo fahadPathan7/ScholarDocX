@@ -299,6 +299,32 @@ def migrate_database(connection: sqlite3.Connection) -> None:
             """
         )
 
+    # SCHOLARDOCX-0085: purchased_total is the lifetime total of purchased AI
+    # credits ever granted. grant_purchased maintains it now, but grants made
+    # before that fix left it at 0, so the UsageModal purchased breakdown showed
+    # "0 / 0" despite an active purchase. Recompute it authoritatively from the
+    # ledger (sum of positive purchased-bucket grants) for any out-of-sync row.
+    if ai_token_balance_columns and "purchased_total" in ai_token_balance_columns:
+        connection.execute(
+            """
+            UPDATE ai_token_balances
+            SET purchased_total = COALESCE(
+              (SELECT SUM(tokens_delta)
+               FROM ai_token_ledger
+               WHERE user_id = ai_token_balances.user_id
+                 AND balance_bucket = 'purchased'
+                 AND tokens_delta > 0), 0
+            )
+            WHERE purchased_total <> COALESCE(
+              (SELECT SUM(tokens_delta)
+               FROM ai_token_ledger
+               WHERE user_id = ai_token_balances.user_id
+                 AND balance_bucket = 'purchased'
+                 AND tokens_delta > 0), 0
+            )
+            """
+        )
+
     profile_columns = {
         row["name"]
         for row in connection.execute("PRAGMA table_info(local_profiles)").fetchall()
@@ -418,6 +444,10 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         ("general_user", "can_purchase_token_packs", 0, "never"),
         ("pro_user", "can_purchase_token_packs", 1, "never"),
         ("max_user", "can_purchase_token_packs", 1, "never"),
+        ("free_user", "can_use_purchased_tokens", 0, "never"),
+        ("general_user", "can_use_purchased_tokens", 0, "never"),
+        ("pro_user", "can_use_purchased_tokens", 1, "never"),
+        ("max_user", "can_use_purchased_tokens", 1, "never"),
     ]
     connection.executemany(
         """
@@ -552,6 +582,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "can_use_advisor_atlas",
         "can_use_scholarship_hunt",
         "can_purchase_token_packs",
+        "can_use_purchased_tokens",
         "total_projects", "total_sheets", "total_records",
         "sheets_per_project", "records_per_sheet",
         "total_documents_bytes", "total_sticky_notes", "total_whiteboards",

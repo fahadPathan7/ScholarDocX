@@ -129,7 +129,11 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('free_user', 'can_purchase_token_packs', 0, 'never'),
   ('general_user', 'can_purchase_token_packs', 0, 'never'),
   ('pro_user', 'can_purchase_token_packs', 1, 'never'),
-  ('max_user', 'can_purchase_token_packs', 1, 'never');
+  ('max_user', 'can_purchase_token_packs', 1, 'never'),
+  ('free_user', 'can_use_purchased_tokens', 0, 'never'),
+  ('general_user', 'can_use_purchased_tokens', 0, 'never'),
+  ('pro_user', 'can_use_purchased_tokens', 1, 'never'),
+  ('max_user', 'can_use_purchased_tokens', 1, 'never');
 
 -- NOTE: jwt_secret_key is intentionally NOT seeded here. It is generated as a
 -- strong random value per install in initialize_database() so the signing key

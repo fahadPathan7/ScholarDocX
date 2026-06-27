@@ -6,6 +6,7 @@ type UsageData = {
   limits: Record<string, number>;
   usage: Record<string, number>;
   advisor_atlas_plan_phrase?: string;
+  token_packs_plan_phrase?: string;
 };
 
 type UsageContextType = {

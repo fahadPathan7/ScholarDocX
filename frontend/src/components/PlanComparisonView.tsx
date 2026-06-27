@@ -174,12 +174,11 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     { key: "ai_tokens_per_month", label: "Monthly AI Credits", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
     { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
     { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
+    { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [
     { key: "ai_messages_per_session", label: "AI Messages / Session", icon: MessageSquare },
-    { key: "web_searches_per_day", label: "Web Searches / Day", icon: Globe },
-    { key: "web_searches_per_month", label: "Web Searches / Month", icon: Globe },
     { key: "total_sheets", label: "Total Sheets", icon: Table },
     { key: "total_records", label: "Total Records", icon: Database },
     { key: "sheets_per_project", label: "Sheets per Project", icon: Layers },

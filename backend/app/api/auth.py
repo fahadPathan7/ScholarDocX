@@ -261,6 +261,7 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
             "limits": zero_limits,
             "usage": zero_usage,
             "advisor_atlas_plan_phrase": feature_plan_phrase("can_use_advisor_atlas", store.db),
+            "token_packs_plan_phrase": feature_plan_phrase("can_purchase_token_packs", store.db),
         }
 
     limits = store.legacy_connection.execute(
@@ -278,6 +279,7 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
         "limits": limits_dict,
         "usage": usage_dict,
         "advisor_atlas_plan_phrase": feature_plan_phrase("can_use_advisor_atlas", store.db),
+        "token_packs_plan_phrase": feature_plan_phrase("can_purchase_token_packs", store.db),
     }
 
 @router.get("/plans")

@@ -15,6 +15,7 @@ import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
 import { emitNavigate } from "../lib/tokenEvents";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
+import { useUsage } from "../contexts/UsageContext";
 
 type Pack = {
   code: string;
@@ -75,6 +76,7 @@ interface Props {
 
 export function BuyTokensView({ onBack, onToast }: Props) {
   const { balance, canPurchasePacks, refresh } = useTokenEconomy();
+  const { usageData } = useUsage();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [requests, setRequests] = useState<MyRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
   };
 
   useEffect(() => {
+    refresh();
     if (canPurchasePacks) fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPurchasePacks]);
@@ -143,7 +146,6 @@ export function BuyTokensView({ onBack, onToast }: Props) {
           </button>
           <div>
             <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Buy AI Credits</h2>
-            <p className="text-slate-500 mt-1">Top up with extra AI credit packs — credits never expire.</p>
           </div>
         </div>
 
@@ -190,7 +192,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
           <div className="rounded-2xl border border-indigo-100 bg-gradient-to-b from-indigo-50/70 to-white p-5 shadow-sm">
             <div className="flex items-center gap-2 text-indigo-700 mb-2">
               <Wallet size={15} />
-              <span className="text-xs font-bold uppercase tracking-widest">Purchased</span>
+              <span className="text-xs font-bold uppercase tracking-widest">Purchased Credits</span>
             </div>
             <div className="text-2xl font-black text-slate-800">{formatTokens(balance!.purchased_remaining)}</div>
             <div className="text-xs text-slate-500 mt-0.5">never expire</div>
@@ -282,14 +284,51 @@ export function BuyTokensView({ onBack, onToast }: Props) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-6">
+          <div className="pt-2">
+            <div className="mb-7 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-white px-5 py-4 shadow-sm">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
+                <Sparkles size={18} />
+              </div>
+              <div style={{ fontFamily: "'Nunito', sans-serif" }}>
+                <h3 className="text-slate-800 text-[15px] font-bold leading-snug">
+                  Top up with extra AI credit packs — credits never expire.
+                </h3>
+                <p className="text-slate-500 text-[13px] mt-0.5 leading-snug">
+                  You can only buy and use extra credit packs while subscribed to {usageData?.token_packs_plan_phrase || "an eligible plan"}.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {packs.map((pack, idx) => {
+              const theme = [
+                {
+                  card: "bg-white border border-slate-200",
+                  text: "text-slate-800",
+                  button: "bg-slate-800 text-white hover:bg-slate-900 hover:shadow-md"
+                },
+                {
+                  card: "bg-gradient-to-b from-emerald-50/80 to-white border border-emerald-100/60",
+                  text: "text-emerald-600",
+                  button: "bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/20"
+                },
+                {
+                  card: "bg-gradient-to-b from-indigo-50/80 to-white border border-indigo-100/60",
+                  text: "text-indigo-600",
+                  button: "bg-indigo-500 text-white hover:bg-indigo-600 hover:shadow-md hover:shadow-indigo-500/20"
+                },
+                {
+                  card: "bg-gradient-to-b from-rose-50/80 to-white border border-rose-100/60",
+                  text: "text-rose-600",
+                  button: "bg-rose-500 text-white hover:bg-rose-600 hover:shadow-md hover:shadow-rose-500/20"
+                }
+              ][idx % 4];
+
               const popular = packs.length > 1 && idx === Math.min(1, packs.length - 1);
               const justDone = justRequested === pack.code;
               return (
                 <div
                   key={pack.code}
-                  className={`rounded-3xl p-8 transition-all duration-300 flex flex-col relative group ${popular ? "bg-gradient-to-b from-emerald-50/80 to-white border border-emerald-100/60 shadow-lg hover:shadow-xl" : "bg-white border border-slate-200 shadow-lg hover:shadow-xl"}`}
+                  className={`rounded-3xl p-8 transition-all duration-300 flex flex-col relative group shadow-lg hover:shadow-xl ${theme.card}`}
                 >
                   {popular && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold px-4 py-1.5 rounded-full flex items-center gap-1 z-20 shadow-md tracking-wider uppercase">
@@ -300,7 +339,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
                   <div className="mb-8 relative z-10">
                     <h3 className="text-2xl font-black text-slate-800 mb-2">{pack.display_name}</h3>
                     <div className="flex items-baseline gap-1 mb-3">
-                      <span className={`text-4xl font-black ${popular ? "text-emerald-600" : "text-slate-800"}`}>{formatTokens(pack.token_amount)}</span>
+                      <span className={`text-4xl font-black ${theme.text}`}>{formatTokens(pack.token_amount)}</span>
                       <span className="text-slate-500 font-medium ml-1">credits</span>
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed">One-time top-up. Credits never expire.</p>
@@ -313,7 +352,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
                     <button
                       onClick={() => handleRequest(pack.code)}
                       disabled={submitting === pack.code || justDone}
-                      className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : popular ? "bg-emerald-500 text-white hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/20" : "bg-slate-800 text-white hover:bg-slate-900 hover:shadow-md"} ${submitting === pack.code ? "opacity-70" : ""}`}
+                      className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : theme.button} ${submitting === pack.code ? "opacity-70" : ""}`}
                     >
                       {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Pack"}
                     </button>
@@ -321,6 +360,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
                 </div>
               );
             })}
+          </div>
           </div>
         )}
       </div>

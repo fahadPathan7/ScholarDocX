@@ -348,24 +348,20 @@ export function ProfileView({
                 <div className="profile-action-content"><User size={16} className="text-slate-500" /> Change Avatar</div>
                 <ChevronRight size={16} className="profile-action-chevron" />
               </button>
-              <button onClick={() => setShowNotificationsModal(true)} className="profile-action-row" type="button">
-                <div className="profile-action-content"><Bell size={16} className="text-slate-500" /> Notification Settings</div>
-                <ChevronRight size={16} className="profile-action-chevron" />
-              </button>
             </div>
           </div>
 
-          <div className="profile-system-card profile-workspace-card glass-panel">
+          <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <Database size={16} className="text-amber-500" />
-              <strong>Workspace</strong>
+              <Bell size={16} className="text-amber-500" />
+              <strong>Notification Preferences</strong>
             </div>
             <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
-              View your workspace directory, database location, and email configuration.
+              Control what email alerts and system notifications you receive.
             </p>
             <div className="profile-actions-stack">
-              <button onClick={() => setShowWorkspaceModal(true)} className="profile-action-row" type="button">
-                <div className="profile-action-content"><Database size={16} className="text-slate-500" /> View Workspace Details</div>
+              <button onClick={() => setShowNotificationsModal(true)} className="profile-action-row" type="button" style={{ borderBottom: "none" }}>
+                <div className="profile-action-content"><Bell size={16} className="text-amber-500" /> Notification Settings</div>
                 <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
@@ -373,15 +369,15 @@ export function ProfileView({
 
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <Zap size={16} className="text-violet-500" />
-              <strong>Usage & AI Models</strong>
+              <ShieldCheck size={16} className="text-rose-500" />
+              <strong>Change Password</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
-              Monitor workspace resource usage and explore available AI models.
+            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
+              Changing your password will log you out of all devices.
             </p>
             <div className="profile-actions-stack">
-              <button onClick={() => setShowUsageModal(true)} className="profile-action-row" type="button" style={{ borderBottom: "none" }}>
-                <div className="profile-action-content"><Zap size={16} className="text-slate-500" /> View Usage & Limits</div>
+              <button onClick={() => setShowPasswordModal(true)} className="profile-action-row" type="button" style={{ borderBottom: "none" }}>
+                <div className="profile-action-content"><ShieldCheck size={16} className="text-rose-500" /> Change Password</div>
                 <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
@@ -447,35 +443,17 @@ export function ProfileView({
             </div>
           )}
 
-          {user?.roles?.some(r => ['super_admin', 'general_admin'].includes(r)) && onViewAdmin && (
-            <div className="profile-system-card glass-panel admin-card">
-              <div className="profile-system-header text-blue-800">
-                <ShieldCheck size={16} className="text-blue-500" />
-                <strong>Admin Panel</strong>
-              </div>
-              <p className="profile-system-hint text-blue-900" style={{ marginTop: 0, marginBottom: "12px" }}>
-                You have administrative privileges. Access the Admin Panel to manage users, roles, and platform settings.
-              </p>
-              <div className="profile-actions-stack" style={{ borderColor: "rgba(59, 130, 246, 0.3)", background: "rgba(255, 255, 255, 0.6)" }}>
-                <button onClick={onViewAdmin} className="profile-action-row" type="button">
-                  <div className="profile-action-content"><ShieldCheck size={16} className="text-blue-600" /> Go to Admin Panel</div>
-                  <ChevronRight size={16} className="profile-action-chevron text-blue-600" />
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className="profile-system-card glass-panel">
             <div className="profile-system-header">
-              <ShieldCheck size={16} className="text-rose-500" />
-              <strong>Change Password</strong>
+              <Zap size={16} className="text-violet-500" />
+              <strong>Usage & AI Models</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
-              Changing your password will log you out of all devices.
+            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
+              Monitor workspace resource usage and explore available AI models.
             </p>
             <div className="profile-actions-stack">
-              <button onClick={() => setShowPasswordModal(true)} className="profile-action-row" type="button">
-                <div className="profile-action-content"><ShieldCheck size={16} className="text-rose-500" /> Change Password</div>
+              <button onClick={() => setShowUsageModal(true)} className="profile-action-row" type="button" style={{ borderBottom: "none" }}>
+                <div className="profile-action-content"><Zap size={16} className="text-slate-500" /> View Usage & Limits</div>
                 <ChevronRight size={16} className="profile-action-chevron" />
               </button>
             </div>
@@ -745,72 +723,6 @@ export function ProfileView({
         </div>
       )}
 
-      {showWorkspaceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md" style={{ background: 'rgba(15, 25, 20, 0.5)', animation: 'modalFadeIn 0.2s ease-out' }} onClick={() => setShowWorkspaceModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200/70" style={{ animation: 'modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }} onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-3 border-b border-slate-200/80 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-indigo-100 rounded-lg">
-                  <Database size={16} className="text-indigo-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800">Workspace Configuration</h3>
-                  <p className="text-[10px] text-slate-500">Your local environment settings</p>
-                </div>
-              </div>
-              <button onClick={() => setShowWorkspaceModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 space-y-2">
-              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-indigo-50/50 to-transparent rounded-lg border border-indigo-100/50">
-                <div className="p-1.5 bg-indigo-100 rounded-md">
-                  <FolderOpen size={14} className="text-indigo-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide mb-0.5">Workspace Directory</div>
-                  <code className="text-xs text-slate-700 break-all font-mono">{workspace?.workspace_path || "Not initialized"}</code>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-amber-50/50 to-transparent rounded-lg border border-amber-100/50">
-                <div className="p-1.5 bg-amber-100 rounded-md">
-                  <Database size={14} className="text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Database File</div>
-                  <code className="text-xs text-slate-700 break-all font-mono">{workspace?.database_path || "Not initialized"}</code>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-emerald-50/50 to-transparent rounded-lg border border-emerald-100/50">
-                <div className="p-1.5 bg-emerald-100 rounded-md">
-                  <Globe size={14} className="text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">Email Provider</div>
-                  <code className="text-xs text-slate-700 font-mono">{saved.preferred_email_provider || "gmail"}</code>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-3 bg-gradient-to-r from-blue-50/50 to-transparent rounded-lg border border-blue-100/50">
-                <div className="p-1.5 bg-blue-100 rounded-md">
-                  <Mail size={14} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Contact Email</div>
-                  <code className="text-xs text-slate-700 break-all font-mono">{saved.email || "—"}</code>
-                </div>
-              </div>
-              <div className="pt-2">
-                <button
-                  onClick={() => setShowWorkspaceModal(false)}
-                  className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {showNotificationsModal && (
         <div className="absolute inset-0 z-50 flex items-start justify-center pt-20 pb-16 backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowNotificationsModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl flex flex-col w-full mx-4" style={{ width: "960px", maxWidth: "94vw", maxHeight: "calc(100vh - 14rem)" }} onClick={(e) => e.stopPropagation()}>

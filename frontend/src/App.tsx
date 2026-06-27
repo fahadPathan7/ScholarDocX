@@ -299,6 +299,10 @@ export function App() {
     ? (usageData.limits?.can_use_advisor_atlas ?? 0) === 1
     : isProOrMaxRole;
 
+  const canUseScholarshipHunt = usageData
+    ? (usageData.limits?.can_use_scholarship_hunt ?? 0) === 1
+    : isProOrMaxRole;
+
   useEffect(() => {
     if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
@@ -331,6 +335,12 @@ export function App() {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
       setActiveTab("plans");
       showToast(`Advisor Atlas is available on ${phrase}.`);
+      return;
+    }
+    if (key === "news" && !canUseScholarshipHunt) {
+      const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan"; // Scholarship Hunt is also typically on pro/max
+      setActiveTab("plans");
+      showToast(`Scholarship Hunt is available on ${phrase}.`);
       return;
     }
     if (key === "projects") {
@@ -382,19 +392,23 @@ export function App() {
           {navItems.map((item, i) => {
             const [key, label, Icon] = item;
             const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
-            const NavIcon = atlasLocked ? Lock : Icon;
+            const newsLocked = key === "news" && !canUseScholarshipHunt;
+            const isLocked = atlasLocked || newsLocked;
             return (
               <Fragment key={key}>
                 {currentHasUserPlan && i === 7 && <div className="nav-spacer" />}
                 <button
                   aria-label={label}
-                  className={activeTab === key ? "active" : ""}
+                  className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}
                   onClick={() => handleSidebarNav(key)}
-                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
-                  style={atlasLocked ? { opacity: 0.55 } : undefined}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
+                  style={isLocked ? { opacity: 0.55 } : undefined}
                 >
-                  <NavIcon size={18} />
+                  <Icon size={18} />
                   <span>{label}</span>
+                  {isLocked && !navCollapsed && (
+                    <Lock size={14} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                  )}
                 </button>
               </Fragment>
             );
@@ -474,7 +488,7 @@ export function App() {
             <WhiteboardView key={whiteboardKey} onToast={showToast} />
           ) : activeTab === "atlas" && canUseAdvisorAtlas ? (
             <AdvisorAtlasView onToast={showToast} />
-          ) : activeTab === "news" ? (
+          ) : activeTab === "news" && canUseScholarshipHunt ? (
             <ScholarshipNewsView onToast={showToast} />
           ) : activeTab === "profile" ? (
             <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />

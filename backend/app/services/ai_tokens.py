@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 AI_TOKENS_FEATURE = "ai_tokens_per_month"
 PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
+USE_PACKS_FEATURE = "can_use_purchased_tokens"
 RATE_SETTING = "ai_token_rate_tokens_per_dollar"
 DEFAULT_TOKEN_RATE = 10000
 TAVILY_COST_SETTING = "tavily_call_cost_usd"
@@ -143,6 +144,27 @@ def can_purchase_packs(user: dict, session: Session) -> bool:
     return int(row["limit_count"]) != 0
 
 
+def can_use_purchased_tokens_feature(user: dict, session: Session) -> bool:
+    """Whether the user's plan allows consuming purchased extra AI tokens.
+    
+    If False, the user's purchased balance is treated as locked (0) during
+    billing deduction and pre-flight checks.
+    """
+    from app.auth.limits import get_primary_user_role
+
+    role = get_primary_user_role(user)
+    if not role:
+        return False
+    row = session.execute(
+        text("SELECT limit_count FROM role_limits WHERE role = :r AND feature = :f"),
+        {"r": role, "f": USE_PACKS_FEATURE},
+    ).mappings().fetchone()
+    # Mirror enforcement: blocked only when explicitly 0
+    if not row:
+        return True
+    return int(row["limit_count"]) != 0
+
+
 def is_unlimited(user: dict) -> bool:
     """Check if user has unlimited AI tokens.
     
@@ -234,9 +256,11 @@ def ensure_can_spend(user: dict, session: Session, min_tokens: int = 1) -> bool:
     if is_unlimited(user):
         return True
     balance = refresh_balance(user, session)
-    available = int(balance["subscription_remaining"]) + int(
-        balance["purchased_remaining"]
-    )
+    available = int(balance["subscription_remaining"])
+    
+    if can_use_purchased_tokens_feature(user, session):
+        available += int(balance["purchased_remaining"])
+
     if available < min_tokens:
         raise OutOfTokens(
             "You're out of AI credits for this period. Purchase an AI Extra "
@@ -370,7 +394,7 @@ def charge(
         }
 
     sub_remaining = int(balance["subscription_remaining"])
-    purch_remaining = int(balance["purchased_remaining"])
+    purch_remaining = int(balance["purchased_remaining"]) if can_use_purchased_tokens_feature(user, session) else 0
 
     sub_used = min(tokens, sub_remaining)
     purch_used = min(tokens - sub_used, purch_remaining)
@@ -579,7 +603,8 @@ def grant_purchased(
     session.execute(
         text(
             "UPDATE ai_token_balances SET purchased_remaining = "
-            "purchased_remaining + :t WHERE user_id = :uid"
+            "purchased_remaining + :t, purchased_total = "
+            "purchased_total + :t WHERE user_id = :uid"
         ),
         {"t": tokens, "uid": user_id},
     )

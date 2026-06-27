@@ -34,6 +34,7 @@ import {
   CircleDollarSign,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Zap
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -1431,97 +1432,97 @@ function SettingsTab() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
-      <div className="flex justify-between items-center mb-6 shrink-0">
-        <h2 className="text-xl font-semibold text-slate-800">App Settings</h2>
+      <div className="flex justify-between items-center mb-4 shrink-0">
+        <h2 className="text-lg font-semibold text-slate-800">App Settings</h2>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* JWT Card */}
         <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
-          <div className="p-6 flex items-center gap-4">
-            <div className="bg-rose-100/50 p-3 rounded-xl border border-rose-200">
-              <ShieldAlert className="w-6 h-6 text-rose-600" />
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-rose-100/50 p-2 rounded-lg border border-rose-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <ShieldAlert className="w-5 h-5 text-rose-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">JWT Configuration</h3>
-              <p className="text-sm text-slate-500 mt-1">Manage secrets and session lifetimes.</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">JWT Configuration</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Manage secrets and session lifetimes.</p>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
-             <button onClick={() => setShowJwtModal(true)} className="profile-primary-button">
-               Configure JWT
+          <div className="px-3 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowJwtModal(true)} className="admin-config-btn">
+               Configure <ChevronRight size={13} />
              </button>
           </div>
         </div>
 
         {/* Pricing Card */}
         <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
-          <div className="p-6 flex items-center gap-4">
-            <div className="bg-emerald-100/50 p-3 rounded-xl border border-emerald-200 flex items-center justify-center w-12 h-12">
-              <span className="font-bold text-emerald-600">BDT</span>
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-emerald-100/50 rounded-lg border border-emerald-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <span className="font-bold text-emerald-600 text-xs">BDT</span>
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">Plan Pricing</h3>
-              <p className="text-sm text-slate-500 mt-1">Configure pricing for all user plans.</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">Plan Pricing</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Configure pricing for all user plans.</p>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
-             <button onClick={() => setShowPricingModal(true)} className="profile-primary-button">
-               Configure Pricing
+          <div className="px-3 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowPricingModal(true)} className="admin-config-btn">
+               Configure <ChevronRight size={13} />
              </button>
           </div>
         </div>
 
         {/* Model Pricing Card */}
         <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
-          <div className="p-6 flex items-center gap-4">
-            <div className="bg-indigo-100/50 p-3 rounded-xl border border-indigo-200">
-              <CircleDollarSign className="w-6 h-6 text-indigo-600" />
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-indigo-100/50 p-2 rounded-lg border border-indigo-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <CircleDollarSign className="w-5 h-5 text-indigo-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">AI Models Configuration</h3>
-              <p className="text-sm text-slate-500 mt-1">Set per-1M token input/output prices for each model.</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">AI Models Configuration</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Set per-1M token input/output prices for each model.</p>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
-             <button onClick={() => setShowModelPricingModal(true)} className="profile-primary-button">
-               Configure Models
+          <div className="px-3 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowModelPricingModal(true)} className="admin-config-btn">
+               Configure <ChevronRight size={13} />
              </button>
           </div>
         </div>
 
         {/* Token Packs Card */}
         <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
-          <div className="p-6 flex items-center gap-4">
-            <div className="bg-purple-100/50 p-3 rounded-xl border border-purple-200">
-              <Package className="w-6 h-6 text-purple-600" />
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-purple-100/50 p-2 rounded-lg border border-purple-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <Package className="w-5 h-5 text-purple-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">AI Credit Packs</h3>
-              <p className="text-sm text-slate-500 mt-1">Manage AI credit pack offerings and pricing.</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">AI Credit Packs</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Manage AI credit pack offerings and pricing.</p>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
-             <button onClick={() => setShowTokenPacksModal(true)} className="profile-primary-button">
-               Configure Packs
+          <div className="px-3 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowTokenPacksModal(true)} className="admin-config-btn">
+               Configure <ChevronRight size={13} />
              </button>
           </div>
         </div>
 
         {/* External APIs Card */}
         <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
-          <div className="p-6 flex items-center gap-4">
-            <div className="bg-orange-100/50 p-3 rounded-xl border border-orange-200">
-              <Globe className="w-6 h-6 text-orange-600" />
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-orange-100/50 p-2 rounded-lg border border-orange-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <Globe className="w-5 h-5 text-orange-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 text-lg">External APIs</h3>
-              <p className="text-sm text-slate-500 mt-1">Configure pricing for external tools like Tavily.</p>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">External APIs</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Configure pricing for external tools like Tavily.</p>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
-             <button onClick={() => setShowExternalApisModal(true)} className="profile-primary-button">
-               Configure External APIs
+          <div className="px-3 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowExternalApisModal(true)} className="admin-config-btn">
+               Configure <ChevronRight size={13} />
              </button>
           </div>
         </div>

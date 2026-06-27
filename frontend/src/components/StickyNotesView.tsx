@@ -201,7 +201,7 @@ export function StickyNotesView({ onToast }: { onToast: (msg: string) => void })
       ...current,
       is_checklist: true,
       is_sketch: false,
-      checklist: [...current.checklist, { id: crypto.randomUUID(), text, done: false }]
+      checklist: [...current.checklist, { id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2), text, done: false }]
     }));
     setItemText("");
   };

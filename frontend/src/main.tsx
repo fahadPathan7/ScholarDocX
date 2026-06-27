@@ -19,28 +19,32 @@ import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
 import { FullScreenSheet } from "./components/FullScreenSheet";
 
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
 installHorizontalDragScroll();
 migrateLegacyStorageKeys();
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <TokenEconomyProvider>
-      <UsageProvider>
-        <DialogProvider>
-          <BrowserRouter>
-            <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/sheet/fullscreen" element={<FullScreenSheet />} />
-              <Route path="/*" element={<App />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </DialogProvider>
-      </UsageProvider>
-      </TokenEconomyProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TokenEconomyProvider>
+        <UsageProvider>
+          <DialogProvider>
+            <BrowserRouter>
+              <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/sheet/fullscreen" element={<FullScreenSheet />} />
+                <Route path="/*" element={<App />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </DialogProvider>
+        </UsageProvider>
+        </TokenEconomyProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

@@ -219,6 +219,33 @@
   color: #4f46e5;
 }
 
+/* Compact gradient action button for the App Settings config cards.
+   Kept local so the shared .profile-primary-button (used elsewhere) is
+   untouched — Tailwind utilities lose the source-order fight with it. */
+.admin-config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.18);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.admin-config-btn:hover {
+  background: linear-gradient(135deg, #4338ca, #3730a3);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.26);
+  transform: translateY(-1px);
+}
+
 .admin-dashboard-loading,
 .admin-dashboard-empty {
   min-height: 7rem;

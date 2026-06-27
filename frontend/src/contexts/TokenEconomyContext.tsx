@@ -14,6 +14,7 @@ export type AiTokenBalance = {
   total_spent_tokens: number;
   total_spent_usd: number;
   tokens_per_dollar: number;
+  can_purchase_packs: boolean;
 };
 
 type TokenEconomyContextType = {
@@ -21,6 +22,7 @@ type TokenEconomyContextType = {
   loading: boolean;
   refresh: () => Promise<void>;
   openBuyTokens: () => void;
+  canPurchasePacks: boolean;
 };
 
 const TokenEconomyContext = createContext<TokenEconomyContextType | undefined>(undefined);
@@ -62,7 +64,9 @@ export function TokenEconomyProvider({ children }: { children: React.ReactNode }
   const openBuyTokens = useCallback(() => setBuyOpen(true), []);
 
   return (
-    <TokenEconomyContext.Provider value={{ balance, loading, refresh, openBuyTokens }}>
+    <TokenEconomyContext.Provider
+      value={{ balance, loading, refresh, openBuyTokens, canPurchasePacks: balance?.can_purchase_packs ?? true }}
+    >
       {children}
       <BuyTokensModal
         open={buyOpen}

@@ -8,3 +8,13 @@ export function emitOutOfTokens(message?: string) {
     new CustomEvent("scholardocx:out-of-tokens", { detail: { message } })
   );
 }
+
+// Switch the active top-level tab (e.g. from a modal upsell to "Choose Plan").
+// Same window-event-bus pattern as emitOutOfTokens; App.tsx listens and calls
+// setActiveTab with the supplied tab id.
+export function emitNavigate(tab: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("scholardocx:navigate", { detail: { tab } })
+  );
+}

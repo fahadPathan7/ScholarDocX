@@ -20,7 +20,7 @@ export function AiTokenUsageButton() {
     <div className="token-usage-badge custom-tooltip-container">
       {percentage}%
       <div className="custom-tooltip">
-        AI Tokens Used: {percentage}%<br/>
+        AI Credits Used: {percentage}%<br/>
         <span style={{opacity: 0.8, fontSize: '11px'}}>{used.toLocaleString()} of {totalPool.toLocaleString()} limit</span>
       </div>
     </div>

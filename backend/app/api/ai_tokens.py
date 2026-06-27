@@ -7,14 +7,15 @@ User-facing:
 - GET    /ai-tokens/purchase-requests/me — the user's own requests.
 
 Admin-facing:
-- GET   /ai-tokens/admin/packs                       — all packs (incl. inactive).
-- PATCH /ai-tokens/admin/packs/{code}                — super_admin pack config.
-- GET   /ai-tokens/admin/purchase-requests           — admin request queue.
-- POST  /ai-tokens/admin/purchase-requests/{id}/review — approve / reject.
+- GET   /ai-tokens/admin/packs                       — all packs (incl. inactive), requires admin_manage_settings.
+- PATCH /ai-tokens/admin/packs/{code}                — pack config, requires admin_manage_settings.
+- GET   /ai-tokens/admin/models                      — all models pricing, requires admin_manage_settings.
+- PATCH /ai-tokens/admin/models/{model_pk}           — model pricing config, requires admin_manage_settings.
+- GET   /ai-tokens/admin/purchase-requests           — admin request queue, requires admin_manage_token_requests.
+- POST  /ai-tokens/admin/purchase-requests/{id}/review — approve / reject, requires admin_manage_token_requests.
 
-Pack pricing/config is super_admin only (per spec). Approving/rejecting purchase
-requests is delegated to admins via the `admin_manage_token_requests`
-permission (mirrors plan-request review).
+Pack/model pricing config requires admin_manage_settings permission.
+Approving/rejecting purchase requests requires admin_manage_token_requests permission.
 """
 from typing import Optional
 
@@ -23,7 +24,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_store
-from app.auth.dependencies import get_current_user, require_super_admin
+from app.auth.dependencies import get_current_user
 from app.auth.limits import UsageLimitExceeded, check_and_increment_limit
 from app.services import ai_tokens
 from app.services.store import Store
@@ -70,6 +71,7 @@ def get_balance(
         "total_spent_tokens": int(balance["total_spent_tokens"]),
         "total_spent_usd": float(balance["total_spent_usd"]),
         "tokens_per_dollar": ai_tokens.get_token_rate(session),
+        "can_purchase_packs": ai_tokens.can_purchase_packs(current_user, session),
     }
 
 
@@ -89,7 +91,19 @@ def submit_purchase_request(
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
-    """Submit a Pending purchase request for the given pack code."""
+    """Submit a Pending purchase request for the given pack code.
+
+    Only plans whose role limit ``can_purchase_token_packs`` is enabled may
+    submit (default: pro_user / max_user; free_user / general_user off).
+    """
+    if not ai_tokens.can_purchase_packs(current_user, store.db):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Your plan does not allow purchasing extra AI credit packs. "
+                "Upgrade your plan to unlock more credits."
+            ),
+        )
     try:
         return ai_tokens.submit_purchase_request(
             current_user["id"], payload.pack_code, store.db
@@ -127,8 +141,8 @@ def admin_list_packs(
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
-    """All packs including inactive ones, for super_admin management."""
-    require_super_admin(current_user)
+    """All packs including inactive ones, for admin management (requires admin_manage_settings permission)."""
+    _require_feature("admin_manage_settings", current_user, store.db)
     return ai_tokens.list_packs(store.db, include_inactive=True)
 
 
@@ -137,8 +151,8 @@ def admin_list_models(
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
-    """All AI models with their per-1M-token pricing, for super_admin config."""
-    require_super_admin(current_user)
+    """All AI models with their per-1M-token pricing, for admin config (requires admin_manage_settings permission)."""
+    _require_feature("admin_manage_settings", current_user, store.db)
     return ai_tokens.list_models(store.db)
 
 
@@ -158,9 +172,9 @@ def admin_update_model(
 ):
     """Update a model's input/output $/1M pricing, display name, or active flag.
 
-    Super_admin only — model pricing drives real-cost metering.
+    Requires admin_manage_settings permission — model pricing drives real-cost metering.
     """
-    require_super_admin(current_user)
+    _require_feature("admin_manage_settings", current_user, store.db)
     try:
         updated = ai_tokens.update_model(
             model_pk,
@@ -193,9 +207,9 @@ def admin_update_pack(
 ):
     """Update a pack's price, token grant amount, name, or active flag.
 
-    Super_admin only — pack pricing/config is restricted by spec.
+    Requires admin_manage_settings permission — pack pricing/config is restricted to settings admins.
     """
-    require_super_admin(current_user)
+    _require_feature("admin_manage_settings", current_user, store.db)
     try:
         updated = ai_tokens.update_pack(
             code,

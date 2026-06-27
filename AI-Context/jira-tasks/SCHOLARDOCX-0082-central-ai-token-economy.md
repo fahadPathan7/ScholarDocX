@@ -82,8 +82,8 @@ Unit tests needed:
 Planned tests:
 
 - cost math + ceil; monthly reset; bucket order (subscription→purchased);
-  out-of-tokens hard stop; super_admin unlimited; grant purchased; OpenAI +
-  Gemini usage extraction.
+  out-of-tokens hard stop; grant purchased; OpenAI + Gemini usage extraction.
+  Note: Admin roles do NOT grant unlimited tokens.
 
 ## File Size Check
 

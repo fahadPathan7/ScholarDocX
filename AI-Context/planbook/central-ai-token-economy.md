@@ -76,7 +76,10 @@ runs/month) with a single **central AI token economy**:
 - **Failed provider calls are voided** (no charge) when no usage object is
   returned; if the provider returns usage before erroring, that usage is
   charged (we were billed).
-- **Super_admin**: treated as unlimited (no monthly cap) for usability.
+- **Admin roles do NOT grant unlimited tokens**: Admins (super_admin, general_admin)
+  must have explicit user roles (max_user, pro_user, general_user) to use AI
+  features, and their token limits follow their user role tier. Admins only get
+  access to admin tabs for managing the token economy.
 - **10,000 tokens = $1** is stored as a configurable app_setting
   (`ai_token_rate_tokens_per_dollar`, default 10000), not a hardcoded literal.
 

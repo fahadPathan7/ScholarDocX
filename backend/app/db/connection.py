@@ -364,6 +364,24 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         web_search_permission_defaults,
     )
 
+    # Ensure token-pack purchase permission role limits exist for existing databases.
+    # Default: pro/max can purchase extra token packs; free/general cannot.
+    # Admin roles are intentionally not seeded — the enforcement resolver
+    # (get_primary_user_role) ignores them for non-admin_ features.
+    purchase_pack_permission_defaults = [
+        ("free_user", "can_purchase_token_packs", 0, "never"),
+        ("general_user", "can_purchase_token_packs", 0, "never"),
+        ("pro_user", "can_purchase_token_packs", 1, "never"),
+        ("max_user", "can_purchase_token_packs", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        purchase_pack_permission_defaults,
+    )
+
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
@@ -456,6 +474,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "ai_tokens_per_month",
         "can_use_gemini", "can_use_glm", "can_use_groq", "can_use_mistral",
         "can_use_agents", "can_use_web_search",
+        "can_purchase_token_packs",
         "web_searches_per_day", "web_searches_per_month",
         "total_projects", "total_sheets", "total_records",
         "sheets_per_project", "records_per_sheet",

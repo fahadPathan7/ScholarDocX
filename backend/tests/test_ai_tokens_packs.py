@@ -296,19 +296,21 @@ def test_resolve_unknown_and_bad_action(tmp_path):
 
 # ── router authorization gating ───────────────────────────────────────────────
 
-def test_admin_update_pack_requires_super_admin(tmp_path):
+def test_admin_update_pack_requires_settings_permission(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["super_admin"], email="admin@test.local")
     store = make_store(settings)
     try:
         payload = PackUpdatePayload(token_amount=123456)
+        # Non-admin user without admin_manage_settings permission is blocked.
         with pytest.raises(HTTPException) as exc:
             ai_tokens_api.admin_update_pack(
                 "small", payload, current_user=user, store=store,
             )
         assert exc.value.status_code == 403
 
+        # Admin with admin_manage_settings permission can update packs.
         updated = ai_tokens_api.admin_update_pack(
             "small", payload, current_user=admin, store=store,
         )
@@ -320,7 +322,7 @@ def test_admin_update_pack_requires_super_admin(tmp_path):
 def test_admin_review_requires_permission_and_grants(tmp_path):
     settings = make_settings(tmp_path)
     invalidate_limits_cache()
-    owner = make_user(settings, ["general_user"], email="owner@test.local")
+    owner = make_user(settings, ["pro_user"], email="owner@test.local")
     pleb = make_user(settings, ["general_user"], email="pleb@test.local")
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     store = make_store(settings)
@@ -362,8 +364,78 @@ def test_balance_endpoint_shape(tmp_path):
         assert view["is_unlimited"] is False
         assert view["tokens_per_dollar"] == 10000
         assert view["total_spent_tokens"] == 0
+        assert view["can_purchase_packs"] is False  # general_user cannot buy packs
     finally:
         store.db.close()
+
+
+# ── per-plan purchase gating (can_purchase_token_packs) ───────────────────────
+
+def test_can_purchase_token_packs_seeded(tmp_path):
+    """All four user tiers are seeded with the default purchasability matrix
+    (free/general off; pro/max on) and survive migrate_database."""
+    settings = make_settings(tmp_path)
+    initialize_database(settings.database_path)  # re-run migrate -> applies seed
+    with connect(settings.database_path) as db:
+        rows = {
+            r["role"]: r["limit_count"]
+            for r in db.execute(
+                "SELECT role, limit_count FROM role_limits "
+                "WHERE feature = 'can_purchase_token_packs'"
+            ).fetchall()
+        }
+    assert rows == {
+        "free_user": 0,
+        "general_user": 0,
+        "pro_user": 1,
+        "max_user": 1,
+    }
+
+
+def test_purchase_request_endpoint_gated_by_plan(tmp_path):
+    """Endpoint rejects purchase requests from plans that can't buy packs (403)
+    and accepts them from eligible plans."""
+    settings = make_settings(tmp_path)
+    invalidate_limits_cache()
+    ineligible = make_user(settings, ["general_user"], email="gen@test.local")
+    eligible = make_user(settings, ["pro_user"], email="pro@test.local")
+    store = make_store(settings)
+    try:
+        with pytest.raises(HTTPException) as exc:
+            ai_tokens_api.submit_purchase_request(
+                PurchaseRequestPayload(pack_code="small"),
+                current_user=ineligible, store=store,
+            )
+        assert exc.value.status_code == 403
+
+        req = ai_tokens_api.submit_purchase_request(
+            PurchaseRequestPayload(pack_code="small"),
+            current_user=eligible, store=store,
+        )
+        assert req["status"] == "Pending"
+        assert req["user_id"] == eligible["id"]
+    finally:
+        store.db.close()
+        invalidate_limits_cache()
+
+
+def test_balance_can_purchase_packs_reflects_role(tmp_path):
+    """The balance response reports purchasability for the caller's role."""
+    settings = make_settings(tmp_path)
+    invalidate_limits_cache()
+    ineligible = make_user(settings, ["free_user"], email="free@test.local")
+    eligible = make_user(settings, ["max_user"], email="max@test.local")
+    store = make_store(settings)
+    try:
+        assert ai_tokens_api.get_balance(
+            current_user=ineligible, store=store,
+        )["can_purchase_packs"] is False
+        assert ai_tokens_api.get_balance(
+            current_user=eligible, store=store,
+        )["can_purchase_packs"] is True
+    finally:
+        store.db.close()
+        invalidate_limits_cache()
 
 
 # ── permission hygiene ────────────────────────────────────────────────────────
@@ -393,7 +465,7 @@ def test_ai_tokens_per_month_in_canonical_set(tmp_path):
         count = db.execute(
             "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
         ).fetchone()[0]
-        assert count == 3  # all three user roles
+        assert count == 4  # all four user roles (free, general, pro, max)
 
 
 def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
@@ -474,17 +546,18 @@ def test_update_model_validates_and_unknown(tmp_path):
         session.close()
 
 
-def test_admin_model_endpoints_gated_to_super_admin(tmp_path):
+def test_admin_model_endpoints_gated_to_settings_admin(tmp_path):
     settings = make_settings(tmp_path)
     super_admin = make_user(settings, ["super_admin"], email="sa@test.local")
     pleb = make_user(settings, ["general_user"], email="u@test.local")
     store = make_store(settings)
     try:
-        # Non-super_admin is blocked from listing models.
+        # Non-admin user without admin_manage_settings is blocked from listing models.
         with pytest.raises(HTTPException) as exc:
             ai_tokens_api.admin_list_models(current_user=pleb, store=store)
         assert exc.value.status_code == 403
 
+        # Super_admin with admin_manage_settings permission can access.
         models = ai_tokens_api.admin_list_models(current_user=super_admin, store=store)
         assert len(models) > 0
         pk = models[0]["id"]

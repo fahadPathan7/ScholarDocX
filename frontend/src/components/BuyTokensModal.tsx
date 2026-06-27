@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Coins, Sparkles, CheckCircle2, Clock3, XCircle, RefreshCcw, X } from "lucide-react";
+import { Coins, Sparkles, CheckCircle2, Clock3, XCircle, RefreshCcw, X, Lock, ArrowRight } from "lucide-react";
 import { api } from "../lib/api";
 import { Modal } from "./Modal";
 import { emitUiError } from "../lib/uiError";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
+import { emitNavigate } from "../lib/tokenEvents";
 
 type Pack = {
   code: string;
@@ -66,6 +68,7 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
+  const { canPurchasePacks } = useTokenEconomy();
 
   const fetchAll = async () => {
     setLoading(true);
@@ -93,9 +96,9 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
   };
 
   useEffect(() => {
-    if (open) fetchAll();
+    if (open && canPurchasePacks) fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, canPurchasePacks]);
 
   const handleRequest = async (code: string) => {
     setSubmitting(code);
@@ -114,12 +117,12 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
   if (!open) return null;
 
   return (
-    <Modal onClose={onClose} zIndex={1050}>
+    <Modal onClose={onClose} zIndex={999}>
       <div className="modal-panel max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Coins size={18} className="text-indigo-600" />
-            <h3 className="text-base font-semibold text-slate-800">Buy AI Extra Tokens</h3>
+            <h3 className="text-base font-semibold text-slate-800">Buy AI Credit Packs</h3>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -136,16 +139,38 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
         </div>
 
         <div className="modal-content space-y-4">
+          {!canPurchasePacks ? (
+            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-b from-indigo-50/70 to-white p-6 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                <Lock size={22} />
+              </div>
+              <h4 className="text-sm font-bold text-slate-800">Upgrade your plan to buy AI credit packs</h4>
+              <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+                Extra AI credit packs aren't available on your current plan.
+                Upgrade your plan to unlock more credits whenever you need them.
+              </p>
+              <button
+                onClick={() => {
+                  emitNavigate("plans");
+                  onClose();
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
+              >
+                Choose a plan <ArrowRight size={14} />
+              </button>
+            </div>
+          ) : (
+          <>
           <p className="text-xs text-slate-500">
-            Submit a request for a token pack. An admin approves it, then the tokens are added to
-            your balance. Purchased tokens never expire.
+            Submit a request for an AI credit pack. An admin approves it, then the credits are added to
+            your balance. Purchased credits never expire.
           </p>
 
           <div className="grid grid-cols-1 gap-3">
             {loading ? (
               <div className="text-center text-slate-400 py-6 text-sm animate-pulse">Loading packs…</div>
             ) : packs.length === 0 ? (
-              <div className="text-center text-slate-400 py-6 text-sm">No token packs available right now.</div>
+              <div className="text-center text-slate-400 py-6 text-sm">No AI credit packs available right now.</div>
             ) : (
               packs.map((pack) => (
                 <div
@@ -157,7 +182,7 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
                       <span className="text-sm font-semibold text-slate-800">{pack.display_name}</span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                         <Sparkles size={11} />
-                        {formatTokens(pack.token_amount)} tokens
+                        {formatTokens(pack.token_amount)} credits
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">৳{pack.price_usd.toFixed(2)}</div>
@@ -184,7 +209,7 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
                   <div key={req.id} className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-slate-700 truncate">
-                        {req.pack_name} · {formatTokens(req.token_amount)} tokens
+                        {req.pack_name} · {formatTokens(req.token_amount)} credits
                       </div>
                       <div className="text-[11px] text-slate-400">
                         Requested {new Date(req.requested_at).toLocaleDateString("en-GB")}
@@ -210,6 +235,8 @@ export function BuyTokensModal({ open, onClose, onPurchased }: Props) {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
 
         <div className="modal-footer">

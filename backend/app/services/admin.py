@@ -52,6 +52,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_day', 3, 'daily'),
         ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 500000, 'monthly'),
+        ('can_purchase_token_packs', 0, 'never'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
@@ -74,6 +75,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_day', 10, 'daily'),
         ('news_searches_per_month', 100, 'monthly'),
         ('ai_tokens_per_month', 2000000, 'monthly'),
+        ('can_purchase_token_packs', 1, 'never'),
     ],
     'max_user': [
         ('ai_messages_per_session', 100, 'per_session'),
@@ -96,6 +98,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_day', 30, 'daily'),
         ('news_searches_per_month', 300, 'monthly'),
         ('ai_tokens_per_month', 5000000, 'monthly'),
+        ('can_purchase_token_packs', 1, 'never'),
     ],
     'general_admin': [
         ('admin_create_user', 1, 'never'),
@@ -146,6 +149,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_day', 3, 'daily'),
         ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 0, 'monthly'),
+        ('can_purchase_token_packs', 0, 'never'),
     ]
 }
 

@@ -22,6 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 AI_TOKENS_FEATURE = "ai_tokens_per_month"
+PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
 RATE_SETTING = "ai_token_rate_tokens_per_dollar"
 DEFAULT_TOKEN_RATE = 10000
 
@@ -40,11 +41,12 @@ def _has_role(user: dict, role: str) -> bool:
 def allowance_role(user: dict) -> Optional[str]:
     """Resolve the role used to look up the monthly AI-token allowance.
 
-    Priority: super_admin (unlimited) → max_user → pro_user → general_user
-    → general_admin. Returns None if the user has no qualifying role.
+    Priority: max_user → pro_user → general_user → general_admin.
+    
+    Admin roles (super_admin, general_admin) do NOT bypass or elevate token
+    limits. Admins must have explicit user roles to access AI features.
+    Returns None if the user has no qualifying role.
     """
-    if _has_role(user, "super_admin"):
-        return "super_admin"
     for role in ("max_user", "pro_user", "general_user"):
         if _has_role(user, role):
             return role
@@ -95,8 +97,44 @@ def get_role_monthly_allowance(user: dict, session: Session) -> int:
     return int(row["limit_count"]) if row else 0
 
 
+def can_purchase_packs(user: dict, session: Session) -> bool:
+    """Whether the user's plan allows purchasing extra AI token packs.
+
+    Read-only mirror of the ``can_purchase_token_packs`` guard used by
+    ``POST /ai-tokens/purchase-requests`` (which calls
+    ``check_and_increment_limit(..., 0, session)``). Resolved via the user's
+    primary role so it matches what the endpoint will allow/block.
+
+    Intentionally read-only — the enforcement helper writes a
+    ``user_usage_stats`` row, which we must not do on every balance read.
+    """
+    from app.auth.limits import get_primary_user_role
+
+    role = get_primary_user_role(user)
+    if not role:
+        return False
+    row = session.execute(
+        text("SELECT limit_count FROM role_limits WHERE role = :r AND feature = :f"),
+        {"r": role, "f": PURCHASE_PACKS_FEATURE},
+    ).mappings().fetchone()
+    # Mirror enforcement: blocked only when the row is explicitly 0.
+    # (Unseeded → enforcement defaults to allow; -1/unlimited → allow.)
+    if not row:
+        return True
+    return int(row["limit_count"]) != 0
+
+
 def is_unlimited(user: dict) -> bool:
-    return _has_role(user, "super_admin")
+    """Check if user has unlimited AI tokens.
+    
+    Admin roles (super_admin, general_admin) do NOT grant unlimited tokens.
+    Admins must have explicit user roles (max_user, pro_user, general_user)
+    to use AI features, and their token limits follow their user role tier.
+    
+    Currently, no role grants unlimited tokens. This function is kept for
+    future extensibility (e.g., a theoretical "unlimited_ai" role).
+    """
+    return False
 
 
 def _current_period() -> str:
@@ -167,8 +205,8 @@ def ensure_can_spend(user: dict, session: Session, min_tokens: int = 1) -> bool:
     )
     if available < min_tokens:
         raise OutOfTokens(
-            "You're out of AI tokens for this period. Purchase an AI Extra "
-            "Token pack or wait for your monthly allowance to reset."
+            "You're out of AI credits for this period. Purchase an AI Extra "
+            "Credit pack or wait for your monthly allowance to reset."
         )
     return True
 
@@ -530,7 +568,7 @@ def submit_purchase_request(
     """
     pack = get_pack(pack_code, session)
     if pack is None:
-        raise LookupError("Selected token pack is not available.")
+        raise LookupError("Selected AI credit pack is not available.")
     cur = session.execute(
         text(
             "INSERT INTO ai_token_purchase_requests "

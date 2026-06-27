@@ -45,6 +45,7 @@ import { TokenPurchaseRequestsTab } from "./admin/TokenPurchaseRequestsTab";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
 import { emitUiError } from "../lib/uiError";
 import { useDialog } from "./DialogProvider";
+import { Modal } from "./Modal";
 import "../admin.css";
 
 /** Compact token formatter for admin displays (e.g. 500K, 1.2M). */
@@ -153,7 +154,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       tone: "amber"
     },
     {
-      label: "AI Tokens Used",
+      label: "AI Credits Used",
       value: formatTokenCount(stats.counts.total_ai_tokens || 0),
       icon: Zap,
       tone: "purple"
@@ -207,7 +208,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
         <div className="admin-dashboard-panel__header">
           <div>
             <Zap size={16} />
-            <h3>30-Day AI Token Usage</h3>
+            <h3>30-Day AI Credit Usage</h3>
           </div>
         </div>
         <div className="admin-dashboard-chart-wrap" style={{ height: 250, padding: "16px 20px" }}>
@@ -226,7 +227,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                 contentStyle={{ backgroundColor: "var(--ui-bg-panel)", border: "1px solid var(--ui-border)", borderRadius: "8px", color: "var(--ui-text)" }}
                 itemStyle={{ color: "#8b5cf6" }}
               />
-              <Area type="monotone" dataKey="tokens" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
+              <Area type="monotone" dataKey="tokens" name="AI Credits" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -387,9 +388,9 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       example: "If limit is 10, user can send 10 messages per conversation. Starting a new conversation resets the counter to 0."
     },
     ai_tokens_per_month: {
-      description: "Monthly AI token grant for this role. Each model call is metered at the model's per-1M-token input/output price and deducted from this allowance as tokens (at the configurable tokens-per-dollar rate).",
-      resetInfo: "Resets on the 1st of each month at midnight UTC. Unused subscription tokens do NOT roll over. Purchased tokens (bought via packs) never expire and are consumed after this allowance.",
-      example: "If the allowance is 500,000 tokens, the user can spend up to that much metered AI usage this month. When it runs out, actions are blocked until they buy more tokens or the allowance resets."
+      description: "Monthly AI credit grant for this role. Each model call is metered at the model's per-1M-token input/output price and deducted from this allowance as credits (at the configurable credits-per-dollar rate).",
+      resetInfo: "Resets on the 1st of each month at midnight UTC. Unused subscription credits do NOT roll over. Purchased credits (bought via packs) never expire and are consumed after this allowance.",
+      example: "If the allowance is 500,000 credits, the user can spend up to that much metered AI usage this month. When it runs out, actions are blocked until they buy more credits or the allowance resets."
     },
     web_searches_per_day: {
       description: "Limits the number of web search requests per day.",
@@ -462,9 +463,10 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       ]
     },
     {
-      name: "AI Tokens",
+      name: "AI Credits",
       features: [
-        { key: "ai_tokens_per_month", label: "Monthly AI Token Allowance", format: (v: number) => v === -1 ? "Unlimited" : formatTokenCount(v), description: "Monthly AI token grant for this role. Each model call is metered at its per-1M-token price and deducted as tokens. Resets monthly with no rollover; purchased tokens (never expire) are used after this allowance." }
+        { key: "ai_tokens_per_month", label: "Monthly AI Credit Allowance", format: (v: number) => v === -1 ? "Unlimited" : formatTokenCount(v), description: "Monthly AI credit grant for this role. Each model call is metered at its per-1M-token price and deducted as credits. Resets monthly with no rollover; purchased credits (never expire) are used after this allowance." },
+        { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and General. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." }
       ]
     },
     {
@@ -542,7 +544,7 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
         { key: "admin_manage_invites", label: "Can Manage Invite Codes", description: "Allows generating and managing invite codes for new user registration." },
         { key: "admin_manage_invite_requests", label: "Can Manage Invite Requests", description: "Allows approving or rejecting user invite requests." },
         { key: "admin_manage_plan_requests", label: "Can Manage Plan Requests", description: "Allows approving or rejecting user plan upgrade and extension requests." },
-        { key: "admin_manage_token_requests", label: "Can Manage Token Purchase Requests", description: "Allows approving or rejecting user requests to buy AI Extra Token packs. Model pricing and pack configuration remain super-admin only." },
+        { key: "admin_manage_token_requests", label: "Can Manage Credit Purchase Requests", description: "Allows approving or rejecting user requests to buy AI Extra Credit packs. Model pricing and pack configuration remain super-admin only." },
         { key: "admin_manage_suspension_appeals", label: "Can Manage Suspension Appeals", description: "Allows reviewing and resolving user suspension appeals." },
         { key: "admin_manage_notification_texts", label: "Can Manage Notification Texts", description: "Allows editing system-wide notification message templates." },
         { key: "admin_send_notifications", label: "Can Send Notifications", description: "Allows sending categorized notifications to all users, filtered groups, or specific users." },
@@ -1367,6 +1369,8 @@ function SettingsTab() {
   
   const [showJwtModal, setShowJwtModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showModelPricingModal, setShowModelPricingModal] = useState(false);
+  const [showTokenPacksModal, setShowTokenPacksModal] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -1447,6 +1451,42 @@ function SettingsTab() {
           <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
              <button onClick={() => setShowPricingModal(true)} className="profile-primary-button">
                Configure Pricing
+             </button>
+          </div>
+        </div>
+
+        {/* Model Pricing Card */}
+        <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
+          <div className="p-6 flex items-center gap-4">
+            <div className="bg-indigo-100/50 p-3 rounded-xl border border-indigo-200">
+              <CircleDollarSign className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900 text-lg">AI Model Pricing</h3>
+              <p className="text-sm text-slate-500 mt-1">Set per-1M token input/output prices for each model.</p>
+            </div>
+          </div>
+          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowModelPricingModal(true)} className="profile-primary-button">
+               Configure Models
+             </button>
+          </div>
+        </div>
+
+        {/* Token Packs Card */}
+        <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
+          <div className="p-6 flex items-center gap-4">
+            <div className="bg-purple-100/50 p-3 rounded-xl border border-purple-200">
+              <Package className="w-6 h-6 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900 text-lg">AI Credit Packs</h3>
+              <p className="text-sm text-slate-500 mt-1">Manage AI credit pack offerings and pricing.</p>
+            </div>
+          </div>
+          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowTokenPacksModal(true)} className="profile-primary-button">
+               Configure Packs
              </button>
           </div>
         </div>
@@ -1684,6 +1724,84 @@ function SettingsTab() {
           </div>
         </div>
       )}
+
+      {showModelPricingModal && (
+        <Modal onClose={() => setShowModelPricingModal(false)} zIndex={999}>
+          <div
+            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <CircleDollarSign className="w-5 h-5 text-indigo-500 shrink-0" />
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">AI Model Pricing</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Set per-1M token input/output prices for each model.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModelPricingModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+              <ModelPricingTab />
+            </div>
+            <div className="modal-footer">
+              <button
+                onClick={() => setShowModelPricingModal(false)}
+                className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showTokenPacksModal && (
+        <Modal onClose={() => setShowTokenPacksModal(false)} zIndex={999}>
+          <div
+            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <Package className="w-5 h-5 text-purple-500 shrink-0" />
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">AI Credit Packs</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Manage AI credit pack offerings and pricing.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTokenPacksModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+              <TokenPacksTab />
+            </div>
+            <div className="modal-footer">
+              <button
+                onClick={() => setShowTokenPacksModal(false)}
+                className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1886,13 +2004,7 @@ export function AdminView() {
   }
 
   if (adminPermissions["admin_manage_token_requests"]) {
-    tabs.push({ id: "token_purchase_requests", label: "Token Requests", icon: Coins });
-  }
-
-  // Model pricing + pack config are super-admin only by spec (real-cost metering).
-  if (isSuperAdmin) {
-    tabs.push({ id: "model_pricing", label: "Model Pricing", icon: CircleDollarSign });
-    tabs.push({ id: "token_packs", label: "Token Packs", icon: Package });
+    tabs.push({ id: "token_purchase_requests", label: "Credit Requests", icon: Coins });
   }
 
   if (adminPermissions["admin_manage_role_limits"]) {
@@ -1967,8 +2079,6 @@ export function AdminView() {
             />
           )}
           {activeTab === "token_purchase_requests" && adminPermissions["admin_manage_token_requests"] && <TokenPurchaseRequestsTab />}
-          {activeTab === "model_pricing" && isSuperAdmin && <ModelPricingTab />}
-          {activeTab === "token_packs" && isSuperAdmin && <TokenPacksTab />}
           {activeTab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab />}
           {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab />}
           {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}

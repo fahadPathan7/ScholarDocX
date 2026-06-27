@@ -41,7 +41,7 @@ export function TokenPurchaseRequestsTab() {
       setRequests(res);
     } catch (error) {
       console.error(error);
-      emitUiError({ title: "Failed to load requests", message: "Could not fetch token purchase requests." });
+      emitUiError({ title: "Failed to load requests", message: "Could not fetch credit purchase requests." });
     } finally {
       setLoading(false);
     }
@@ -87,10 +87,10 @@ export function TokenPurchaseRequestsTab() {
         <div>
           <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
             <Coins size={18} className="text-indigo-600" />
-            Token Purchase Requests
+            Credit Purchase Requests
           </h2>
           <p className="text-slate-500 text-xs mt-0.5">
-            Approve requests to grant the pack's tokens to the user's purchased balance. Purchased tokens never expire.
+            Approve requests to grant the pack's credits to the user's purchased balance. Purchased credits never expire.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ export function TokenPurchaseRequestsTab() {
           {visibleRequests.length === 0 ? (
             <div className="p-12 flex flex-col items-center justify-center text-slate-400">
               <ShieldAlert size={48} className="mb-4 opacity-20" />
-              <p>No token purchase requests found.</p>
+              <p>No credit purchase requests found.</p>
             </div>
           ) : (
             <table className="w-full text-sm text-left whitespace-nowrap">
@@ -166,7 +166,7 @@ export function TokenPurchaseRequestsTab() {
                 <tr>
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Pack</th>
-                  <th className="px-4 py-3">Tokens</th>
+                  <th className="px-4 py-3">Credits</th>
                   <th className="px-4 py-3">Price (BDT)</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Requested</th>

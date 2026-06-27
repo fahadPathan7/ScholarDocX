@@ -21,6 +21,15 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
 - Users can **request** an Extra Token pack (Small / Medium / Large). An admin
   approves the request; on approval the purchased tokens are added. Payment is
   settled outside the app (local-first; no payment backend).
+- **Token-pack purchasing is a premium-tier privilege.** Whether a plan can buy
+  packs is controlled per role by `can_purchase_token_packs` (admin-configurable
+  in the role-limits editor). Defaults: `pro_user` and `max_user` can purchase;
+  `free_user` and `general_user` cannot. A user on a plan that cannot purchase
+  still sees the token widget and "Buy tokens" entry, but opening it shows an
+  **upgrade upsell** (link to Choose Plan) instead of the pack list; the backend
+  also rejects their purchase requests with 403.
+- The plan chooser shows "Extra AI tokens purchasable" as a ✓/✗ row per tier,
+  driven by the same role limit.
 
 ## What Counts as Token Usage
 
@@ -46,6 +55,9 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
 
 - Model pricing and pack configuration: **super_admin only**.
 - Monthly allowances, request approval, usage viewing: admin.
+- **Which plans may purchase token packs** (`can_purchase_token_packs`): admin
+  toggles it per role in the role-limits editor (default pro/max on, free/general
+  off).
 - Buying/requesting packs and using AI: any active user with provider access
   and a positive token balance. (Note: Admins do NOT get any AI tokens, unlimited or otherwise, by virtue of being an admin. Admins must have a user role to receive any user-facing features or tokens. Admins only get access to the admin tabs.)
 

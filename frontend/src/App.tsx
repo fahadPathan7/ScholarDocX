@@ -298,6 +298,17 @@ export function App() {
     }
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
 
+  // Cross-component navigation requests via the window event bus
+  // (e.g. BuyTokensModal upsell → "plans" when a plan can't buy token packs).
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener("scholardocx:navigate", handler as EventListener);
+    return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
+  }, []);
+
   let navItems: any[] = [];
   if (currentHasUserPlan) {
     navItems.push(...baseNavItems.slice(0, 7));

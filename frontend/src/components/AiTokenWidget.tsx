@@ -16,11 +16,11 @@ export function AiTokenWidget() {
     return (
       <button
         onClick={openBuyTokens}
-        title="AI tokens — unlimited (admin)"
+        title="AI credits — unlimited (admin)"
         className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600 shadow-sm border border-slate-200 hover:bg-slate-200/60 transition-colors"
       >
         <InfinityIcon size={14} className="text-indigo-500" />
-        <span>AI tokens</span>
+        <span>AI credits</span>
       </button>
     );
   }
@@ -36,15 +36,15 @@ export function AiTokenWidget() {
     <button
       onClick={openBuyTokens}
       title={
-        `Subscription used: ${balance.monthly_allowance === -1 ? 0 : Math.max(0, balance.monthly_allowance - sub).toLocaleString()} / ${allowance === -1 ? "∞" : allowance.toLocaleString()} tokens this month\n` +
-        `Purchased used: ${Math.max(0, balance.purchased_total - purch).toLocaleString()} / ${balance.purchased_total.toLocaleString()} tokens`
+        `Subscription used: ${balance.monthly_allowance === -1 ? 0 : Math.max(0, balance.monthly_allowance - sub).toLocaleString()} / ${allowance === -1 ? "∞" : allowance.toLocaleString()} credits this month\n` +
+        `Purchased used: ${Math.max(0, balance.purchased_total - purch).toLocaleString()} / ${balance.purchased_total.toLocaleString()} credits`
       }
       className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600 shadow-sm border border-slate-200 hover:bg-slate-200/60 transition-colors"
     >
       <Coins size={14} className={atZero ? "text-red-500" : low ? "text-amber-500" : "text-emerald-500"} />
       <span>
         {atZero ? (
-          "Out of tokens"
+          "Out of credits"
         ) : (
           <>
             {formatTokens(sub)}

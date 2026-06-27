@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, CheckCircle2 } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
@@ -165,13 +165,14 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     label: string;
     icon: React.ElementType;
     format?: (v: number) => string;
+    boolean?: boolean;
   }
 
   const coreFeatures: PlanFeature[] = [
     { key: "total_projects", label: "Max Projects", icon: Layout },
-    { key: "total_documents_bytes", label: "Storage Capacity", icon: Database, format: (v: number) => v === -1 ? "Unlimited" : `${Math.round(v / (1024 * 1024))} MB` },
-    { key: "ai_tokens_per_month", label: "Monthly AI Tokens", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
-    { key: "total_records", label: "Total Records", icon: Database },
+    { key: "total_documents_bytes", label: "Storage Capacity", icon: HardDrive, format: (v: number) => v === -1 ? "Unlimited" : `${Math.round(v / (1024 * 1024))} MB` },
+    { key: "ai_tokens_per_month", label: "Monthly AI Credits", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
+    { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [
@@ -179,8 +180,9 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     { key: "web_searches_per_day", label: "Web Searches / Day", icon: Globe },
     { key: "web_searches_per_month", label: "Web Searches / Month", icon: Globe },
     { key: "total_sheets", label: "Total Sheets", icon: Table },
+    { key: "total_records", label: "Total Records", icon: Database },
     { key: "sheets_per_project", label: "Sheets per Project", icon: Layers },
-    { key: "records_per_sheet", label: "Records per Sheet", icon: Database },
+    { key: "records_per_sheet", label: "Records per Sheet", icon: Rows3 },
     { key: "total_sticky_notes", label: "Sticky Notes", icon: Target },
     { key: "total_whiteboards", label: "Whiteboards", icon: Presentation },
   ];
@@ -191,6 +193,18 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     if (count === -1) return "Unlimited";
     if (formatter) return formatter(count);
     return count.toString();
+  };
+
+  // Renders the right-hand value for a feature row. Boolean features (e.g. token
+  // pack purchasing) show ✓/✗ instead of a formatted number. numericClass is the
+  // colour used for non-boolean values (varies per plan column).
+  const renderFeatureValue = (f: PlanFeature, limit: number, numericClass: string) => {
+    if (f.boolean) {
+      return limit >= 1
+        ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+        : <X size={16} className="text-slate-300 shrink-0" />;
+    }
+    return <span className={`font-bold ${numericClass}`}>{formatLimit(limit, f.format)}</span>;
   };
 
   const hasPendingRequest = requests.some(r => r.status === "Pending");
@@ -215,7 +229,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
   };
 
   return (
-    <div className="animate-fade-in p-6 lg:p-12 max-w-7xl mx-auto h-full flex flex-col overflow-hidden">
+    <div className="animate-fade-in p-6 lg:p-12 h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-4 mb-8 shrink-0 flex-wrap">
         <div className="flex items-center gap-4">
           <button 
@@ -294,7 +308,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
             </div>
           )}
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none overflow-hidden rounded-tr-3xl">
-            <Layout size={120} className="-mr-4 -mt-4" />
+            <Compass size={120} className="-mr-4 -mt-4" />
           </div>
           <div className="mb-8 relative z-10">
             <h3 className="text-2xl font-black text-slate-800 mb-2">Free</h3>
@@ -315,7 +329,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
                     <Icon size={16} className={limit > 0 || limit === -1 ? "text-slate-800" : "text-slate-300"} />
                     <span className="font-medium">{f.label}</span>
                   </div>
-                  <span className="font-bold text-slate-800">{formatLimit(limit, f.format)}</span>
+                  {renderFeatureValue(f, limit, "text-slate-800")}
                 </div>
               );
             })}
@@ -343,7 +357,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
             </div>
           )}
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none overflow-hidden rounded-tr-3xl text-blue-600">
-            <Layout size={120} className="-mr-4 -mt-4" />
+            <Rocket size={120} className="-mr-4 -mt-4" />
           </div>
           <div className="mb-8 relative z-10">
             <h3 className="text-2xl font-black text-slate-800 mb-2">General</h3>
@@ -364,7 +378,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
                     <Icon size={16} className={limit > 0 || limit === -1 ? "text-blue-500" : "text-blue-200"} />
                     <span className="font-medium">{f.label}</span>
                   </div>
-                  <span className="font-bold text-slate-800">{formatLimit(limit, f.format)}</span>
+                  {renderFeatureValue(f, limit, "text-slate-800")}
                 </div>
               );
             })}
@@ -395,7 +409,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
             </div>
           )}
           <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity pointer-events-none overflow-hidden rounded-tr-3xl text-emerald-600">
-            <Layout size={120} className="-mr-4 -mt-4" />
+            <Gem size={120} className="-mr-4 -mt-4" />
           </div>
           <div className="mb-8 relative z-10">
             <h3 className="text-2xl font-black text-slate-800 mb-2">Pro</h3>
@@ -404,7 +418,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
               <span className="text-lg font-bold text-emerald-600">BDT</span>
               <span className="text-slate-500 font-medium ml-1">{isYearly ? '/yr' : '/mo'}</span>
             </div>
-            <p className="text-slate-500 text-sm leading-relaxed">Advanced features and more AI capabilities.</p>
+            <p className="text-slate-500 text-sm leading-relaxed">For power users with latest AI.</p>
           </div>
           <div className="space-y-4 flex-1 relative z-10">
             {displayedFeatures.map((f) => {
@@ -416,7 +430,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
                     <Icon size={16} className={limit > 0 || limit === -1 ? "text-emerald-500" : "text-emerald-200"} />
                     <span className="font-medium">{f.label}</span>
                   </div>
-                  <span className="font-bold text-slate-800">{formatLimit(limit, f.format)}</span>
+                  {renderFeatureValue(f, limit, "text-slate-800")}
                 </div>
               );
             })}
@@ -448,7 +462,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
             </div>
           )}
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none overflow-hidden rounded-tr-3xl text-indigo-400">
-            <Database size={120} className="-mr-4 -mt-4" />
+            <Crown size={120} className="-mr-4 -mt-4" />
           </div>
           <div className="mb-8 relative z-10">
             <h3 className="text-2xl font-black text-white mb-2">Max</h3>
@@ -469,7 +483,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
                     <Icon size={16} className={limit > 0 || limit === -1 ? "text-indigo-400" : "text-slate-700"} />
                     <span className="font-medium">{f.label}</span>
                   </div>
-                  <span className="font-bold text-white">{formatLimit(limit, f.format)}</span>
+                  {renderFeatureValue(f, limit, "text-white")}
                 </div>
               );
             })}

@@ -368,7 +368,7 @@ export function ProfileView({
                 <div className="p-3 border-b border-slate-100/50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Zap size={16} className={planCardTone.iconClass} />
-                    <span className="text-sm font-medium opacity-80">Buy More AI Tokens</span>
+                    <span className="text-sm font-medium opacity-80">Buy More AI Credits</span>
                   </div>
                   <AiTokenWidget />
                 </div>

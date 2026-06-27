@@ -145,6 +145,46 @@ Permission hygiene fixes folded in:
   (`schema.py` seed, `connection.py` seed + `canonical_features`,
   `services/admin.py` `DEFAULT_ROLE_LIMITS`).
 
+## Per-plan token-pack purchasing (SCHOLARDOCX-0083 — implemented)
+
+Purchasing packs is gated by a boolean role limit `can_purchase_token_packs`
+(stored like `can_use_web_search`: `limit_count` 1/0, `reset_period='never'`).
+No new tables — it reuses `role_limits`.
+
+Seeding (4 user tiers only; admin roles are intentionally not seeded because
+the enforcement resolver `get_primary_user_role` ignores them for non-`admin_`
+features, so admin rows would be inert):
+
+- `DEFAULT_ROLE_LIMITS` (`services/admin.py`), `SEED_SQL` (`schema.py`), and the
+  `connection.py` migration seed block + `canonical_features` set all carry:
+  free_user=0, general_user=0, pro_user=1, max_user=1.
+
+Enforcement:
+
+- `POST /ai-tokens/purchase-requests` calls
+  `_require_feature("can_purchase_token_packs", current_user, store.db)` before
+  creating the request → 403 when off. `_require_feature` uses
+  `check_and_increment_limit(..., 0, session)` (permission check, no increment).
+
+Balance exposure:
+
+- `GET /ai-tokens/balance` adds `can_purchase_packs: bool`. Computed by a
+  read-only `ai_tokens.can_purchase_packs(user, session)` that resolves the
+  user's primary role and reads `limit_count` (true unless the row is 0). This
+  is read-only (does NOT call `check_and_increment_limit`, which would write a
+  `user_usage_stats` row on every balance read) and mirrors the guard's
+  allow/block outcome so the buy UI matches the API.
+
+Frontend:
+
+- `useTokenEconomy()` exposes `canPurchasePacks` from the balance response.
+  `BuyTokensModal` renders an **upgrade upsell** (link to Choose Plan) instead
+  of the pack list when `canPurchasePacks` is false. `PlanComparisonView` adds a
+  boolean feature row "Extra AI tokens purchasable" (✓/✗) from `GET /auth/plans`.
+  Admin `LimitsTab` exposes the toggle (key starts with `can_` → auto-toggle).
+  Navigating to Choose Plan from the upsell uses a `scholardocx:navigate`
+  window event (`lib/tokenEvents.ts`), handled in `App.tsx` → `setActiveTab("plans")`.
+
 ## Frontend (Phase 4 — implemented)
 
 **Token economy context** (`src/contexts/TokenEconomyContext.tsx`): fetches
@@ -160,9 +200,10 @@ channel — so out-of-tokens is a dedicated buy-flow modal, not a toast. All
 token-economy cost is shown to users in tokens; $ stays admin-only.
 
 **Nav widget** (`src/components/AiTokenWidget.tsx`): compact pill in the App
-topbar (`.top-actions`). Shows `∞` for unlimited (super_admin), else remaining
-subscription tokens (+ purchased if any). Colour shifts red/amber/emerald by
-remaining; a `+` affordance opens the buy modal.
+topbar (`.top-actions`). Shows remaining subscription tokens (+ purchased if any).
+Colour shifts red/amber/emerald by remaining; a `+` affordance opens the buy modal.
+The `is_unlimited` field in the balance response is reserved for future extensibility
+but currently always returns false (no role grants unlimited tokens).
 
 **Buy flow** (`src/components/BuyTokensModal.tsx`): lists active packs
 (`GET /packs`) with a Request button (`POST /purchase-requests`) and the user's

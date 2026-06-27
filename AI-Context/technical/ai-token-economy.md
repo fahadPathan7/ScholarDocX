@@ -19,7 +19,12 @@ Admins see/manage $; users see/spend tokens.
 - `ai_models(provider, model_id, display_name, input_price_per_1m,
   output_price_per_1m, is_active, sort_order)` — unique `(provider, model_id)`.
 - `ai_token_balances(user_id pk, subscription_remaining, subscription_period,
-  purchased_remaining, last_reset_at, total_spent_tokens, total_spent_usd)`.
+  subscription_used_this_period, purchased_remaining, purchased_total,
+  last_reset_at, total_spent_tokens, total_spent_usd)`.
+  `subscription_remaining` is the live bucket (decremented on charge, reset to the
+  tier allowance at month rollover). `subscription_used_this_period` is the
+  authoritative **monthly-used** counter (incremented on charge, zeroed on rollover)
+  — see SCHOLARDOCX-0086. `total_spent_tokens`/`total_spent_usd` are all-time.
 - `ai_token_ledger(user_id, model_id, provider, input_tokens, output_tokens,
   cost_usd, tokens_delta signed, source, balance_bucket, ref_id, note,
   created_at)` — append-only; negative delta = consumed, positive = granted.
@@ -42,6 +47,34 @@ Admins see/manage $; users see/spend tokens.
   atomic: consume subscription first then purchased; append ledger rows.
 - `grant_purchased(user_id, tokens, session, source, note, ref_id)` — for pack
   approval / admin grants.
+
+## Monthly-used tracking (SCHOLARDOCX-0086 — implemented)
+
+"Used this month" is **tracked**, not derived. The previous derivation
+(`monthly_allowance - subscription_remaining`, clamped ≥ 0) collapsed to 0 whenever
+`subscription_remaining` exceeded the current allowance — which happens after any
+mid-period plan/allowance change, because `refresh_balance` only re-syncs the
+subscription bucket at month boundaries. With a bucket granted at a higher tier
+(e.g. 5M `max_user`) than the current plan (2M `pro_user`), the subtraction went
+negative and hid the real consumption the ledger recorded.
+
+- `subscription_used_this_period` is incremented by `sub_used` in `charge()` (the
+  subscription-bucket portion; `mixed`-bucket charges already split their sub share
+  into `sub_used`). Unlimited/free calls don't touch it.
+- `refresh_balance()` zeroes it on the period-rollover UPDATE; new rows default to 0.
+- `GET /ai-tokens/balance` returns it as `subscription_used`.
+- The migration backfills it once from `ai_token_ledger`
+  (`SUM(-tokens_delta) WHERE balance_bucket IN ('subscription','mixed') AND
+  substr(created_at,1,7) = subscription_period`) so existing activity is reflected
+  immediately.
+- Frontend reads `balance.subscription_used` directly (`UsageModal`,
+  `AiTokenWidget` tooltip, `AiTokenUsageButton` topbar %). The topbar "pool" is now
+  `used + remaining` (coherent) instead of `monthly_allowance + purchased_total`, so
+  the numbers always add up even when the live bucket was granted at a higher tier.
+- The "grant holds until month-end" policy for `subscription_remaining` is
+  **unchanged** — only the *used* metric is corrected; mid-period reconciliation of
+  `remaining` against the current allowance is explicitly out of scope.
+
 
 ## AI Usage Capture — `app/services/ai.py`
 
@@ -189,26 +222,36 @@ Frontend:
 
 **Token economy context** (`src/contexts/TokenEconomyContext.tsx`): fetches
 `GET /ai-tokens/balance`, exposes `useTokenEconomy()` → `{balance, loading,
-refresh, openBuyTokens}`. Mounted in `main.tsx` between `AuthProvider` and
-`UsageProvider`. Listens for the `scholardocx:out-of-tokens` window event (any
-402 anywhere) → opens the out-of-tokens modal + refreshes balance. Hosts the buy
-+ out-of-tokens modals so they're app-global.
+refresh, openBuyTokens, canPurchasePacks}`. Mounted in `main.tsx` between
+`AuthProvider` and `UsageProvider`. Listens for the `scholardocx:out-of-tokens`
+window event (any 402 anywhere) → opens the out-of-tokens modal + refreshes
+balance. `openBuyTokens` no longer opens a modal — it emits
+`emitNavigate("buy-credits")` (SCHOLARDOCX-0085); the context still hosts the
+out-of-tokens modal app-globally, and its "Buy AI credits" CTA also navigates to
+the page.
 
 **402 handling** (`src/lib/api.ts`): a 402 response dispatches
 `emitOutOfTokens()` and throws, *before* the generic `scholardocx:ui-error`
 channel — so out-of-tokens is a dedicated buy-flow modal, not a toast. All
 token-economy cost is shown to users in tokens; $ stays admin-only.
 
-**Nav widget** (`src/components/AiTokenWidget.tsx`): compact pill in the App
-topbar (`.top-actions`). Shows remaining subscription tokens (+ purchased if any).
-Colour shifts red/amber/emerald by remaining; a `+` affordance opens the buy modal.
-The `is_unlimited` field in the balance response is reserved for future extensibility
-but currently always returns false (no role grants unlimited tokens).
+**Balance widget** (`src/components/AiTokenWidget.tsx`): a compact pill showing
+remaining subscription tokens (+ purchased if any) with a red/amber/emerald colour
+shift by remaining. It renders a `<button>` by default (opens the buy page via
+`openBuyTokens`) but accepts `interactive={false}` to render a non-interactive
+`<span>` — used as the trailing balance indicator inside the Profile card's
+"Buy More AI Credits" action row (SCHOLARDOCX-0085), avoiding a nested button. The
+`is_unlimited` field is reserved for future extensibility but currently always
+returns false (no role grants unlimited tokens).
 
-**Buy flow** (`src/components/BuyTokensModal.tsx`): lists active packs
-(`GET /packs`) with a Request button (`POST /purchase-requests`) and the user's
-own request history (`GET /purchase-requests/me`). Request → admin approves →
-tokens granted (never expire). No payment gateway — approval is the grant.
+**Buy flow** (`src/components/BuyTokensView.tsx` — a full page as of
+SCHOLARDOCX-0085, replacing the former `BuyTokensModal`): hidden `buy-credits`
+view mirroring `PlanComparisonView` chrome (back button + title + Packs/My
+Requests toggle). Lists active packs (`GET /packs`) as plan-style cards with a
+Request action (`POST /purchase-requests`), the user's request history
+(`GET /purchase-requests/me`), and a live balance strip. Renders the upgrade
+upsell (→ Choose Plan) when `canPurchasePacks` is false. Request → admin approves
+→ tokens granted (never expire). No payment gateway — approval is the grant.
 
 **Out-of-tokens modal** (`src/components/OutOfTokensModal.tsx`): explains the
 hard stop, offers Buy tokens / Maybe later.

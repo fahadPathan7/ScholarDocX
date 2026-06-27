@@ -18,6 +18,8 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
 - When the balance reaches zero, AI requests are **blocked** with a clear
   "out of tokens" message and a way to request more.
 - Users see their balance, monthly cap, usage this month, and reset date.
+  "Usage this month" is tracked per billing period (not derived from the allowance),
+  so it stays accurate even if the plan or allowance changes mid-period.
 - Users can **request** an Extra Token pack (Small / Medium / Large). An admin
   approves the request; on approval the purchased tokens are added. Payment is
   settled outside the app (local-first; no payment backend).
@@ -30,6 +32,14 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
   also rejects their purchase requests with 403.
 - The plan chooser shows "Extra AI tokens purchasable" as a ✓/✗ row per tier,
   driven by the same role limit.
+- **Buying packs is a full page, not a modal.** "Buy More AI Credits" opens a
+  dedicated page (`BuyTokensView`, the `buy-credits` view) styled consistently with
+  the Subscription Plans page — same header/back button and a Packs / My Requests
+  toggle — showing the live balance, the pack cards with a Request action, and the
+  user's request history. The "Buy More AI Credits" and "View Subscription Plans"
+  rows on the Profile → *Subscription & Plans* card are consistent action rows;
+  the balance widget, that card row, and the out-of-tokens prompt all navigate to
+  the page rather than opening a modal. (See SCHOLARDOCX-0085.)
 
 ## What Counts as Token Usage
 

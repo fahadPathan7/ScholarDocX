@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.core.categories import normalize_media_category
 from app.core.config import Settings, get_settings
@@ -38,6 +39,15 @@ def verify_model_permission(model: Optional[str], current_user: dict, connection
         
     feature_name = f"can_use_{provider}"
     check_and_increment_limit(current_user, feature_name, 0, connection)
+    
+    from app.auth.limits import UsageLimitExceeded
+    from sqlalchemy import text
+    row = connection.execute(
+        text("SELECT is_active FROM ai_models WHERE (provider || ':' || model_id) = :m OR model_id = :m"),
+        {"m": model}
+    ).fetchone()
+    if row and not row[0]:
+        raise UsageLimitExceeded("Admin has restricted this model use try another model.")
 
 
 class Payload(BaseModel):
@@ -345,7 +355,13 @@ def render_email_template(template_id: int, payload: RenderPayload, store: Store
 def log_outreach(payload: OutreachPayload, store: Store = Depends(get_user_store)) -> dict:
     return store.log_outreach(payload.data, payload.follow_up_days)
 
-
+@router.get("/ai/models")
+def get_ai_models(store: Store = Depends(get_user_store)) -> list[dict]:
+    # Returns all models (even inactive) so frontend can display them as disabled
+    rows = store.db.execute(
+        text("SELECT model_id, provider, display_name, is_active FROM ai_models ORDER BY sort_order ASC")
+    ).mappings().fetchall()
+    return [dict(row) for row in rows]
 
 
 

@@ -132,3 +132,14 @@ export async function notify(
     console.error("Failed to create notification", error);
   }
 }
+
+export type ApiAiModel = {
+  provider: string;
+  model_id: string;
+  display_name: string;
+  is_active: number;
+};
+
+export async function getAiModels(): Promise<ApiAiModel[]> {
+  return api.get<ApiAiModel[]>("/ai/models");
+}

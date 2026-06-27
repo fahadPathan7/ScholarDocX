@@ -5,6 +5,7 @@ const FEATURE_LABELS: Record<string, string> = {
   ai_tokens_per_month: "monthly AI credits",
   can_use_agents: "AI agent actions",
   can_use_web_search: "web search",
+  can_use_advisor_atlas: "Advisor Atlas",
   can_purchase_token_packs: "credit pack purchases",
   web_searches_per_day: "daily web searches",
   total_projects: "total projects",

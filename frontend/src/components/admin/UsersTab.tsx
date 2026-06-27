@@ -60,6 +60,27 @@ const roleTabs = [
   { id: "super_admin" as const, label: "Super Admin" },
 ];
 
+// User tiers (free/general/pro/max) are mutually exclusive — a user holds exactly
+// one plan tier. Admin roles (general/super) are mutually exclusive among
+// themselves. free_user must be part of the tier group or it would stack with
+// the other tiers instead of replacing them.
+const userTierRoles = ["free_user", "general_user", "pro_user", "max_user"];
+const adminRoleKeys = ["general_admin", "super_admin"];
+
+/** Single-select within a role group: picking another role replaces the previous
+ *  one in that group; re-clicking the selected role clears it (so an admin can
+ *  still demote/remove a role). Roles outside the group are left untouched. */
+function selectRoleExclusive(currentRoles: string[], role: string): string[] {
+  if (currentRoles.includes(role)) {
+    return currentRoles.filter((item) => item !== role);
+  }
+  let next = currentRoles.filter(
+    (item) => !(userTierRoles.includes(role) ? userTierRoles : adminRoleKeys).includes(item)
+  );
+  next.push(role);
+  return next;
+}
+
 const planTabs = [
   { id: "all" as const, label: "All Plans", icon: null },
   { id: "expiring_soon" as const, label: "Expiring Soon (7 days)", icon: Clock },
@@ -315,40 +336,11 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
   };
 
   const toggleRole = (role: string) => {
-    let newRoles = [...editingUser.roles];
-    const isUserRole = ["general_user", "pro_user", "max_user"].includes(role);
-    const isAdminRole = ["general_admin", "super_admin"].includes(role);
-
-    if (newRoles.includes(role)) {
-      newRoles = newRoles.filter((r: string) => r !== role);
-    } else {
-      if (isUserRole) {
-        newRoles = newRoles.filter((r: string) => !["general_user", "pro_user", "max_user"].includes(r));
-      } else if (isAdminRole) {
-        newRoles = newRoles.filter((r: string) => !["general_admin", "super_admin"].includes(r));
-      }
-      newRoles.push(role);
-    }
-    setEditingUser({ ...editingUser, roles: newRoles });
+    setEditingUser({ ...editingUser, roles: selectRoleExclusive(editingUser.roles, role) });
   };
 
   const toggleCreateRole = (role: string) => {
-    setCreateRoles((prev) => {
-      let newRoles = [...prev];
-      const isUserRole = ["general_user", "pro_user", "max_user"].includes(role);
-      const isAdminRole = ["general_admin", "super_admin"].includes(role);
-      if (newRoles.includes(role)) {
-        newRoles = newRoles.filter((item) => item !== role);
-      } else {
-        if (isUserRole) {
-          newRoles = newRoles.filter((item) => !["general_user", "pro_user", "max_user"].includes(item));
-        } else if (isAdminRole) {
-          newRoles = newRoles.filter((item) => !["general_admin", "super_admin"].includes(item));
-        }
-        newRoles.push(role);
-      }
-      return newRoles;
-    });
+    setCreateRoles((prev) => selectRoleExclusive(prev, role));
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -816,10 +808,12 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                           {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
                             <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
                               <input
-                                type="checkbox"
+                                type="radio"
+                                name="editUserTier"
                                 checked={editingUser.roles.includes(role)}
-                                onChange={() => toggleRole(role)}
-                                className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500"
+                                onClick={() => toggleRole(role)}
+                                onChange={() => {}}
+                                className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
                               />
                               <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
                             </label>
@@ -871,10 +865,12 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                           {availableRoles.filter((role) => ["general_admin", "super_admin"].includes(role)).map((role) => (
                             <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-rose-50 hover:bg-rose-100 cursor-pointer transition-colors">
                               <input
-                                type="checkbox"
+                                type="radio"
+                                name="editAdminRole"
                                 checked={editingUser.roles.includes(role)}
-                                onChange={() => toggleRole(role)}
-                                className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500"
+                                onClick={() => toggleRole(role)}
+                                onChange={() => {}}
+                                className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                               />
                               <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
                             </label>
@@ -956,10 +952,12 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                       {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
                         <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="createUserTier"
                             checked={createRoles.includes(role)}
-                            onChange={() => toggleCreateRole(role)}
-                            className="w-4 h-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500"
+                            onClick={() => toggleCreateRole(role)}
+                            onChange={() => {}}
+                            className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
                           />
                           <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
                         </label>
@@ -1009,10 +1007,12 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                         {availableRoles.filter((role) => ["general_admin", "super_admin"].includes(role)).map((role) => (
                           <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 cursor-pointer transition-colors">
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name="createAdminRole"
                               checked={createRoles.includes(role)}
-                              onChange={() => toggleCreateRole(role)}
-                              className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500"
+                              onClick={() => toggleCreateRole(role)}
+                              onChange={() => {}}
+                              className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                             />
                             <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
                           </label>

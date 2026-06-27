@@ -41,12 +41,23 @@ USER_SCOPED_TABLES = (
 )
 
 
+from sqlalchemy import create_engine, event
+
 def get_engine(database_path: Path):
     database_url = f"sqlite:///{database_path.absolute()}"
-    return create_engine(
+    engine = create_engine(
         database_url,
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False, "timeout": 15}
     )
+    
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
+        
+    return engine
 
 
 def get_db(database_path: Path):
@@ -60,7 +71,9 @@ def get_db(database_path: Path):
 
 
 def connect(database_path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(database_path, check_same_thread=False)
+    connection = sqlite3.connect(database_path, check_same_thread=False, timeout=15)
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA synchronous=NORMAL")
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
@@ -213,6 +226,10 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         connection.execute("CREATE INDEX IF NOT EXISTS idx_users_is_blocked ON users(is_blocked)")
     if "registered_with_invite_id" not in user_columns:
         connection.execute("ALTER TABLE users ADD COLUMN registered_with_invite_id INTEGER REFERENCES invite_codes(id) ON DELETE SET NULL")
+    if "plan_started_at" not in user_columns:
+        connection.execute("ALTER TABLE users ADD COLUMN plan_started_at TEXT")
+    if "plan_ends_at" not in user_columns:
+        connection.execute("ALTER TABLE users ADD COLUMN plan_ends_at TEXT")
     page_columns = {
         row["name"]
         for row in connection.execute("PRAGMA table_info(project_pages)").fetchall()
@@ -253,6 +270,31 @@ def migrate_database(connection: sqlite3.Connection) -> None:
     }
     if ai_token_balance_columns and "purchased_total" not in ai_token_balance_columns:
         connection.execute("ALTER TABLE ai_token_balances ADD COLUMN purchased_total INTEGER NOT NULL DEFAULT 0")
+
+    # SCHOLARDOCX-0086: authoritative monthly-used counter. Previously "used this
+    # month" was derived in the UI as (allowance - remaining), which collapsed to 0
+    # whenever the live bucket was granted at a higher tier than the current plan
+    # (e.g. after a mid-period downgrade). Track it explicitly instead. On first add,
+    # backfill it once from the ledger for each row's current period so existing
+    # activity is reflected immediately.
+    if ai_token_balance_columns and "subscription_used_this_period" not in ai_token_balance_columns:
+        connection.execute(
+            "ALTER TABLE ai_token_balances "
+            "ADD COLUMN subscription_used_this_period INTEGER NOT NULL DEFAULT 0"
+        )
+        connection.execute(
+            """
+            UPDATE ai_token_balances
+            SET subscription_used_this_period = COALESCE(
+              (SELECT SUM(-tokens_delta)
+               FROM ai_token_ledger
+               WHERE user_id = ai_token_balances.user_id
+                 AND balance_bucket IN ('subscription', 'mixed')
+                 AND substr(created_at, 1, 7) = ai_token_balances.subscription_period),
+              0
+            )
+            """
+        )
 
     profile_columns = {
         row["name"]
@@ -382,6 +424,24 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         purchase_pack_permission_defaults,
     )
 
+    # Ensure Advisor Atlas permission role limits exist for existing databases.
+    # Default: pro/max can use Advisor Atlas; free/general cannot. Admin roles
+    # are intentionally not seeded — the enforcement resolver
+    # (get_primary_user_role) ignores them for non-admin_ features.
+    advisor_atlas_permission_defaults = [
+        ("free_user", "can_use_advisor_atlas", 0, "never"),
+        ("general_user", "can_use_advisor_atlas", 0, "never"),
+        ("pro_user", "can_use_advisor_atlas", 1, "never"),
+        ("max_user", "can_use_advisor_atlas", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        advisor_atlas_permission_defaults,
+    )
+
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
@@ -474,6 +534,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "ai_tokens_per_month",
         "can_use_gemini", "can_use_glm", "can_use_groq", "can_use_mistral",
         "can_use_agents", "can_use_web_search",
+        "can_use_advisor_atlas",
         "can_purchase_token_packs",
         "web_searches_per_day", "web_searches_per_month",
         "total_projects", "total_sheets", "total_records",

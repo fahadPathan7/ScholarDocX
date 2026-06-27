@@ -6,14 +6,22 @@ export function AiTokenUsageButton() {
 
   if (!balance) return null;
 
-  const totalPool = balance.monthly_allowance + balance.purchased_total;
-  
-  if (totalPool <= 0 || balance.is_unlimited) {
+  if (balance.is_unlimited) {
     return null;
   }
 
-  const totalRemaining = balance.subscription_remaining + balance.purchased_remaining;
-  const used = Math.max(0, totalPool - totalRemaining);
+  // "Used" is tracked explicitly per period (subscription_used) — never derived
+  // from allowance − remaining, which collapses to 0 after a mid-period plan
+  // change. The pool is used + remaining so the two always add up, even when the
+  // live subscription bucket was granted at a higher tier than the current plan.
+  const used = balance.subscription_used + Math.max(0, balance.purchased_total - balance.purchased_remaining);
+  const totalRemaining = Math.max(0, balance.subscription_remaining) + balance.purchased_remaining;
+  const totalPool = used + totalRemaining;
+
+  if (totalPool <= 0) {
+    return null;
+  }
+
   const percentage = Math.round((used / totalPool) * 100);
 
   return (

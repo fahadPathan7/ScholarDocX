@@ -120,6 +120,7 @@ export function ModelPricingTab() {
         is_active: draft.is_active,
       });
       await fetchModels({ silent: true });
+      window.dispatchEvent(new CustomEvent("ai-models-updated"));
     } catch (error: any) {
       emitUiError({ title: "Save failed", message: error?.message || "Could not update model pricing." });
     } finally {

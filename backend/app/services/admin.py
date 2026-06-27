@@ -53,6 +53,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 500000, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
+        ('can_use_advisor_atlas', 0, 'never'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
@@ -76,6 +77,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_month', 100, 'monthly'),
         ('ai_tokens_per_month', 2000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
+        ('can_use_advisor_atlas', 1, 'never'),
     ],
     'max_user': [
         ('ai_messages_per_session', 100, 'per_session'),
@@ -99,6 +101,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_month', 300, 'monthly'),
         ('ai_tokens_per_month', 5000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
+        ('can_use_advisor_atlas', 1, 'never'),
     ],
     'general_admin': [
         ('admin_create_user', 1, 'never'),
@@ -150,6 +153,7 @@ DEFAULT_ROLE_LIMITS = {
         ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 0, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
+        ('can_use_advisor_atlas', 0, 'never'),
     ]
 }
 
@@ -404,12 +408,20 @@ class AdminService:
                 "UPDATE users SET roles = ?, plan_started_at = ?, plan_ends_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (roles_json, plan_started_at, plan_ends_at, user_id)
             )
+            self.connection.execute(
+                "UPDATE ai_token_balances SET subscription_period = 'FORCE_RESET' WHERE user_id = ?",
+                (user_id,)
+            )
             self.log_audit_action(admin_id, "update_roles", "users", str(user_id), audit_details)
         else:
             # Clear plan dates for admin-only users
             self.connection.execute(
                 "UPDATE users SET roles = ?, plan_started_at = NULL, plan_ends_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (roles_json, user_id)
+            )
+            self.connection.execute(
+                "UPDATE ai_token_balances SET subscription_period = 'FORCE_RESET' WHERE user_id = ?",
+                (user_id,)
             )
             self.log_audit_action(admin_id, "update_roles", "users", str(user_id), {"new_roles": roles})
 
@@ -631,6 +643,21 @@ class AdminService:
             )
         self.connection.commit()
         invalidate_limits_cache()
+        
+        if feature == "ai_tokens_per_month":
+            self.connection.execute(
+                """
+                UPDATE ai_token_balances 
+                SET subscription_period = 'FORCE_RESET'
+                WHERE user_id IN (
+                    SELECT id FROM users 
+                    WHERE roles LIKE ?
+                )
+                """,
+                (f'%"{role}"%',)
+            )
+            self.connection.commit()
+
         self.log_audit_action(admin_id, "update_limit", "role_limits", f"{role}:{feature}", {"limit_count": limit_count, "reset_period": reset_period})
 
         row = self.connection.execute(
@@ -655,6 +682,20 @@ class AdminService:
             
         self.connection.commit()
         invalidate_limits_cache()
+        
+        self.connection.execute(
+            """
+            UPDATE ai_token_balances 
+            SET subscription_period = 'FORCE_RESET'
+            WHERE user_id IN (
+                SELECT id FROM users 
+                WHERE roles LIKE ?
+            )
+            """,
+            (f'%"{role}"%',)
+        )
+        self.connection.commit()
+
         self.log_audit_action(admin_id, "reset_limits", "role_limits", role)
         
         limits = self.connection.execute("SELECT * FROM role_limits WHERE role = ? ORDER BY feature", (role,)).fetchall()
@@ -744,6 +785,11 @@ class AdminService:
                 if req["requested_plan"] not in new_roles:
                     new_roles.append(req["requested_plan"])
                 plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+                
+                self.connection.execute(
+                    "UPDATE ai_token_balances SET subscription_period = 'FORCE_RESET' WHERE user_id = ?",
+                    (req["user_id"],)
+                )
             roles_json = json.dumps(new_roles)
             audit_details.update({
                 "plan_started_at": plan_started_at,

@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user
+from app.auth.limits import check_and_increment_limit, feature_plan_phrase, UsageLimitExceeded
 from app.services import ai_tokens
 from app.core.config import Settings, get_settings
 from app.services.advisor_atlas import AdvisorAtlasService
@@ -123,6 +124,27 @@ def _service(settings: Settings = Depends(get_settings)) -> AdvisorAtlasService:
     return AdvisorAtlasService(settings)
 
 
+def _require_advisor_atlas_access(user: dict, session) -> None:
+    """Gate Advisor Atlas behind the `can_use_advisor_atlas` role limit.
+
+    Pro and Max are enabled by default; Free and General are not. Applies only
+    to work-creating actions so downgraded users can still read existing runs.
+    """
+    try:
+        check_and_increment_limit(user, "can_use_advisor_atlas", 0, session)
+    except UsageLimitExceeded:
+        # Which plans include Atlas is admin-configurable, so derive the message
+        # from role_limits instead of hardcoding plan names.
+        phrase = feature_plan_phrase("can_use_advisor_atlas", session)
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Advisor Atlas is available on {phrase}. "
+                "Upgrade to discover and shortlist professors."
+            ),
+        )
+
+
 @router.post("/runs", status_code=202)
 async def create_run(
     payload: CreateRunRequest,
@@ -131,10 +153,17 @@ async def create_run(
     service: AdvisorAtlasService = Depends(_service),
     store: Store = Depends(get_store),
 ):
+    # Advisor Atlas is a plan-gated feature (Pro/Max). Check before any token
+    # spend so ineligible plans get a clear upgrade message.
+    _require_advisor_atlas_access(user, store.db)
     # Advisor Atlas runs are metered by the central AI-token balance, not by a
     # monthly search count. Pre-flight check here; the background task charges
     # the actual usage per AI call.
     ai_tokens.ensure_can_spend(user, store.db)
+    
+    from app.api.routes import verify_model_permission
+    verify_model_permission(service.ai_service.settings.advisor_atlas_glm_model, user, store.db)
+    
     run = service.repository.create_run(
         int(user["id"]),
         payload.model_dump(),
@@ -192,7 +221,9 @@ def resume_run(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
+    store: Store = Depends(get_store),
 ):
+    _require_advisor_atlas_access(user, store.db)
     try:
         run = service.repository.prepare_resume(run_id, int(user["id"]))
     except LookupError as exc:
@@ -260,6 +291,8 @@ async def refresh_candidate(
 ):
     try:
         service.repository.get_candidate(candidate_id, int(user["id"]))
+        # Plan gate (Pro/Max) before any token spend on the refresh.
+        _require_advisor_atlas_access(user, store.db)
         # Metered by AI tokens: gate here, then charge via the service's
         # AiService for each call made during the refresh.
         ai_tokens.ensure_can_spend(user, store.db)

@@ -14,6 +14,7 @@ import {
   MODEL_PROVIDER_FEATURES,
   type ModelOption,
 } from "../lib/assistantModels";
+import { useAiModels } from "../hooks/useAiModels";
 
 type Message = {
   role: "user" | "assistant";
@@ -194,16 +195,37 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const blockedProviders = (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
     (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) !== 1
   );
-  const allModelOptions = [
-    ...MODEL_OPTIONS,
-  ];
-  const modelOptionsByProvider = allModelOptions.reduce<Record<string, ModelOption[]>>((groups, option) => {
+  const { data: dynamicModels } = useAiModels(open);
+
+  const allModelOptions: (ModelOption & { is_active?: boolean })[] = dynamicModels
+    ? dynamicModels.map(m => {
+        const fullId = `${m.provider}:${m.model_id}`;
+        const fallbackName = getModelDisplayName(fullId);
+        // If display_name is just the raw model_id, fallback to the nice name
+        const finalDisplayName = (m.display_name && m.display_name !== m.model_id) 
+          ? m.display_name 
+          : fallbackName;
+        return {
+          provider: getProviderForModel(fullId),
+          providerLabel: getProviderDisplayName(getProviderForModel(fullId)),
+          value: fullId,
+          label: finalDisplayName,
+          is_active: m.is_active === 1
+        };
+      })
+    : MODEL_OPTIONS;
+
+  const modelOptionsByProvider = allModelOptions.reduce<Record<string, (ModelOption & { is_active?: boolean })[]>>((groups, option) => {
     (groups[option.providerLabel] ||= []).push(option);
     return groups;
   }, {});
 
-  const isModelAllowed = (model: string) => {
-    return allowedProviders.has(getProviderForModel(model));
+  const isModelAllowed = (modelValue: string) => {
+    const provider = getProviderForModel(modelValue);
+    if (!allowedProviders.has(provider)) return false;
+    const modelDef = allModelOptions.find(m => m.value === modelValue);
+    if (modelDef && modelDef.is_active === false) return false;
+    return true;
   };
 
   const handleRestrictedModelAttempt = (model: string, targetLabel: "chat" | "background") => {
@@ -715,10 +737,15 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                 {Object.entries(modelOptionsByProvider).map(([label, options]) => (
                   <optgroup key={label} label={label}>
                     {options.map((option) => {
-                      const disabled = !allowedProviders.has(option.provider);
+                      const noAccess = !allowedProviders.has(option.provider);
+                      const inactive = option.is_active === false;
+                      const disabled = noAccess || inactive;
+                      const displayLabel = inactive 
+                        ? `${option.label} (Disabled)`
+                        : noAccess ? `${option.label} (No access)` : option.label;
                       return (
                         <option key={option.value} value={option.value} disabled={disabled}>
-                          {disabled ? `${option.label} (No access)` : option.label}
+                          {displayLabel}
                         </option>
                       );
                     })}
@@ -749,10 +776,15 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                 {Object.entries(modelOptionsByProvider).map(([label, options]) => (
                   <optgroup key={label} label={label}>
                     {options.map((option) => {
-                      const disabled = !allowedProviders.has(option.provider);
+                      const noAccess = !allowedProviders.has(option.provider);
+                      const inactive = option.is_active === false;
+                      const disabled = noAccess || inactive;
+                      const displayLabel = inactive 
+                        ? `${option.label} (Disabled)`
+                        : noAccess ? `${option.label} (No access)` : option.label;
                       return (
                         <option key={option.value} value={option.value} disabled={disabled}>
-                          {disabled ? `${option.label} (No access)` : option.label}
+                          {displayLabel}
                         </option>
                       );
                     })}

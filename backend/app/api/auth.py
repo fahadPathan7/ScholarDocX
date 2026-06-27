@@ -15,7 +15,7 @@ from app.db.connection import connect, initialize_database
 from app.services.store import Store
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user, get_jwt_secret
-from app.auth.limits import get_primary_user_role
+from app.auth.limits import feature_plan_phrase, get_primary_user_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -259,7 +259,8 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
         zero_usage = {row["feature"]: 0 for row in user_features}
         return {
             "limits": zero_limits,
-            "usage": zero_usage
+            "usage": zero_usage,
+            "advisor_atlas_plan_phrase": feature_plan_phrase("can_use_advisor_atlas", store.db),
         }
 
     limits = store.legacy_connection.execute(
@@ -275,7 +276,8 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
     
     return {
         "limits": limits_dict,
-        "usage": usage_dict
+        "usage": usage_dict,
+        "advisor_atlas_plan_phrase": feature_plan_phrase("can_use_advisor_atlas", store.db),
     }
 
 @router.get("/plans")

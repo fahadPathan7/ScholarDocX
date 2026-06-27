@@ -81,9 +81,9 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
                             <div>
                               <p className="text-[11px] text-slate-500 font-medium">Subscription (this month)</p>
                               <p className="text-lg font-bold text-slate-800">
-                                {balance.monthly_allowance === -1 ? "0" : Math.max(0, balance.monthly_allowance - balance.subscription_remaining).toLocaleString()}
+                                {balance.subscription_used.toLocaleString()}
                                 <span className="text-xs font-medium text-slate-400">
-                                  {" "}/ {balance.monthly_allowance === -1 ? "∞" : balance.monthly_allowance.toLocaleString()}
+                                  {" "}/ {(balance.subscription_used + Math.max(0, balance.subscription_remaining)).toLocaleString()}
                                 </span>
                               </p>
                             </div>

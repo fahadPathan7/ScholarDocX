@@ -485,6 +485,12 @@ function LimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
       ]
     },
     {
+      name: "Advisor Atlas",
+      features: [
+        { key: "can_use_advisor_atlas", label: "Can Use Advisor Atlas", description: "Controls whether users can access Advisor Atlas, the supervisor intelligence workspace. Default ON for Pro and Max, OFF for Free and General. Ineligible users see a locked tab that routes to Choose Plan." }
+      ]
+    },
+    {
       name: "Web Search",
       features: [
         { key: "can_use_web_search", label: "Can Use Web Search", description: "Controls whether users can enable web search in AI chat research mode." },

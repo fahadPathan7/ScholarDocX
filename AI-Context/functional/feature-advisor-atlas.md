@@ -18,7 +18,9 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 ## Requirements
 
 - FR-9.1: Show `Advisor Atlas` as a dedicated navigation tab with the supporting
-  line `AI-powered supervisor intelligence`.
+  line `AI-powered supervisor intelligence`. Plan access is gated by the
+  `can_use_advisor_atlas` role limit (see FR-9.58): the tab is locked for
+  ineligible plans and routes to Choose Plan instead of opening the workspace.
 - FR-9.2: Support field-led university discovery and professor-specific search.
 - FR-9.3: Require at least one user research interest in both Discovery and
   Professor modes, and let users provide up to five interests plus degree and
@@ -198,6 +200,20 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   affiliation; research-match views prioritize semantic bridges; opportunity
   views prioritize recruitment state, likelihood, likely semesters, and
   supporting signals.
+- FR-9.58: Advisor Atlas is a plan-gated capability controlled by the
+  `can_use_advisor_atlas` role limit. Default ON for Pro and Max, OFF for Free
+  and General. Ineligible users see the navigation tab in a locked state (lock
+  indicator, muted styling); activating it routes them to Choose Plan with an
+  upgrade message rather than opening the workspace. The upgrade message and
+  backend 403 detail name the plans that currently have the capability enabled,
+  derived live from `role_limits` (`feature_plan_phrase`), so they never
+  hardcode plan names an administrator can change. Only the work-creating
+  actions — starting a new run, resuming a run, and refreshing a candidate —
+  are blocked for ineligible plans via a backend 403 guard. Reading, saving,
+  cancelling, deleting, and shortlisting existing runs and candidates remain
+  available so a user who downgrades can still review prior results. The
+  capability is shown as a boolean feature row in Choose Plan and is editable
+  by administrators through Role Limits.
 
 ## Discovery Funnel
 

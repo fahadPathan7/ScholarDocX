@@ -56,14 +56,14 @@ def allowance_role(user: dict) -> Optional[str]:
 
 
 def load_user_dict(user_id: int, session: Session) -> dict:
-    """Build a minimal user dict ({id, roles}) for billing from the users table.
+    """Build a minimal user dict ({id, roles, plan_started_at}) for billing from the users table.
 
     Used by background tasks (e.g. Advisor Atlas runs) that only carry a
     user_id and need the role list to resolve the monthly allowance / unlimited
     status.
     """
     row = session.execute(
-        text("SELECT roles FROM users WHERE id = :id"), {"id": user_id}
+        text("SELECT roles, plan_started_at FROM users WHERE id = :id"), {"id": user_id}
     ).mappings().fetchone()
     if not row:
         return {"id": user_id, "roles": []}
@@ -71,7 +71,7 @@ def load_user_dict(user_id: int, session: Session) -> dict:
         roles = json.loads(row["roles"]) if row["roles"] else []
     except (TypeError, ValueError):
         roles = []
-    return {"id": user_id, "roles": roles}
+    return {"id": user_id, "roles": roles, "plan_started_at": row.get("plan_started_at")}
 
 
 def get_token_rate(session: Session) -> int:
@@ -137,7 +137,20 @@ def is_unlimited(user: dict) -> bool:
     return False
 
 
-def _current_period() -> str:
+def _current_period(user: dict) -> str:
+    plan_started_at_str = user.get("plan_started_at")
+    if plan_started_at_str:
+        try:
+            start_dt = datetime.fromisoformat(plan_started_at_str.replace("Z", "+00:00").split("+")[0])
+            now_dt = datetime.utcnow()
+            if now_dt >= start_dt:
+                delta = now_dt - start_dt
+                cycle_index = delta.days // 30
+                start_date_str = start_dt.strftime("%Y-%m-%d")
+                return f"{start_date_str}-cycle-{cycle_index}"
+        except (ValueError, AttributeError):
+            pass
+            
     return datetime.utcnow().strftime("%Y-%m")
 
 
@@ -151,7 +164,7 @@ def refresh_balance(user: dict, session: Session) -> dict:
         {"uid": uid},
     ).mappings().fetchone()
 
-    current_period = _current_period()
+    current_period = _current_period(user)
 
     if row is None:
         allowance = get_role_monthly_allowance(user, session)
@@ -179,7 +192,9 @@ def refresh_balance(user: dict, session: Session) -> dict:
         session.execute(
             text(
                 "UPDATE ai_token_balances SET subscription_remaining = :sub, "
-                "subscription_period = :period, last_reset_at = CURRENT_TIMESTAMP "
+                "subscription_period = :period, "
+                "subscription_used_this_period = 0, "
+                "last_reset_at = CURRENT_TIMESTAMP "
                 "WHERE user_id = :uid"
             ),
             {"sub": sub, "period": current_period, "uid": uid},
@@ -368,6 +383,7 @@ def charge(
         text(
             "UPDATE ai_token_balances SET "
             "subscription_remaining = MAX(0, subscription_remaining - :sub), "
+            "subscription_used_this_period = subscription_used_this_period + :sub, "
             "purchased_remaining = MAX(0, purchased_remaining - :purch), "
             "total_spent_tokens = total_spent_tokens + :t, "
             "total_spent_usd = total_spent_usd + :c "

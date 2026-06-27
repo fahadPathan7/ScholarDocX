@@ -1,11 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "./AuthContext";
-import { BuyTokensModal } from "../components/BuyTokensModal";
 import { OutOfTokensModal } from "../components/OutOfTokensModal";
+import { emitNavigate } from "../lib/tokenEvents";
 
 export type AiTokenBalance = {
   subscription_remaining: number; // -1 = unlimited
+  subscription_used: number; // tokens consumed from the subscription bucket this period
   purchased_remaining: number;
   purchased_total: number;
   subscription_period: string | null;
@@ -31,7 +32,6 @@ export function TokenEconomyProvider({ children }: { children: React.ReactNode }
   const { isAuthenticated } = useAuth();
   const [balance, setBalance] = useState<AiTokenBalance | null>(null);
   const [loading, setLoading] = useState(false);
-  const [buyOpen, setBuyOpen] = useState(false);
   const [outOpen, setOutOpen] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -61,24 +61,20 @@ export function TokenEconomyProvider({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("scholardocx:out-of-tokens", handler as EventListener);
   }, [refresh]);
 
-  const openBuyTokens = useCallback(() => setBuyOpen(true), []);
+  // Buy flow is a full page (SCHOLARDOCX-0085); navigate to it instead of a modal.
+  const openBuyTokens = useCallback(() => emitNavigate("buy-credits"), []);
 
   return (
     <TokenEconomyContext.Provider
       value={{ balance, loading, refresh, openBuyTokens, canPurchasePacks: balance?.can_purchase_packs ?? true }}
     >
       {children}
-      <BuyTokensModal
-        open={buyOpen}
-        onClose={() => setBuyOpen(false)}
-        onPurchased={refresh}
-      />
       <OutOfTokensModal
         open={outOpen}
         onClose={() => setOutOpen(false)}
         onBuyTokens={() => {
           setOutOpen(false);
-          setBuyOpen(true);
+          emitNavigate("buy-credits");
         }}
       />
     </TokenEconomyContext.Provider>

@@ -23,6 +23,7 @@ import {
   Settings,
   Shield,
   Compass,
+  Lock,
   Map
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
@@ -31,10 +32,10 @@ import { FloatingNotifications } from "./components/FloatingNotifications";
 
 import { AboutView } from "./components/AboutView";
 import { AiTokenUsageButton } from "./components/AiTokenUsageButton";
-import { SettingsView } from "./components/SettingsView";
 import { ProfileView } from "./components/ProfileView";
 import { AdminView } from "./components/AdminView";
 import { PlanComparisonView } from "./components/PlanComparisonView";
+import { BuyTokensView } from "./components/BuyTokensView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
 import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
@@ -48,6 +49,7 @@ import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
 import { useDialog } from "./components/DialogProvider";
 import { useAuth } from "./contexts/AuthContext";
+import { useUsage } from "./contexts/UsageContext";
 import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
 import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
@@ -132,6 +134,7 @@ function ScholarDocXMark() {
 export function App() {
   const { showAlert, showConfirm } = useDialog();
   const { user } = useAuth();
+  const { usageData } = useUsage();
   const [dashboard, setDashboard] = useState<Dashboard>(emptyDashboard);
   const [workspace, setWorkspace] = useState<RecordMap | null>(null);
   const [degreeWorkspaces, setDegreeWorkspaces] = useState<RecordMap[]>([]);
@@ -248,10 +251,6 @@ export function App() {
           // Profile doesn't need refresh (form-based)
           break;
 
-        case "settings":
-          // Settings doesn't need refresh (form-based)
-          break;
-
         case "about":
           // About is static, no refresh needed
           break;
@@ -282,7 +281,6 @@ export function App() {
     ["atlas", "Advisor Atlas", Map],
     ["news", "Scholarship Hunt", Compass],
     ["profile", "Profile", User],
-    ["settings", "Settings", Settings],
     ["about", "About", Info]
   ] as const;
 
@@ -292,6 +290,15 @@ export function App() {
   const currentHasUserPlan = currentIdentity ? hasActiveUserPlan(currentIdentity) : isUser();
   const currentIsAdmin = currentIdentity?.roles ? hasAdminRole(currentIdentity.roles) : isAdmin();
 
+  // Advisor Atlas is plan-gated (Pro/Max). Derive from the role immediately to
+  // avoid a locked-flash on load, then refine from usage limits once fetched.
+  const atlasRoles = currentIdentity?.roles ?? user?.roles ?? [];
+  const isProOrMaxRole =
+    Array.isArray(atlasRoles) && (atlasRoles.includes("pro_user") || atlasRoles.includes("max_user"));
+  const canUseAdvisorAtlas = usageData
+    ? (usageData.limits?.can_use_advisor_atlas ?? 0) === 1
+    : isProOrMaxRole;
+
   useEffect(() => {
     if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
@@ -299,7 +306,8 @@ export function App() {
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
 
   // Cross-component navigation requests via the window event bus
-  // (e.g. BuyTokensModal upsell → "plans" when a plan can't buy token packs).
+  // (e.g. BuyTokensView upsell → "plans" when a plan can't buy token packs;
+  //  openBuyTokens → "buy-credits").
   useEffect(() => {
     const handler = (event: Event) => {
       const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab;
@@ -319,6 +327,12 @@ export function App() {
   navItems.push(...baseNavItems.slice(7));
 
   const handleSidebarNav = (key: string) => {
+    if (key === "atlas" && !canUseAdvisorAtlas) {
+      const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
+      setActiveTab("plans");
+      showToast(`Advisor Atlas is available on ${phrase}.`);
+      return;
+    }
     if (key === "projects") {
       setProjectNavigationTarget(null);
       setProjectWorkspaceHomeKey((value) => value + 1);
@@ -365,20 +379,26 @@ export function App() {
           </div>
         </div>
         <nav>
-          {navItems.map(([key, label, Icon], i) => (
-            <Fragment key={key}>
-              {currentHasUserPlan && i === 7 && <div className="nav-spacer" />}
-              <button
-                aria-label={label}
-                className={activeTab === key ? "active" : ""}
-                onClick={() => handleSidebarNav(key)}
-                title={navCollapsed ? label : undefined}
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-              </button>
-            </Fragment>
-          ))}
+          {navItems.map((item, i) => {
+            const [key, label, Icon] = item;
+            const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
+            const NavIcon = atlasLocked ? Lock : Icon;
+            return (
+              <Fragment key={key}>
+                {currentHasUserPlan && i === 7 && <div className="nav-spacer" />}
+                <button
+                  aria-label={label}
+                  className={activeTab === key ? "active" : ""}
+                  onClick={() => handleSidebarNav(key)}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
+                  style={atlasLocked ? { opacity: 0.55 } : undefined}
+                >
+                  <NavIcon size={18} />
+                  <span>{label}</span>
+                </button>
+              </Fragment>
+            );
+          })}
         </nav>
       </aside>
 
@@ -452,16 +472,12 @@ export function App() {
             <StickyNotesView key={stickyNotesKey} onToast={showToast} />
           ) : activeTab === "whiteboard" ? (
             <WhiteboardView key={whiteboardKey} onToast={showToast} />
-          ) : activeTab === "atlas" ? (
+          ) : activeTab === "atlas" && canUseAdvisorAtlas ? (
             <AdvisorAtlasView onToast={showToast} />
           ) : activeTab === "news" ? (
             <ScholarshipNewsView onToast={showToast} />
           ) : activeTab === "profile" ? (
-            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onViewAdmin={() => setActiveTab("admin")} />
-          ) : activeTab === "settings" ? (
-            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f8fafc" }}>
-              <SettingsView />
-            </div>
+            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
           ) : activeTab === "about" ? (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
               <AboutView />
@@ -469,6 +485,10 @@ export function App() {
           ) : activeTab === "plans" ? (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
               <PlanComparisonView onBack={() => setActiveTab("profile")} />
+            </div>
+          ) : activeTab === "buy-credits" ? (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
+              <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} />
             </div>
           ) : activeTab === "admin" && currentIsAdmin ? (
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>

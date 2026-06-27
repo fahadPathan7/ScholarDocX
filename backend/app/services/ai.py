@@ -469,6 +469,18 @@ class AiService:
             provider, model_name = self._parse_model_choice(model_choice)
             if not self._provider_configured(provider):
                 return []
+                
+            # Enforce is_active constraint if we have a billing session
+            if self._billing_session:
+                from sqlalchemy import text
+                from app.auth.limits import UsageLimitExceeded
+                row = self._billing_session.execute(
+                    text("SELECT is_active FROM ai_models WHERE (provider || ':' || model_id) = :m OR model_id = :m"),
+                    {"m": model_choice}
+                ).fetchone()
+                if row and not row[0]:
+                    raise UsageLimitExceeded("Admin has restricted this model use try another model.")
+                    
             return [{"provider": provider, "model": model_name}]
 
         # Fallback: no model specified — pick first available default

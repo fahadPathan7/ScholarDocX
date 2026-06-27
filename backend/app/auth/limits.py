@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -24,13 +24,22 @@ def should_reset(last_reset_at: str, reset_period: str) -> bool:
     if reset_period == 'never':
         return False
         
-    last_reset = datetime.fromisoformat(last_reset_at)
-    now = datetime.utcnow()
+    last_reset_str = last_reset_at.replace("Z", "+00:00").split("+")[0]
+    try:
+        last_reset_utc_naive = datetime.fromisoformat(last_reset_str)
+    except ValueError:
+        return False
+        
+    last_reset_utc = last_reset_utc_naive.replace(tzinfo=timezone.utc)
+    now_utc = datetime.now(timezone.utc)
+    
+    last_reset_local = last_reset_utc.astimezone()
+    now_local = now_utc.astimezone()
     
     if reset_period == 'daily':
-        return last_reset.date() < now.date()
+        return last_reset_local.date() < now_local.date()
     elif reset_period == 'monthly':
-        return last_reset.year < now.year or last_reset.month < now.month
+        return (last_reset_local.year, last_reset_local.month) < (now_local.year, now_local.month)
     elif reset_period == 'per_session':
         # Handled explicitly by the frontend or specific endpoints
         return False
@@ -174,5 +183,41 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
             {"inc": increment, "uid": user["id"], "feature": feature}
         )
         session.commit()
-        
+
     return True
+
+
+# User-tier plan metadata. Used to describe which plans include an
+# admin-configurable capability, so dynamic upgrade messaging never hardcodes
+# plan names that an admin can change from the Role Limits editor.
+PLAN_TIER_ORDER = ("free_user", "general_user", "pro_user", "max_user")
+PLAN_DISPLAY_NAMES = {
+    "free_user": "Free",
+    "general_user": "General",
+    "pro_user": "Pro",
+    "max_user": "Max",
+}
+
+
+def plans_with_feature_enabled(feature: str, session) -> list:
+    """Display names of user-tier plans where ``feature`` is enabled
+    (limit_count != 0), in tier order. Powers dynamic upgrade messaging."""
+    rows = session.execute(
+        text("SELECT role FROM role_limits WHERE feature = :feature AND limit_count != 0"),
+        {"feature": feature},
+    ).fetchall()
+    enabled = {row[0] for row in rows}
+    return [PLAN_DISPLAY_NAMES[role] for role in PLAN_TIER_ORDER if role in enabled]
+
+
+def feature_plan_phrase(feature: str, session) -> str:
+    """A ready-to-render phrase such as 'the Pro and Max plans' for the plans
+    that have ``feature`` enabled, or 'a higher plan' when none do."""
+    eligible = plans_with_feature_enabled(feature, session)
+    if not eligible:
+        return "a higher plan"
+    if len(eligible) == 1:
+        return f"the {eligible[0]} plan"
+    if len(eligible) == 2:
+        return f"the {eligible[0]} and {eligible[1]} plans"
+    return f"the {', '.join(eligible[:-1])}, and {eligible[-1]} plans"

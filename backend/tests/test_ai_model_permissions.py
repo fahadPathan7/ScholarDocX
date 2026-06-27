@@ -6,6 +6,7 @@ from app.api.routes import AiActionExecutePayload, ai_action_execute, verify_mod
 def test_verify_model_permission_maps_glm_models_to_glm_feature() -> None:
     current_user = {"id": 1, "roles": ["general_user"]}
     connection = Mock()
+    connection.execute.return_value.fetchone.return_value = (1,)
 
     with patch("app.auth.limits.check_and_increment_limit") as mock_check:
         verify_model_permission("GLM-5.1", current_user, connection)
@@ -16,6 +17,7 @@ def test_verify_model_permission_maps_glm_models_to_glm_feature() -> None:
 def test_verify_model_permission_maps_mistral_models_to_mistral_feature() -> None:
     current_user = {"id": 1, "roles": ["general_user"]}
     connection = Mock()
+    connection.execute.return_value.fetchone.return_value = (1,)
 
     with patch("app.auth.limits.check_and_increment_limit") as mock_check:
         verify_model_permission("mistral:mistral-large-latest", current_user, connection)

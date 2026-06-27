@@ -127,7 +127,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     )
     
     # Initialize usage stats
-    features = ['ai_messages_per_session', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
+    features = ['ai_messages_per_session', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
                 'records_per_sheet', 'total_documents_bytes', 'total_sticky_notes', 'total_whiteboards']
     for feature in features:
         store.legacy_connection.execute(

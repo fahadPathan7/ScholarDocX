@@ -108,7 +108,7 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
         payload=news_api.QueryPreviewRequest(
             filters=news_api.ScholarshipSearchFilters(levels=["Master's"])
         ),
-        user={"id": 1, "roles": ["general_user"]},
+        user={"id": 1, "roles": ["pro_user"]},
         store=store,
     )
 
@@ -168,7 +168,7 @@ async def test_confirmed_search_persists_initial_and_refined_queries(
                 approved_query="refined USA master's scholarship query",
                 query_approved=True,
             ),
-            user={"id": 1},
+            user={"id": 1, "roles": ["pro_user"]},
             store=store,
         )
 
@@ -225,7 +225,7 @@ async def test_failed_confirmed_search_keeps_feedback_without_consuming_usage(
                     approved_query="generated query",
                     query_approved=True,
                 ),
-                user={"id": 1},
+                user={"id": 1, "roles": ["pro_user"]},
                 store=store,
             )
 
@@ -266,7 +266,7 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
             approved_query="generated query",
             query_approved=True,
         ),
-        user={"id": 1},
+        user={"id": 1, "roles": ["pro_user"]},
         store=store,
     )
 
@@ -278,7 +278,7 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
                 approved_query="generated query",
                 query_approved=True,
             ),
-            user={"id": 1},
+            user={"id": 1, "roles": ["pro_user"]},
             store=store,
         )
 

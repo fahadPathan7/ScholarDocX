@@ -95,6 +95,7 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   const historyRef = useRef(history);
   const historyIndexRef = useRef(historyIndex);
   const isLoadedRef = useRef(false);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -394,8 +395,8 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     if (isPanning) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
-      const newX = Math.max(-3000, Math.min(3000, camera.x + dx));
-      const newY = Math.max(-3000, Math.min(3000, camera.y + dy));
+      const newX = Math.max(-750, Math.min(750, camera.x + dx));
+      const newY = Math.max(-750, Math.min(750, camera.y + dy));
       setCamera({ ...camera, x: newX, y: newY });
       setDragStart({ x: e.clientX, y: e.clientY });
       return;
@@ -596,13 +597,13 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
       const coords = getCanvasCoords(e);
       const dx = (coords.x * camera.zoom) - (coords.x * newZoom);
       const dy = (coords.y * camera.zoom) - (coords.y * newZoom);
-      const newX = Math.max(-3000, Math.min(3000, camera.x + dx));
-      const newY = Math.max(-3000, Math.min(3000, camera.y + dy));
+      const newX = Math.max(-750, Math.min(750, camera.x + dx));
+      const newY = Math.max(-750, Math.min(750, camera.y + dy));
       setCamera({ x: newX, y: newY, zoom: newZoom });
     } else {
       // Pan
-      const newX = Math.max(-3000, Math.min(3000, camera.x - e.deltaX));
-      const newY = Math.max(-3000, Math.min(3000, camera.y - e.deltaY));
+      const newX = Math.max(-750, Math.min(750, camera.x - e.deltaX));
+      const newY = Math.max(-750, Math.min(750, camera.y - e.deltaY));
       setCamera({ x: newX, y: newY, zoom: camera.zoom });
     }
   };
@@ -768,6 +769,99 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     );
   };
 
+  const renderMinimap = () => {
+    if (activeTool !== 'hand' || !svgRef.current) return null;
+    
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const vpW = svgRect.width / camera.zoom;
+    const vpH = svgRect.height / camera.zoom;
+    const vpX = -camera.x / camera.zoom;
+    const vpY = -camera.y / camera.zoom;
+
+    // The absolute mathematical limits of where the viewport can pan based on current zoom
+    const minWorldX = -750 / camera.zoom;
+    const minWorldY = -750 / camera.zoom;
+    const maxWorldX = (750 / camera.zoom) + vpW;
+    const maxWorldY = (750 / camera.zoom) + vpH;
+
+    let minX = minWorldX;
+    let minY = minWorldY;
+    let maxX = maxWorldX;
+    let maxY = maxWorldY;
+
+    if (shapes.length > 0) {
+      // If shapes extend beyond the viewport bounds, expand the minimap to show them
+      const shapeMinX = shapes.reduce((min, s) => Math.min(min, s.x), Infinity);
+      const shapeMinY = shapes.reduce((min, s) => Math.min(min, s.y), Infinity);
+      const shapeMaxX = shapes.reduce((max, s) => Math.max(max, s.x + (s.w || 0)), -Infinity);
+      const shapeMaxY = shapes.reduce((max, s) => Math.max(max, s.y + (s.h || 0)), -Infinity);
+      
+      // Apply a small padding only to shapes, not to the boundary limits
+      minX = Math.min(minX, shapeMinX - 50);
+      minY = Math.min(minY, shapeMinY - 50);
+      maxX = Math.max(maxX, shapeMaxX + 50);
+      maxY = Math.max(maxY, shapeMaxY + 50);
+    }
+    
+    const mapW = maxX - minX;
+    const mapH = maxY - minY;
+
+    const vBox = `${minX} ${minY} ${mapW} ${mapH}`;
+    
+    const handleMinimapPointerDown = (e: React.PointerEvent) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const percentX = (e.clientX - rect.left) / rect.width;
+      const percentY = (e.clientY - rect.top) / rect.height;
+      
+      const worldX = minX + percentX * mapW;
+      const worldY = minY + percentY * mapH;
+      
+      const newCamX = Math.max(-750, Math.min(750, -(worldX - vpW / 2) * camera.zoom));
+      const newCamY = Math.max(-750, Math.min(750, -(worldY - vpH / 2) * camera.zoom));
+      
+      setCamera({ ...camera, x: newCamX, y: newCamY });
+      
+      // Set capture so dragging works on minimap
+      e.currentTarget.setPointerCapture(e.pointerId);
+    };
+    
+    const handleMinimapPointerMove = (e: React.PointerEvent) => {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+      handleMinimapPointerDown(e);
+    };
+
+    return (
+      <div className="wb-floating-minimap" style={{ right: isPanelOpen ? 280 : 20 }}>
+        <svg 
+          viewBox={vBox} 
+          preserveAspectRatio="none"
+          onPointerDown={handleMinimapPointerDown}
+          onPointerMove={handleMinimapPointerMove}
+          style={{ cursor: 'pointer', touchAction: 'none' }}
+        >
+          {shapes.map(s => (
+            <rect 
+              key={s.id} 
+              x={s.x} 
+              y={s.y} 
+              width={Math.max(s.w || 0, 10)} 
+              height={Math.max(s.h || 0, 10)} 
+              className="wb-minimap-shape" 
+            />
+          ))}
+          <rect 
+            x={vpX} 
+            y={vpY} 
+            width={vpW} 
+            height={vpH} 
+            className="wb-minimap-viewport-rect"
+          />
+        </svg>
+      </div>
+    );
+  };
+
   const handleSave = () => {
     if (activeBoardId) {
       saveBoard(activeBoardId, shapes, camera);
@@ -862,6 +956,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
       {/* Canvas Area */}
       <div className={`wb-canvas-dummy ${!isPanelOpen ? 'expanded' : ''}`}>
         <svg 
+          ref={svgRef}
           className="wb-svg-layer" 
           style={{ 
             cursor: isPanning ? 'grabbing' 
@@ -882,6 +977,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
             {renderSelectionBox()}
           </g>
         </svg>
+        {renderMinimap()}
       </div>
 
       {/* Panel Toggle */}

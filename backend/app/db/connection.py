@@ -161,6 +161,7 @@ def _seed_ai_token_defaults(connection: sqlite3.Connection) -> None:
         "mistral-large-latest": (2.00, 6.00),
         "mistral-medium-3-5": (0.50, 1.50),
         "devstral-2512": (0.20, 0.60),
+        "openrouter": (0.08, 0.20),
     }
 
     order = 0
@@ -169,6 +170,7 @@ def _seed_ai_token_defaults(connection: sqlite3.Connection) -> None:
         ("gemini", DEFAULT_GEMINI_MODELS),
         ("groq", DEFAULT_GROQ_MODELS),
         ("mistral", DEFAULT_MISTRAL_MODELS),
+        ("openrouter", ["openrouter"]),
     ):
         for model_id in model_ids:
             in_price, out_price = prices.get(model_id, (0.0, 0.0))
@@ -185,6 +187,7 @@ def _seed_ai_token_defaults(connection: sqlite3.Connection) -> None:
         ("small", "Small", 100000, 10, 1),
         ("medium", "Medium", 500000, 40, 2),
         ("large", "Large", 1500000, 100, 3),
+        ("extra_large", "Extra Large", 5000000, 300, 4),
     )
     for code, display_name, token_amount, price_usd, sort_order in packs:
         connection.execute(
@@ -442,6 +445,21 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         advisor_atlas_permission_defaults,
     )
 
+    # Ensure Scholarship Hunt permission role limits exist for existing databases.
+    scholarship_hunt_permission_defaults = [
+        ("free_user", "can_use_scholarship_hunt", 0, "never"),
+        ("general_user", "can_use_scholarship_hunt", 0, "never"),
+        ("pro_user", "can_use_scholarship_hunt", 1, "never"),
+        ("max_user", "can_use_scholarship_hunt", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        scholarship_hunt_permission_defaults,
+    )
+
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
@@ -468,8 +486,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         ('free_user', 'can_use_mistral', 0, 'never'),
         ('free_user', 'can_use_agents', 0, 'never'),
         ('free_user', 'can_use_web_search', 0, 'never'),
-        ('free_user', 'web_searches_per_day', 0, 'daily'),
-        ('free_user', 'web_searches_per_month', 0, 'monthly'),
+        ('free_user', 'can_use_scholarship_hunt', 0, 'never'),
         ('free_user', 'total_projects', 1, 'never'),
         ('free_user', 'total_sheets', 2, 'never'),
         ('free_user', 'total_records', 100, 'never'),
@@ -478,8 +495,6 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         ('free_user', 'total_documents_bytes', 5242880, 'never'),
         ('free_user', 'total_sticky_notes', 3, 'never'),
         ('free_user', 'total_whiteboards', 1, 'never'),
-        ('free_user', 'news_searches_per_day', 0, 'daily'),
-        ('free_user', 'news_searches_per_month', 0, 'monthly'),
         ('free_user', 'ai_tokens_per_month', 0, 'monthly'),
     ]
     connection.executemany(
@@ -535,12 +550,11 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "can_use_gemini", "can_use_glm", "can_use_groq", "can_use_mistral",
         "can_use_agents", "can_use_web_search",
         "can_use_advisor_atlas",
+        "can_use_scholarship_hunt",
         "can_purchase_token_packs",
-        "web_searches_per_day", "web_searches_per_month",
         "total_projects", "total_sheets", "total_records",
         "sheets_per_project", "records_per_sheet",
         "total_documents_bytes", "total_sticky_notes", "total_whiteboards",
-        "news_searches_per_day", "news_searches_per_month",
         # Admin permissions
         "admin_create_user", "admin_assign_user_roles", "admin_assign_admin_roles",
         "admin_manage_user_roles", "admin_manage_admin_roles",

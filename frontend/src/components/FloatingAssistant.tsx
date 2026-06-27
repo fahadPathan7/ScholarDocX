@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Cpu, FileText, Globe, History, Maximize2, Minimize2, Send, Settings2, Trash2, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -197,36 +197,40 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   );
   const { data: dynamicModels } = useAiModels(open);
 
-  const allModelOptions: (ModelOption & { is_active?: boolean })[] = dynamicModels
-    ? dynamicModels.map(m => {
-        const fullId = `${m.provider}:${m.model_id}`;
-        const fallbackName = getModelDisplayName(fullId);
-        // If display_name is just the raw model_id, fallback to the nice name
-        const finalDisplayName = (m.display_name && m.display_name !== m.model_id) 
-          ? m.display_name 
-          : fallbackName;
-        return {
-          provider: getProviderForModel(fullId),
-          providerLabel: getProviderDisplayName(getProviderForModel(fullId)),
-          value: fullId,
-          label: finalDisplayName,
-          is_active: m.is_active === 1
-        };
-      })
-    : MODEL_OPTIONS;
+  const allModelOptions: (ModelOption & { is_active?: boolean })[] = useMemo(() => {
+    return dynamicModels
+      ? dynamicModels.map(m => {
+          const fullId = `${m.provider}:${m.model_id}`;
+          const fallbackName = getModelDisplayName(fullId);
+          // If display_name is just the raw model_id, fallback to the nice name
+          const finalDisplayName = (m.display_name && m.display_name !== m.model_id) 
+            ? m.display_name 
+            : fallbackName;
+          return {
+            provider: getProviderForModel(fullId),
+            providerLabel: getProviderDisplayName(getProviderForModel(fullId)),
+            value: fullId,
+            label: finalDisplayName,
+            is_active: Number(m.is_active) === 1
+          };
+        })
+      : MODEL_OPTIONS;
+  }, [dynamicModels]);
 
-  const modelOptionsByProvider = allModelOptions.reduce<Record<string, (ModelOption & { is_active?: boolean })[]>>((groups, option) => {
-    (groups[option.providerLabel] ||= []).push(option);
-    return groups;
-  }, {});
+  const modelOptionsByProvider = useMemo(() => {
+    return allModelOptions.reduce<Record<string, (ModelOption & { is_active?: boolean })[]>>((groups, option) => {
+      (groups[option.providerLabel] ||= []).push(option);
+      return groups;
+    }, {});
+  }, [allModelOptions]);
 
-  const isModelAllowed = (modelValue: string) => {
+  const isModelAllowed = useCallback((modelValue: string) => {
     const provider = getProviderForModel(modelValue);
     if (!allowedProviders.has(provider)) return false;
     const modelDef = allModelOptions.find(m => m.value === modelValue);
     if (modelDef && modelDef.is_active === false) return false;
     return true;
-  };
+  }, [allowedProviders, allModelOptions]);
 
   const handleRestrictedModelAttempt = (model: string, targetLabel: "chat" | "background") => {
     const provider = getProviderForModel(model);
@@ -275,7 +279,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       });
       hasAdjustedRestrictedModelsRef.current = true;
     }
-  }, [usageData, allowedProviders, selectedModel, backgroundModel]);
+  }, [usageData, allowedProviders, selectedModel, backgroundModel, allModelOptions, isModelAllowed]);
 
   useEffect(() => {
     localStorage.setItem("scholarDocX_useSummaryContext", String(useSummaryContext));

@@ -15,6 +15,7 @@ from app.services.news_service import MAX_TAVILY_QUERY_LENGTH, news_service
 from app.services.news_query_generator import scholarship_query_generator
 from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
 from app.services import ai_tokens
+from app.services.ai_tokens import charge_flat_fee, get_tavily_call_cost_usd, ensure_can_spend
 
 router = APIRouter()
 
@@ -63,20 +64,17 @@ def _filter_kwargs(filters: ScholarshipSearchFilters) -> Dict[str, Any]:
     return filters.model_dump(exclude_none=True)
 
 
-def _check_search_limits(user: dict, store: Store) -> None:
+def _charge_scholarship_hunt(user: dict, store: Store) -> None:
     try:
         check_and_increment_limit(
             user,
-            "news_searches_per_month",
+            "can_use_scholarship_hunt",
             increment=0,
             session=store.db,
         )
-        check_and_increment_limit(
-            user,
-            "news_searches_per_day",
-            increment=0,
-            session=store.db,
-        )
+        ensure_can_spend(user, store.db)
+        cost_usd = get_tavily_call_cost_usd(store.db)
+        charge_flat_fee(user, store.db, cost_usd, source="scholarship_hunt")
     except UsageLimitExceeded as error:
         raise HTTPException(status_code=429, detail=str(error.detail))
 
@@ -103,7 +101,7 @@ async def preview_news_query(
         usage = generated.get("usage", {})
         ai_tokens.charge(
             user,
-            model_id=generated.get("model"),
+            model_id="openrouter",
             provider="openrouter",
             input_tokens=int(usage.get("input_tokens", 0)),
             output_tokens=int(usage.get("output_tokens", 0)),
@@ -151,9 +149,7 @@ async def search_news_confirmed(
         )
 
     if payload.preview_feedback_id == 0:
-        _check_search_limits(user, store)
-        check_and_increment_limit(user, "news_searches_per_month", increment=1, session=store.db)
-        check_and_increment_limit(user, "news_searches_per_day", increment=1, session=store.db)
+        _charge_scholarship_hunt(user, store)
         feedback_id = create_search_feedback(store.db, int(user["id"]), approved_query, approved_query, filters)
     else:
         try:
@@ -167,6 +163,10 @@ async def search_news_confirmed(
             raise HTTPException(status_code=404, detail=str(error))
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error))
+        
+        # Charge for the actual search even if they used preview
+        _charge_scholarship_hunt(user, store)
+        
         feedback_id = payload.preview_feedback_id
 
     try:
@@ -213,7 +213,7 @@ async def search_news(
             detail="Scholarship Hunt Tavily API key is not configured.",
         )
         
-    _check_search_limits(user, store)
+    _charge_scholarship_hunt(user, store)
 
     results = await news_service.search_scholarships(
         levels=levels,
@@ -228,10 +228,6 @@ async def search_news(
         sort_by=sort_by,
         page=page,
     )
-    
-    # Increment after successful API call
-    check_and_increment_limit(user, "news_searches_per_month", increment=1, session=store.db)
-    check_and_increment_limit(user, "news_searches_per_day", increment=1, session=store.db)
     
     return results
 

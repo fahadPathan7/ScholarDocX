@@ -72,7 +72,7 @@ def test_list_packs_active_only_by_default(tmp_path):
     session = next(get_db(settings.database_path))
     try:
         packs = ai_tokens.list_packs(session)
-        assert [p["code"] for p in packs] == ["small", "medium", "large"]
+        assert [p["code"] for p in packs] == ["small", "medium", "large", "extra_large"]
         assert all(p["is_active"] for p in packs)
         # is_active normalised to bool; token_amount/price_usd typed.
         small = packs[0]
@@ -89,8 +89,8 @@ def test_list_packs_include_inactive(tmp_path):
         ai_tokens.update_pack("small", session=session, is_active=False)
         active = ai_tokens.list_packs(session)
         all_packs = ai_tokens.list_packs(session, include_inactive=True)
-        assert [p["code"] for p in active] == ["medium", "large"]
-        assert [p["code"] for p in all_packs] == ["small", "medium", "large"]
+        assert [p["code"] for p in active] == ["medium", "large", "extra_large"]
+        assert [p["code"] for p in all_packs] == ["small", "medium", "large", "extra_large"]
         assert next(p for p in all_packs if p["code"] == "small")["is_active"] is False
     finally:
         session.close()

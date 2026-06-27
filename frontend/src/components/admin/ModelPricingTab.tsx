@@ -122,7 +122,7 @@ export function ModelPricingTab() {
       await fetchModels({ silent: true });
       window.dispatchEvent(new CustomEvent("ai-models-updated"));
     } catch (error: any) {
-      emitUiError({ title: "Save failed", message: error?.message || "Could not update model pricing." });
+      emitUiError({ title: "Save failed", message: error?.message || "Could not update AI models configuration." });
     } finally {
       setSaving(null);
     }

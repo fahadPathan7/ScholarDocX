@@ -150,8 +150,8 @@ async def test_create_run_gates_on_ai_tokens(monkeypatch):
         professor_request(),
         BackgroundTasks(),
         user={"id": 7, "roles": ["general_user"]},
-        service=FakeService(),
-        store=FakeStore(),
+        service=FakeService(),  # type: ignore
+        store=FakeStore(),  # type: ignore
     )
 
     assert result["id"] == 44
@@ -187,8 +187,8 @@ async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatc
             professor_request(),
             BackgroundTasks(),
             user={"id": 7, "roles": ["general_user"]},
-            service=FakeService(),
-            store=FakeStore(),
+            service=FakeService(),  # type: ignore
+            store=FakeStore(),  # type: ignore
         )
 
     assert created == []
@@ -233,8 +233,8 @@ async def test_owned_candidate_refresh_gates_on_ai_tokens(monkeypatch):
     result = await advisor_atlas_api.refresh_candidate(
         12,
         user={"id": 7, "roles": ["general_user"]},
-        service=service,
-        store=FakeStore(),
+        service=service,  # type: ignore
+        store=FakeStore(),  # type: ignore
     )
 
     assert result["id"] == 12
@@ -267,8 +267,8 @@ async def test_missing_candidate_is_rejected_before_token_charge(monkeypatch):
         await advisor_atlas_api.refresh_candidate(
             999,
             user={"id": 7, "roles": ["general_user"]},
-            service=FakeService(),
-            store=FakeStore(),
+            service=FakeService(),  # type: ignore
+            store=FakeStore(),  # type: ignore
         )
 
     assert error.value.status_code == 404
@@ -308,8 +308,8 @@ async def test_create_run_denied_for_non_pro_plan(monkeypatch):
             professor_request(),
             BackgroundTasks(),
             user={"id": 7, "roles": ["general_user"]},
-            service=FakeService(),
-            store=FakeStore(),
+            service=FakeService(),  # type: ignore
+            store=FakeStore(),  # type: ignore
         )
 
     assert error.value.status_code == 403
@@ -348,8 +348,8 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
         professor_request(),
         BackgroundTasks(),
         user={"id": 9, "roles": ["pro_user"]},
-        service=FakeService(),
-        store=FakeStore(),
+        service=FakeService(),  # type: ignore
+        store=FakeStore(),  # type: ignore
     )
 
     assert result["id"] == 50
@@ -383,8 +383,8 @@ async def test_refresh_candidate_denied_for_non_pro_plan(monkeypatch):
         await advisor_atlas_api.refresh_candidate(
             12,
             user={"id": 7, "roles": ["free_user"]},
-            service=FakeService(),
-            store=FakeStore(),
+            service=FakeService(),  # type: ignore
+            store=FakeStore(),  # type: ignore
         )
 
     assert error.value.status_code == 403

@@ -21,8 +21,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('free_user', 'can_use_agents', 0, 'never'),
   ('free_user', 'can_use_web_search', 0, 'never'),
   ('free_user', 'can_use_advisor_atlas', 0, 'never'),
-  ('free_user', 'web_searches_per_day', 0, 'daily'),
-  ('free_user', 'web_searches_per_month', 0, 'monthly'),
+  ('free_user', 'can_use_scholarship_hunt', 0, 'never'),
   ('free_user', 'total_projects', 1, 'never'),
   ('free_user', 'total_sheets', 2, 'never'),
   ('free_user', 'total_records', 100, 'never'),
@@ -31,8 +30,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('free_user', 'total_documents_bytes', 5242880, 'never'),
   ('free_user', 'total_sticky_notes', 3, 'never'),
   ('free_user', 'total_whiteboards', 1, 'never'),
-  ('free_user', 'news_searches_per_day', 0, 'daily'),
-  ('free_user', 'news_searches_per_month', 0, 'monthly'),
 
   ('general_user', 'ai_messages_per_session', 10, 'per_session'),
   ('general_user', 'can_use_gemini', 1, 'never'),
@@ -42,8 +39,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_user', 'can_use_agents', 0, 'never'),
   ('general_user', 'can_use_web_search', 0, 'never'),
   ('general_user', 'can_use_advisor_atlas', 0, 'never'),
-  ('general_user', 'web_searches_per_day', 0, 'daily'),
-  ('general_user', 'web_searches_per_month', 0, 'monthly'),
+  ('general_user', 'can_use_scholarship_hunt', 0, 'never'),
   ('general_user', 'total_projects', 3, 'never'),
   ('general_user', 'total_sheets', 10, 'never'),
   ('general_user', 'total_records', 1000, 'never'),
@@ -52,8 +48,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_user', 'total_documents_bytes', 31457280, 'never'),
   ('general_user', 'total_sticky_notes', 5, 'never'),
   ('general_user', 'total_whiteboards', 1, 'never'),
-  ('general_user', 'news_searches_per_day', 3, 'daily'),
-  ('general_user', 'news_searches_per_month', 30, 'monthly'),
 
   ('pro_user', 'ai_messages_per_session', 30, 'per_session'),
   ('pro_user', 'can_use_gemini', 1, 'never'),
@@ -63,8 +57,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('pro_user', 'can_use_agents', 1, 'never'),
   ('pro_user', 'can_use_web_search', 1, 'never'),
   ('pro_user', 'can_use_advisor_atlas', 1, 'never'),
-  ('pro_user', 'web_searches_per_day', 5, 'daily'),
-  ('pro_user', 'web_searches_per_month', 150, 'monthly'),
+  ('pro_user', 'can_use_scholarship_hunt', 1, 'never'),
   ('pro_user', 'total_projects', 10, 'never'),
   ('pro_user', 'total_sheets', 50, 'never'),
   ('pro_user', 'total_records', 25000, 'never'),
@@ -73,8 +66,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('pro_user', 'total_documents_bytes', 104857600, 'never'),
   ('pro_user', 'total_sticky_notes', 20, 'never'),
   ('pro_user', 'total_whiteboards', 3, 'never'),
-  ('pro_user', 'news_searches_per_day', 10, 'daily'),
-  ('pro_user', 'news_searches_per_month', 100, 'monthly'),
 
   ('max_user', 'ai_messages_per_session', 100, 'per_session'),
   ('max_user', 'can_use_gemini', 1, 'never'),
@@ -84,8 +75,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('max_user', 'can_use_agents', 1, 'never'),
   ('max_user', 'can_use_web_search', 1, 'never'),
   ('max_user', 'can_use_advisor_atlas', 1, 'never'),
-  ('max_user', 'web_searches_per_day', 20, 'daily'),
-  ('max_user', 'web_searches_per_month', 600, 'monthly'),
+  ('max_user', 'can_use_scholarship_hunt', 1, 'never'),
   ('max_user', 'total_projects', 50, 'never'),
   ('max_user', 'total_sheets', 200, 'never'),
   ('max_user', 'total_records', 400000, 'never'),
@@ -94,8 +84,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('max_user', 'total_documents_bytes', 314572800, 'never'),
   ('max_user', 'total_sticky_notes', 50, 'never'),
   ('max_user', 'total_whiteboards', 10, 'never'),
-  ('max_user', 'news_searches_per_day', 30, 'daily'),
-  ('max_user', 'news_searches_per_month', 300, 'monthly'),
 
   ('general_admin', 'admin_create_user', 1, 'never'),
   ('general_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -115,8 +103,6 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
   ('general_admin', 'admin_send_notifications', 1, 'never'),
   ('general_admin', 'admin_manage_settings', 0, 'never'),
-  ('general_admin', 'news_searches_per_day', -1, 'daily'),
-  ('general_admin', 'news_searches_per_month', -1, 'monthly'),
 
   ('super_admin', 'admin_create_user', 1, 'never'),
   ('super_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -156,6 +142,7 @@ INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('plan_price_pro_yearly', '500'),
   ('plan_price_max_monthly', '180'),
   ('plan_price_max_yearly', '1500'),
-  ('ai_token_rate_tokens_per_dollar', '10000');
+  ('ai_token_rate_tokens_per_dollar', '10000'),
+  ('tavily_call_cost_usd', '0.01');
 
 """

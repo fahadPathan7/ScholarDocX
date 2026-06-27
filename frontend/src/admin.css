@@ -248,7 +248,7 @@
 
 .admin-dashboard-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
 }
 
@@ -262,7 +262,7 @@
 
 .admin-dashboard-stat-card {
   position: relative;
-  min-height: 7.5rem;
+  min-height: 5.5rem;
   padding: 1rem;
   overflow: hidden;
 }
@@ -400,6 +400,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0 0.75rem;
+  white-space: nowrap;
   border: 1px solid rgba(203, 213, 225, 0.74);
   border-radius: 999px;
   background: #ffffff;
@@ -497,7 +499,7 @@
   }
 
   .admin-dashboard-stat-card {
-    min-height: 7.5rem;
+    min-height: 5.5rem;
   }
 }
 

@@ -23,6 +23,7 @@ import {
   Copy,
   Check,
   FileText,
+  Globe,
   StickyNote,
   Presentation,
   FileSpreadsheet,
@@ -66,8 +67,8 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
 
 function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [stats, setStats] = useState<any>(null);
-  const [isRegistrationsOpen, setIsRegistrationsOpen] = useState(true);
-  const [isLoginsOpen, setIsLoginsOpen] = useState(true);
+  const [isRegistrationsOpen, setIsRegistrationsOpen] = useState(false);
+  const [isLoginsOpen, setIsLoginsOpen] = useState(false);
 
   useEffect(() => {
     api.get<any>("/admin/dashboard").then(setStats).catch(console.error);
@@ -99,6 +100,12 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       value: stats.counts.pending_plan_requests || 0,
       icon: FileClock,
       tone: "purple"
+    },
+    {
+      label: "Credit Requests",
+      value: stats.counts.pending_credit_requests || 0,
+      icon: Coins,
+      tone: "amber"
     },
     {
       label: "Suspension Appeals",
@@ -165,7 +172,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
     <div className="admin-dashboard-tab animate-in fade-in duration-300">
       <div className="admin-dashboard-stat-grid">
         {statCards.map((card) => {
-          const isHighlightable = ["Invite Requests", "Plan Requests", "Suspension Appeals"].includes(card.label);
+          const isHighlightable = ["Invite Requests", "Plan Requests", "Credit Requests", "Suspension Appeals"].includes(card.label);
           const hasValue = typeof card.value === 'number' && card.value > 0;
           return (
             <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
@@ -188,6 +195,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                       if (!onNavigate) return;
                       if (card.label === "Invite Requests") onNavigate("invite_requests");
                       else if (card.label === "Plan Requests") onNavigate("plan_requests");
+                      else if (card.label === "Credit Requests") onNavigate("token_purchase_requests");
                       else if (card.label === "Suspension Appeals") onNavigate("suspension_appeals");
                     }}
                     className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-sm hover:opacity-80 transition-opacity cursor-pointer border-none"
@@ -208,12 +216,12 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
         <div className="admin-dashboard-panel__header">
           <div>
             <Zap size={16} />
-            <h3>30-Day AI Credit Usage</h3>
+            <h3>10-Day AI Credit Usage</h3>
           </div>
         </div>
         <div className="admin-dashboard-chart-wrap" style={{ height: 250, padding: "16px 20px" }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={stats.ai_usage_30d || []}>
+            <AreaChart data={stats.ai_usage_10d || []}>
               <defs>
                 <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
@@ -221,7 +229,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="date" tick={{ fill: "var(--ui-text-dim)", fontSize: 12 }} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" minTickGap={0} interval="preserveStartEnd" tick={{ fill: "var(--ui-text-dim)", fontSize: 10 }} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={formatTokenCount} tick={{ fill: "var(--ui-text-dim)", fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip 
                 contentStyle={{ backgroundColor: "var(--ui-bg-panel)", border: "1px solid var(--ui-border)", borderRadius: "8px", color: "var(--ui-text)" }}
@@ -241,7 +249,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
               <h3>Recent Registrations</h3>
             </div>
             <div className="flex items-center gap-2 text-sm text-ui-text-dim">
-              <span>{stats.recent_registrations.length}</span>
+              <span>Showing latest {stats.recent_registrations.length}</span>
               {isRegistrationsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
           </div>
@@ -276,7 +284,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
               <h3>Recent Logins</h3>
             </div>
             <div className="flex items-center gap-2 text-sm text-ui-text-dim">
-              <span>{stats.recent_logins.length}</span>
+              <span>Showing latest {stats.recent_logins.length}</span>
               {isLoginsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </div>
           </div>
@@ -1377,6 +1385,7 @@ function SettingsTab() {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showModelPricingModal, setShowModelPricingModal] = useState(false);
   const [showTokenPacksModal, setShowTokenPacksModal] = useState(false);
+  const [showExternalApisModal, setShowExternalApisModal] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -1468,7 +1477,7 @@ function SettingsTab() {
               <CircleDollarSign className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 text-lg">AI Model Pricing</h3>
+              <h3 className="font-semibold text-slate-900 text-lg">AI Models Configuration</h3>
               <p className="text-sm text-slate-500 mt-1">Set per-1M token input/output prices for each model.</p>
             </div>
           </div>
@@ -1493,6 +1502,24 @@ function SettingsTab() {
           <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
              <button onClick={() => setShowTokenPacksModal(true)} className="profile-primary-button">
                Configure Packs
+             </button>
+          </div>
+        </div>
+
+        {/* External APIs Card */}
+        <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
+          <div className="p-6 flex items-center gap-4">
+            <div className="bg-orange-100/50 p-3 rounded-xl border border-orange-200">
+              <Globe className="w-6 h-6 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900 text-lg">External APIs</h3>
+              <p className="text-sm text-slate-500 mt-1">Configure pricing for external tools like Tavily.</p>
+            </div>
+          </div>
+          <div className="p-4 border-t border-slate-200/50 bg-slate-50/50 flex justify-end">
+             <button onClick={() => setShowExternalApisModal(true)} className="profile-primary-button">
+               Configure External APIs
              </button>
           </div>
         </div>
@@ -1741,7 +1768,7 @@ function SettingsTab() {
               <div className="flex items-center gap-3">
                 <CircleDollarSign className="w-5 h-5 text-indigo-500 shrink-0" />
                 <div>
-                  <h3 className="text-base font-semibold text-slate-800">AI Model Pricing</h3>
+                  <h3 className="text-base font-semibold text-slate-800">AI Models Configuration</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Set per-1M token input/output prices for each model.
                   </p>
@@ -1768,6 +1795,57 @@ function SettingsTab() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {showExternalApisModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
+                <Globe className="w-5 h-5 text-orange-500" />
+                External APIs & Agents Pricing
+              </h3>
+              <button onClick={() => setShowExternalApisModal(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-200 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700">Tavily Search Cost (USD per search)</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+                    <input 
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      defaultValue={settings["tavily_call_cost_usd"] || "0.01"}
+                      id="modal-input-tavily_call_cost_usd"
+                      className="w-full pl-7 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const el = document.getElementById("modal-input-tavily_call_cost_usd") as HTMLInputElement;
+                      if (el && el.value) handleUpdate("tavily_call_cost_usd", el.value);
+                    }}
+                    className="profile-primary-button px-5"
+                  >
+                    Save
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Controls the amount deducted from a user's AI token balance (converted via token rate) for each Web Search and Scholarship Hunt API call.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button onClick={() => setShowExternalApisModal(false)} className="px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showTokenPacksModal && (

@@ -417,13 +417,15 @@ async def ai_research(
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
-    # External web searches (Tavily) keep their daily/monthly count limits; the
-    # AI routing/synthesis is metered by the central AI-token balance inside
-    # research() -> chat().
+    # External web searches (Tavily) are metered by the central AI-token balance
+    # via a flat USD fee per call.
     if payload.web_search_max_results > 0:
         check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
-        check_and_increment_limit(current_user, "web_searches_per_day", 1, store.db)
-        check_and_increment_limit(current_user, "web_searches_per_month", 1, store.db)
+        from app.services.ai_tokens import charge_flat_fee, get_tavily_call_cost_usd, ensure_can_spend
+        # Pre-check if they have enough balance to cover the flat fee before hitting Tavily
+        ensure_can_spend(current_user, store.db)
+        cost_usd = get_tavily_call_cost_usd(store.db)
+        charge_flat_fee(current_user, store.db, cost_usd, source="web_search")
     return await AiService(settings, user=current_user, session=store.db).research(
         payload.message,
         payload.context,

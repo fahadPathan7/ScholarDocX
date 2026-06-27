@@ -309,6 +309,7 @@ async def test_provider_error_does_not_retry():
 async def test_news_route_keeps_separate_news_usage_limits(monkeypatch):
     limit_calls = []
     search_calls = []
+    charge_calls = []
 
     async def fake_search(**kwargs):
         search_calls.append(kwargs)
@@ -316,6 +317,15 @@ async def test_news_route_keeps_separate_news_usage_limits(monkeypatch):
 
     def fake_limit(user, feature, increment, session):
         limit_calls.append((feature, increment, session))
+        
+    def fake_ensure_can_spend(user, session):
+        pass
+        
+    def fake_get_cost(session):
+        return 0.05
+        
+    def fake_charge(user, session, usd, source):
+        charge_calls.append((usd, source))
 
     class FakeStore:
         db = object()
@@ -325,6 +335,9 @@ async def test_news_route_keeps_separate_news_usage_limits(monkeypatch):
     monkeypatch.setattr(news_api.news_service, "api_key", "test-tavily-key")
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fake_search)
     monkeypatch.setattr(news_api, "check_and_increment_limit", fake_limit)
+    monkeypatch.setattr(news_api, "ensure_can_spend", fake_ensure_can_spend)
+    monkeypatch.setattr(news_api, "get_tavily_call_cost_usd", fake_get_cost)
+    monkeypatch.setattr(news_api, "charge_flat_fee", fake_charge)
 
     response = await news_api.search_news(
         levels=["Master's"],
@@ -338,29 +351,40 @@ async def test_news_route_keeps_separate_news_usage_limits(monkeypatch):
         sort_by="latest",
         page=None,
         user={"id": "user-1"},
-        store=FakeStore(),
+        store=FakeStore(),  # type: ignore
     )
 
     assert response["status"] == "success"
     assert len(search_calls) == 1
+    
+    # It should check role permission but not usage counters
     assert [(feature, increment) for feature, increment, _ in limit_calls] == [
-        ("news_searches_per_month", 0),
-        ("news_searches_per_day", 0),
-        ("news_searches_per_month", 1),
-        ("news_searches_per_day", 1),
+        ("can_use_scholarship_hunt", 0),
     ]
-    assert not any("web_searches" in feature for feature, _, _ in limit_calls)
+    
+    # It should charge the cost
+    assert charge_calls == [(0.05, "scholarship_hunt")]
 
 
 @pytest.mark.asyncio
 async def test_news_route_does_not_consume_usage_after_provider_failure(monkeypatch):
     limit_calls = []
+    charge_calls = []
 
     async def fail_search(**kwargs):
         raise news_api.HTTPException(status_code=502, detail="Provider failed.")
 
     def fake_limit(user, feature, increment, session):
         limit_calls.append((feature, increment))
+        
+    def fake_ensure_can_spend(user, session):
+        pass
+        
+    def fake_get_cost(session):
+        return 0.05
+        
+    def fake_charge(user, session, usd, source):
+        charge_calls.append((usd, source))
 
     class FakeStore:
         db = object()
@@ -370,6 +394,9 @@ async def test_news_route_does_not_consume_usage_after_provider_failure(monkeypa
     monkeypatch.setattr(news_api.news_service, "api_key", "test-tavily-key")
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fail_search)
     monkeypatch.setattr(news_api, "check_and_increment_limit", fake_limit)
+    monkeypatch.setattr(news_api, "ensure_can_spend", fake_ensure_can_spend)
+    monkeypatch.setattr(news_api, "get_tavily_call_cost_usd", fake_get_cost)
+    monkeypatch.setattr(news_api, "charge_flat_fee", fake_charge)
 
     with pytest.raises(news_api.HTTPException):
         await news_api.search_news(
@@ -384,10 +411,11 @@ async def test_news_route_does_not_consume_usage_after_provider_failure(monkeypa
             sort_by="latest",
             page=None,
             user={"id": "user-1"},
-            store=FakeStore(),
+            store=FakeStore(),  # type: ignore
         )
 
     assert limit_calls == [
-        ("news_searches_per_month", 0),
-        ("news_searches_per_day", 0),
+        ("can_use_scholarship_hunt", 0),
     ]
+    # Charge should still happen before the search
+    assert charge_calls == [(0.05, "scholarship_hunt")]

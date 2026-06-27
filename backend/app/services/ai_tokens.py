@@ -25,6 +25,8 @@ AI_TOKENS_FEATURE = "ai_tokens_per_month"
 PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
 RATE_SETTING = "ai_token_rate_tokens_per_dollar"
 DEFAULT_TOKEN_RATE = 10000
+TAVILY_COST_SETTING = "tavily_call_cost_usd"
+DEFAULT_TAVILY_COST = 0.01
 
 
 class OutOfTokens(HTTPException):
@@ -75,14 +77,31 @@ def load_user_dict(user_id: int, session: Session) -> dict:
 
 
 def get_token_rate(session: Session) -> int:
+    """Fetch the tokens-per-dollar conversion rate from settings."""
     row = session.execute(
         text("SELECT value FROM app_settings WHERE key = :k"),
         {"k": RATE_SETTING},
-    ).mappings().fetchone()
-    try:
-        return int(float(row["value"])) if row else DEFAULT_TOKEN_RATE
-    except (TypeError, ValueError):
-        return DEFAULT_TOKEN_RATE
+    ).scalar()
+    if row is not None:
+        try:
+            return int(row)
+        except ValueError:
+            pass
+    return DEFAULT_TOKEN_RATE
+
+
+def get_tavily_call_cost_usd(session: Session) -> float:
+    """Fetch the Tavily flat fee in USD from settings."""
+    row = session.execute(
+        text("SELECT value FROM app_settings WHERE key = :k"),
+        {"k": TAVILY_COST_SETTING},
+    ).scalar()
+    if row is not None:
+        try:
+            return float(row)
+        except ValueError:
+            pass
+    return DEFAULT_TAVILY_COST
 
 
 def get_role_monthly_allowance(user: dict, session: Session) -> int:
@@ -373,6 +392,113 @@ def charge(
         provider=provider,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cost_usd=cost_usd,
+        tokens_delta=-charged,
+        source=source,
+        balance_bucket=bucket,
+        ref_id=ref_id,
+    )
+    session.execute(
+        text(
+            "UPDATE ai_token_balances SET "
+            "subscription_remaining = MAX(0, subscription_remaining - :sub), "
+            "subscription_used_this_period = subscription_used_this_period + :sub, "
+            "purchased_remaining = MAX(0, purchased_remaining - :purch), "
+            "total_spent_tokens = total_spent_tokens + :t, "
+            "total_spent_usd = total_spent_usd + :c "
+            "WHERE user_id = :uid"
+        ),
+        {
+            "sub": sub_used,
+            "purch": purch_used,
+            "t": charged,
+            "c": cost_usd,
+            "uid": uid,
+        },
+    )
+    session.commit()
+
+    return {
+        "cost_usd": cost_usd,
+        "tokens": tokens,
+        "charged": charged,
+        "remaining_subscription": max(0, sub_remaining - sub_used),
+        "remaining_purchased": max(0, purch_remaining - purch_used),
+        "unlimited": False,
+    }
+
+
+def charge_flat_fee(
+    user: dict,
+    session: Session,
+    cost_usd: float,
+    source: str,
+    ref_id: Optional[int] = None,
+) -> dict:
+    """Charge a flat USD fee (e.g., Tavily searches) to the user's token balance.
+    Converts USD to tokens based on the current conversion rate.
+    """
+    uid = user["id"]
+    token_rate = get_token_rate(session)
+    tokens = math.ceil(cost_usd * token_rate)
+    
+    balance = refresh_balance(user, session)
+
+    if is_unlimited(user):
+        _ledger(
+            session,
+            user_id=uid,
+            model_id=None,
+            provider=None,
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=cost_usd,
+            tokens_delta=0,
+            source=source,
+            balance_bucket="unlimited",
+            ref_id=ref_id,
+        )
+        session.execute(
+            text(
+                "UPDATE ai_token_balances SET total_spent_tokens = "
+                "total_spent_tokens + :t, total_spent_usd = total_spent_usd + "
+                ":c WHERE user_id = :uid"
+            ),
+            {"t": tokens, "c": cost_usd, "uid": uid},
+        )
+        session.commit()
+        return {
+            "cost_usd": cost_usd,
+            "tokens": tokens,
+            "charged": 0,
+            "remaining_subscription": -1,
+            "remaining_purchased": -1,
+            "unlimited": True,
+        }
+
+    sub_remaining = int(balance["subscription_remaining"])
+    purch_remaining = int(balance["purchased_remaining"])
+
+    sub_used = min(tokens, sub_remaining)
+    purch_used = min(tokens - sub_used, purch_remaining)
+    charged = sub_used + purch_used
+
+    if sub_used and purch_used:
+        bucket = "mixed"
+    elif sub_used:
+        bucket = "subscription"
+    elif purch_used:
+        bucket = "purchased"
+    else:
+        bucket = "free"
+
+    _ledger(
+        session,
+        user_id=uid,
+        model_id=None,
+        provider=None,
+        input_tokens=0,
+        output_tokens=0,
         cost_usd=cost_usd,
         tokens_delta=-charged,
         source=source,

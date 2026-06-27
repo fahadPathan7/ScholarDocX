@@ -26,13 +26,14 @@ function formatTokens(n: number) {
 function statusTone(status: string) {
   if (status === "Approved") return "bg-emerald-100 text-emerald-700";
   if (status === "Rejected") return "bg-rose-100 text-rose-700";
+  if (status === "Cancelled") return "bg-slate-100 text-slate-600";
   return "bg-amber-100 text-amber-700";
 }
 
 export function TokenPurchaseRequestsTab() {
   const [requests, setRequests] = useState<PurchaseRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected" | "Cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchRequests = async () => {
@@ -122,7 +123,8 @@ export function TokenPurchaseRequestsTab() {
               { id: "all", label: "All Statuses" },
               { id: "Pending", label: "Pending" },
               { id: "Approved", label: "Approved" },
-              { id: "Rejected", label: "Rejected" }
+              { id: "Rejected", label: "Rejected" },
+              { id: "Cancelled", label: "Cancelled" }
             ].map((tab) => {
               const isActive = filterStatus === tab.id;
               return (

@@ -38,7 +38,7 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
   const [requests, setRequests] = useState<PlanRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<"all" | "upgrade" | "extension">("all");
-  const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected" | "Cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchRequests = async () => {
@@ -145,7 +145,8 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
               { id: "all", label: "All Statuses" },
               { id: "Pending", label: "Pending" },
               { id: "Approved", label: "Approved" },
-              { id: "Rejected", label: "Rejected" }
+              { id: "Rejected", label: "Rejected" },
+              { id: "Cancelled", label: "Cancelled" }
             ].map((tab) => {
               const isActive = filterStatus === tab.id;
               return (
@@ -225,6 +226,7 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         request.status === "Pending" ? "bg-amber-100 text-amber-700" :
                         request.status === "Approved" ? "bg-emerald-100 text-emerald-700" :
+                        request.status === "Cancelled" ? "bg-slate-100 text-slate-600" :
                         "bg-rose-100 text-rose-700"
                       }`}>
                         {request.status}

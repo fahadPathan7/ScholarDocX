@@ -25,7 +25,7 @@ interface ScholarshipNewsViewProps {
 type SearchFlowState = "idle" | "preparing" | "review" | "searching";
 
 export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
-  const { usageData, refreshUsage } = useUsage();
+  const { refreshUsage } = useUsage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -285,10 +285,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
       }))
     : articles;
 
-  const dailyUsage = usageData?.usage?.["news_searches_per_day"] ?? 0;
-  const dailyLimit = usageData?.limits?.["news_searches_per_day"] ?? 0;
-  const monthlyUsage = usageData?.usage?.["news_searches_per_month"] ?? 0;
-  const monthlyLimit = usageData?.limits?.["news_searches_per_month"] ?? 0;
+
   const latestQueryPreview = latestSearch?.approvedQuery
     ? latestSearch.approvedQuery.length > 150
       ? `${latestSearch.approvedQuery.slice(0, 150).trim()}...`
@@ -341,13 +338,7 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
       <div className="news-toolbar">
         <h1>{showBookmarksOnly ? "Saved Scholarships" : "Scholarship Hunt"}</h1>
         <div className="news-toolbar-actions" style={{ alignItems: 'center' }}>
-          {!showBookmarksOnly && (
-            <div style={{ display: 'flex', gap: '16px', marginRight: '8px', fontSize: '0.8rem', color: '#65756d', fontWeight: 600, background: 'rgba(47, 109, 122, 0.05)', padding: '6px 12px', borderRadius: '8px' }}>
-              <div>Daily: {dailyUsage} / {dailyLimit === -1 ? '∞' : dailyLimit}</div>
-              <div style={{ width: '1px', background: 'rgba(47, 109, 122, 0.2)' }} />
-              <div>Monthly: {monthlyUsage} / {monthlyLimit === -1 ? '∞' : monthlyLimit}</div>
-            </div>
-          )}
+
           <button 
             className={`button-secondary ${showBookmarksOnly ? 'active' : ''}`} 
             onClick={toggleBookmarksView}

@@ -17,8 +17,8 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_mistral', 0, 'never'),
         ('can_use_agents', 0, 'never'),
         ('can_use_web_search', 0, 'never'),
-        ('web_searches_per_day', 0, 'daily'),
-        ('web_searches_per_month', 0, 'monthly'),
+        ('can_use_advisor_atlas', 0, 'never'),
+        ('can_use_scholarship_hunt', 0, 'never'),
         ('total_projects', 1, 'never'),
         ('total_sheets', 2, 'never'),
         ('total_records', 100, 'never'),
@@ -27,8 +27,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 5242880, 'never'),
         ('total_sticky_notes', 3, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('news_searches_per_day', 0, 'daily'),
-        ('news_searches_per_month', 0, 'monthly'),
         ('ai_tokens_per_month', 0, 'monthly'),
     ],
     'general_user': [
@@ -39,8 +37,8 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_mistral', 0, 'never'),
         ('can_use_agents', 0, 'never'),
         ('can_use_web_search', 0, 'never'),
-        ('web_searches_per_day', 0, 'daily'),
-        ('web_searches_per_month', 0, 'monthly'),
+        ('can_use_advisor_atlas', 0, 'never'),
+        ('can_use_scholarship_hunt', 0, 'never'),
         ('total_projects', 3, 'never'),
         ('total_sheets', 10, 'never'),
         ('total_records', 1000, 'never'),
@@ -49,11 +47,8 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 31457280, 'never'),
         ('total_sticky_notes', 5, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('news_searches_per_day', 3, 'daily'),
-        ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 500000, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
-        ('can_use_advisor_atlas', 0, 'never'),
     ],
     'pro_user': [
         ('ai_messages_per_session', 30, 'per_session'),
@@ -63,8 +58,8 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_mistral', 0, 'never'),
         ('can_use_agents', 1, 'never'),
         ('can_use_web_search', 1, 'never'),
-        ('web_searches_per_day', 5, 'daily'),
-        ('web_searches_per_month', 150, 'monthly'),
+        ('can_use_advisor_atlas', 1, 'never'),
+        ('can_use_scholarship_hunt', 1, 'never'),
         ('total_projects', 10, 'never'),
         ('total_sheets', 50, 'never'),
         ('total_records', 25000, 'never'),
@@ -73,8 +68,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 104857600, 'never'),
         ('total_sticky_notes', 20, 'never'),
         ('total_whiteboards', 3, 'never'),
-        ('news_searches_per_day', 10, 'daily'),
-        ('news_searches_per_month', 100, 'monthly'),
         ('ai_tokens_per_month', 2000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
@@ -87,8 +80,8 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_mistral', 1, 'never'),
         ('can_use_agents', 1, 'never'),
         ('can_use_web_search', 1, 'never'),
-        ('web_searches_per_day', 20, 'daily'),
-        ('web_searches_per_month', 600, 'monthly'),
+        ('can_use_advisor_atlas', 1, 'never'),
+        ('can_use_scholarship_hunt', 1, 'never'),
         ('total_projects', 50, 'never'),
         ('total_sheets', 200, 'never'),
         ('total_records', 400000, 'never'),
@@ -97,8 +90,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 314572800, 'never'),
         ('total_sticky_notes', 50, 'never'),
         ('total_whiteboards', 10, 'never'),
-        ('news_searches_per_day', 30, 'daily'),
-        ('news_searches_per_month', 300, 'monthly'),
         ('ai_tokens_per_month', 5000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
@@ -139,8 +130,8 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_mistral', 0, 'never'),
         ('can_use_agents', 0, 'never'),
         ('can_use_web_search', 0, 'never'),
-        ('web_searches_per_day', 0, 'daily'),
-        ('web_searches_per_month', 0, 'monthly'),
+        ('can_use_advisor_atlas', 0, 'never'),
+        ('can_use_scholarship_hunt', 0, 'never'),
         ('total_projects', 1, 'never'),
         ('total_sheets', 2, 'never'),
         ('total_records', 100, 'never'),
@@ -149,11 +140,7 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 5242880, 'never'),
         ('total_sticky_notes', 3, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('news_searches_per_day', 3, 'daily'),
-        ('news_searches_per_month', 30, 'monthly'),
         ('ai_tokens_per_month', 0, 'monthly'),
-        ('can_purchase_token_packs', 0, 'never'),
-        ('can_use_advisor_atlas', 0, 'never'),
     ]
 }
 
@@ -231,22 +218,23 @@ class AdminService:
         pending_invite_requests = self.connection.execute("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'").fetchone()[0]
         pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
         pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
+        pending_credit_requests = self.connection.execute("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'pending'").fetchone()[0]
 
         total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
 
-        ai_usage_30d_rows = self.connection.execute(
+        ai_usage_10d_rows = self.connection.execute(
             "SELECT date(created_at) as day, SUM(-tokens_delta) as tokens "
             "FROM ai_token_ledger "
-            "WHERE tokens_delta < 0 AND created_at >= date('now', '-30 days') "
+            "WHERE tokens_delta < 0 AND created_at >= date('now', '-10 days') "
             "GROUP BY day ORDER BY day ASC"
         ).fetchall()
         
-        # Fill in missing dates for the last 30 days to ensure a continuous chart
+        # Fill in missing dates for the last 10 days to ensure a continuous chart
         import datetime
         today = datetime.date.today()
-        date_list = [(today - datetime.timedelta(days=x)).isoformat() for x in range(29, -1, -1)]
-        usage_map = {row["day"]: row["tokens"] for row in ai_usage_30d_rows}
-        ai_usage_30d = [{"date": d, "tokens": usage_map.get(d, 0)} for d in date_list]
+        date_list = [(today - datetime.timedelta(days=x)).isoformat() for x in range(9, -1, -1)]
+        usage_map = {row["day"]: row["tokens"] for row in ai_usage_10d_rows}
+        ai_usage_10d = [{"date": d, "tokens": usage_map.get(d, 0)} for d in date_list]
 
         return {
             "counts": {
@@ -262,11 +250,12 @@ class AdminService:
                 "pending_invite_requests": pending_invite_requests,
                 "pending_appeals": pending_appeals,
                 "pending_plan_requests": pending_plan_requests,
+                "pending_credit_requests": pending_credit_requests,
                 "total_ai_tokens": total_ai_tokens
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,
-            "ai_usage_30d": ai_usage_30d
+            "ai_usage_10d": ai_usage_10d
         }
 
     def list_users(self) -> list[dict]:
@@ -587,7 +576,7 @@ class AdminService:
         assert user_id is not None
 
         # Initialize usage stats
-        features = ['ai_messages_per_session', 'web_searches_per_day', 'web_searches_per_month', 'news_searches_per_day', 'news_searches_per_month', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
+        features = ['ai_messages_per_session', 'total_projects', 'total_sheets', 'total_records', 'sheets_per_project',
                     'records_per_sheet', 'total_documents_bytes', 'total_sticky_notes', 'total_whiteboards']
         for feature in features:
             self.connection.execute(

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, CheckSquare2, Edit, Eye, ListChecks, Palette, Plus, StickyNote, Trash2, X, PenTool } from "lucide-react";
+import { Check, CheckSquare2, Edit, Eye, ListChecks, Palette, Plus, StickyNote, Trash2, X, PenTool, Pin } from "lucide-react";
 import { api, deleteRecord, notify, RecordMap } from "../lib/api";
 import { formatLongDate } from "../lib/date";
 import { useDialog } from "./DialogProvider";
@@ -19,6 +19,8 @@ type NoteDraft = {
   checklist: ChecklistItem[];
   is_sketch: boolean;
   sketch_paths: string[];
+  font: string;
+  font_size: string;
 };
 
 const noteColors = [
@@ -37,8 +39,23 @@ const emptyDraft: NoteDraft = {
   is_checklist: false,
   checklist: [],
   is_sketch: false,
-  sketch_paths: []
+  sketch_paths: [],
+  font: "caveat",
+  font_size: "medium"
 };
+
+const noteFonts = [
+  { key: "caveat", label: "Handwriting", text: "Aa" },
+  { key: "sans", label: "Modern", text: "Aa" },
+  { key: "serif", label: "Classic", text: "Aa" },
+  { key: "mono", label: "Code", text: "Aa" }
+];
+
+const noteSizes = [
+  { key: "small", label: "Small", text: "S" },
+  { key: "medium", label: "Medium", text: "M" },
+  { key: "large", label: "Large", text: "L" }
+];
 
 function parseNoteBody(body: string): { text: string, sketchPaths: string[] | null } {
   if (!body) return { text: "", sketchPaths: null };
@@ -151,8 +168,18 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
   const [activeFilter, setActiveFilter] = useState("All");
 
   const sortedNotes = useMemo(() => {
-    if (activeFilter === "All") return notes;
-    return notes.filter(n => (n.color || "sun").toLowerCase() === activeFilter.toLowerCase());
+    let filtered = notes;
+    if (activeFilter !== "All") {
+      filtered = notes.filter(n => (n.color || "sun").toLowerCase() === activeFilter.toLowerCase());
+    }
+    return [...filtered].sort((a, b) => {
+      const pinA = a.is_pinned ? 1 : 0;
+      const pinB = b.is_pinned ? 1 : 0;
+      if (pinA !== pinB) {
+        return pinB - pinA;
+      }
+      return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
+    });
   }, [notes, activeFilter]);
 
   const loadNotes = async () => {
@@ -194,7 +221,9 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       is_checklist: Boolean(note.is_checklist),
       checklist: parseChecklist(note),
       is_sketch: parsed.sketchPaths !== null,
-      sketch_paths: parsed.sketchPaths || []
+      sketch_paths: parsed.sketchPaths || [],
+      font: note.font || "caveat",
+      font_size: note.font_size || "medium"
     });
     setItemText("");
     setIsModalOpen(true);
@@ -244,7 +273,9 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       color: draft.color,
       is_bold: false,
       is_checklist: draft.is_checklist,
-      checklist_json: JSON.stringify(draft.checklist)
+      checklist_json: JSON.stringify(draft.checklist),
+      font: draft.font,
+      font_size: draft.font_size
     };
     if (editingNote) {
       await api.patch(`/sticky_notes/${editingNote.id}`, { data });
@@ -276,6 +307,14 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
     }
     setNotes(notes.map(n => n.id === note.id ? updatedNote : n));
     await api.patch(`/sticky_notes/${note.id}`, { data: { checklist_json: JSON.stringify(nextItems) } });
+    await loadNotes();
+  };
+
+  const togglePin = async (note: RecordMap) => {
+    const isPinned = note.is_pinned ? 0 : 1;
+    const updatedNote = { ...note, is_pinned: isPinned };
+    setNotes(prev => prev.map(n => n.id === note.id ? updatedNote : n));
+    await api.patch(`/sticky_notes/${note.id}`, { data: { is_pinned: isPinned } });
     await loadNotes();
   };
 
@@ -325,6 +364,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                 deleteNote={deleteNote}
                 setViewingNote={setViewingNote}
                 toggleSavedItem={toggleSavedItem}
+                togglePin={togglePin}
               />
             ))}
           </div>
@@ -342,7 +382,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
 
       {isModalOpen ? (
         <div className="modal-backdrop" onClick={resetDraft}>
-          <form className="modal-panel sticky-note-modal" onClick={(event) => event.stopPropagation()} onSubmit={saveNote}>
+          <form className={`modal-panel sticky-note-modal color-${draft.color || "sun"} font-${draft.font || "caveat"} size-${draft.font_size || "medium"}`} onClick={(event) => event.stopPropagation()} onSubmit={saveNote}>
             <div className="modal-header">
               <div>
                 <p className="eyebrow">{editingNote ? "Update note" : "Quick capture"}</p>
@@ -351,12 +391,6 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
               <button className="icon-button" type="button" onClick={resetDraft} title="Close note form"><X size={18} /></button>
             </div>
             <div className="modal-content sticky-note-form">
-              <input
-                className="sticky-title-input"
-                value={draft.title}
-                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
-                placeholder="Note title"
-              />
               <div className="sticky-tools">
                 <div className="sticky-color-row" aria-label="Note colors">
                   <Palette size={16} />
@@ -371,6 +405,35 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                     />
                   ))}
                 </div>
+                <div className="sticky-font-row" aria-label="Note fonts">
+                  <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}>T</span>
+                  {noteFonts.map((font) => (
+                    <button
+                      key={font.key}
+                      className={draft.font === font.key ? `sticky-font-btn selected font-${font.key}` : `sticky-font-btn font-${font.key}`}
+                      type="button"
+                      onClick={() => setDraft({ ...draft, font: font.key })}
+                      title={font.label}
+                    >
+                      {font.text}
+                    </button>
+                  ))}
+                </div>
+                <div className="sticky-font-row" aria-label="Note font sizes">
+                  <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}><Eye size={14} /></span>
+                  {noteSizes.map((size) => (
+                    <button
+                      key={size.key}
+                      className={draft.font_size === size.key ? `sticky-font-btn selected` : `sticky-font-btn`}
+                      type="button"
+                      onClick={() => setDraft({ ...draft, font_size: size.key })}
+                      title={size.label}
+                      style={{ fontSize: size.key === 'small' ? '12px' : size.key === 'large' ? '16px' : '14px' }}
+                    >
+                      {size.text}
+                    </button>
+                  ))}
+                </div>
                 <button className={draft.is_checklist ? "sticky-tool active" : "sticky-tool"} type="button" onClick={() => setDraft({ ...draft, is_checklist: !draft.is_checklist })}>
                   <ListChecks size={16} /> Checklist
                 </button>
@@ -378,6 +441,12 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                   <PenTool size={16} /> Sketch
                 </button>
               </div>
+              <input
+                className="sticky-title-input"
+                value={draft.title}
+                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                placeholder="Note title"
+              />
               <textarea
                 value={draft.body}
                 onChange={(event) => setDraft({ ...draft, body: event.target.value })}
@@ -429,11 +498,11 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
 
       {viewingNote ? (
         <div className="modal-backdrop" onClick={() => setViewingNote(null)}>
-          <div className={`modal-panel sticky-view-modal color-${viewingNote.color || "sun"}`} onClick={(event) => event.stopPropagation()}>
+          <div className={`modal-panel sticky-view-modal color-${viewingNote.color || "sun"} font-${viewingNote.font || "caveat"} size-${viewingNote.font_size || "medium"}`} onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Full sticky note</p>
-                <h2>{viewingNote.title || "Untitled note"}</h2>
+                <h2 className="sticky-view-title">{viewingNote.title || "Untitled note"}</h2>
               </div>
               <button className="icon-button" type="button" onClick={() => setViewingNote(null)} title="Close full note"><X size={18} /></button>
             </div>
@@ -447,10 +516,10 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                 <div style={{ border: '1px dashed rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
                   <div className="sticky-check-list expanded">
                     {parseChecklist(viewingNote).map((item) => (
-                      <button className={`check-item ${item.done ? "checked" : ""}`} type="button" key={item.id} onClick={() => toggleSavedItem(viewingNote, item.id)}>
+                      <div className={`check-item ${item.done ? "checked" : ""}`} key={item.id}>
                         <span>{item.done ? <Check size={13} /> : null}</span>
                         {item.text}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -464,6 +533,9 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span className="sticky-view-date">{formatLongDate(viewingNote.updated_at)}</span>
               <div style={{ display: 'flex', gap: 8 }}>
+                <button className="secondary" type="button" onClick={() => setViewingNote(null)}>
+                  Cancel
+                </button>
                 <button className="secondary" type="button" onClick={() => { deleteNote(viewingNote); setViewingNote(null); }} title="Delete note" style={{ color: '#a24b4b', borderColor: 'rgba(162, 75, 75, 0.3)' }}>
                   Delete
                 </button>
@@ -493,6 +565,7 @@ function NoteCard({
   deleteNote: (n: RecordMap) => void;
   setViewingNote: (n: RecordMap) => void;
   toggleSavedItem: (n: RecordMap, id: string) => void;
+  togglePin: (n: RecordMap) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const items = parseChecklist(note);
@@ -508,12 +581,30 @@ function NoteCard({
 
   return (
     <article 
-      className={`sticky-card color-${note.color || "sun"} tilt-${index % 4}${isLongNote ? " has-view" : ""}`}
-      style={{ cursor: 'pointer' }}
+      className={`sticky-card color-${note.color || "sun"} font-${note.font || "caveat"} size-${note.font_size || "medium"} tilt-${index % 4}${isLongNote ? " has-view" : ""}`}
+      style={{ cursor: 'pointer', position: 'relative' }}
       onClick={() => setViewingNote(note)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {hovered || note.is_pinned ? (
+        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, zIndex: 100 }}>
+          <button 
+            type="button"
+            className={`sticky-action-btn ${note.is_pinned ? 'active' : ''}`}
+            onClick={(e) => { 
+              e.preventDefault(); 
+              e.stopPropagation(); 
+              togglePin(note); 
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            title={note.is_pinned ? "Unpin note" : "Pin note"}
+            style={note.is_pinned ? { opacity: 1, pointerEvents: 'auto' } : { pointerEvents: 'auto' }}
+          >
+            <Pin size={13} fill={note.is_pinned ? "currentColor" : "none"} />
+          </button>
+        </div>
+      ) : null}
       <div className="sticky-card-head">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div className="note-title" style={{ fontWeight: 600 }}>{note.title || "Untitled"}</div>

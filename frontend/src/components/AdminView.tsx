@@ -1018,10 +1018,30 @@ function InvitesTab() {
                   <td className="px-6 py-4 flex items-center gap-2">
                     <span className="font-mono text-indigo-700 font-bold tracking-widest bg-indigo-50 px-3 py-1 rounded border border-indigo-100">{inv.code}</span>
                     <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(inv.code);
-                        setCopiedCode(inv.code);
-                        setTimeout(() => setCopiedCode(null), 2000);
+                      onClick={async () => {
+                        try {
+                          if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(inv.code);
+                          } else {
+                            const textArea = document.createElement("textarea");
+                            textArea.value = inv.code;
+                            textArea.style.position = "absolute";
+                            textArea.style.left = "-999999px";
+                            document.body.prepend(textArea);
+                            textArea.select();
+                            try {
+                              document.execCommand('copy');
+                            } catch (error) {
+                              console.error(error);
+                            } finally {
+                              textArea.remove();
+                            }
+                          }
+                          setCopiedCode(inv.code);
+                          setTimeout(() => setCopiedCode(null), 2000);
+                        } catch (err) {
+                          console.error("Failed to copy", err);
+                        }
                       }}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                       title={copiedCode === inv.code ? "Copied!" : "Copy Code"}

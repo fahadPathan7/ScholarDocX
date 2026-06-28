@@ -508,3 +508,111 @@
   border-radius: 4px;
   transition: width 0.3s ease;
 }
+
+/* Font Classes */
+.font-caveat .sticky-title-input, .font-caveat .sticky-note-form textarea, .font-caveat .sticky-check-add input, .font-caveat .sticky-check-row span, .font-caveat .check-item, .font-caveat .note-title, .font-caveat .sticky-body, .font-caveat h2.sticky-view-title, .sticky-font-btn.font-caveat { font-family: 'Caveat', cursive; }
+.font-sans .sticky-title-input, .font-sans .sticky-note-form textarea, .font-sans .sticky-check-add input, .font-sans .sticky-check-row span, .font-sans .check-item, .font-sans .note-title, .font-sans .sticky-body, .font-sans h2.sticky-view-title, .sticky-font-btn.font-sans,
+.font-inter .sticky-title-input, .font-inter .sticky-note-form textarea, .font-inter .sticky-check-add input, .font-inter .sticky-check-row span, .font-inter .check-item, .font-inter .note-title, .font-inter .sticky-body, .font-inter h2.sticky-view-title, .sticky-font-btn.font-inter { font-family: 'Inter', sans-serif; }
+.font-serif .sticky-title-input, .font-serif .sticky-note-form textarea, .font-serif .sticky-check-add input, .font-serif .sticky-check-row span, .font-serif .check-item, .font-serif .note-title, .font-serif .sticky-body, .font-serif h2.sticky-view-title, .sticky-font-btn.font-serif { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; }
+.font-mono .sticky-title-input, .font-mono .sticky-note-form textarea, .font-mono .sticky-check-add input, .font-mono .sticky-check-row span, .font-mono .check-item, .font-mono .note-title, .font-mono .sticky-body, .font-mono h2.sticky-view-title, .sticky-font-btn.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+/* Font Sizes */
+.size-small .sticky-body, .size-small textarea { font-size: 15px; }
+.size-small strong, .size-small .sticky-title-input, .size-small .note-title { font-size: 15px; }
+.size-small h2.sticky-view-title { font-size: 20px; }
+.size-small .check-item, .size-small .sticky-check-row span { font-size: 15px; }
+
+.size-medium .sticky-body, .size-medium textarea { font-size: 18px; }
+.size-medium strong, .size-medium .sticky-title-input, .size-medium .note-title { font-size: 18px; }
+.size-medium h2.sticky-view-title { font-size: 24px; }
+.size-medium .check-item, .size-medium .sticky-check-row span { font-size: 18px; }
+
+.size-large .sticky-body, .size-large textarea { font-size: 22px; }
+.size-large strong, .size-large .sticky-title-input, .size-large .note-title { font-size: 22px; }
+.size-large h2.sticky-view-title { font-size: 32px; }
+.size-large .check-item, .size-large .sticky-check-row span { font-size: 22px; }
+
+/* Font UI Overrides */
+.sticky-view-modal h2.sticky-view-title {
+  font-family: inherit;
+  margin-top: 4px;
+}
+.sticky-note-modal .modal-header h2,
+.sticky-note-modal .modal-header .eyebrow,
+.sticky-tool {
+  font-family: 'Inter', sans-serif;
+}
+.sticky-tool { font-size: 13px; }
+
+/* Sticky font btn */
+.sticky-font-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(248, 246, 240, 0.86);
+  border: 1px solid rgba(38, 69, 59, 0.1);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.sticky-font-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sticky-font-btn:hover {
+  background: rgba(38, 69, 59, 0.05);
+}
+
+.sticky-font-btn.selected {
+  background: #fff;
+  border-color: rgba(38, 69, 59, 0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  font-weight: 600;
+}
+
+/* Sticky Card Hover Actions */
+.sticky-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: var(--text-color);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.sticky-action-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.sticky-action-btn.danger {
+  color: #a24b4b;
+}
+
+.sticky-action-btn.danger:hover {
+  background: rgba(253, 237, 237, 0.95);
+  border-color: rgba(226, 117, 117, 0.3);
+  color: #c93535;
+}

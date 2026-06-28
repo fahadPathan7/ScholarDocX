@@ -52,7 +52,7 @@ TABLE_COLUMNS = {
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},
     "notifications": {"user_id", "project_id", "title", "body", "notification_type", "preference_key", "due_at", "read_at"},
     "document_categories": {"user_id", "slug", "display_name", "sort_order"},
-    "sticky_notes": {"user_id", "title", "body", "color", "is_bold", "is_checklist", "checklist_json"},
+    "sticky_notes": {"user_id", "title", "body", "color", "is_bold", "is_checklist", "checklist_json", "font", "font_size", "is_pinned"},
     "degree_workspaces": {"user_id", "degree_type", "display_name", "enabled"},
     "universities": {"user_id", "name", "country", "region", "website_url", "notes"},
     "programs": {"user_id", "university_id", "name", "degree_type", "department", "application_url", "funding_url", "notes"},

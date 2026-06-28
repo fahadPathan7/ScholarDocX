@@ -532,11 +532,18 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
               ) : null}
             </div>
             <div className="modal-footer sticky-view-footer">
-              <span className="sticky-view-date">
-                {new Date(viewingNote.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                {' · '}
-                {new Date(viewingNote.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', gridArea: 'date', justifySelf: 'start' }}>
+                <span className="sticky-view-date" style={{ gridArea: 'unset', justifySelf: 'unset' }}>
+                  Created: {new Date(viewingNote.created_at || viewingNote.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' · '}
+                  {new Date(viewingNote.created_at || viewingNote.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </span>
+                <span className="sticky-view-date" style={{ gridArea: 'unset', justifySelf: 'unset' }}>
+                  Updated: {new Date(viewingNote.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {' · '}
+                  {new Date(viewingNote.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </span>
+              </div>
               <div className="sticky-view-main-actions">
                 <button className="primary" type="button" onClick={() => openEdit(viewingNote)}>
                   <Edit size={16} /> Edit note
@@ -667,7 +674,9 @@ function NoteCard({
           ) : null}
           {moreBadgeText ? <div className="sticky-more">{moreBadgeText}</div> : null}
         </div>
-        <small className="sticky-card-date">{new Date(note.updated_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).replace(',', '')}</small>
+        <small className="sticky-card-date">
+          {new Date(note.updated_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).replace(',', '')}
+        </small>
       </div>
     </article>
   );

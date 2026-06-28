@@ -357,7 +357,7 @@
 
 .sticky-card-date {
   color: rgba(23, 32, 29, 0.5);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -489,10 +489,10 @@
 }
 
 .sticky-view-date {
-  align-self: center;
+  align-self: flex-start;
   color: rgba(23, 32, 29, 0.72);
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -501,7 +501,7 @@
   justify-self: start;
 }
 
-.sticky-view-footer {
+.modal-footer.sticky-view-footer {
   align-items: center;
   display: grid;
   gap: 8px 12px;

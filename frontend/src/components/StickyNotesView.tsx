@@ -320,7 +320,6 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
 
   const shouldShowView = (note: RecordMap, items: ChecklistItem[]) =>
     (note.body || "").length > 120 || items.length > 3;
-
   return (
     <div className="sticky-notes-view">
       <section className="sticky-board">
@@ -405,34 +404,36 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                     />
                   ))}
                 </div>
-                <div className="sticky-font-row" aria-label="Note fonts">
-                  <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}>T</span>
-                  {noteFonts.map((font) => (
-                    <button
-                      key={font.key}
-                      className={draft.font === font.key ? `sticky-font-btn selected font-${font.key}` : `sticky-font-btn font-${font.key}`}
-                      type="button"
-                      onClick={() => setDraft({ ...draft, font: font.key })}
-                      title={font.label}
-                    >
-                      {font.text}
-                    </button>
-                  ))}
-                </div>
-                <div className="sticky-font-row" aria-label="Note font sizes">
-                  <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}><Eye size={14} /></span>
-                  {noteSizes.map((size) => (
-                    <button
-                      key={size.key}
-                      className={draft.font_size === size.key ? `sticky-font-btn selected` : `sticky-font-btn`}
-                      type="button"
-                      onClick={() => setDraft({ ...draft, font_size: size.key })}
-                      title={size.label}
-                      style={{ fontSize: size.key === 'small' ? '12px' : size.key === 'large' ? '16px' : '14px' }}
-                    >
-                      {size.text}
-                    </button>
-                  ))}
+                <div className="sticky-format-row">
+                  <div className="sticky-font-row" aria-label="Note fonts">
+                    <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}>T</span>
+                    {noteFonts.map((font) => (
+                      <button
+                        key={font.key}
+                        className={draft.font === font.key ? `sticky-font-btn selected font-${font.key}` : `sticky-font-btn font-${font.key}`}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, font: font.key })}
+                        title={font.label}
+                      >
+                        {font.text}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="sticky-font-row" aria-label="Note font sizes">
+                    <span style={{ fontSize: '14px', marginRight: '4px', opacity: 0.8 }}><Eye size={14} /></span>
+                    {noteSizes.map((size) => (
+                      <button
+                        key={size.key}
+                        className={draft.font_size === size.key ? `sticky-font-btn selected` : `sticky-font-btn`}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, font_size: size.key })}
+                        title={size.label}
+                        style={{ fontSize: size.key === 'small' ? '12px' : size.key === 'large' ? '16px' : '14px' }}
+                      >
+                        {size.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <button className={draft.is_checklist ? "sticky-tool active" : "sticky-tool"} type="button" onClick={() => setDraft({ ...draft, is_checklist: !draft.is_checklist })}>
                   <ListChecks size={16} /> Checklist
@@ -530,17 +531,20 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                 </div>
               ) : null}
             </div>
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="modal-footer sticky-view-footer">
               <span className="sticky-view-date">{formatLongDate(viewingNote.updated_at)}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="secondary" type="button" onClick={() => setViewingNote(null)}>
-                  Cancel
-                </button>
-                <button className="secondary" type="button" onClick={() => { deleteNote(viewingNote); setViewingNote(null); }} title="Delete note" style={{ color: '#a24b4b', borderColor: 'rgba(162, 75, 75, 0.3)' }}>
-                  Delete
-                </button>
+              <div className="sticky-view-main-actions">
                 <button className="primary" type="button" onClick={() => openEdit(viewingNote)}>
                   <Edit size={16} /> Edit note
+                </button>
+                <button
+                  className="icon-button compact sticky-view-delete-icon"
+                  type="button"
+                  onClick={() => { deleteNote(viewingNote); setViewingNote(null); }}
+                  aria-label="Delete note"
+                  title="Delete note"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -557,7 +561,8 @@ function NoteCard({
   openEdit,
   deleteNote,
   setViewingNote,
-  toggleSavedItem
+  toggleSavedItem,
+  togglePin
 }: {
   note: RecordMap;
   index: number;
@@ -574,10 +579,15 @@ function NoteCard({
   const shouldShowView = (n: RecordMap, itms: ChecklistItem[]) => parseText(n.body || "").length > 120 || itms.length > 3;
   const isLongNote = shouldShowView(note, items) || (isSketch && isSketch.length > 15);
   const visibleItems = isLongNote ? items.slice(0, 3) : items;
+  const hiddenItemCount = Math.max(0, items.length - visibleItems.length);
+  const moreBadgeText = note.is_checklist && hiddenItemCount > 0
+    ? `+${hiddenItemCount} more item${hiddenItemCount === 1 ? "" : "s"}`
+    : isLongNote && !note.is_checklist && !isSketch
+      ? "+ more text"
+      : null;
   
   const doneCount = items.filter((item) => item.done).length;
   const totalCount = items.length;
-  const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   return (
     <article 
@@ -592,6 +602,7 @@ function NoteCard({
           <button 
             type="button"
             className={`sticky-action-btn ${note.is_pinned ? 'active' : ''}`}
+            aria-label={note.is_pinned ? "Unpin note" : "Pin note"}
             onClick={(e) => { 
               e.preventDefault(); 
               e.stopPropagation(); 
@@ -606,8 +617,14 @@ function NoteCard({
         </div>
       ) : null}
       <div className="sticky-card-head">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className="sticky-title-wrap">
           <div className="note-title" style={{ fontWeight: 600 }}>{note.title || "Untitled"}</div>
+          {note.is_checklist ? (
+            <div className="sticky-check-summary">
+              <ListChecks size={12} />
+              <span>{totalCount} checklist items · {doneCount} done</span>
+            </div>
+          ) : null}
         </div>
       </div>
       
@@ -615,7 +632,6 @@ function NoteCard({
         {textBody ? (
           <>
             <p className="sticky-body">{textBody}</p>
-            {isLongNote && !note.is_checklist && !isSketch ? <div className="sticky-more">+ more text</div> : null}
           </>
         ) : null}
         
@@ -631,18 +647,13 @@ function NoteCard({
                 {item.text}
               </div>
             ))}
-            {isLongNote && items.length > visibleItems.length ? <div className="sticky-more">+{items.length - visibleItems.length} more</div> : null}
-            
-            <div style={{ height: 4, background: 'rgba(0,0,0,0.12)', borderRadius: 2, marginTop: 10 }}>
-              <div style={{ width: `${progress}%`, height: '100%', background: 'rgba(0,0,0,0.35)', borderRadius: 2, transition: 'width 0.3s ease' }} />
-            </div>
-            <span style={{ fontFamily: 'Caveat', fontSize: 18, opacity: 0.6 }}>
-              {doneCount} of {totalCount} done
-            </span>
           </div>
         ) : null}
       </div>
-      <small>{formatLongDate(note.updated_at)}</small>
+      <div className="sticky-card-footer">
+        <small>{formatLongDate(note.updated_at)}</small>
+        {moreBadgeText ? <div className="sticky-more">{moreBadgeText}</div> : null}
+      </div>
     </article>
   );
 }

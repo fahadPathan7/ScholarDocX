@@ -77,6 +77,14 @@
   gap: 8px;
 }
 
+.sticky-format-row {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .sticky-color-row {
   background: rgba(248, 246, 240, 0.86);
   border: 1px solid rgba(38, 69, 59, 0.1);
@@ -334,23 +342,43 @@
   text-align: left;
 }
 
-.sticky-more {
-  background: rgba(255, 255, 255, 0.34);
-  color: rgba(23, 32, 29, 0.64);
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
+.sticky-card-footer {
   align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  text-align: center;
-  border-radius: 4px;
-  margin-top: 8px;
-  padding: 0 12px;
+  border-top: 1px solid rgba(23, 32, 29, 0.08);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
 }
 
-.sticky-check-list.expanded {
-  margin-top: 16px;
+.sticky-card-footer small {
+  color: rgba(23, 32, 29, 0.6);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sticky-more {
+  background: rgba(255, 252, 242, 0.86);
+  border: 1px solid rgba(23, 32, 29, 0.08);
+  box-shadow: 0 1px 2px rgba(23, 32, 29, 0.05);
+  color: rgba(23, 32, 29, 0.72);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  padding: 4px 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  width: fit-content;
 }
 
 .sticky-check-list.expanded button {
@@ -433,9 +461,59 @@
 }
 
 .sticky-view-date {
-  color: rgba(23, 32, 29, 0.52);
+  align-self: center;
+  color: rgba(23, 32, 29, 0.72);
+  font-family: 'Inter', sans-serif;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sticky-view-footer {
+  align-items: center;
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "date actions";
+}
+
+.sticky-view-main-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  grid-area: actions;
+  justify-self: end;
+}
+
+.sticky-view-delete-icon {
+  color: #a24b4b;
+  flex-shrink: 0;
+}
+
+.sticky-view-delete-icon:hover {
+  background: rgba(253, 237, 237, 0.95);
+  color: #c93535;
+}
+
+.sticky-check-summary {
+  align-items: center;
+  background: rgba(255, 252, 242, 0.9);
+  border: 1px solid rgba(23, 32, 29, 0.12);
+  border-radius: 999px;
+  color: rgba(23, 32, 29, 0.8);
+  display: inline-flex;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 5px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  margin-top: 6px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+  width: fit-content;
 }
 
 .filter-chip {

@@ -7,7 +7,6 @@ import "./visual-refresh.css";
 import "./documents-refresh.css";
 import "./about-refresh.css";
 import "./sheet-table-polish.css";
-import { installHorizontalDragScroll } from "./lib/horizontalDragScroll";
 import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";
@@ -21,7 +20,6 @@ import { FullScreenSheet } from "./components/FullScreenSheet";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-installHorizontalDragScroll();
 migrateLegacyStorageKeys();
 
 createRoot(document.getElementById("root")!).render(

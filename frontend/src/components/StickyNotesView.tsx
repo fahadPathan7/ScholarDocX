@@ -140,7 +140,7 @@ function parseChecklist(note: RecordMap): ChecklistItem[] {
   }
 }
 
-export function StickyNotesView({ onToast }: { onToast: (msg: string) => void }) {
+export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: string) => void, refreshTrigger?: number }) {
   const { showConfirm, showAlert } = useDialog();
   const [notes, setNotes] = useState<RecordMap[]>([]);
   const [draft, setDraft] = useState<NoteDraft>(emptyDraft);
@@ -162,6 +162,12 @@ export function StickyNotesView({ onToast }: { onToast: (msg: string) => void })
   useEffect(() => {
     loadNotes().catch((error) => onToast(error.message));
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadNotes().catch((error) => onToast(error.message));
+    }
+  }, [refreshTrigger]);
 
   const resetDraft = () => {
     setDraft(emptyDraft);

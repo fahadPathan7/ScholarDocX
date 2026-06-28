@@ -32,12 +32,13 @@ type PricingResponse = {
 interface Props {
   onBack: () => void;
   onToast?: (msg: string) => void;
+  refreshTrigger?: number;
 }
 
 type PlanRequestType = "upgrade" | "extension";
 type PlanViewMode = "plans" | "requests";
 
-export function PlanComparisonView({ onBack, onToast }: Props) {
+export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const { user } = useAuth();
   const currentPlan = user?.roles?.includes("max_user") 
     ? "max_user" 
@@ -139,7 +140,7 @@ export function PlanComparisonView({ onBack, onToast }: Props) {
     };
     fetchPlans();
     fetchRequests();
-  }, []);
+  }, [refreshTrigger]);
 
   if (loading) {
     return (

@@ -36,7 +36,7 @@ type UserRecord = {
   plan_ends_at?: string | null;
 };
 
-type RoleFilter = "all" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
+type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
 type PlanStatusFilter = "all" | "expiring_soon" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
 type NotificationModalMode = "broadcast" | "user" | null;
@@ -52,10 +52,12 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
 
 const roleTabs = [
   { id: "all" as const, label: "All Users" },
+  { id: "any_user" as const, label: "Any User" },
   { id: "free_user" as const, label: "Free User" },
   { id: "general_user" as const, label: "General User" },
   { id: "pro_user" as const, label: "Pro User" },
   { id: "max_user" as const, label: "Max User" },
+  { id: "any_admin" as const, label: "Any Admin" },
   { id: "general_admin" as const, label: "General Admin" },
   { id: "super_admin" as const, label: "Super Admin" },
 ];
@@ -159,7 +161,12 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
     return "active";
   };
 
-  const matchesRole = (user: UserRecord, filter: RoleFilter) => filter === "all" || user.roles.includes(filter);
+  const matchesRole = (user: UserRecord, filter: RoleFilter) => {
+    if (filter === "all") return true;
+    if (filter === "any_user") return user.roles.some(role => userTierRoles.includes(role));
+    if (filter === "any_admin") return user.roles.some(role => adminRoleKeys.includes(role));
+    return user.roles.includes(filter);
+  };
   const matchesPlan = (user: UserRecord, filter: PlanStatusFilter) => filter === "all" || getPlanStatus(user) === filter;
   const matchesStatus = (user: UserRecord, filter: AccountStatusFilter) => {
     if (filter === "all") return true;
@@ -423,9 +430,9 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
       </div>
 
       <div className="flex overflow-x-auto items-start gap-4 shrink-0 bg-slate-100/50 p-2 rounded-xl border border-slate-200/50">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 flex-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {roleTabs.map((tab) => {
               const isActive = roleFilter === tab.id;
               return (
@@ -492,9 +499,9 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
           </div>
         </div>
 
-        <div className="w-px bg-slate-200 self-stretch hidden sm:block ml-auto" />
+        <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
 
-        <div className="flex flex-col gap-1.5 pr-2 sm:ml-0 ml-auto justify-center">
+        <div className="flex flex-col gap-1.5 pr-2 justify-center">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
           <div className="flex items-center px-2 py-2">
             <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">

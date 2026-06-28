@@ -145,7 +145,7 @@ export function LoginPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteDesc">Why do you want to join? (Optional)</label>
-              <textarea id="inviteDesc" rows={3} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
+              <textarea id="inviteDesc" rows={3} maxLength={500} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
             </div>
             <button type="submit" disabled={inviteLoading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6">
               {inviteLoading ? "Submitting..." : "Submit Request"}
@@ -245,6 +245,7 @@ export function LoginPage() {
                 )}
                 <textarea
                   value={appealMessage}
+                  maxLength={500}
                   onChange={(e) => setAppealMessage(e.target.value)}
                   placeholder="Explain why you think this suspension is a mistake..."
                   required

@@ -28,9 +28,10 @@ import "./advisor-atlas/advisor-atlas-profile-sections.css";
 
 type Props = {
   onToast: (message: string) => void;
+  refreshTrigger?: number;
 };
 
-export function AdvisorAtlasView({ onToast }: Props) {
+export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const { showConfirm } = useDialog();
   const { refreshUsage } = useUsage();
   const [runs, setRuns] = useState<AdvisorRun[]>([]);
@@ -80,6 +81,15 @@ export function AdvisorAtlasView({ onToast }: Props) {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadRuns();
+      if (activeRun) {
+        reloadActive();
+      }
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     if (pollRef.current) window.clearInterval(pollRef.current);

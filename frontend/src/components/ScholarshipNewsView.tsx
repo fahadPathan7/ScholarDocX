@@ -20,11 +20,12 @@ import "./news/news.css";
 
 interface ScholarshipNewsViewProps {
   onToast: (msg: string) => void;
+  refreshTrigger?: number;
 }
 
 type SearchFlowState = "idle" | "preparing" | "review" | "searching";
 
-export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
+export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNewsViewProps) {
   const { refreshUsage } = useUsage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
@@ -123,7 +124,6 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     }
   };
 
-  // Initial load
   useEffect(() => {
     fetchBookmarks();
     const handleResize = () => {
@@ -132,6 +132,16 @@ export function ScholarshipNewsView({ onToast }: ScholarshipNewsViewProps) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      if (showBookmarksOnly) {
+        fetchBookmarks();
+      } else if (latestSearch?.approvedQuery) {
+        fetchNews(filters, 0, latestSearch.approvedQuery, false);
+      }
+    }
+  }, [refreshTrigger]);
 
   const handleApplyFilters = async (newFilters: any) => {
     if (newFilters.isCustomPrompt) {

@@ -152,10 +152,7 @@ export function App() {
   const [toast, setToast] = useState("");
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
-  const [projectWorkspaceHomeKey, setProjectWorkspaceHomeKey] = useState(0);
-  const [documentsKey, setDocumentsKey] = useState(0);
-  const [stickyNotesKey, setStickyNotesKey] = useState(0);
-  const [whiteboardKey, setWhiteboardKey] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refresh = async () => {
@@ -210,6 +207,7 @@ export function App() {
     setIsRefreshing(true);
     const startTime = Date.now();
     try {
+      setRefreshTrigger((v) => v + 1);
       switch (activeTab) {
         case "dashboard":
           // Refresh dashboard data
@@ -222,8 +220,6 @@ export function App() {
           break;
 
         case "projects":
-          // Force remount of ProjectWorkspace to refresh projects
-          setProjectWorkspaceHomeKey((value) => value + 1);
           break;
 
         case "documents":
@@ -234,17 +230,12 @@ export function App() {
           ]);
           setFiles(fileRows);
           setDocumentCategories(categoryRows);
-          setDocumentsKey((value) => value + 1);
           break;
 
         case "sticky":
-          // Force remount of StickyNotesView
-          setStickyNotesKey((value) => value + 1);
           break;
 
         case "whiteboard":
-          // Force remount of WhiteboardView
-          setWhiteboardKey((value) => value + 1);
           break;
 
         case "profile":
@@ -345,7 +336,7 @@ export function App() {
     }
     if (key === "projects") {
       setProjectNavigationTarget(null);
-      setProjectWorkspaceHomeKey((value) => value + 1);
+      setRefreshTrigger((value) => value + 1);
     }
     setActiveTab(key);
   };
@@ -446,7 +437,7 @@ export function App() {
               <FloatingAssistant
                 onWorkspaceChanged={async () => {
                   await refresh();
-                  setProjectWorkspaceHomeKey((value) => value + 1);
+                  setRefreshTrigger((value) => value + 1);
                   showToast("Workspace updated by Lumi.");
                 }}
               />
@@ -465,7 +456,7 @@ export function App() {
             />
           ) : activeTab === "projects" ? (
             <ProjectWorkspace
-              key={projectWorkspaceHomeKey}
+              refreshTrigger={refreshTrigger}
               files={files}
               onChanged={refresh}
               onFilesChanged={refresh}
@@ -474,7 +465,7 @@ export function App() {
             />
           ) : activeTab === "documents" ? (
             <DocumentView
-              key={documentsKey}
+              refreshTrigger={refreshTrigger}
               categories={documentCategories}
               files={files}
               onChanged={refresh}
@@ -483,13 +474,13 @@ export function App() {
               showConfirm={showConfirm}
             />
           ) : activeTab === "sticky" ? (
-            <StickyNotesView key={stickyNotesKey} onToast={showToast} />
+            <StickyNotesView refreshTrigger={refreshTrigger} onToast={showToast} />
           ) : activeTab === "whiteboard" ? (
-            <WhiteboardView key={whiteboardKey} onToast={showToast} />
+            <WhiteboardView refreshTrigger={refreshTrigger} onToast={showToast} />
           ) : activeTab === "atlas" && canUseAdvisorAtlas ? (
-            <AdvisorAtlasView onToast={showToast} />
+            <AdvisorAtlasView refreshTrigger={refreshTrigger} onToast={showToast} />
           ) : activeTab === "news" && canUseScholarshipHunt ? (
-            <ScholarshipNewsView onToast={showToast} />
+            <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
           ) : activeTab === "profile" ? (
             <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
           ) : activeTab === "about" ? (
@@ -498,15 +489,15 @@ export function App() {
             </div>
           ) : activeTab === "plans" ? (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
-              <PlanComparisonView onBack={() => setActiveTab("profile")} />
+              <PlanComparisonView onBack={() => setActiveTab("profile")} refreshTrigger={refreshTrigger} />
             </div>
           ) : activeTab === "buy-credits" ? (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
-              <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} />
+              <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} refreshTrigger={refreshTrigger} />
             </div>
           ) : activeTab === "admin" && currentIsAdmin ? (
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>
-              <AdminView />
+              <AdminView refreshTrigger={refreshTrigger} />
             </div>
           ) : (
             <DashboardView dashboard={dashboard} notificationCount={notifications.filter((item) => !item.read_at).length} onCalendarEventClick={() => { }} onProjectClick={() => { }} />
@@ -900,6 +891,7 @@ function DocumentView(props: {
   onToast: (msg: string) => void;
   showAlert: (msg: string, title?: string) => Promise<void>;
   showConfirm: (msg: string, title?: string) => Promise<boolean>;
+  refreshTrigger?: number;
 }) {
   const [editingFile, setEditingFile] = useState<RecordMap | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);

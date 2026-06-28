@@ -17,6 +17,7 @@ This folder explains how ScholarDocX should be built.
 - [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md): 1000-line policy and split guidance.
 - [testing-strategy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/testing-strategy.md): verification expectations.
 - [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md): UI styling direction and CSS organization rules.
+- [state-management.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/state-management.md): Guidelines for UI state preservation and data refreshing.
 
 ## When To Update
 

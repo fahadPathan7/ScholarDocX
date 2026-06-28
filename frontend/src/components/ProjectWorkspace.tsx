@@ -151,7 +151,8 @@ export function ProjectWorkspace({
   onFilesChanged,
   navigationTarget,
   onToast,
-  fullScreenMode = false
+  fullScreenMode = false,
+  refreshTrigger
 }: {
   files: RecordMap[];
   onChanged?: () => Promise<void>;
@@ -159,6 +160,7 @@ export function ProjectWorkspace({
   navigationTarget?: ProjectNavigationTarget | null;
   onToast?: (message: string) => void;
   fullScreenMode?: boolean;
+  refreshTrigger?: number;
 }) {
   const { showAlert, showConfirm } = useDialog();
   const { usageData } = useUsage();
@@ -247,6 +249,15 @@ export function ProjectWorkspace({
   useEffect(() => {
     refreshProjects();
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      refreshProjects();
+      if (selectedProjectId) {
+        refreshSummary(selectedProjectId);
+      }
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     if (projects.length > 0) {

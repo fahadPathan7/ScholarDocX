@@ -72,9 +72,10 @@ const statusIcon = (s: string) => {
 interface Props {
   onBack: () => void;
   onToast?: (msg: string) => void;
+  refreshTrigger?: number;
 }
 
-export function BuyTokensView({ onBack, onToast }: Props) {
+export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const { balance, canPurchasePacks, refresh } = useTokenEconomy();
   const { usageData } = useUsage();
   const [packs, setPacks] = useState<Pack[]>([]);
@@ -129,7 +130,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
     refresh();
     if (canPurchasePacks) fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPurchasePacks]);
+  }, [canPurchasePacks, refreshTrigger]);
 
   const showBalance = !!balance && !balance.is_unlimited;
   const allowanceLabel = !balance ? "" : balance.monthly_allowance === -1 ? "∞" : formatTokens(balance.monthly_allowance);
@@ -150,15 +151,7 @@ export function BuyTokensView({ onBack, onToast }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
-          {canPurchasePacks && (
-            <button
-              onClick={fetchAll}
-              title="Refresh"
-              className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-white shadow-sm border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              <RefreshCcw size={16} />
-            </button>
-          )}
+
 
           {canPurchasePacks && (
             <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/60 shadow-inner">

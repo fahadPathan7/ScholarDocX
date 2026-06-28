@@ -1243,6 +1243,7 @@ function NotificationTextsTab() {
 }
 
 function InviteRequestsTab() {
+  const { showAlert } = useDialog();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1312,9 +1313,6 @@ function InviteRequestsTab() {
                 className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
               />
             </div>
-            <button onClick={fetchRequests} className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
-              Refresh
-            </button>
           </div>
         </div>
         <div className="flex-1 overflow-auto">
@@ -1342,7 +1340,17 @@ function InviteRequestsTab() {
                     <td className="px-4 py-3 font-medium text-slate-700">{r.name}</td>
                     <td className="px-4 py-3 text-slate-500">{r.email}</td>
                     <td className="px-4 py-3 text-slate-500">{r.phone || '-'}</td>
-                    <td className="px-4 py-3 max-w-xs truncate text-slate-500" title={r.description}>{r.description || '-'}</td>
+                    <td className="px-4 py-3 max-w-xs truncate text-slate-500">
+                      {r.description ? (
+                        <button 
+                          onClick={() => showAlert(r.description, "Request Description", "info")}
+                          className="hover:text-indigo-600 truncate max-w-xs text-left"
+                          title="Click to view full description"
+                        >
+                          {r.description}
+                        </button>
+                      ) : '-'}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                         r.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -1894,6 +1902,7 @@ function SettingsTab() {
 }
 
 export function SuspensionAppealsTab() {
+  const { showAlert } = useDialog();
   const [appeals, setAppeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1946,7 +1955,7 @@ export function SuspensionAppealsTab() {
           Suspension Appeals
         </h2>
         <div className="flex items-center gap-2">
-          <div className="relative mr-2">
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input
               type="text"
@@ -1956,9 +1965,6 @@ export function SuspensionAppealsTab() {
               className="pl-8 pr-3 py-1.5 bg-white border border-zinc-200/80 rounded-xl text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
             />
           </div>
-          <button onClick={fetchAppeals} className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100">
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -1984,7 +1990,17 @@ export function SuspensionAppealsTab() {
               visibleAppeals.map((a) => (
                 <tr key={a.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="px-6 py-4 font-medium text-zinc-900">{a.email}</td>
-                  <td className="px-6 py-4 max-w-md truncate" title={a.message}>{a.message}</td>
+                  <td className="px-6 py-4 max-w-md truncate">
+                    {a.message ? (
+                      <button 
+                        onClick={() => showAlert(a.message, "Appeal Message", "info")}
+                        className="hover:text-indigo-600 truncate max-w-md text-left"
+                        title="Click to view full message"
+                      >
+                        {a.message}
+                      </button>
+                    ) : '-'}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium border
                         ${a.status === 'Pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -2017,7 +2033,7 @@ export function SuspensionAppealsTab() {
   );
 }
 
-export function AdminView() {
+export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const isSuperAdmin = hasRole("super_admin");
   const [adminPermissions, setAdminPermissions] = useState<Record<string, boolean>>({
@@ -2036,21 +2052,6 @@ export function AdminView() {
 
   const adminRole = isSuperAdmin ? "super_admin" : "general_admin";
 
-  useEffect(() => {
-    api.get<any[]>("/admin/limits").then(limits => {
-      const myLimits = limits.filter(l => l.role === adminRole);
-      setAdminPermissions(prev => {
-        const next = { ...prev };
-        myLimits.forEach(l => {
-          if (l.feature.startsWith("admin_")) {
-            next[l.feature] = l.limit_count !== 0;
-          }
-        });
-        return next;
-      });
-    }).catch(console.error);
-  }, [adminRole]);
-
   const fetchAdminPermissions = () => {
     api.get<any[]>("/admin/limits").then(limits => {
       const myLimits = limits.filter(l => l.role === adminRole);
@@ -2065,6 +2066,13 @@ export function AdminView() {
       });
     }).catch(console.error);
   };
+
+  useEffect(() => {
+    fetchAdminPermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminRole, refreshTrigger]);
+
+
   
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },

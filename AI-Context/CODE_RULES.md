@@ -80,6 +80,7 @@ For every new feature or feature modification:
 - If unit tests are not needed for a feature, explain why in the Jira task.
 - Add tests around business-critical behavior, storage behavior, and data transformations.
 - For UI work, test main flows and failure states.
+- When creating a new page or tab component, it is MANDATORY to include a unit test verifying that it correctly accepts and handles the `refreshTrigger` prop for state-preserving data refreshes.
 - For AI integrations, test provider boundaries with mocks.
 - For file operations, test path validation and workspace initialization.
 - Do not leave feature work complete with "tests skipped" unless the reason is recorded in the task file.

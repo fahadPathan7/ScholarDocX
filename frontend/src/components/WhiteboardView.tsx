@@ -57,7 +57,7 @@ interface WhiteboardRecord {
   last_used_at: string;
 }
 
-export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void }) {
+export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: string) => void, refreshTrigger?: number }) {
   const ERASER_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="%23000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m13.3 4.7 5.6 5.6"/></svg>') 4 20, crosshair`;
   const PEN_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="%23000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>') 2 22, crosshair`;
 
@@ -153,6 +153,12 @@ export function WhiteboardView({ onToast }: { onToast?: (msg: string) => void })
   useEffect(() => {
     loadBoards();
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadBoards();
+    }
+  }, [refreshTrigger]);
 
   const switchBoard = (board: WhiteboardRecord, flushCurrent = true) => {
     if (flushCurrent && isLoadedRef.current && activeBoardIdRef.current && activeBoardIdRef.current !== board.id) {

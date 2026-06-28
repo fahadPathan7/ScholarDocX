@@ -207,22 +207,20 @@
 .sticky-card {
   border: 1px solid rgba(36, 57, 49, 0.12);
   border-radius: 6px 18px 8px 18px;
-  box-shadow: 0 8px 16px rgba(31, 44, 39, 0.08);
   color: #17201d;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: 280px;
   min-width: 0;
   overflow: hidden;
   padding: 18px;
   position: relative;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition: transform 160ms ease;
   font-family: 'Caveat', cursive;
   font-size: 20px;
 }
 
 .sticky-card:hover {
-  box-shadow: 0 22px 42px rgba(31, 44, 39, 0.16);
   transform: translateY(-2px) rotate(0deg);
 }
 
@@ -230,7 +228,6 @@
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 2px;
-  box-shadow: 0 2px 5px rgba(23, 32, 29, 0.1);
   content: "";
   height: 26px;
   left: 50%;
@@ -292,21 +289,11 @@
 .sticky-card-content {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
   position: relative;
   z-index: 1;
   overflow: hidden;
-}
-
-.sticky-card.has-view .sticky-card-content::after {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.28));
-  bottom: 0;
-  content: "";
-  height: 44px;
-  left: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
 }
 
 .sticky-body {
@@ -316,10 +303,6 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   font-size: 22px;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .sticky-check-list {
@@ -344,17 +327,16 @@
 
 .sticky-card-footer {
   align-items: center;
-  border-top: 1px solid rgba(23, 32, 29, 0.08);
+  border-bottom: 1px solid rgba(23, 32, 29, 0.08);
   display: flex;
   gap: 10px;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-top: auto;
-  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .sticky-card-footer small {
   color: rgba(23, 32, 29, 0.6);
-  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -362,10 +344,34 @@
   white-space: nowrap;
 }
 
+.sticky-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  padding-top: 8px;
+  margin-top: auto;
+  border-top: 1px solid rgba(23, 32, 29, 0.08);
+}
+
+.sticky-card-date {
+  color: rgba(23, 32, 29, 0.5);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  margin-left: auto;
+  text-decoration: none;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .sticky-more {
   background: rgba(255, 252, 242, 0.86);
   border: 1px solid rgba(23, 32, 29, 0.08);
-  box-shadow: 0 1px 2px rgba(23, 32, 29, 0.05);
   color: rgba(23, 32, 29, 0.72);
   display: inline-flex;
   align-items: center;
@@ -396,32 +402,55 @@
   width: 18px;
 }
 
-.sticky-card small {
+.sticky-card small:not(.sticky-card-date) {
   align-self: end;
-  border-top: 1px solid rgba(23, 32, 29, 0.08);
   color: rgba(23, 32, 29, 0.52);
   font-size: 16px;
   padding-top: 10px;
   margin-top: auto;
 }
 
+/* Sticky Card Hover Actions */
 .sticky-action-btn {
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
-  color: rgba(23, 32, 29, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  color: rgba(23, 32, 29, 0.6);
   cursor: pointer;
-  display: inline-flex;
-  padding: 6px;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
 .sticky-action-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  color: rgba(23, 32, 29, 1);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(23, 32, 29, 0.85);
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
-.sticky-action-btn.danger:hover {
+
+.sticky-action-btn.active {
+  background: rgba(23, 32, 29, 0.85);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.sticky-action-btn.active:hover {
+  background: rgba(23, 32, 29, 0.95);
+  color: rgba(255, 255, 255, 1);
+}
+
+.sticky-action-btn.danger {
   color: #a24b4b;
+}
+
+.sticky-action-btn.danger:hover {
+  background: rgba(253, 237, 237, 0.95);
+  border-color: rgba(226, 117, 117, 0.3);
+  color: #c93535;
 }
 
 .sticky-view-modal {
@@ -432,7 +461,6 @@
 }
 
 .sticky-view-modal h2 {
-  font-family: 'Caveat', cursive;
   font-size: 32px;
   font-weight: 700;
   margin-top: 4px;
@@ -469,6 +497,8 @@
   letter-spacing: 0.01em;
   line-height: 1.2;
   white-space: nowrap;
+  grid-area: date;
+  justify-self: start;
 }
 
 .sticky-view-footer {
@@ -514,6 +544,61 @@
   padding: 4px 8px;
   text-transform: uppercase;
   width: fit-content;
+}
+
+/* New Badge Styles */
+.sticky-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.sticky-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sticky-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  border: none;
+  background: transparent;
+}
+
+.sticky-badge-icon {
+  width: 22px;
+  height: 22px;
+  color: rgba(23, 32, 29, 0.55);
+}
+
+.sticky-badge-icon:hover {
+  background: rgba(255, 255, 255, 0.4);
+  color: rgba(23, 32, 29, 0.75);
+}
+
+.sticky-badge-checklist {
+  gap: 4px;
+  padding: 3px 6px;
+  color: rgba(23, 32, 29, 0.65);
+}
+
+.sticky-badge-checklist:hover {
+  background: rgba(255, 255, 255, 0.4);
+  color: rgba(23, 32, 29, 0.8);
+}
+
+.sticky-badge-text {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
 }
 
 .filter-chip {
@@ -611,10 +696,6 @@
 .size-large .check-item, .size-large .sticky-check-row span { font-size: 22px; }
 
 /* Font UI Overrides */
-.sticky-view-modal h2.sticky-view-title {
-  font-family: inherit;
-  margin-top: 4px;
-}
 .sticky-note-modal .modal-header h2,
 .sticky-note-modal .modal-header .eyebrow,
 .sticky-tool {
@@ -674,14 +755,12 @@
   -webkit-backdrop-filter: blur(4px);
   color: var(--text-color);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .sticky-action-btn:hover {
   background: rgba(255, 255, 255, 0.9);
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   border-color: rgba(255, 255, 255, 0.8);
 }
 

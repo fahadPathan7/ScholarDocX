@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, CheckSquare2, Edit, Eye, ListChecks, Palette, Plus, StickyNote, Trash2, X, PenTool, Pin } from "lucide-react";
+import { Check, CheckSquare2, Edit, Eye, ListChecks, Palette, Plus, StickyNote, Trash2, X, PenTool, Pin, FileText } from "lucide-react";
 import { api, deleteRecord, notify, RecordMap } from "../lib/api";
 import { formatLongDate } from "../lib/date";
 import { useDialog } from "./DialogProvider";
@@ -532,7 +532,11 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
               ) : null}
             </div>
             <div className="modal-footer sticky-view-footer">
-              <span className="sticky-view-date">{formatLongDate(viewingNote.updated_at)}</span>
+              <span className="sticky-view-date">
+                {new Date(viewingNote.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {' · '}
+                {new Date(viewingNote.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </span>
               <div className="sticky-view-main-actions">
                 <button className="primary" type="button" onClick={() => openEdit(viewingNote)}>
                   <Edit size={16} /> Edit note
@@ -580,11 +584,10 @@ function NoteCard({
   const isLongNote = shouldShowView(note, items) || (isSketch && isSketch.length > 15);
   const visibleItems = isLongNote ? items.slice(0, 3) : items;
   const hiddenItemCount = Math.max(0, items.length - visibleItems.length);
-  const moreBadgeText = note.is_checklist && hiddenItemCount > 0
-    ? `+${hiddenItemCount} more item${hiddenItemCount === 1 ? "" : "s"}`
-    : isLongNote && !note.is_checklist && !isSketch
-      ? "+ more text"
-      : null;
+  
+  // Show "+ more" if there's hidden content: text not shown, hidden items, sketch (always clipped), or long text
+  const hasHiddenContent = (textBody && note.is_checklist) || hiddenItemCount > 0 || (isLongNote && !note.is_checklist) || (isSketch && isSketch.length > 0);
+  const moreBadgeText = hasHiddenContent ? "+ more" : null;
   
   const doneCount = items.filter((item) => item.done).length;
   const totalCount = items.length;
@@ -619,12 +622,6 @@ function NoteCard({
       <div className="sticky-card-head">
         <div className="sticky-title-wrap">
           <div className="note-title" style={{ fontWeight: 600 }}>{note.title || "Untitled"}</div>
-          {note.is_checklist ? (
-            <div className="sticky-check-summary">
-              <ListChecks size={12} />
-              <span>{totalCount} checklist items · {doneCount} done</span>
-            </div>
-          ) : null}
         </div>
       </div>
       
@@ -636,7 +633,7 @@ function NoteCard({
         ) : null}
         
         {isSketch ? (
-          <SketchCanvas paths={isSketch} readOnly height={120} />
+          <SketchCanvas paths={isSketch} readOnly height="100%" />
         ) : null}
         
         {note.is_checklist ? (
@@ -650,9 +647,27 @@ function NoteCard({
           </div>
         ) : null}
       </div>
-      <div className="sticky-card-footer">
-        <small>{formatLongDate(note.updated_at)}</small>
-        {moreBadgeText ? <div className="sticky-more">{moreBadgeText}</div> : null}
+      <div className="sticky-card-meta">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
+          {note.is_checklist ? (
+            <div className="sticky-badge sticky-badge-checklist" title={`${totalCount} items · ${doneCount} done`}>
+              <ListChecks size={13} />
+              <span className="sticky-badge-text">{doneCount}/{totalCount}</span>
+            </div>
+          ) : null}
+          {textBody ? (
+            <div className="sticky-badge sticky-badge-icon" title="Has description">
+              <FileText size={13} />
+            </div>
+          ) : null}
+          {isSketch ? (
+            <div className="sticky-badge sticky-badge-icon" title="Has sketch">
+              <PenTool size={13} />
+            </div>
+          ) : null}
+          {moreBadgeText ? <div className="sticky-more">{moreBadgeText}</div> : null}
+        </div>
+        <small className="sticky-card-date">{new Date(note.updated_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).replace(',', '')}</small>
       </div>
     </article>
   );

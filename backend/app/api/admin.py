@@ -47,6 +47,10 @@ class PlanRequestReviewPayload(BaseModel):
 class InviteRequestReviewPayload(BaseModel):
     action: str
 
+class PasswordResetResolvePayload(BaseModel):
+    action: str  # "set_password" | "dismiss"
+    new_password: Optional[str] = None
+
 class SettingUpdatePayload(BaseModel):
     value: str
 
@@ -307,6 +311,26 @@ def review_invite_request(request_id: int, payload: InviteRequestReviewPayload, 
     require_feature("admin_manage_invite_requests", current_user, admin_service.db)
     try:
         return admin_service.resolve_invite_request(current_user["id"], request_id, payload.action)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/password-reset-requests")
+def list_password_reset_requests(
+    status: Optional[str] = None,
+    admin_service: AdminService = Depends(get_admin_service),
+    current_user: dict = Depends(get_current_user),
+):
+    normalized_status = status if status and status.lower() != "all" else None
+    require_feature("admin_manage_password_resets", current_user, admin_service.db)
+    return admin_service.list_password_reset_requests(normalized_status)
+
+@router.post("/password-reset-requests/{request_id}/resolve")
+def resolve_password_reset_request(request_id: int, payload: PasswordResetResolvePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+    require_feature("admin_manage_password_resets", current_user, admin_service.db)
+    try:
+        return admin_service.resolve_password_reset_request(current_user["id"], request_id, payload.action, payload.new_password)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:

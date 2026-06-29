@@ -387,6 +387,33 @@ Notes:
   plan has already expired, or from the existing deadline when the plan is
   still active.
 
+## password_reset_requests
+
+Purpose:
+
+Track admin-mediated forgot-password requests submitted from the login page.
+
+Likely fields:
+
+- id
+- email
+- user_id (FK users.id; the matched account, if any)
+- status (`Pending` / `Completed` / `Dismissed`)
+- ip_address
+- reviewed_by (FK users.id)
+- reviewed_at
+- created_at
+- updated_at
+
+Notes:
+
+- Created automatically via `Base.metadata.create_all` (no manual DDL).
+- The endpoint never confirms whether an email is registered; the row is created
+  only when the email matches a user, no pending request exists, and the IP
+  rate limit has not been hit.
+- `Completed` means an admin set a new password (the user's `token_version` is
+  also bumped). `Dismissed` means an admin cleared the request without a reset.
+
 ## scholarship_search_feedback
 
 Purpose:

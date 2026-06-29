@@ -10,7 +10,14 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saveCredentials, setSaveCredentials] = useState(true);
   const [isSuspendedModalOpen, setIsSuspendedModalOpen] = useState(false);
+
+  // Forgot Password State
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   
   // Invite Request State
   const [showInviteRequest, setShowInviteRequest] = useState(false);
@@ -55,6 +62,26 @@ export function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setForgotLoading(true);
+    setForgotSuccess(false);
+
+    try {
+      await api.post<any>("/auth/forgot-password", { email: forgotEmail });
+      // Always show the same success message regardless of whether the email is
+      // registered (the backend never reveals account existence).
+      setForgotSuccess(true);
+    } catch (err: any) {
+      // Only surface genuine network/server errors; never an "email not found"
+      // message, to avoid user enumeration.
+      setError(err.message || "Unable to submit request. Please try again later.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -63,7 +90,7 @@ export function LoginPage() {
     try {
       const response = await api.post<{ token: string, user: any }>("/auth/login", { email, password });
       if (response && response.token) {
-        setToken(response.token);
+        setToken(response.token, saveCredentials);
         // Use window.location for redirect so browser recognizes successful login for password saving
         const from = location.state?.from?.pathname || "/";
         window.location.href = from === "/login" ? "/" : from;
@@ -101,10 +128,10 @@ export function LoginPage() {
             <LogIn size={24} />
           </div>
           <h1 className="text-2xl font-bold text-zinc-100">
-            {showInviteRequest ? "Request Invite" : "Welcome Back"}
+            {showInviteRequest ? "Request Invite" : showForgotPassword ? "Forgot Password" : "Welcome Back"}
           </h1>
           <p className="mt-2 text-sm text-zinc-400 text-center">
-            {showInviteRequest ? "Tell us about yourself to get an invite code" : "Log in to your ScholarDocX account"}
+            {showInviteRequest ? "Tell us about yourself to get an invite code" : showForgotPassword ? "Enter your email to request a password reset" : "Log in to your ScholarDocX account"}
           </p>
         </div>
 
@@ -154,6 +181,46 @@ export function LoginPage() {
               <button type="button" onClick={() => setShowInviteRequest(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
             </div>
           </form>
+        ) : showForgotPassword ? (
+          forgotSuccess ? (
+            <div className="text-center">
+              <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+                If an account exists for this email, your request has been submitted to the administrator. They will contact you shortly.
+              </div>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setForgotSuccess(false);
+                  setForgotEmail("");
+                }}
+                className="font-medium text-emerald-500 hover:text-emerald-400"
+              >
+                Back to login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="forgotEmail">Email Address</label>
+                <input
+                  id="forgotEmail"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="you@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                />
+              </div>
+              <button type="submit" disabled={forgotLoading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6">
+                {forgotLoading ? "Submitting..." : "Submit Request"}
+              </button>
+              <div className="mt-4 text-center text-sm">
+                <button type="button" onClick={() => setShowForgotPassword(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
+              </div>
+            </form>
+          )
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
@@ -189,6 +256,36 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="saveCredentials"
+                    name="saveCredentials"
+                    type="checkbox"
+                    checked={saveCredentials}
+                    onChange={(e) => setSaveCredentials(e.target.checked)}
+                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <label
+                    htmlFor="saveCredentials"
+                    className="ml-2 block text-sm text-zinc-300 cursor-pointer select-none"
+                  >
+                    Save credentials
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(true);
+                    setError("");
+                    setForgotSuccess(false);
+                  }}
+                  className="text-sm font-medium text-emerald-500 hover:text-emerald-400"
+                >
+                  Forgot password?
+                </button>
               </div>
 
               <button

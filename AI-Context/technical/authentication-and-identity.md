@@ -116,3 +116,19 @@ If auth is implemented, add unit tests for:
 - Signout behavior.
 - Disconnect behavior.
 - Scope handling.
+
+## Forgot Password (admin-mediated reset)
+
+- `POST /auth/forgot-password` is unauthenticated and always returns HTTP 200
+  with an identical generic message. It never reveals whether an email is
+  registered, whether a request was created, or whether a rate limit applied.
+- Two limits are enforced silently (by not creating a row): at most one pending
+  `password_reset_requests` row per user, and one request per client IP per
+  hour (in-memory `defaultdict` of timestamps, matching the login/register/
+  invite-request limiter style).
+- `GET /admin/password-reset-requests` and
+  `POST /admin/password-reset-requests/{id}/resolve` are gated by the
+  `admin_manage_password_resets` permission. `resolve` supports `set_password`
+  (hashes a new password and increments the user's `token_version`, revoking all
+  prior sessions, then marks the request `Completed`) and `dismiss` (marks the
+  request `Dismissed` without changing the password).

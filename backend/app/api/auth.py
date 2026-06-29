@@ -23,6 +23,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _login_attempts = defaultdict(list)
 _register_attempts = defaultdict(list)
 _invite_request_attempts = defaultdict(list)
+_password_reset_attempts = defaultdict(list)
 
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_RATE_LIMIT_WINDOW = 300 # 5 minutes
@@ -31,6 +32,18 @@ MAX_REGISTER_ATTEMPTS = 5
 REGISTER_RATE_LIMIT_WINDOW = 300 # 5 minutes
 
 INVITE_REQUEST_RATE_LIMIT_WINDOW = 1800 # 30 minutes
+
+PASSWORD_RESET_RATE_LIMIT_WINDOW = 3600 # 1 hour
+# Generic response returned for every forgot-password attempt so the endpoint
+# cannot be used to enumerate which emails are registered.
+PASSWORD_RESET_GENERIC_MESSAGE = (
+    "If an account exists for this email, your request has been submitted to "
+    "the administrator. They will contact you shortly."
+)
+
+
+def _password_reset_generic_response() -> dict:
+    return {"status": "success", "message": PASSWORD_RESET_GENERIC_MESSAGE}
 
 class RegisterPayload(BaseModel):
     email: EmailStr
@@ -61,6 +74,9 @@ class InviteRequestPayload(BaseModel):
 class ContactAdminPayload(BaseModel):
     email: str
     message: str
+
+class ForgotPasswordPayload(BaseModel):
+    email: EmailStr
 
 
 @router.post("/register")
@@ -385,8 +401,53 @@ def contact_admin(payload: ContactAdminPayload, request: Request, store: Store =
         (payload.email, payload.message, client_ip)
     )
     store.legacy_connection.commit()
-    
+
     return {"status": "success", "message": "Your message has been sent to the administrator."}
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordPayload, request: Request, store: Store = Depends(get_store)):
+    # Security note: this endpoint MUST return the identical generic response in
+    # every branch so it cannot be used to enumerate registered emails. Rate
+    # limits and the "one pending request per user" rule are enforced silently
+    # by simply not creating a row.
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    # Per-IP limit: one request per hour. The budget is consumed before the
+    # email lookup so the limit cannot act as a timing/enumeration oracle.
+    _password_reset_attempts[client_ip] = [
+        ts for ts in _password_reset_attempts[client_ip]
+        if now - ts < PASSWORD_RESET_RATE_LIMIT_WINDOW
+    ]
+    if len(_password_reset_attempts[client_ip]) >= 1:
+        return _password_reset_generic_response()
+    _password_reset_attempts[client_ip].append(now)
+
+    # Look up the account. Unknown emails get the same generic response.
+    user = store.legacy_connection.execute(
+        "SELECT id FROM users WHERE email = ?", (payload.email,)
+    ).fetchone()
+    if not user:
+        return _password_reset_generic_response()
+
+    # Max one pending request per user.
+    existing = store.legacy_connection.execute(
+        "SELECT id FROM password_reset_requests WHERE user_id = ? AND status = 'Pending'",
+        (user["id"],)
+    ).fetchone()
+    if existing:
+        return _password_reset_generic_response()
+
+    store.legacy_connection.execute(
+        """
+        INSERT INTO password_reset_requests (email, user_id, ip_address, status, created_at, updated_at)
+        VALUES (?, ?, ?, 'Pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """,
+        (payload.email, user["id"], client_ip)
+    )
+    store.legacy_connection.commit()
+
+    return _password_reset_generic_response()
 
 @router.post("/plans/request")
 def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

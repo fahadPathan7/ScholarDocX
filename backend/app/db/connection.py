@@ -495,9 +495,11 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
         ("general_admin", "admin_manage_plan_requests", 1, "never"),
         ("general_admin", "admin_manage_token_requests", 1, "never"),
+        ("general_admin", "admin_manage_password_resets", 1, "never"),
         ("super_admin", "admin_manage_suspension_appeals", 1, "never"),
         ("super_admin", "admin_manage_plan_requests", 1, "never"),
         ("super_admin", "admin_manage_token_requests", 1, "never"),
+        ("super_admin", "admin_manage_password_resets", 1, "never"),
     ]
     connection.executemany(
         """
@@ -595,7 +597,7 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "admin_manage_role_limits", "admin_manage_notification_texts",
         "admin_send_notifications",
         "admin_manage_settings", "admin_manage_suspension_appeals",
-        "admin_manage_token_requests",
+        "admin_manage_token_requests", "admin_manage_password_resets",
     }
     placeholders = ",".join("?" for _ in canonical_features)
     connection.execute(

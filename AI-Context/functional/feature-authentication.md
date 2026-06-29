@@ -37,6 +37,17 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.14: Plan upgrade review and plan extension review should have separate
   admin permissions so either review surface can be granted or disabled
   independently in role limits.
+- FR-6.15: The login page offers a "Forgot password?" entry that collects only
+  the user's email and submits an admin-mediated password-reset request.
+- FR-6.16: The reset-request endpoint returns the same generic success message
+  regardless of whether the email is registered or whether a request was
+  created (no user enumeration).
+- FR-6.17: At most one pending reset request exists per user; further
+  submissions are silently ignored (still return the generic message).
+- FR-6.18: Reset requests are rate-limited to one per client IP per hour.
+- FR-6.19: A "Forget Pass Requests" admin tab lists requests by status; an admin
+  may set a new password for the user (resolving the request and invalidating
+  prior sessions) or dismiss the request without changing the password.
 
 ## Google Signin User Flow
 

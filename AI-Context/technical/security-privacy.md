@@ -65,6 +65,13 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
   store through `get_user_store` (which sets `current_user_id`), never
   `get_store` — the latter leaves the store unscoped and leaks other users'
   rows. Known-user-scoped tables are listed in `USER_SCOPED_TABLES`.
+- Forgot-password must not allow user enumeration: `POST /auth/forgot-password`
+  always returns HTTP 200 with an identical message whether or not the email is
+  registered, whether or not a request was created, and even when a rate limit
+  applies. Two silent limits apply (enforced by not creating a row): at most one
+  pending request per user, and one request per client IP per hour. The IP
+  budget is consumed before the email lookup so the limit cannot be used as a
+  timing/enumeration oracle.
 - Do not require remote signin for local-only MVP workflows.
 - If Google OAuth is added, keep it optional unless a later business decision changes this.
 - Request minimal scopes.

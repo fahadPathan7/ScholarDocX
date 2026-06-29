@@ -65,6 +65,20 @@ class SuspensionAppeals(Base):
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
 
 
+class PasswordResetRequests(Base):
+    __tablename__ = 'password_reset_requests'
+
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
+    ip_address: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    reviewed_at: Mapped[Optional[str]] = mapped_column(Text)
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+
+
 class Users(Base):
     __tablename__ = 'users'
     __table_args__ = (

@@ -98,6 +98,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_token_requests', 1, 'never'),
   ('general_admin', 'admin_manage_invite_requests', 1, 'never'),
   ('general_admin', 'admin_manage_suspension_appeals', 1, 'never'),
+  ('general_admin', 'admin_manage_password_resets', 1, 'never'),
   ('general_admin', 'can_use_agents', 1, 'never'),
   ('general_admin', 'admin_manage_role_limits', 1, 'never'),
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
@@ -117,6 +118,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_manage_token_requests', 1, 'never'),
   ('super_admin', 'admin_manage_invite_requests', 1, 'never'),
   ('super_admin', 'admin_manage_suspension_appeals', 1, 'never'),
+  ('super_admin', 'admin_manage_password_resets', 1, 'never'),
   ('super_admin', 'admin_manage_settings', 1, 'never');
 
 INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES

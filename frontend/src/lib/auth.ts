@@ -1,4 +1,6 @@
 export const TOKEN_KEY = "scholar_docx_token";
+// Whether the user opted to persist their session across browser restarts.
+export const REMEMBER_KEY = "scholar_docx_remember";
 
 export interface User {
   id: number;
@@ -15,15 +17,28 @@ export interface User {
 export type UserPlanStatus = "no_plan" | "active" | "warning" | "expired";
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+// `remember=true` (default) keeps the session across browser restarts (localStorage);
+// `remember=false` clears it when the browser closes (sessionStorage).
+export function setToken(token: string, remember = true): void {
+  // Avoid leaving a stale token in the other storage backend.
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  }
+  localStorage.setItem(REMEMBER_KEY, remember ? "true" : "false");
 }
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REMEMBER_KEY);
 }
 
 export function decodeToken(token: string): any {

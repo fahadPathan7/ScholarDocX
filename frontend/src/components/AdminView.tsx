@@ -44,6 +44,7 @@ import { UsersTab } from "./admin/UsersTab";
 import { ModelPricingTab } from "./admin/ModelPricingTab";
 import { TokenPacksTab } from "./admin/TokenPacksTab";
 import { TokenPurchaseRequestsTab } from "./admin/TokenPurchaseRequestsTab";
+import { PasswordResetRequestsTab } from "./admin/PasswordResetRequestsTab";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
 import { emitUiError } from "../lib/uiError";
 import { useDialog } from "./DialogProvider";
@@ -2067,7 +2068,8 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
     admin_suspend_user: isSuperAdmin,
     admin_manage_plan_requests: true,
     admin_manage_token_requests: true,
-    admin_manage_suspension_appeals: true
+    admin_manage_suspension_appeals: true,
+    admin_manage_password_resets: true
   });
 
   const adminRole = isSuperAdmin ? "super_admin" : "general_admin";
@@ -2116,6 +2118,10 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
 
   if (adminPermissions["admin_manage_plan_requests"]) {
     tabs.push({ id: "plan_requests", label: "Plan Requests", icon: CheckCircle });
+  }
+
+  if (adminPermissions["admin_manage_password_resets"]) {
+    tabs.push({ id: "password_reset_requests", label: "Forget Pass Requests", icon: KeyRound });
   }
 
   if (adminPermissions["admin_manage_token_requests"]) {
@@ -2194,6 +2200,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
             />
           )}
           {activeTab === "token_purchase_requests" && adminPermissions["admin_manage_token_requests"] && <TokenPurchaseRequestsTab />}
+          {activeTab === "password_reset_requests" && adminPermissions["admin_manage_password_resets"] && <PasswordResetRequestsTab refreshTrigger={refreshTrigger} />}
           {activeTab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab />}
           {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab />}
           {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}

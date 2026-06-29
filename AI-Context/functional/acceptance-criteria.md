@@ -46,6 +46,17 @@ Use this file for high-level acceptance criteria. Detailed task-specific criteri
 - Google signin uses minimal scopes unless a specific Google API feature requires more.
 - Disconnecting Google identity does not delete local application data.
 
+## Forgot Password
+
+- Login page exposes a "Forgot password?" entry that submits only an email.
+- The request response is identical for registered and unregistered emails (no
+  enumeration).
+- At most one pending request per user; duplicates create no new row.
+- Requests are rate-limited to one per client IP per hour.
+- The "Forget Pass Requests" admin tab lists requests; an admin can set a new
+  password (invalidates prior sessions) or dismiss a request.
+- The new admin tab accepts a `refreshTrigger` prop for state-preserving refresh.
+
 ## Sheet Columns and Record Form
 
 - Sheet columns have a specified type: `text`, `number`, `bool`, or `file`.

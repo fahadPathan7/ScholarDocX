@@ -117,3 +117,11 @@ development.
 - `/admin/notifications/send` accepts admin-authored notification broadcasts or
   targeted sends with a category, title, body, and either all-user delivery or
   an explicit recipient list
+- `/auth/forgot-password` is unauthenticated, accepts an email, and always
+  returns an identical generic success message (no user enumeration); it
+  silently enforces one pending request per user and one request per IP per hour
+- `/admin/password-reset-requests` lists forgot-password requests with optional
+  status filtering and is gated by the `admin_manage_password_resets` permission
+- `/admin/password-reset-requests/{id}/resolve` lets an admin set a new password
+  (bumps `token_version`, marks the request `Completed`) or dismiss it (marks
+  `Dismissed` without changing the password)

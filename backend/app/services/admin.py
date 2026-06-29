@@ -6,6 +6,7 @@ import string
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.auth.limits import invalidate_limits_cache
+from app.auth.password import hash_password
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
 
 DEFAULT_ROLE_LIMITS = {
@@ -110,6 +111,7 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
+        ('admin_manage_password_resets', 1, 'never'),
     ],
     'super_admin': [
         ('admin_create_user', 1, 'never'),
@@ -124,6 +126,7 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_send_notifications', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
+        ('admin_manage_password_resets', 1, 'never'),
     ],
     'free_user': [
         ('ai_messages_per_session', 0, 'per_session'),
@@ -799,6 +802,80 @@ class AdminService:
             return {"status": "success", "message": f"Request {new_status.lower()}."}
         self.connection.commit()
         self.log_audit_action(admin_id, f"resolve_plan_request_{new_status.lower()}", "plan_upgrade_requests", str(request_id), {"request_type": req["request_type"] or "upgrade"})
+        return {"status": "success", "message": f"Request {new_status.lower()}."}
+
+    def list_password_reset_requests(self, status: Optional[str] = None) -> list[dict]:
+        if status and status.lower() != "all":
+            requests = self.connection.execute(
+                """
+                SELECT p.id, p.email, p.user_id, p.status, p.ip_address,
+                       p.reviewed_by, p.reviewed_at, p.created_at, p.updated_at,
+                       u.email as user_email
+                FROM password_reset_requests p
+                LEFT JOIN users u ON u.id = p.user_id
+                WHERE p.status = ?
+                ORDER BY p.created_at DESC
+                """,
+                (status,),
+            ).fetchall()
+        else:
+            requests = self.connection.execute(
+                """
+                SELECT p.id, p.email, p.user_id, p.status, p.ip_address,
+                       p.reviewed_by, p.reviewed_at, p.created_at, p.updated_at,
+                       u.email as user_email
+                FROM password_reset_requests p
+                LEFT JOIN users u ON u.id = p.user_id
+                ORDER BY p.created_at DESC
+                """
+            ).fetchall()
+        return [dict(r) for r in requests]
+
+    def resolve_password_reset_request(self, admin_id: int, request_id: int, action: str, new_password: Optional[str] = None) -> dict:
+        req = self.connection.execute(
+            "SELECT * FROM password_reset_requests WHERE id = ?", (request_id,)
+        ).fetchone()
+
+        if not req:
+            raise LookupError("Request not found")
+
+        if req["status"] != "Pending":
+            raise ValueError("Request is already resolved")
+
+        normalized_action = (action or "").lower()
+        if normalized_action == "set_password":
+            if not new_password or not new_password.strip():
+                raise ValueError("A new password is required.")
+            if not req["user_id"]:
+                raise ValueError("This request is not linked to a user account.")
+            new_hash = hash_password(new_password)
+            # Update password and bump token_version to invalidate all existing sessions.
+            self.connection.execute(
+                "UPDATE users SET password_hash = ?, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_hash, req["user_id"])
+            )
+            new_status = "Completed"
+        elif normalized_action == "dismiss":
+            new_status = "Dismissed"
+        else:
+            raise ValueError("Invalid action. Use 'set_password' or 'dismiss'.")
+
+        self.connection.execute(
+            """
+            UPDATE password_reset_requests
+            SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (new_status, admin_id, request_id)
+        )
+        self.connection.commit()
+        self.log_audit_action(
+            admin_id,
+            f"resolve_password_reset_{new_status.lower()}",
+            "password_reset_requests",
+            str(request_id),
+            {"action": normalized_action},
+        )
         return {"status": "success", "message": f"Request {new_status.lower()}."}
 
     def get_app_settings(self) -> dict:

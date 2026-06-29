@@ -657,6 +657,11 @@ class AdvisorAtlasService:
         self._research_usage["tavily_searches"] = int(
             self._research_usage.get("tavily_searches", 0)
         ) + 1
+        # Record this Tavily call as a non-billing counter (tokens_delta=0) so it
+        # surfaces in the admin Tavily usage dashboard. Advisor Atlas uses the
+        # web-search Tavily key but is NOT metered per search — cost stays 0.
+        # Distinct source so it shows as its own card (vs. chat web-search).
+        self.ai_service.record_external_search(source="advisor_atlas_search")
         return [
             {
                 "title": item.get("title") or "Untitled source",

@@ -146,6 +146,12 @@ Changed files:
 - `backend/app/api/admin.py`, `backend/app/services/admin.py` —
   `GET /admin/password-reset-requests` + `POST .../resolve` (set_password |
   dismiss) with `token_version` bump on reset.
+- `backend/app/services/admin.py` `get_dashboard_stats` — added
+  `pending_password_resets` to `/admin/dashboard` counts so the admin dashboard
+  can surface pending requests (highlightable "Needs Action" card that jumps to
+  the tab), matching how Invite Requests are focused.
+- `frontend/src/components/AdminView.tsx` `DashboardTab` — added a highlightable
+  "Forget Pass Requests" stat card (pending count + "Needs Action" navigation).
 - `frontend/src/components/LoginPage.tsx` — "Forgot password?" sub-form.
 - `frontend/src/components/admin/PasswordResetRequestsTab.tsx` — new tab
   (accepts `refreshTrigger`, set-password modal, dismiss).

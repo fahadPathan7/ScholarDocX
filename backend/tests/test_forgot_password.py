@@ -330,3 +330,26 @@ def test_admin_list_password_reset_requests(tmp_path):
         assert all_rows[0]["user_email"] == "member@example.com"
     finally:
         store.db.close()
+
+
+def test_dashboard_stats_counts_pending_password_resets(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        seed_user(connection, 2, "member@example.com")
+        connection.execute(
+            """
+            INSERT INTO password_reset_requests (email, user_id, status)
+            VALUES
+              ('member@example.com', 2, 'Pending'),
+              ('member@example.com', 2, 'Pending'),
+              ('member@example.com', 2, 'Completed'),
+              ('member@example.com', 2, 'Dismissed')
+            """
+        )
+        connection.commit()
+
+        stats = AdminService(store.db).get_dashboard_stats()
+
+        assert stats["counts"]["pending_password_resets"] == 2
+    finally:
+        store.db.close()

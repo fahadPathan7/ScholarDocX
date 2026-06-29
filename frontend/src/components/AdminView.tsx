@@ -4,6 +4,9 @@ import { api } from "../lib/api";
 import { hasRole } from "../lib/auth";
 import {
   LayoutDashboard,
+  LayoutGrid,
+  Activity,
+  GraduationCap,
   Users,
   ShieldAlert,
   KeyRound,
@@ -35,7 +38,9 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  Zap
+  Zap,
+  Lock,
+  Compass
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
@@ -67,10 +72,24 @@ function AdminPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, root);
 }
 
+function SectionHeader({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle: string }) {
+  return (
+    <div className="admin-dashboard-section__header">
+      <div className="admin-dashboard-section__icon"><Icon size={16} /></div>
+      <div className="admin-dashboard-section__title">
+        <h2>{title}</h2>
+        <span>{subtitle}</span>
+      </div>
+      <div className="admin-dashboard-section__rule" />
+    </div>
+  );
+}
+
 function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [stats, setStats] = useState<any>(null);
   const [isRegistrationsOpen, setIsRegistrationsOpen] = useState(false);
   const [isLoginsOpen, setIsLoginsOpen] = useState(false);
+  const [dashboardView, setDashboardView] = useState<"all" | "overview" | "ai" | "activity">("overview");
 
   useEffect(() => {
     api.get<any>("/admin/dashboard").then(setStats).catch(console.error);
@@ -78,149 +97,177 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
 
   if (!stats) return <div className="admin-dashboard-loading">Loading dashboard...</div>;
 
-  const statCards = [
+  const statCardGroups: { key: string; label: string; emphasis?: boolean; cards: any[] }[] = [
     {
-      label: "Total Users",
-      value: stats.counts.total_users,
-      icon: Users,
-      tone: "indigo"
+      key: "action",
+      label: "Needs Action",
+      emphasis: true,
+      cards: [
+        { label: "Invite Requests", value: stats.counts.pending_invite_requests || 0, icon: KeyRound, tone: "amber", navigateTo: "invite_requests" },
+        { label: "Plan Requests", value: stats.counts.pending_plan_requests || 0, icon: FileClock, tone: "purple", navigateTo: "plan_requests" },
+        { label: "Credit Requests", value: stats.counts.pending_credit_requests || 0, icon: Coins, tone: "amber", navigateTo: "token_purchase_requests" },
+        { label: "Suspension Appeals", value: stats.counts.pending_appeals || 0, icon: ShieldAlert, tone: "rose", navigateTo: "suspension_appeals" },
+        { label: "Forget Pass Requests", value: stats.counts.pending_password_resets || 0, icon: Lock, tone: "purple", navigateTo: "password_reset_requests" },
+      ],
     },
     {
-      label: "Active (30d)",
-      value: stats.counts.active_users,
-      icon: CheckCircle,
-      tone: "emerald"
+      key: "users",
+      label: "Users",
+      cards: [
+        { label: "Total Users", value: stats.counts.total_users, icon: Users, tone: "indigo" },
+        { label: "Active (7D)", value: stats.counts.active_users_7d || 0, icon: Activity, tone: "blue" },
+        { label: "Active (30d)", value: stats.counts.active_users, icon: CheckCircle, tone: "emerald" },
+      ],
     },
     {
-      label: "Invite Requests",
-      value: stats.counts.pending_invite_requests || 0,
-      icon: KeyRound,
-      tone: "amber"
+      key: "workspace",
+      label: "Workspace",
+      cards: [
+        { label: "Total Projects", value: stats.counts.total_projects, icon: LayoutDashboard, tone: "blue" },
+        { label: "Total Sheets", value: stats.counts.total_sheets || 0, icon: FileSpreadsheet, tone: "emerald" },
+        { label: "Total Records", value: stats.counts.total_records || 0, icon: Database, tone: "blue" },
+      ],
     },
     {
-      label: "Plan Requests",
-      value: stats.counts.pending_plan_requests || 0,
-      icon: FileClock,
-      tone: "purple"
+      key: "documents",
+      label: "Documents & Storage",
+      cards: [
+        { label: "Total Documents", value: stats.counts.total_documents || 0, icon: FileText, tone: "indigo" },
+        {
+          label: "Storage Used",
+          value: (
+            <>
+              {((stats.counts.storage_bytes || 0) / 1024 / 1024).toFixed(2)}
+              <span>MB</span>
+            </>
+          ),
+          icon: HardDrive,
+          tone: "amber",
+        },
+      ],
     },
     {
-      label: "Credit Requests",
-      value: stats.counts.pending_credit_requests || 0,
-      icon: Coins,
-      tone: "amber"
+      key: "canvas",
+      label: "Notes & Boards",
+      cards: [
+        { label: "Total Sticky Notes", value: stats.counts.total_sticky_notes || 0, icon: StickyNote, tone: "amber" },
+        { label: "Total Whiteboards", value: stats.counts.total_whiteboards || 0, icon: Presentation, tone: "rose" },
+      ],
     },
     {
-      label: "Suspension Appeals",
-      value: stats.counts.pending_appeals || 0,
-      icon: ShieldAlert,
-      tone: "rose"
+      key: "ai",
+      label: "AI",
+      cards: [
+        { label: "Total AI Credits Used", value: formatTokenCount(stats.counts.total_ai_tokens || 0), icon: Zap, tone: "purple" },
+        { label: "Last 30 Days", value: formatTokenCount(stats.counts.ai_tokens_30d || 0), icon: Clock, tone: "emerald" },
+        { label: "Last 7 Days", value: formatTokenCount(stats.counts.ai_tokens_7d || 0), icon: Clock, tone: "blue" },
+      ],
     },
     {
-      label: "Total Projects",
-      value: stats.counts.total_projects,
-      icon: LayoutDashboard,
-      tone: "blue"
+      key: "tavily",
+      label: "Tavily Usage",
+      cards: [
+        { label: "Total Usage", value: stats.counts.tavily_total || 0, icon: Globe, tone: "indigo" },
+        { label: "Web Search", value: stats.counts.tavily_web_search || 0, icon: Search, tone: "blue" },
+        { label: "Scholarship Hunt", value: stats.counts.tavily_scholarship_hunt || 0, icon: GraduationCap, tone: "purple" },
+        { label: "Advisor Atlas", value: stats.counts.tavily_advisor_atlas || 0, icon: Compass, tone: "amber" },
+      ],
     },
-    {
-      label: "Total Sheets",
-      value: stats.counts.total_sheets || 0,
-      icon: FileSpreadsheet,
-      tone: "emerald"
-    },
-    {
-      label: "Total Documents",
-      value: stats.counts.total_documents || 0,
-      icon: FileText,
-      tone: "indigo"
-    },
-    {
-      label: "Total Sticky Notes",
-      value: stats.counts.total_sticky_notes || 0,
-      icon: StickyNote,
-      tone: "amber"
-    },
-    {
-      label: "Total Whiteboards",
-      value: stats.counts.total_whiteboards || 0,
-      icon: Presentation,
-      tone: "rose"
-    },
-    {
-      label: "Total Records",
-      value: stats.counts.total_records || 0,
-      icon: Database,
-      tone: "blue"
-    },
-    {
-      label: "Storage Used",
-      value: (
-        <>
-          {((stats.counts.storage_bytes || 0) / 1024 / 1024).toFixed(2)}
-          <span>MB</span>
-        </>
-      ),
-      icon: HardDrive,
-      tone: "amber"
-    },
-    {
-      label: "AI Credits Used",
-      value: formatTokenCount(stats.counts.total_ai_tokens || 0),
-      icon: Zap,
-      tone: "purple"
-    }
+  ];
+  // Total outstanding items across the "Needs Action" group, surfaced as a badge on its label.
+  const actionableTotal = (statCardGroups[0]?.cards || []).reduce(
+    (sum, c) => sum + (typeof c.value === "number" ? c.value : 0),
+    0,
+  );
+
+  const showOverview = dashboardView === "all" || dashboardView === "overview";
+  const showAi = dashboardView === "all" || dashboardView === "ai";
+  const showActivity = dashboardView === "all" || dashboardView === "activity";
+  const dashboardSubtabs: { id: "all" | "overview" | "ai" | "activity"; label: string; icon: any }[] = [
+    { id: "all", label: "View All", icon: LayoutGrid },
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "ai", label: "AI Credit Use", icon: Zap },
+    { id: "activity", label: "User Activity", icon: Users },
   ];
 
   return (
     <div className="admin-dashboard-tab animate-in fade-in duration-300">
-      <div className="admin-dashboard-stat-grid">
-        {statCards.map((card) => {
-          const isHighlightable = ["Invite Requests", "Plan Requests", "Credit Requests", "Suspension Appeals"].includes(card.label);
-          const hasValue = typeof card.value === 'number' && card.value > 0;
+      {/* Sub-view tabs */}
+      <div className="admin-dashboard-subtabs">
+        {dashboardSubtabs.map((t) => {
+          const Icon = t.icon;
+          const active = dashboardView === t.id;
           return (
-            <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
-              <div className="admin-dashboard-stat-card__header">
-                <div className="admin-dashboard-stat-card__icon">
-                  <card.icon size={19} />
-                </div>
-                <p>{card.label}</p>
-              </div>
-              {isHighlightable && hasValue ? (
-                <div className="flex items-center justify-between mt-1">
-                  <p 
-                    className="admin-dashboard-stat-card__value text-white px-4 py-0.5 rounded-xl shadow-md animate-[pulse_2s_ease-in-out_infinite]"
-                    style={{ backgroundColor: "var(--admin-stat-color)" }}
-                  >
-                    {card.value}
-                  </p>
-                  <button 
-                    onClick={() => {
-                      if (!onNavigate) return;
-                      if (card.label === "Invite Requests") onNavigate("invite_requests");
-                      else if (card.label === "Plan Requests") onNavigate("plan_requests");
-                      else if (card.label === "Credit Requests") onNavigate("token_purchase_requests");
-                      else if (card.label === "Suspension Appeals") onNavigate("suspension_appeals");
-                    }}
-                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-sm hover:opacity-80 transition-opacity cursor-pointer border-none"
-                    style={{ backgroundColor: "var(--admin-stat-bg)", color: "var(--admin-stat-color)" }}
-                  >
-                    Needs Action
-                  </button>
-                </div>
-              ) : (
-                <p className="admin-dashboard-stat-card__value">{card.value}</p>
-              )}
-            </div>
+            <button
+              key={t.id}
+              onClick={() => setDashboardView(t.id)}
+              className={`admin-dashboard-subtab${active ? " admin-dashboard-subtab--active" : ""}`}
+            >
+              <Icon size={15} />
+              {t.label}
+            </button>
           );
         })}
       </div>
-
-      <div className="admin-dashboard-panel admin-dashboard-panel--full-width mt-4 mb-4">
-        <div className="admin-dashboard-panel__header">
-          <div>
-            <Zap size={16} />
-            <h3>10-Day AI Credit Usage</h3>
+      {/* 1 — Overview */}
+      {showOverview && (
+      <section className="admin-dashboard-section">
+        <SectionHeader icon={LayoutDashboard} title="Overview" subtitle="Platform statistics & key metrics" />
+      <div className="admin-dashboard-stat-groups">
+        {statCardGroups.map((group) => (
+          <div key={group.key} className={`admin-dashboard-stat-group${group.emphasis ? " admin-dashboard-stat-group--emphasis" : ""}`}>
+            <div className="admin-dashboard-stat-group__label">
+              {group.label}
+              {group.emphasis && actionableTotal > 0 && (
+                <span className="admin-dashboard-stat-group__badge">{actionableTotal}</span>
+              )}
+            </div>
+            <div className="admin-dashboard-stat-grid">
+              {group.cards.map((card) => {
+                const isActionable = !!card.navigateTo;
+                const hasValue = typeof card.value === "number" && card.value > 0;
+                return (
+                  <div key={card.label} className={`admin-dashboard-stat-card admin-dashboard-stat-card--${card.tone}`}>
+                    <div className="admin-dashboard-stat-card__header">
+                      <div className="admin-dashboard-stat-card__icon">
+                        <card.icon size={19} />
+                      </div>
+                      <p>{card.label}</p>
+                    </div>
+                    {isActionable && hasValue ? (
+                      <div className="flex items-center justify-between mt-1">
+                        <p
+                          className="admin-dashboard-stat-card__value text-white px-4 py-0.5 rounded-xl shadow-md animate-[pulse_2s_ease-in-out_infinite]"
+                          style={{ backgroundColor: "var(--admin-stat-color)" }}
+                        >
+                          {card.value}
+                        </p>
+                        <button
+                          onClick={() => onNavigate?.(card.navigateTo)}
+                          className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-sm hover:opacity-80 transition-opacity cursor-pointer border-none"
+                          style={{ backgroundColor: "var(--admin-stat-bg)", color: "var(--admin-stat-color)" }}
+                        >
+                          Needs Action
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="admin-dashboard-stat-card__value">{card.value}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ))}
+      </div>
+      </section>
+      )}
+
+      {/* 2 — AI Credit Usage */}
+      {showAi && (
+      <section className="admin-dashboard-section">
+        <SectionHeader icon={Zap} title="AI Credit Usage" subtitle="Credits consumed over the last 10 days" />
+      <div className="admin-dashboard-panel admin-dashboard-panel--full-width">
         <div className="admin-dashboard-chart-wrap" style={{ height: 250, padding: "16px 20px" }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={stats.ai_usage_10d || []}>
@@ -242,7 +289,13 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
           </ResponsiveContainer>
         </div>
       </div>
+      </section>
+      )}
 
+      {/* 3 — User Activity */}
+      {showActivity && (
+      <section className="admin-dashboard-section">
+        <SectionHeader icon={Users} title="User Activity" subtitle="Recent registrations & logins" />
       <div className="admin-dashboard-activity-grid">
         <div className="admin-dashboard-panel self-start">
           <div className="admin-dashboard-panel__header cursor-pointer select-none" onClick={() => setIsRegistrationsOpen(!isRegistrationsOpen)}>
@@ -314,6 +367,8 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
           )}
         </div>
       </div>
+      </section>
+      )}
     </div>
   );
 }

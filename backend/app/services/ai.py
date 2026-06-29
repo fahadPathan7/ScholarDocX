@@ -130,6 +130,19 @@ class AiService:
             ref_id=ref_id,
         )
 
+    def record_external_search(self, *, source: str) -> None:
+        """Record an external search (e.g. a Tavily call) as a NON-billing
+        ledger counter row (tokens_delta=0, cost 0) so unbilled searches — such
+        as Advisor Atlas research, which uses the web-search Tavily key but is
+        not metered per call — still surface in usage dashboards. No-op when no
+        billing context is attached."""
+        if self._billing_user is None or self._billing_session is None:
+            return
+        from app.services import ai_tokens
+        ai_tokens.charge_flat_fee(
+            self._billing_user, self._billing_session, 0.0, source=source
+        )
+
     async def chat(
         self,
         message: str,

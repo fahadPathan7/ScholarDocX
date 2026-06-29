@@ -201,6 +201,7 @@ class AdminService:
     def get_dashboard_stats(self) -> dict:
         total_users = self.connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= date('now', '-30 days')").fetchone()[0]
+        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= date('now', '-7 days')").fetchone()[0]
         total_projects = self.connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         total_sheets = self.connection.execute("SELECT COUNT(*) FROM project_sheets").fetchone()[0]
         total_documents = self.connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
@@ -227,8 +228,15 @@ class AdminService:
         pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
         pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
         pending_credit_requests = self.connection.execute("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending'").fetchone()[0]
+        pending_password_resets = self.connection.execute("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'").fetchone()[0]
 
         total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
+        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= date('now', '-30 days')").fetchone()[0]
+        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= date('now', '-7 days')").fetchone()[0]
+        tavily_total = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')").fetchone()[0]
+        tavily_web_search = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'").fetchone()[0]
+        tavily_scholarship_hunt = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'").fetchone()[0]
+        tavily_advisor_atlas = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'").fetchone()[0]
 
         ai_usage_10d_rows = self.connection.execute(
             "SELECT date(created_at) as day, SUM(-tokens_delta) as tokens "
@@ -248,6 +256,7 @@ class AdminService:
             "counts": {
                 "total_users": total_users,
                 "active_users": active_users,
+                "active_users_7d": active_users_7d,
                 "total_projects": total_projects,
                 "total_sheets": total_sheets,
                 "total_documents": total_documents,
@@ -259,7 +268,14 @@ class AdminService:
                 "pending_appeals": pending_appeals,
                 "pending_plan_requests": pending_plan_requests,
                 "pending_credit_requests": pending_credit_requests,
-                "total_ai_tokens": total_ai_tokens
+                "pending_password_resets": pending_password_resets,
+                "total_ai_tokens": total_ai_tokens,
+                "ai_tokens_30d": ai_tokens_30d,
+                "ai_tokens_7d": ai_tokens_7d,
+                "tavily_total": tavily_total,
+                "tavily_web_search": tavily_web_search,
+                "tavily_scholarship_hunt": tavily_scholarship_hunt,
+                "tavily_advisor_atlas": tavily_advisor_atlas
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,

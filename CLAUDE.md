@@ -11,7 +11,7 @@ For any task, load context in this order:
 1. [AGENTS.md](/Users/fahadpathan/Documents/ScholarDocX/AGENTS.md)
 2. [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/CODE_RULES.md)
 3. [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md)
-4. Relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills)
+4. Relevant repo-carried skills in `.claude/skills` or `.agents/skills`
 5. The active task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks)
 6. Only the business, functional, and technical files relevant to the task
 

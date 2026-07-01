@@ -4,6 +4,8 @@ Status: Draft
 
 Owner: AI Agent
 
+Epic: [Epic-Folder-Name]
+
 Created: YYYY-MM-DD
 
 ## Summary

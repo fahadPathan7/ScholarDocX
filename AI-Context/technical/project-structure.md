@@ -6,7 +6,7 @@ This file defines the expected future organization. It is a guide, not current c
 
 The repository contains AI-DLC context plus the MVP product scaffold.
 
-AI-agent workflow skills are stored in `AI-Context/agent-skills/` as repo-carried `SKILL.md` folders.
+AI-agent workflow skills are stored directly in `.agents/skills`, `.claude/skills`, and `.codex/skills` as repo-carried `SKILL.md` folders.
 
 
 ## Actual MVP Structure

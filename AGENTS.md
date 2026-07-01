@@ -13,18 +13,20 @@ ScholarDocX is a local-first, privacy-first higher education application managem
 Before writing or changing product code:
 
 1. Read [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md).
-2. Read the relevant repo-carried skills in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills).
+2. Read the relevant repo-carried skills automatically loaded from `.agents/skills`, `.claude/skills`, or `.codex/skills`.
 3. Read the relevant business, functional, and technical context files for the requested work.
 4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks).
 5. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
 6. Only then implement code.
 7. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
 
-Do not skip context refinement for new features or feature modifications.
+### STRICT ENFORCEMENTS
+- **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
+- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (e.g., `technical/UI-UX.md` or `technical/backend-services.md`) with any new architectural or design decisions. Do not end the session without updating the context.
 
 ## Repo-Carried Agent Skills
 
-ScholarDocX keeps project-specific `SKILL.md` files in [AI-Context/agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills). These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
+ScholarDocX keeps project-specific `SKILL.md` files natively integrated in `.agents/skills`, `.claude/skills`, and `.codex/skills`. These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
 
 Use only the skills relevant to the current task. Skills supplement the source-of-truth order below; they do not override the user's latest instruction, root rules, the active Jira task, or AI-Context.
 

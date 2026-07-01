@@ -489,7 +489,7 @@
 }
 
 .sticky-view-date {
-  align-self: flex-start;
+  align-self: flex-start; 
   color: rgba(23, 32, 29, 0.72);
   font-family: 'Inter', sans-serif;
   font-size: 11px;

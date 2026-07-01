@@ -20,8 +20,8 @@ Those files were deleted after their content was absorbed into this refined work
 - [technical](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical): architecture, stack, storage, APIs, coding rules, testing.
 - [planbook](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/planbook): detailed pre-implementation plans for large or cross-module features.
 - [jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks): task files used to execute work.
-- [workflows](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/workflows): AI-DLC process, context maintenance, handoff rules.
-- [agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills): repo-carried `SKILL.md` files for recurring AI-agent workflows.
+- [workflows](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows): the process rules for AI development (ai-dlc-process.md).
+- (Skills are natively integrated into `.agents/skills`, `.claude/skills`, and `.codex/skills`).
 
 ## AI-DLC Reading Strategy
 
@@ -29,7 +29,7 @@ For any implementation task:
 
 1. Read the root agent rules.
 2. Read this file.
-3. Read relevant repo-carried skills from [agent-skills](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/agent-skills).
+3. Read relevant repo-carried skills from `.agents/skills`, `.claude/skills`, or `.codex/skills`.
 4. Read the active Jira task.
 5. Read the relevant planbook when the Jira task links one.
 6. Read only the relevant files from business, functional, and technical context.

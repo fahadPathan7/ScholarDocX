@@ -318,6 +318,6 @@ def test_admin_plan_request_review_blocks_extension_without_requests_permission(
             assert False, "Expected HTTPException for missing requests permission"
         except HTTPException as exc:
             assert exc.status_code == 403
-            assert "PLAN_REQUESTS" in str(exc.detail) or "plan_requests" in str(exc.detail).lower()
+            assert "ADMIN_MANAGE_PLAN_REQUESTS" in str(exc.detail) or "admin_manage_plan_requests" in str(exc.detail).lower()
     finally:
         store.db.close()

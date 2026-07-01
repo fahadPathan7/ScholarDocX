@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { LogIn, Mail } from "lucide-react";
 import { api } from "../lib/api";
-import { setToken } from "../lib/auth";
+import { setToken, saveLoginCredentials, loadSavedCredentials, clearSavedCredentials } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
 
 export function LoginPage() {
@@ -38,6 +38,16 @@ export function LoginPage() {
   const { refreshUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const saved = loadSavedCredentials();
+    if (saved) {
+      setEmail(saved.email);
+      setPassword(saved.password);
+      setSaveCredentials(true);
+    }
+  }, []);
 
   const handleRequestInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +101,12 @@ export function LoginPage() {
       const response = await api.post<{ token: string, user: any }>("/auth/login", { email, password });
       if (response && response.token) {
         setToken(response.token, saveCredentials);
+        // Save or clear credentials based on the checkbox
+        if (saveCredentials) {
+          saveLoginCredentials(email, password);
+        } else {
+          clearSavedCredentials();
+        }
         // Use window.location for redirect so browser recognizes successful login for password saving
         const from = location.state?.from?.pathname || "/";
         window.location.href = from === "/login" ? "/" : from;

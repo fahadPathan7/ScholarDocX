@@ -1,6 +1,44 @@
 export const TOKEN_KEY = "scholar_docx_token";
 // Whether the user opted to persist their session across browser restarts.
 export const REMEMBER_KEY = "scholar_docx_remember";
+// Keys for saved login credentials (email + password).
+const SAVED_EMAIL_KEY = "scholar_docx_saved_email";
+const SAVED_PASSWORD_KEY = "scholar_docx_saved_password";
+
+// ---------------------------------------------------------------------------
+// Credential save / load helpers
+// Uses base64 obfuscation so the password isn't stored in plain text.
+// This is intentional for a local-first, zero-backend app – the browser's
+// localStorage is only accessible to the same origin.
+// ---------------------------------------------------------------------------
+
+/** Persist email + password so the login form can pre-fill them next time. */
+export function saveLoginCredentials(email: string, password: string): void {
+  try {
+    localStorage.setItem(SAVED_EMAIL_KEY, btoa(email));
+    localStorage.setItem(SAVED_PASSWORD_KEY, btoa(password));
+  } catch {
+    // Silently ignore — quota exceeded or private browsing restrictions.
+  }
+}
+
+/** Load previously saved credentials (returns null when nothing is stored). */
+export function loadSavedCredentials(): { email: string; password: string } | null {
+  try {
+    const encodedEmail = localStorage.getItem(SAVED_EMAIL_KEY);
+    const encodedPassword = localStorage.getItem(SAVED_PASSWORD_KEY);
+    if (!encodedEmail || !encodedPassword) return null;
+    return { email: atob(encodedEmail), password: atob(encodedPassword) };
+  } catch {
+    return null;
+  }
+}
+
+/** Remove saved credentials from localStorage. */
+export function clearSavedCredentials(): void {
+  localStorage.removeItem(SAVED_EMAIL_KEY);
+  localStorage.removeItem(SAVED_PASSWORD_KEY);
+}
 
 export interface User {
   id: number;

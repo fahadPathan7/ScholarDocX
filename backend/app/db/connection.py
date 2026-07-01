@@ -492,12 +492,16 @@ def migrate_database(connection: sqlite3.Connection) -> None:
 
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
+        ("general_admin", "admin_view_dashboard", 1, "never"),
         ("general_admin", "admin_manage_suspension_appeals", 1, "never"),
         ("general_admin", "admin_manage_plan_requests", 1, "never"),
+        ("general_admin", "admin_manage_invite_requests", 1, "never"),
         ("general_admin", "admin_manage_token_requests", 1, "never"),
         ("general_admin", "admin_manage_password_resets", 1, "never"),
+        ("super_admin", "admin_view_dashboard", 1, "never"),
         ("super_admin", "admin_manage_suspension_appeals", 1, "never"),
         ("super_admin", "admin_manage_plan_requests", 1, "never"),
+        ("super_admin", "admin_manage_invite_requests", 1, "never"),
         ("super_admin", "admin_manage_token_requests", 1, "never"),
         ("super_admin", "admin_manage_password_resets", 1, "never"),
     ]
@@ -589,15 +593,16 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "sheets_per_project", "records_per_sheet",
         "total_documents_bytes", "total_sticky_notes", "total_whiteboards",
         # Admin permissions
+        "admin_view_dashboard",
         "admin_create_user", "admin_assign_user_roles", "admin_assign_admin_roles",
         "admin_manage_user_roles", "admin_manage_admin_roles",
         "admin_suspend_user", "admin_revoke_user",
         "admin_manage_invites", "admin_view_audit_logs",
         "admin_manage_plan_requests", "admin_manage_invite_requests",
+        "admin_manage_token_requests", "admin_manage_password_resets",
         "admin_manage_role_limits", "admin_manage_notification_texts",
         "admin_send_notifications",
         "admin_manage_settings", "admin_manage_suspension_appeals",
-        "admin_manage_token_requests", "admin_manage_password_resets",
     }
     placeholders = ",".join("?" for _ in canonical_features)
     connection.execute(

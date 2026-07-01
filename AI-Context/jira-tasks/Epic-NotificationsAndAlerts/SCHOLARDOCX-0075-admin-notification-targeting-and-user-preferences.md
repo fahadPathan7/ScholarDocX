@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0075 — Admin Notification Targeting And User Preferences
 
-## Status
-Review
+Status: Review
+
 
 Owner: AI Agent
 
@@ -64,8 +64,8 @@ Out of scope:
 
 ## Verification Plan
 
-- `cd /Users/fahadpathan/Documents/ScholarDock/backend && pytest tests/test_admin_notifications.py -q`
-- `cd /Users/fahadpathan/Documents/ScholarDock/frontend && npm run build`
+- `cd backend && pytest tests/test_admin_notifications.py -q`
+- `cd frontend && npm run build`
 
 ## Test Decision
 
@@ -99,8 +99,8 @@ Changed files:
 
 Verification completed:
 
-- `cd /Users/fahadpathan/Documents/ScholarDock/backend && pytest tests/test_admin_notifications.py -q`
-- `cd /Users/fahadpathan/Documents/ScholarDock/frontend && npm run build`
+- `cd backend && pytest tests/test_admin_notifications.py -q`
+- `cd frontend && npm run build`
 
 Implementation notes:
 

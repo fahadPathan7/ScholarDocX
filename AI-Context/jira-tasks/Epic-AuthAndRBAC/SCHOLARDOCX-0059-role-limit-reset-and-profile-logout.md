@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0059 — Role Limit Reset And Profile Logout
 
-## Status
-Completed
+Status: Done
+
 
 Owner: AI Agent
 
@@ -101,7 +101,7 @@ If any file exceeds 1000 lines, explain why.
 
 ## Verification Plan
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`
 
 ## Completion Notes
 Additional follow-up (2026-05-31):
@@ -122,7 +122,7 @@ Changed files:
 
 Verification completed:
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`
 
 Unit tests added or updated:
 

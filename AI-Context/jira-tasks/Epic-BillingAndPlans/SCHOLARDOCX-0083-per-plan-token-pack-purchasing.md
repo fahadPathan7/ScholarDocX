@@ -1,6 +1,6 @@
 # SCHOLARDOCX-0083: Per-plan token-pack purchasing
 
-Status: In progress
+Status: In Progress
 Owner: AI Agent
 
 Epic: Epic-BillingAndPlans

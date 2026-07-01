@@ -90,7 +90,7 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/StickyNotesView.tsx`
 
 Line-count risk:
 
@@ -102,18 +102,18 @@ If any file exceeds 1000 lines, explain why.
 
 ## Verification Plan
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0087-sticky-note-pin-button-fix.md`
+- `frontend/src/components/StickyNotesView.tsx`
+- `AI-Context/jira-tasks/SCHOLARDOCX-0087-sticky-note-pin-button-fix.md`
 
 Verification completed:
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 Unit tests added or updated:
 

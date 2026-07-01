@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0049: Whiteboard Functionality Implementation
 
+Status: In Progress
+
 Epic: Epic-Whiteboard
 
 ## Goal
@@ -23,5 +25,5 @@ Make the Whiteboard fully functional with a robust, custom SVG-based infinite ca
 6. Connect Properties panel to selected shape.
 7. Implement `localStorage` save/load effect.
 
-## Status
-- **In Progress**: Scaffolding state and interfaces.
+## Progress Notes
+- Scaffolding state and interfaces.

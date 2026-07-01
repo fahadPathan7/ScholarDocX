@@ -56,18 +56,18 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/CalendarMonthView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProfileView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-about-profile.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md`
+- `frontend/src/App.tsx`
+- `frontend/src/components/CalendarMonthView.tsx`
+- `frontend/src/components/ProfileView.tsx`
+- `frontend/src/components/ProjectWorkspace.tsx`
+- `frontend/src/visual-refresh.css`
+- `AI-Context/functional/feature-about-profile.md`
+- `AI-Context/functional/feature-documents-storage.md`
+- `AI-Context/functional/feature-project-workspace.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked Documents page layout: category groups stack full-width, rows
   are readable, and no `Uploaded:` label is shown.
 - Browser checked Profile: timezone renders as a dropdown with GMT labels.

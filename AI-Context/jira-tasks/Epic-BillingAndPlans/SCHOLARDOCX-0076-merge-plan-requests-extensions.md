@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0076: Merge Plan Requests and Plan Extensions
 
+Status: Done
+
 Epic: Epic-BillingAndPlans
 
 ## Goal

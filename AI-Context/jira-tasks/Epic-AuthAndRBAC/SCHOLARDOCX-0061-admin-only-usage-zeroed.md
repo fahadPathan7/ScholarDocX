@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0061 — Admin-Only Usage Limits Zeroed
 
-## Status
-Completed
+Status: Done
+
 
 Owner: AI Agent
 

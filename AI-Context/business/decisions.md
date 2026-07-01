@@ -161,7 +161,7 @@ Status: Accepted
 
 Decision:
 
-The product formerly named ScholarDock is renamed to ScholarDocX across the codebase, configuration, identifiers, agent skills, task tracking, and the project directory.
+The product's legacy pre-rebrand name was replaced by ScholarDocX across the codebase, configuration, identifiers, agent skills, task tracking, and project references.
 
 Rationale:
 

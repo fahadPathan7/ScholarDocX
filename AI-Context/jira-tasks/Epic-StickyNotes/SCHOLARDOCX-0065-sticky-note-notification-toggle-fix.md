@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0065 — Sticky Note Notification Toggle Fix
 
-## Status
-Completed
+Status: Done
+
 
 Owner: AI Agent
 
@@ -28,7 +28,7 @@ Out of scope:
 
 ## Verification Plan
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`
 
 ## Completion Notes
 Changed files:
@@ -40,4 +40,4 @@ Changed files:
 
 Verification completed:
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`

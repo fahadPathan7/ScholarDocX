@@ -10,7 +10,7 @@ Created: 2026-06-26
 
 ## Summary
 
-Rename the product from ScholarDock to ScholarDocX across display text, docs, all technical identifier casings, agent-skill folders, and Jira task IDs, while preserving existing local user data via an automatic migration shim.
+Rename the product from its legacy pre-rebrand name to ScholarDocX across display text, docs, all technical identifier casings, agent-skill folders, and Jira task IDs, while preserving existing local user data via an automatic migration shim.
 
 ## Business Context
 
@@ -40,7 +40,7 @@ Links:
 
 Technical notes:
 
-- Identifier casings renamed: ScholarDock→ScholarDocX, scholardock→scholardocx, SCHOLARDOCK→SCHOLARDOCX, scholarDock→scholarDocX, scholar_dock→scholar_docx, scholar-dock→scholar-docx, SCHOLAR-NNNN→SCHOLARDOCX-NNNN.
+- Identifier casings renamed from legacy pre-rebrand forms to ScholarDocX / scholardocx / SCHOLARDOCX / scholarDocX / scholar_docx / scholar-docx, and task IDs moved to `SCHOLARDOCX-NNNN`.
 - New file: frontend/src/lib/migrateStorageKeys.ts — one-time copy of legacy localStorage keys + the auth token to the new names, guarded by a `scholarDocX_keys_migrated` flag. Invoked from frontend/src/main.tsx before render.
 - 7 agent-skill folders and 71 Jira task files renamed via git mv; their README indexes and internal cross-refs were updated by the bulk replace.
 - DB file path is workspace-relative (workspace/db/app.db), so the root-folder rename does not move user data.
@@ -97,7 +97,7 @@ Line-count risk:
 
 - npm --prefix frontend run build
 - backend: python -c "import app.main"; pytest
-- Straggler grep: `grep -rInE 'scholar[-_ ]?dock|scholarDock|ScholarDock|SCHOLARDOCK|SCHOLAR-[0-9]' . --exclude-dir=node_modules --exclude-dir=.git --exclude=backend.log --exclude=migrateStorageKeys.ts`
+- Straggler grep checked legacy pre-rebrand casing variants and old `SCHOLAR-NNNN` task IDs while excluding generated dependency folders and logs.
 - Manual: load app with legacy keys present, confirm login/settings/history persist.
 
 ## Completion Notes
@@ -117,4 +117,4 @@ Unit tests added or updated:
 
 Follow-ups:
 
-- Rename the project root directory ~/Documents/ScholarDock → ~/Documents/ScholarDocX (manual), then reopen the project.
+- Rename the legacy project root directory to `~/Documents/ScholarDocX` manually, then reopen the project.

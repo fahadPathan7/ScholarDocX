@@ -49,27 +49,27 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/categories.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/workspace.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/connection.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/schema.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/api/routes.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_workspace.py`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/FilePickerField.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/data-model-draft.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/local-storage-and-data.md`
+- `backend/app/core/categories.py`
+- `backend/app/core/workspace.py`
+- `backend/app/db/connection.py`
+- `backend/app/db/schema.py`
+- `backend/app/api/routes.py`
+- `backend/app/services/store.py`
+- `backend/tests/test_store.py`
+- `backend/tests/test_workspace.py`
+- `frontend/src/App.tsx`
+- `frontend/src/components/FilePickerField.tsx`
+- `frontend/src/documents-refresh.css`
+- `AI-Context/functional/feature-documents-storage.md`
+- `AI-Context/technical/api-boundaries.md`
+- `AI-Context/technical/data-model-draft.md`
+- `AI-Context/technical/local-storage-and-data.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDock/backend`.
+  `backend`.
 - Full backend `pytest` still fails on the pre-existing async AI tests because
   the current environment lacks a pytest async plugin.
 - Browser checked Documents category UI: default categories render, category

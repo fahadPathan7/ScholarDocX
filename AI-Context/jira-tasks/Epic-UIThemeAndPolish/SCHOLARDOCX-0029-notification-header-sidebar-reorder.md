@@ -1,7 +1,6 @@
 # SCHOLARDOCX-0029: Notification Floating Panel and Sidebar Reorder
 
-Status: Completed
-
+Status: Done
 Owner: AI Agent
 
 Epic: Epic-UIThemeAndPolish

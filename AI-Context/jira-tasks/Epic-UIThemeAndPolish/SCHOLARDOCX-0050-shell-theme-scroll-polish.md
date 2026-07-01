@@ -81,7 +81,7 @@ Links:
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked Dashboard at `http://localhost:5173`: body, app shell, main,
   and sidebar all remain fixed with hidden overflow; dashboard list sections
   scroll internally.

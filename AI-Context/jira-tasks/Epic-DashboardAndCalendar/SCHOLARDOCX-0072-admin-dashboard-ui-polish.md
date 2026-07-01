@@ -1,10 +1,9 @@
 # SCHOLARDOCX-0072 — Admin Dashboard UI Polish
 
+Status: Done
+
 Epic: Epic-DashboardAndCalendar
 
-## Status
-
-Done
 
 ## Request
 

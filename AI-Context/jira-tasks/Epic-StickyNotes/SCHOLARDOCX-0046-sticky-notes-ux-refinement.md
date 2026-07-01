@@ -48,13 +48,13 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
+- `frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/functional/feature-sticky-notes.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked the Sticky Notes board: only one create button is visible on
   the page, the modal opens from that button, bold is gone, checklist controls
   are visible, and long checklist content scrolls above the date footer.

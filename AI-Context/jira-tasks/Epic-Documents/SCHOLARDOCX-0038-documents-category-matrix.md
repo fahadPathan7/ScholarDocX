@@ -44,12 +44,12 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `frontend/src/visual-refresh.css`
+- `AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked Documents page at 1280x720: category grid renders in three
   columns and two rows, the right-side main content does not scroll, and
   categories with extra files scroll inside their own panel body.

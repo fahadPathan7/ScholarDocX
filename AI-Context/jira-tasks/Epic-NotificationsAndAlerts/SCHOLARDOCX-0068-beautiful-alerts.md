@@ -1,9 +1,9 @@
 # SCHOLARDOCX-0068 — Beautiful Custom UI Alerts and Dialogs
 
+Status: Done
+
 Epic: Epic-NotificationsAndAlerts
 
-## Status
-Done
 
 ## Owner
 AI Agent

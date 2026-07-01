@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0062 — Centralized Notification Structure And Strict Types
 
-## Status
-Completed
+Status: Done
+
 
 Owner: AI Agent
 
@@ -36,7 +36,7 @@ Technical notes:
 
 ## Verification Plan
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`
 
 ## Completion Notes
 Changed files:
@@ -51,4 +51,4 @@ Changed files:
 
 Verification completed:
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+- `npm --prefix frontend run build`

@@ -66,7 +66,7 @@ Out of scope:
 
 Files expected to be edited:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/StickyNotesView.tsx`
 
 Line-count risk:
 
@@ -74,14 +74,14 @@ Line-count risk:
 
 ## Verification Plan
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0101-sticky-focused-two-dates.md`
+- `frontend/src/components/StickyNotesView.tsx`
+- `AI-Context/jira-tasks/SCHOLARDOCX-0101-sticky-focused-two-dates.md`
 
 Verification completed:
 

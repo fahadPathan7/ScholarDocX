@@ -90,9 +90,9 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
+- `frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/functional/feature-sticky-notes.md`
 
 Line-count risk:
 
@@ -104,20 +104,20 @@ If any file exceeds 1000 lines, explain why.
 
 ## Verification Plan
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0091-sticky-note-format-toolbar-row.md`
+- `frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/functional/feature-sticky-notes.md`
+- `AI-Context/jira-tasks/SCHOLARDOCX-0091-sticky-note-format-toolbar-row.md`
 
 Verification completed:
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 Unit tests added or updated:
 

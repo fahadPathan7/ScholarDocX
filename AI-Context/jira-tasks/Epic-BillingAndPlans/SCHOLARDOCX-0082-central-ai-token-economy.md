@@ -1,6 +1,6 @@
 # SCHOLARDOCX-0082: Central AI token economy
 
-Status: Complete — Phases 1–5 implemented & verified (backend pytest green; frontend `tsc --noEmit` + `vite build` clean)
+Status: Done
 
 Owner: AI Agent
 

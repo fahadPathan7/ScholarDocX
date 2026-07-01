@@ -1,9 +1,9 @@
 # SCHOLARDOCX-0030 — Profile Avatar Picker Refresh
 
+Status: Done
+
 Epic: Epic-UIThemeAndPolish
 
-## Status
-Completed
 
 ## Summary
 Improve the profile avatar chooser UX and replace inline-generated avatars with local static avatar images that are bundled with the frontend.
@@ -33,7 +33,7 @@ Improve the profile avatar chooser UX and replace inline-generated avatars with 
 
 ## Validation
 - Frontend production build succeeds:
-  - `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
+  - `npm --prefix frontend run build`
 
 ## Follow-ups
 - Optional: add keyboard focus-visible styling specific to avatar options.

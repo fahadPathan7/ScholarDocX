@@ -44,14 +44,14 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `frontend/src/App.tsx`
+- `backend/tests/test_store.py`
+- `AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDock/backend`.
+  `backend`.
 - Live API smoke check: temporary `/static_files` record patched through
   `/api/static_files/{id}` returned HTTP 200, then the temp record was deleted.

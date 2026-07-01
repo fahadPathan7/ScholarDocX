@@ -75,7 +75,7 @@ Links:
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked sheet `eee` under project `USA PhD`.
 - Confirmed row heights remain stable at 64px in the table preview.
 - Confirmed long cell previews do not leak right or downward outside their

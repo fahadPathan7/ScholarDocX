@@ -135,6 +135,9 @@ Changed files:
 - Skill indexes: `.agents/skills/README.md`, `.claude/skills/README.md`, `.codex/skills/README.md`.
 - Technical context: `AI-Context/technical/README.md`, `AI-Context/technical/project-structure.md`, `AI-Context/technical/file-size-and-modularity.md`.
 - Jira index and stories: `AI-Context/jira-tasks/README.md`, this task, and existing Epic stories normalized with explicit `Epic:` fields.
+- Existing Jira stories normalized with parseable top-level `Status:` fields.
+- Historical absolute workspace paths converted to portable relative references or plain code paths.
+- Historical rebrand notes rewritten so the current project identity is always `ScholarDocX`.
 - Renamed duplicate/root tasks:
   - `SCHOLARDOCX-0105-state-preserving-global-refresh.md`
   - `SCHOLARDOCX-0106-readable-visual-refinement.md`
@@ -145,14 +148,16 @@ Verification completed:
 
 - Passed: `git diff --check`.
 - Passed: stale old-workspace path scan returned no matches.
-- Passed: `ScholarDock` project-name drift scan returned no matches in AI-facing docs; project identity remains `ScholarDocX`.
+- Passed: legacy-name drift scan returned no current project-identity matches in AI-facing docs; project identity remains `ScholarDocX`.
 - Passed: absolute repository Markdown-link scan returned no matches; repo links are relative.
 - Passed: Markdown link checker found 0 broken local links.
+- Passed: absolute workspace path scan returned no matches.
 - Passed: obsolete `AI-Context/agent-skills` Markdown-link scan returned no matches.
 - Passed: nonexistent context-file examples scan returned no matches.
 - Passed: duplicate `SCHOLARDOCX-####` story filename scan returned no matches.
 - Passed: root-level Jira story scan found only `README.md`, `epic-template.md`, and `task-template.md`.
 - Passed: every Epic story file has an explicit `Epic:` field.
+- Passed: every Epic story file has a parseable top-level `Status:` field.
 
 Unit tests added or updated:
 

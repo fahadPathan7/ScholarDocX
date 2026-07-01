@@ -1,6 +1,6 @@
 # SCHOLARDOCX-0084: Advisor Atlas plan guard (Pro/Max only)
 
-Status: In progress
+Status: In Progress
 Owner: AI Agent
 
 Epic: Epic-AdvisorAtlas

@@ -161,17 +161,17 @@ Planned tests:
 
 ## Files To Change
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx` - Main implementation
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css` - Add validation error styles, loading states
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md` - Update with validation requirements
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/acceptance-criteria.md` - Add form validation criteria
+- `frontend/src/components/ProjectWorkspace.tsx` - Main implementation
+- `frontend/src/styles.css` - Add validation error styles, loading states
+- `AI-Context/functional/feature-project-workspace.md` - Update with validation requirements
+- `AI-Context/functional/acceptance-criteria.md` - Add form validation criteria
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx` - Added auto-save on record add, validation, keyboard shortcuts (Escape to close, Ctrl/Cmd+Enter in textareas), loading states, empty state handling, form reset on cancel, wrapped fields in scrollable container
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css` - Added validation error styling, improved inline-note and empty state styling, fixed form overflow with max-height and flexbox layout, made fields scrollable while keeping header and button fixed
+- `frontend/src/components/ProjectWorkspace.tsx` - Added auto-save on record add, validation, keyboard shortcuts (Escape to close, Ctrl/Cmd+Enter in textareas), loading states, empty state handling, form reset on cancel, wrapped fields in scrollable container
+- `frontend/src/styles.css` - Added validation error styling, improved inline-note and empty state styling, fixed form overflow with max-height and flexbox layout, made fields scrollable while keeping header and button fixed
 
 Verification completed:
 

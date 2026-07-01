@@ -38,13 +38,13 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `backend/app/services/store.py`
+- `backend/tests/test_store.py`
+- `frontend/src/documents-refresh.css`
+- `AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDock/backend`.
+  `backend`.

@@ -43,16 +43,16 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/lib/api.ts`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/config.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/main.py`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
+- `frontend/src/lib/api.ts`
+- `backend/app/core/config.py`
+- `backend/app/main.py`
+- `AI-Context/technical/api-boundaries.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDock/backend`.
+  `backend`.
 - Browser smoke checked the Documents CV modal: dashboard pin and local pin both
   completed without an error toast and updated the visible button labels.
 - Reverted the temporary pin state changes made during smoke verification.

@@ -59,7 +59,7 @@ Links:
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked sheet `eee` under project `USA PhD`.
 - Confirmed `.sheet-scroll` can scroll horizontally while the row-number column
   remains fixed at the left edge.

@@ -60,7 +60,7 @@ Out of scope:
 
 ## Implementation Plan
 
-- Modify `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css` to change `.sticky-view-footer` to `.modal-footer.sticky-view-footer`.
+- Modify `frontend/src/components/sticky-notes.css` to change `.sticky-view-footer` to `.modal-footer.sticky-view-footer`.
 - Verify the frontend build.
 
 ## Unit Test Plan
@@ -71,7 +71,7 @@ Out of scope:
 
 Files expected to be edited:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
+- `frontend/src/components/sticky-notes.css`
 
 Line-count risk:
 
@@ -79,15 +79,15 @@ Line-count risk:
 
 ## Verification Plan
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 - Visual check via browser subagent if needed.
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0097-sticky-note-footer-date-alignment.md`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/jira-tasks/SCHOLARDOCX-0097-sticky-note-footer-date-alignment.md`
 
 Verification completed:
 

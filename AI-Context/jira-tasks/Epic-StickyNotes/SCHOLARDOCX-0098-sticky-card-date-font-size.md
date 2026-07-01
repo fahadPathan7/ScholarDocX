@@ -56,7 +56,7 @@ Out of scope:
 
 ## Implementation Plan
 
-- Modify `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css` to change `.sticky-card-date` `font-size` from `11px` to `12px`.
+- Modify `frontend/src/components/sticky-notes.css` to change `.sticky-card-date` `font-size` from `11px` to `12px`.
 - Verify the frontend build.
 
 ## Unit Test Plan
@@ -67,7 +67,7 @@ Out of scope:
 
 Files expected to be edited:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
+- `frontend/src/components/sticky-notes.css`
 
 Line-count risk:
 
@@ -75,14 +75,14 @@ Line-count risk:
 
 ## Verification Plan
 
-- `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`
+- `npm run build` in `frontend`
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0098-sticky-card-date-font-size.md`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/jira-tasks/SCHOLARDOCX-0098-sticky-card-date-font-size.md`
 
 Verification completed:
 

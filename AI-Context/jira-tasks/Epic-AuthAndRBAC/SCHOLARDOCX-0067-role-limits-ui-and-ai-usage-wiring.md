@@ -1,7 +1,7 @@
 # SCHOLARDOCX-0067 — Role Limits UI Audit and AI Usage-Limit Wiring
 
-## Status
-In Progress
+Status: In Progress
+
 
 Owner: AI Agent
 

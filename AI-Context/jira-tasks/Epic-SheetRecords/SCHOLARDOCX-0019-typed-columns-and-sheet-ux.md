@@ -78,15 +78,15 @@ Out of scope:
 ## Completion Notes
 
 Changed files:
-- [store.py](file:///Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py) - Updated default columns to dicts, added transparent schema migration in `_decode_page`, completely removed generic "Attachments" and "Linked documents" columns, and dynamically inserted degree-appropriate document fields (PhD, Masters/MSc, Bachelors/BSc) before the "Status" column.
-- [test_store.py](file:///Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py) - Updated backend test assertions to match the migrated format and verify that generic columns are excluded while correct degree-specific default columns are loaded.
-- [App.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx) - Passed onFilesChanged callback to ProjectWorkspace.
-- [FilePickerField.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/components/FilePickerField.tsx) - Added new file picker component.
-- [ProjectWorkspace.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx) - Redesigned workspace with inline column creation, single-column record form, auto-save status, toggleable Create Project form, cascade confirmations for deleting projects and sheets, dedicated "Edit Columns" form panel (rename, delete, reorder), mouse-drag row/column resizing, and auto-growing cells.
-- [styles.css](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css) - Polished layouts, scrollbars, list containers, toggle switches, resize handle highlights, row headers, and reorder controls.
-- [api.ts](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/lib/api.ts) - Added `delete` method to frontend API client and `deleteRecord` helper function.
-- [acceptance-criteria.md](file:///Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/acceptance-criteria.md) - Documented typed columns, deletions, resizing, and cell auto-grow criteria.
-- [feature-project-workspace.md](file:///Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md) - Documented column type behaviors, layout resizing, and customization rules.
+- [store.py](../../../backend/app/services/store.py) - Updated default columns to dicts, added transparent schema migration in `_decode_page`, completely removed generic "Attachments" and "Linked documents" columns, and dynamically inserted degree-appropriate document fields (PhD, Masters/MSc, Bachelors/BSc) before the "Status" column.
+- [test_store.py](../../../backend/tests/test_store.py) - Updated backend test assertions to match the migrated format and verify that generic columns are excluded while correct degree-specific default columns are loaded.
+- [App.tsx](../../../frontend/src/App.tsx) - Passed onFilesChanged callback to ProjectWorkspace.
+- [FilePickerField.tsx](../../../frontend/src/components/FilePickerField.tsx) - Added new file picker component.
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx) - Redesigned workspace with inline column creation, single-column record form, auto-save status, toggleable Create Project form, cascade confirmations for deleting projects and sheets, dedicated "Edit Columns" form panel (rename, delete, reorder), mouse-drag row/column resizing, and auto-growing cells.
+- [styles.css](../../../frontend/src/styles.css) - Polished layouts, scrollbars, list containers, toggle switches, resize handle highlights, row headers, and reorder controls.
+- [api.ts](../../../frontend/src/lib/api.ts) - Added `delete` method to frontend API client and `deleteRecord` helper function.
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md) - Documented typed columns, deletions, resizing, and cell auto-grow criteria.
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md) - Documented column type behaviors, layout resizing, and customization rules.
 
 Verification completed:
 - Frontend builds cleanly: `npm run build`

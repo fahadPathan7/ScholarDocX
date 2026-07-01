@@ -1,9 +1,9 @@
 # SCHOLARDOCX-0069 — Repo-Carried Agent Skills
 
+Status: Done
+
 Epic: Epic-AIAgentPlatform
 
-## Status
-Done
 
 ## Owner
 AI Agent

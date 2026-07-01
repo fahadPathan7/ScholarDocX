@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0048: Whiteboard UI Scaffolding
 
+Status: In Progress
+
 Epic: Epic-Whiteboard
 
 ## Goal
@@ -20,5 +22,5 @@ Implement the UI scaffolding for the new "Whiteboard" tab, matching the provided
 - Used the `Presentation` or `Square` icon for the tab.
 - Styled the panels strictly to the provided mockup's dark gray theme, contrasting with the main app's lighter theme.
 
-## Status
-- **In Progress**: Writing UI code.
+## Progress Notes
+- Writing UI code.

@@ -1,6 +1,6 @@
 # SCHOLARDOCX-0085: Buy AI Credits as a full page
 
-Status: In progress
+Status: In Progress
 Owner: AI Agent
 
 Epic: Epic-BillingAndPlans

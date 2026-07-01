@@ -1,10 +1,9 @@
 # SCHOLARDOCX-0073 — Profile Page UI Polish
 
+Status: Done
+
 Epic: Epic-UIThemeAndPolish
 
-## Status
-
-Done
 
 ## Request
 

@@ -44,14 +44,14 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/main.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `frontend/src/App.tsx`
+- `frontend/src/documents-refresh.css`
+- `frontend/src/main.tsx`
+- `frontend/src/visual-refresh.css`
+- `AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Browser checked the upload modal: panel width/height, styled file picker,
   notes field, and footer actions render without clipping.

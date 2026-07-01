@@ -48,23 +48,23 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/schema.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/app/api/routes.py`
-- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/data-model-draft.md`
-- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/project-structure.md`
+- `backend/app/db/schema.py`
+- `backend/app/services/store.py`
+- `backend/app/api/routes.py`
+- `backend/tests/test_store.py`
+- `frontend/src/App.tsx`
+- `frontend/src/components/StickyNotesView.tsx`
+- `frontend/src/components/sticky-notes.css`
+- `AI-Context/functional/feature-sticky-notes.md`
+- `AI-Context/technical/api-boundaries.md`
+- `AI-Context/technical/data-model-draft.md`
+- `AI-Context/technical/project-structure.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
+- Passed: `npm run build` in `frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDock/backend`.
+  `backend`.
 - Browser checked the Sticky Notes tab renders after Documents and shows the
   composer, color controls, bold/checklist controls, and note board.
 - API smoke-created text and checklist notes, confirmed they rendered in the

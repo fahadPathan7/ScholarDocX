@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -25,7 +27,7 @@ system.
 ## Functional Context
 
 Links:
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
 
 ## Requirements
 
@@ -44,7 +46,7 @@ Links:
 ## Completion Notes
 
 Changed files:
-- [styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css)
+- [styles.css](../../../frontend/src/styles.css)
   – Added `.chat-mode-selector`, `.mode-button`, `.mode-button.active`,
     `.message-mode`, `.message-image`, `.attachment-badge`,
     `.image-preview-container`, `.image-preview` and polished

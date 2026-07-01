@@ -4,6 +4,8 @@ Status: Draft
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-27
 
 ## Summary
@@ -13,7 +15,7 @@ Refine the Column Edit UX so that reordering, renaming, and deleting columns ins
 ## Business Context
 
 Links:
-- [business-goals.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-goals.md)
+- [business-requirements.md](../../business/business-requirements.md)
 
 Business value:
 - Enhances user trust by avoiding premature database writes and flickering status labels while reordering/editing column names.
@@ -22,8 +24,8 @@ Business value:
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 - FR-7.5: Sheet can have editable, addable, and deletable columns and rows.
@@ -32,7 +34,7 @@ Requirements:
 ## Technical Context
 
 Links:
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
 
 Technical notes:
 - The backend accepts updated page schemas via PATCH `/project_pages/{id}`.

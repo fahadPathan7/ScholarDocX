@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -18,8 +20,8 @@ The central dashboard should aggregate row calendar events from all projects.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
 
 Requirements:
 - Project calendar is project-scoped.
@@ -32,8 +34,8 @@ Requirements:
 ## Technical Context
 
 Links:
-- [project-structure.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/project-structure.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [project-structure.md](../../technical/project-structure.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 Technical notes:
 - `ProjectWorkspace.tsx` and `styles.css` exceed the 1150-line threshold before this work starts.
@@ -73,16 +75,16 @@ Out of scope:
 ## Completion Notes
 
 Changed files:
-- [store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py) - Added row-derived calendar items with project/page/sheet/row metadata for project and central dashboard summaries.
-- [test_store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py) - Added row calendar assertions for project and central summaries.
-- [CalendarMonthView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/CalendarMonthView.tsx) - Added reusable month calendar with per-day counts and selected-day event side panel.
-- [ProjectDashboard.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectDashboard.tsx) - Extracted project dashboard and project-scoped calendar.
-- [SheetRecordFields.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/SheetRecordFields.tsx) - Extracted sheet cell and record field helpers from the oversized workspace component.
-- [ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx) - Added event navigation to source sheet rows and de-duplicated scheduled-email alerts.
-- [App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx) - Replaced central upcoming-date list with all-project row calendar and wired event navigation into Projects.
-- [calendar.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/calendar.css) and [file-picker.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/file-picker.css) - Split component styles from the oversized global stylesheet.
-- [styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css) - Added full-width calendar section placement and row focus styling.
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md), [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md), and [project-structure.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/project-structure.md) - Documented row calendar behavior and new component structure.
+- [store.py](../../../backend/app/services/store.py) - Added row-derived calendar items with project/page/sheet/row metadata for project and central dashboard summaries.
+- [test_store.py](../../../backend/tests/test_store.py) - Added row calendar assertions for project and central summaries.
+- [CalendarMonthView.tsx](../../../frontend/src/components/CalendarMonthView.tsx) - Added reusable month calendar with per-day counts and selected-day event side panel.
+- [ProjectDashboard.tsx](../../../frontend/src/components/ProjectDashboard.tsx) - Extracted project dashboard and project-scoped calendar.
+- [SheetRecordFields.tsx](../../../frontend/src/components/SheetRecordFields.tsx) - Extracted sheet cell and record field helpers from the oversized workspace component.
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx) - Added event navigation to source sheet rows and de-duplicated scheduled-email alerts.
+- [App.tsx](../../../frontend/src/App.tsx) - Replaced central upcoming-date list with all-project row calendar and wired event navigation into Projects.
+- [calendar.css](../../../frontend/src/components/calendar.css) and [file-picker.css](../../../frontend/src/components/file-picker.css) - Split component styles from the oversized global stylesheet.
+- [styles.css](../../../frontend/src/styles.css) - Added full-width calendar section placement and row focus styling.
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md), [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md), and [project-structure.md](../../technical/project-structure.md) - Documented row calendar behavior and new component structure.
 
 Verification completed:
 - `npm run build` passes.

@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,13 +17,13 @@ visual structure to make the page more interesting.
 ## Functional Context
 
 Links:
-- [feature-about-profile.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md)
+- [feature-about-profile.md](../../functional/feature-about-profile.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 

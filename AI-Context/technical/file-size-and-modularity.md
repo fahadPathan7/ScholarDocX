@@ -16,6 +16,19 @@ Before editing a large source file:
 3. If the task pushes it over 1000 lines, document why in the Jira task.
 4. If it reaches over 1150 lines, split it before the task is complete unless the user pauses the work.
 
+## Known Large Files
+
+The current codebase has inherited large files above the target. Treat these as known debt, not permission to expand them further:
+
+- `frontend/src/styles.css`
+- `frontend/src/components/AdminView.tsx`
+- `backend/app/services/ai_actions.py`
+- `frontend/src/visual-refresh.css`
+- `frontend/src/components/ProjectWorkspace.tsx`
+- `frontend/src/App.tsx`
+
+When a task touches one of these files, prefer extracting focused CSS, components, hooks, services, or helpers in the same area. Do not start a broad unrelated refactor just because the file is already large; keep cleanup scoped to the active Jira task.
+
 ## Split Strategies
 
 Frontend:
@@ -48,4 +61,3 @@ Tests:
 - One service handling unrelated workflows.
 - Provider-specific API calls mixed into application logic.
 - Large constants embedded in components.
-

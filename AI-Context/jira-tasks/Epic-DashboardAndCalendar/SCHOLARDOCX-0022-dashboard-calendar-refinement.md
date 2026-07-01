@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -17,8 +19,8 @@ focused next-10-days event list sourced from row calendar events.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
 
 Requirements:
 - Calendar cells for the current date must have distinct styling.
@@ -46,11 +48,11 @@ Out of scope:
 ## Completion Notes
 
 Changed files:
-- [CalendarMonthView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/CalendarMonthView.tsx) - Added today-state class and kept the default month anchored to the current date.
-- [calendar.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/calendar.css) - Added distinct today styling.
-- [App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx) - Removed central dashboard Follow-ups, Central inbox, and Recent applications sections; added next-10-days event filtering and navigation.
-- [styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css) - Added next-10-days event list styles.
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md) - Documented current-date styling and simplified dashboard sections.
+- [CalendarMonthView.tsx](../../../frontend/src/components/CalendarMonthView.tsx) - Added today-state class and kept the default month anchored to the current date.
+- [calendar.css](../../../frontend/src/components/calendar.css) - Added distinct today styling.
+- [App.tsx](../../../frontend/src/App.tsx) - Removed central dashboard Follow-ups, Central inbox, and Recent applications sections; added next-10-days event filtering and navigation.
+- [styles.css](../../../frontend/src/styles.css) - Added next-10-days event list styles.
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md) - Documented current-date styling and simplified dashboard sections.
 
 Verification completed:
 - `npm run build` passes.

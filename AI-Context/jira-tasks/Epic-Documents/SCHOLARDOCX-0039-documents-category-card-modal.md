@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -14,7 +16,7 @@ Individual document files should be hidden until the user opens a category.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -41,13 +43,13 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked Documents main view: category cards show counts and no direct
   file rows.
 - Browser opened a category card: selected files render in a modal and the

@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-StickyNotes
+
 Created: 2026-06-28
 
 ## Summary
@@ -15,7 +17,7 @@ cards so the bottom of the card stays clean.
 
 Links:
 
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Business value:
 
@@ -25,7 +27,7 @@ Business value:
 
 Links:
 
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Requirements:
 
@@ -36,7 +38,7 @@ Requirements:
 
 Links:
 
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Technical notes:
 

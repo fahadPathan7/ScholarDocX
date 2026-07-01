@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0048: Whiteboard UI Scaffolding
 
+Epic: Epic-Whiteboard
+
 ## Goal
 Implement the UI scaffolding for the new "Whiteboard" tab, matching the provided sleek dark-panel design with a dot-grid canvas. This prepares the visual structure before implementing drawing functionality.
 

@@ -5,6 +5,8 @@ Review
 
 Owner: AI Agent
 
+Epic: Epic-NotificationsAndAlerts
+
 Created: 2026-06-06
 
 ## Summary
@@ -62,8 +64,8 @@ Out of scope:
 
 ## Verification Plan
 
-- `cd /Users/fahadpathan/Documents/ScholarDocX/backend && pytest tests/test_admin_notifications.py -q`
-- `cd /Users/fahadpathan/Documents/ScholarDocX/frontend && npm run build`
+- `cd /Users/fahadpathan/Documents/ScholarDock/backend && pytest tests/test_admin_notifications.py -q`
+- `cd /Users/fahadpathan/Documents/ScholarDock/frontend && npm run build`
 
 ## Test Decision
 
@@ -97,8 +99,8 @@ Changed files:
 
 Verification completed:
 
-- `cd /Users/fahadpathan/Documents/ScholarDocX/backend && pytest tests/test_admin_notifications.py -q`
-- `cd /Users/fahadpathan/Documents/ScholarDocX/frontend && npm run build`
+- `cd /Users/fahadpathan/Documents/ScholarDock/backend && pytest tests/test_admin_notifications.py -q`
+- `cd /Users/fahadpathan/Documents/ScholarDock/frontend && npm run build`
 
 Implementation notes:
 

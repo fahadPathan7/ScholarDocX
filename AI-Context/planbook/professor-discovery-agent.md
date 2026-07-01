@@ -2,7 +2,7 @@
 
 Status: Implemented 2026-06-11
 
-Jira: [SCHOLARDOCX-0078](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0078-professor-discovery-agent.md)
+Jira: [SCHOLARDOCX-0078](../jira-tasks/Epic-AdvisorAtlas/SCHOLARDOCX-0078-professor-discovery-agent.md)
 
 ## 1. Product Definition
 

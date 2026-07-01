@@ -1,8 +1,10 @@
-# SCHOLARDOCX-0032: Readable Visual Refinement
+# SCHOLARDOCX-0106: Readable Visual Refinement
 
 Status: In Progress
 
 Owner: AI Agent
+
+Epic: Epic-UIThemeAndPolish
 
 Created: 2026-05-27
 
@@ -16,8 +18,8 @@ upload panel does not stretch and the uploaded documents panel scrolls.
 
 Links:
 
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-about-profile.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-about-profile.md](../../functional/feature-about-profile.md)
 
 Requirements:
 
@@ -30,8 +32,8 @@ Requirements:
 
 Links:
 
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 Technical notes:
 

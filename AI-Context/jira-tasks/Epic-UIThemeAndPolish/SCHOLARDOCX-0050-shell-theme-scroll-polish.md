@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,16 +17,16 @@ navigation, header, and floating side panels fixed in the viewport.
 ## Functional Context
 
 Links:
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -79,7 +81,7 @@ Links:
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked Dashboard at `http://localhost:5173`: body, app shell, main,
   and sidebar all remain fixed with hidden overflow; dashboard list sections
   scroll internally.

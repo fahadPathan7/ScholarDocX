@@ -4,6 +4,8 @@ Status: Review
 
 Owner: AI Agent
 
+Epic: Epic-BillingAndPlans
+
 Created: 2026-06-06
 
 ## Summary
@@ -16,8 +18,8 @@ admin review tab for extension requests.
 
 Links:
 
-- Business file: [assumptions-and-risks.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/assumptions-and-risks.md)
-- Business file: [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- Business file: [assumptions-and-risks.md](../../business/assumptions-and-risks.md)
+- Business file: [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -30,8 +32,8 @@ Business value:
 
 Links:
 
-- Functional file: [feature-authentication.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-authentication.md)
-- Functional file: [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
+- Functional file: [feature-authentication.md](../../functional/feature-authentication.md)
+- Functional file: [requirements-index.md](../../functional/requirements-index.md)
 
 Requirements:
 
@@ -47,9 +49,9 @@ Requirements:
 
 Links:
 
-- Technical file: [authentication-and-identity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/authentication-and-identity.md)
-- Technical file: [data-model-draft.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md)
-- Technical file: [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
+- Technical file: [authentication-and-identity.md](../../technical/authentication-and-identity.md)
+- Technical file: [data-model-draft.md](../../technical/data-model-draft.md)
+- Technical file: [api-boundaries.md](../../technical/api-boundaries.md)
 
 Technical notes:
 

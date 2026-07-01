@@ -2,6 +2,8 @@
 
 Status: Done
 Owner: AI Agent
+
+Epic: Epic-BillingAndPlans
 Created: 2026-06-27
 
 ## Summary
@@ -28,7 +30,7 @@ and read directly by the three frontend sites instead of the fragile derivation.
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-ai-token-economy.md)
+- Functional file: [AI-Context/functional/feature-ai-token-economy.md](../../functional/feature-ai-token-economy.md)
 
 Requirements:
 
@@ -39,7 +41,7 @@ Requirements:
 
 Links:
 
-- Technical file: [AI-Context/technical/ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/ai-token-economy.md)
+- Technical file: [AI-Context/technical/ai-token-economy.md](../../technical/ai-token-economy.md)
 
 Technical notes:
 

@@ -4,6 +4,8 @@ Status: In Progress
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 ## Summary
@@ -16,15 +18,15 @@ instead of stretching Recent Projects into empty space.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
 
 ## Technical Context
 
 Links:
-- [data-model-draft.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [data-model-draft.md](../../technical/data-model-draft.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -51,10 +53,10 @@ had never separately toggled the local pin, `is_pinned` remained 0 and the WHERE
 excluded the row.
 
 Changed files:
-- [store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py)
+- [store.py](../../../backend/app/services/store.py)
   – Removed `is_pinned = 1` from both `pinned_projects` and `pinned_sheets` queries.
     `pinned_to_dashboard = 1` is now the sole authoritative flag.
-- [ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
   – `onToggleDashboard` for both projects and sheets now sends
     `{ pinned_to_dashboard: true, is_pinned: true }` when enabling, so the
     local pin is also set (defensive, in case the query is ever tightened back).

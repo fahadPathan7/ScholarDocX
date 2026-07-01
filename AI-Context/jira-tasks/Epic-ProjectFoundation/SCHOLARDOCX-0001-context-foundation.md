@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,9 +16,9 @@ Create the initial AI-DLC context structure from the two source idea files witho
 
 Links:
 
-- [product-vision.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/product-vision.md)
-- [business-requirements.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-requirements.md)
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [product-vision.md](../../business/product-vision.md)
+- [business-requirements.md](../../business/business-requirements.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -26,8 +28,8 @@ Future AI agents can understand the project quickly and preserve business decisi
 
 Links:
 
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
-- [feature-map.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-map.md)
+- [requirements-index.md](../../functional/requirements-index.md)
+- [feature-map.md](../../functional/feature-map.md)
 
 Requirements:
 
@@ -37,9 +39,9 @@ Requirements:
 
 Links:
 
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
-- [coding-standards.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/coding-standards.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
+- [coding-standards.md](../../technical/coding-standards.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 Technical notes:
 

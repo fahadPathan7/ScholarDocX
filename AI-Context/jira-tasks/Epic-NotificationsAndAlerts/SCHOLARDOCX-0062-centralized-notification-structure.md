@@ -5,6 +5,8 @@ Completed
 
 Owner: AI Agent
 
+Epic: Epic-NotificationsAndAlerts
+
 Created: 2026-05-31
 
 ## Summary
@@ -34,7 +36,7 @@ Technical notes:
 
 ## Verification Plan
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDocX/frontend run build`
+- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
 
 ## Completion Notes
 Changed files:
@@ -49,4 +51,4 @@ Changed files:
 
 Verification completed:
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDocX/frontend run build`
+- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`

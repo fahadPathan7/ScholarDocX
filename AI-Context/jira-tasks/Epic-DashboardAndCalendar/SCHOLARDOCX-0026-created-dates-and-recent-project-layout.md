@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,8 +16,8 @@ projects at 5 and expand that section into the unused right-side space.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
 
 ## Requirements
 

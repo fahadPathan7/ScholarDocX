@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -18,8 +20,8 @@ date.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
 
 ## Requirements
 
@@ -36,10 +38,10 @@ Links:
 ## Completion Notes
 
 Changed files:
-- [App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx) - Replaced central dashboard full calendar with compact summary plus full calendar modal focused on the next featured event.
-- [CalendarMonthView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/CalendarMonthView.tsx) - Added optional `focusDate` support so full calendars can open on a featured event date.
-- [ProjectDashboard.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectDashboard.tsx) - Passed the next project event date into the full calendar modal.
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md) - Documented compact central calendar and focused full calendar behavior.
+- [App.tsx](../../../frontend/src/App.tsx) - Replaced central dashboard full calendar with compact summary plus full calendar modal focused on the next featured event.
+- [CalendarMonthView.tsx](../../../frontend/src/components/CalendarMonthView.tsx) - Added optional `focusDate` support so full calendars can open on a featured event date.
+- [ProjectDashboard.tsx](../../../frontend/src/components/ProjectDashboard.tsx) - Passed the next project event date into the full calendar modal.
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md) - Documented compact central calendar and focused full calendar behavior.
 
 Verification completed:
 - `npm run build` passes.

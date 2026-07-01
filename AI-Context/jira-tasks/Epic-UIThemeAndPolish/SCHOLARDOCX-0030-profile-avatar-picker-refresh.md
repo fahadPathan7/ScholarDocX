@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0030 — Profile Avatar Picker Refresh
 
+Epic: Epic-UIThemeAndPolish
+
 ## Status
 Completed
 
@@ -31,7 +33,7 @@ Improve the profile avatar chooser UX and replace inline-generated avatars with 
 
 ## Validation
 - Frontend production build succeeds:
-  - `npm --prefix /Users/fahadpathan/Documents/ScholarDocX/frontend run build`
+  - `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
 
 ## Follow-ups
 - Optional: add keyboard focus-visible styling specific to avatar options.

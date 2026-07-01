@@ -5,6 +5,8 @@ Completed
 
 Owner: AI Agent
 
+Epic: Epic-AuthAndRBAC
+
 Created: 2026-05-31
 
 ## Summary

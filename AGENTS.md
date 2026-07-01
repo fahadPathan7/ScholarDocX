@@ -12,17 +12,17 @@ ScholarDocX is a local-first, privacy-first higher education application managem
 
 Before writing or changing product code:
 
-1. Read [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md).
+1. Read [AI-Context/README.md](AI-Context/README.md).
 2. Read the relevant repo-carried skills automatically loaded from `.agents/skills`, `.claude/skills`, or `.codex/skills`.
 3. Read the relevant business, functional, and technical context files for the requested work.
-4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks).
+4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](AI-Context/jira-tasks).
 5. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
 6. Only then implement code.
 7. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
 
 ### STRICT ENFORCEMENTS
 - **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
-- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (e.g., `technical/UI-UX.md` or `technical/backend-services.md`) with any new architectural or design decisions. Do not end the session without updating the context.
+- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (for example `technical/frontend-visual-system.md`, `technical/api-boundaries.md`, `technical/project-structure.md`, or `technical/security-privacy.md`) with any new architectural or design decisions. Do not end the session without updating the context.
 
 ## Repo-Carried Agent Skills
 
@@ -37,11 +37,11 @@ Use only the skills relevant to the current task. Skills supplement the source-o
 Use this order when resolving conflicts:
 
 1. The user's latest explicit instruction.
-2. Root rules: this file, [CLAUDE.md](/Users/fahadpathan/Documents/ScholarDocX/CLAUDE.md), and [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/CODE_RULES.md).
+2. Root rules: this file, [CLAUDE.md](CLAUDE.md), and [CODE_RULES.md](AI-Context/CODE_RULES.md).
 3. Current Jira task file.
 4. AI-Context files.
 5. Existing codebase patterns.
-6. Historical source notes, now absorbed into [AI-Context](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md).
+6. Historical source notes, now absorbed into [AI-Context](AI-Context/README.md).
 
 ## Non-Negotiable Product Constraints
 
@@ -69,4 +69,3 @@ Use this order when resolving conflicts:
 - Keep documentation short, structured, and easy for future agents to scan.
 - STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
 - Add or update unit tests for each feature when meaningful behavior, data transformation, validation, persistence, or integration boundaries are introduced.
-

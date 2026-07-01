@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AuthAndRBAC
+
 Created: 2026-06-26
 
 ## Summary
@@ -41,8 +43,8 @@ Requirements:
 
 Links:
 
-- Technical file: [AI-Context/technical/security-privacy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
-- Technical file: [AI-Context/technical/authentication-and-identity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/authentication-and-identity.md)
+- Technical file: [AI-Context/technical/security-privacy.md](../../technical/security-privacy.md)
+- Technical file: [AI-Context/technical/authentication-and-identity.md](../../technical/authentication-and-identity.md)
 
 Technical notes:
 

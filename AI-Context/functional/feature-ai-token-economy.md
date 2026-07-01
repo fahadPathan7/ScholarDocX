@@ -73,5 +73,5 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
 
 ## Related
 
-- Design: [planbook/central-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/planbook/central-ai-token-economy.md)
-- Technical: [technical/ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/ai-token-economy.md)
+- Design: [planbook/central-ai-token-economy.md](../planbook/central-ai-token-economy.md)
+- Technical: [technical/ai-token-economy.md](../technical/ai-token-economy.md)

@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-27
 
 ## Summary
@@ -15,16 +17,16 @@ distinctive, interactive, and smooth.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-about-profile.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-about-profile.md](../../functional/feature-about-profile.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
-- [coding-standards.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/coding-standards.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
+- [coding-standards.md](../../technical/coding-standards.md)
 
 ## Requirements
 

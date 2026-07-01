@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,13 +16,13 @@ and dashboard type are still too large.
 ## Functional Context
 
 Links:
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 

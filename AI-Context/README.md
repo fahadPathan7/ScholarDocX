@@ -15,12 +15,12 @@ Those files were deleted after their content was absorbed into this refined work
 
 ## Folder Map
 
-- [business](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business): product goals, users, business decisions, success metrics, risks.
-- [functional](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional): features, requirements, relationships, acceptance criteria.
-- [technical](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical): architecture, stack, storage, APIs, coding rules, testing.
-- [planbook](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/planbook): detailed pre-implementation plans for large or cross-module features.
-- [jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks): task files used to execute work.
-- [workflows](/Users/fahadpathan/Documents/ScholarDock/AI-Context/workflows): the process rules for AI development (ai-dlc-process.md).
+- [business](business): product goals, users, business decisions, success metrics, risks.
+- [functional](functional): features, requirements, relationships, acceptance criteria.
+- [technical](technical): architecture, stack, storage, APIs, coding rules, testing.
+- [planbook](planbook): detailed pre-implementation plans for large or cross-module features.
+- [jira-tasks](jira-tasks): task files used to execute work.
+- [workflows](workflows): the process rules for AI development (ai-dlc-process.md).
 - (Skills are natively integrated into `.agents/skills`, `.claude/skills`, and `.codex/skills`).
 
 ## AI-DLC Reading Strategy
@@ -52,4 +52,5 @@ Update:
 - Functional requirement IDs: `FR-#.#`
 - Technical decision IDs: `TD-###`
 - Business decision IDs: `BD-###`
-- Jira task IDs: `SCHOLAR-####`
+- Jira task IDs: `SCHOLARDOCX-####`
+- Prefer relative links for repository files so context remains valid if the workspace moves.

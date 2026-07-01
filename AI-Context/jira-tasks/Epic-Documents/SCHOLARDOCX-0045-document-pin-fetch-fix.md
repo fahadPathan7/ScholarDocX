@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,7 +17,7 @@ and local development CORS handling.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -41,16 +43,16 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/lib/api.ts`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/config.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/main.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/lib/api.ts`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/config.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/main.py`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDocX/backend`.
+  `/Users/fahadpathan/Documents/ScholarDock/backend`.
 - Browser smoke checked the Documents CV modal: dashboard pin and local pin both
   completed without an error toast and updated the visible button labels.
 - Reverted the temporary pin state changes made during smoke verification.

@@ -23,8 +23,8 @@ Initial recommended stack from project context:
 
 Final stack selection must be recorded in:
 
-- [AI-Context/technical/stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/stack-and-runtime.md)
-- [AI-Context/business/decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [AI-Context/technical/stack-and-runtime.md](technical/stack-and-runtime.md)
+- [AI-Context/business/decisions.md](business/decisions.md)
 
 ## File Size Rules
 
@@ -67,7 +67,7 @@ For every new feature or feature modification:
 
 ### STRICT ENFORCEMENTS
 - **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
-- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (e.g., `technical/UI-UX.md` or `technical/backend-services.md`) with any new architectural or design decisions. Do not end the session without updating the context.
+- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (for example `technical/frontend-visual-system.md`, `technical/api-boundaries.md`, `technical/project-structure.md`, or `technical/security-privacy.md`) with any new architectural or design decisions. Do not end the session without updating the context.
 
 ## Documentation Rules
 

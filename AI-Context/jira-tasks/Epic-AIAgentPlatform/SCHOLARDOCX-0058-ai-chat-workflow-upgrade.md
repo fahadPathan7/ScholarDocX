@@ -4,6 +4,8 @@ Status: In Progress
 
 Owner: AI Agent
 
+Epic: Epic-AIAgentPlatform
+
 Created: 2026-05-30
 
 ## Summary
@@ -16,7 +18,7 @@ semantic column matching, date-aware queries, and analytical row filtering.
 
 Links:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -30,9 +32,9 @@ Business value:
 
 Links:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Requirements:
 
@@ -44,8 +46,8 @@ Requirements:
 
 Links:
 
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/api-boundaries.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
 
 Technical notes:
 
@@ -110,11 +112,11 @@ Planned tests:
 
 Files expected to be edited:
 
-- [ai_actions.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai_actions.py) — currently 1230 lines, will be reduced by extracting read logic.
-- [ai_actions_read.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai_actions_read.py) — new file.
-- [chat_workflow.md](/Users/fahadpathan/Documents/ScholarDocX/chat_workflow.md)
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
+- [ai_actions.py](../../../backend/app/services/ai_actions.py) — currently 1230 lines, will be reduced by extracting read logic.
+- [ai_actions_read.py](../../../backend/app/services/ai_actions_read.py) — new file.
+- `chat_workflow.md` historical workflow note
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
 
 Line-count risk:
 

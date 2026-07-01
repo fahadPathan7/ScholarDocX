@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,14 +17,14 @@ or long cell values from overflowing into nearby columns.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -73,7 +75,7 @@ Links:
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked sheet `eee` under project `USA PhD`.
 - Confirmed row heights remain stable at 64px in the table preview.
 - Confirmed long cell previews do not leak right or downward outside their

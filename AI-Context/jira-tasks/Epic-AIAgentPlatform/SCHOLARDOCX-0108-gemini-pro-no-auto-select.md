@@ -1,8 +1,10 @@
-# SCHOLARDOCX-0057: Gemini 2.5 Pro, Remove Auto-Select, Prompt/Memory Audit
+# SCHOLARDOCX-0108: Gemini 2.5 Pro, Remove Auto-Select, Prompt/Memory Audit
 
 Status: Done
 
 Owner: AI Agent
+
+Epic: Epic-AIAgentPlatform
 
 Created: 2026-05-29
 
@@ -18,7 +20,7 @@ system prompts and chat memory structure for correctness.
 
 Links:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -31,7 +33,7 @@ Business value:
 
 Links:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
 
 Requirements:
 
@@ -42,7 +44,7 @@ Requirements:
 
 Links:
 
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
 
 Technical notes:
 
@@ -112,10 +114,10 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py)
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py)
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx)
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py)
+- [ai.py](../../../backend/app/services/ai.py)
+- [routes.py](../../../backend/app/api/routes.py)
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx)
+- [test_ai.py](../../../backend/tests/test_ai.py)
 
 Line-count risk:
 
@@ -130,10 +132,10 @@ Line-count risk:
 
 Changed files:
 
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py) — Added gemini-2.5-pro, removed AUTO_FAST_MODEL, added _default_fast_model(), updated research/summarize signatures, updated error message.
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py) — Added background_model to AiPayload, model to SummarizePayload, passed through to service.
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx) — Removed Auto Select, added Gemini 2.5 Pro, added background model selector, default to Flash-Lite.
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py) — Updated tests with explicit model/background_model params.
+- [ai.py](../../../backend/app/services/ai.py) — Added gemini-2.5-pro, removed AUTO_FAST_MODEL, added _default_fast_model(), updated research/summarize signatures, updated error message.
+- [routes.py](../../../backend/app/api/routes.py) — Added background_model to AiPayload, model to SummarizePayload, passed through to service.
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx) — Removed Auto Select, added Gemini 2.5 Pro, added background model selector, default to Flash-Lite.
+- [test_ai.py](../../../backend/tests/test_ai.py) — Updated tests with explicit model/background_model params.
 
 Verification completed:
 

@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,7 +16,7 @@ Add the missing project workspace model: users create projects from Targets, eac
 
 Links:
 
-- [product-vision.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/product-vision.md)
+- [product-vision.md](../../business/product-vision.md)
 
 Business value:
 
@@ -24,9 +26,9 @@ Projects make ScholarDocX usable as a campaign workspace instead of only a set o
 
 Links:
 
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-email-outreach.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-email-outreach.md)
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-email-outreach.md](../../functional/feature-email-outreach.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
 
 Requirements:
 
@@ -36,8 +38,8 @@ Requirements:
 
 Links:
 
-- [data-model-draft.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
+- [data-model-draft.md](../../technical/data-model-draft.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
 
 Technical notes:
 
@@ -109,17 +111,17 @@ Mitigation:
 
 Changed files:
 
-- [backend/app/db/schema.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/schema.py)
-- [backend/app/services/store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py)
-- [backend/app/api/routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py)
-- [backend/tests/test_store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py)
-- [frontend/src/App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx)
-- [frontend/src/components/ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
-- [frontend/src/components/FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx)
-- [frontend/src/components/NotificationsView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/NotificationsView.tsx)
-- [frontend/src/components/ProfileView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProfileView.tsx)
-- [frontend/src/lib/email.ts](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/lib/email.ts)
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
+- [backend/app/db/schema.py](../../../backend/app/db/schema.py)
+- [backend/app/services/store.py](../../../backend/app/services/store.py)
+- [backend/app/api/routes.py](../../../backend/app/api/routes.py)
+- [backend/tests/test_store.py](../../../backend/tests/test_store.py)
+- [frontend/src/App.tsx](../../../frontend/src/App.tsx)
+- [frontend/src/components/ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
+- [frontend/src/components/FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx)
+- [frontend/src/components/NotificationsView.tsx](../../../frontend/src/components/NotificationsView.tsx)
+- [frontend/src/components/ProfileView.tsx](../../../frontend/src/components/ProfileView.tsx)
+- [frontend/src/lib/email.ts](../../../frontend/src/lib/email.ts)
+- [README.md](../../../README.md)
 
 Verification completed:
 

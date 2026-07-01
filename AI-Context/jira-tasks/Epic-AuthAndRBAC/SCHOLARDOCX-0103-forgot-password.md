@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AuthAndRBAC
+
 Created: 2026-06-29
 
 ## Summary
@@ -18,8 +20,8 @@ an email is registered and silently enforces max-1-pending-per-user and
 
 Links:
 
-- [feature-authentication.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-authentication.md)
-- [security-privacy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/security-privacy.md)
+- [feature-authentication.md](../../functional/feature-authentication.md)
+- [security-privacy.md](../../technical/security-privacy.md)
 
 Business value:
 
@@ -30,8 +32,8 @@ Business value:
 
 Links:
 
-- [feature-authentication.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-authentication.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/acceptance-criteria.md)
+- [feature-authentication.md](../../functional/feature-authentication.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 
@@ -51,9 +53,9 @@ Requirements:
 
 Links:
 
-- [authentication-and-identity.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/authentication-and-identity.md)
-- [data-model-draft.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/data-model-draft.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md)
+- [authentication-and-identity.md](../../technical/authentication-and-identity.md)
+- [data-model-draft.md](../../technical/data-model-draft.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
 
 Technical notes:
 

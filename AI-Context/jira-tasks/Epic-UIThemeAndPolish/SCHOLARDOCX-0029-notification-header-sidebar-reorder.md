@@ -4,6 +4,8 @@ Status: Completed
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-27
 
 ## Summary

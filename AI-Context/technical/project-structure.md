@@ -6,7 +6,7 @@ This file defines the expected future organization. It is a guide, not current c
 
 The repository contains AI-DLC context plus the MVP product scaffold.
 
-AI-agent workflow skills are stored directly in `.agents/skills`, `.claude/skills`, and `.codex/skills` as repo-carried `SKILL.md` folders.
+AI-agent workflow skills are stored directly in `.agents/skills`, `.claude/skills`, and `.codex/skills` as repo-carried `SKILL.md` folders. These are the canonical skill locations; `AI-Context/agent-skills/` is obsolete.
 
 
 ## Actual MVP Structure
@@ -14,15 +14,16 @@ AI-agent workflow skills are stored directly in `.agents/skills`, `.claude/skill
 ```text
 
 AI-Context/
-  agent-skills/
-    scholardocx-coding/
-    scholardocx-context-update/
-    scholardocx-test-cases/
-    scholardocx-context-review/
+  business/
+  functional/
+  jira-tasks/
+  planbook/
+  technical/
+  workflows/
 
-    scholardocx-ai-integrations/
-    scholardocx-security-privacy/
-    scholardocx-handoff/
+.agents/skills/
+.claude/skills/
+.codex/skills/
 
 frontend/
   index.html
@@ -32,7 +33,11 @@ frontend/
     App.tsx
     main.tsx
     components/
+      admin/
+      advisor-atlas/
+      news/
       AboutView.tsx
+      AdminView.tsx
       CalendarMonthView.tsx
       FloatingAssistant.tsx
       ProjectDashboard.tsx
@@ -41,7 +46,6 @@ frontend/
       ProjectWorkspace.tsx
       SheetRecordFields.tsx
       StickyNotesView.tsx
-    data/
     lib/
       api.ts
       email.ts

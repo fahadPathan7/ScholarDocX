@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -14,7 +16,7 @@ does not rely on the browser-default file input as the primary visual control.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -42,14 +44,14 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/main.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/main.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked the upload modal: panel width/height, styled file picker,
   notes field, and footer actions render without clipping.

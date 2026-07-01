@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0049: Whiteboard Functionality Implementation
 
+Epic: Epic-Whiteboard
+
 ## Goal
 Make the Whiteboard fully functional with a robust, custom SVG-based infinite canvas engine that tightly binds to our dark-theme UI.
 

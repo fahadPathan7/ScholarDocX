@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AIAgentPlatform
+
 Created: 2026-05-29
 
 Completed: 2026-05-29
@@ -17,7 +19,7 @@ alongside GLM. Keep the implementation free-tier-conscious and local-first.
 
 Links:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -28,8 +30,8 @@ Business value:
 
 Links:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- [feature-initialization-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-initialization-workspace.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- [feature-initialization-workspace.md](../../functional/feature-initialization-workspace.md)
 
 Requirements:
 
@@ -42,9 +44,9 @@ Requirements:
 
 Links:
 
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
-- [security-privacy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
+- [security-privacy.md](../../technical/security-privacy.md)
 
 Technical notes:
 
@@ -110,10 +112,10 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py)
-- [config.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/config.py)
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx)
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py)
+- [ai.py](../../../backend/app/services/ai.py)
+- [config.py](../../../backend/app/core/config.py)
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx)
+- [test_ai.py](../../../backend/tests/test_ai.py)
 
 Line-count risk:
 
@@ -135,17 +137,17 @@ If any file exceeds 1000 lines, explain why.
 
 Changed files:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md) - Added optional multi-provider AI decision.
-- [feature-initialization-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-initialization-workspace.md) - Added `GEMINI_API_KEY` and clarified chat vs research key requirements.
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md) - Updated provider env vars and generic AI summarization wording.
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md) - Documented Gemini free-tier provider constraints and testing guidance.
-- [config.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/config.py) - Added Gemini key/base URL and chat-provider readiness.
-- [workspace.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/workspace.py) - Added Gemini/provider readiness fields to workspace status.
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py) - Added provider-aware model selection, Gemini REST `generateContent` transport, Gemini response parsing, and GLM-to-Gemini auto fallback.
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx) - Added Google AI Studio Gemini model options.
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py) - Added Gemini and fallback tests.
-- [.env.example](/Users/fahadpathan/Documents/ScholarDocX/.env.example) - Added Gemini env placeholders.
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md) - Updated AI provider list.
+- [decisions.md](../../business/decisions.md) - Added optional multi-provider AI decision.
+- [feature-initialization-workspace.md](../../functional/feature-initialization-workspace.md) - Added `GEMINI_API_KEY` and clarified chat vs research key requirements.
+- [requirements-index.md](../../functional/requirements-index.md) - Updated provider env vars and generic AI summarization wording.
+- [ai-integrations.md](../../technical/ai-integrations.md) - Documented Gemini free-tier provider constraints and testing guidance.
+- [config.py](../../../backend/app/core/config.py) - Added Gemini key/base URL and chat-provider readiness.
+- [workspace.py](../../../backend/app/core/workspace.py) - Added Gemini/provider readiness fields to workspace status.
+- [ai.py](../../../backend/app/services/ai.py) - Added provider-aware model selection, Gemini REST `generateContent` transport, Gemini response parsing, and GLM-to-Gemini auto fallback.
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx) - Added Google AI Studio Gemini model options.
+- [test_ai.py](../../../backend/tests/test_ai.py) - Added Gemini and fallback tests.
+- [.env.example](../../../.env.example) - Added Gemini env placeholders.
+- [README.md](../../../README.md) - Updated AI provider list.
 
 Verification completed:
 

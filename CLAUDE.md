@@ -8,11 +8,11 @@ Claude and other coding agents should treat this repository as an AI-DLC managed
 
 For any task, load context in this order:
 
-1. [AGENTS.md](/Users/fahadpathan/Documents/ScholarDocX/AGENTS.md)
-2. [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/CODE_RULES.md)
-3. [AI-Context/README.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/README.md)
+1. [AGENTS.md](AGENTS.md)
+2. [CODE_RULES.md](AI-Context/CODE_RULES.md)
+3. [AI-Context/README.md](AI-Context/README.md)
 4. Relevant repo-carried skills in `.claude/skills` or `.agents/skills`
-5. The active task file in [AI-Context/jira-tasks](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks)
+5. The active task file in [AI-Context/jira-tasks](AI-Context/jira-tasks)
 6. Only the business, functional, and technical files relevant to the task
 
 
@@ -41,6 +41,6 @@ ScholarDocX is a locally hosted application portal for higher education applican
 
 - Do not build a remote SaaS backend.
 - Do not store private application data outside the local machine.
-- Do not exceed the file-size policy in [CODE_RULES.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/CODE_RULES.md).
+- Do not exceed the file-size policy in [CODE_RULES.md](AI-Context/CODE_RULES.md).
 - Do not add features that require paid infrastructure by default.
 - Do not code before context is updated for new or changed features.

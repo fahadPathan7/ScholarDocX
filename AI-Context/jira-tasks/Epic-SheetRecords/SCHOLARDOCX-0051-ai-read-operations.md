@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0051: AI Assistant READ Operations (Full CRUD)
 
+Epic: Epic-SheetRecords
+
 **Status**: ✅ Completed  
 **Priority**: High  
 **Type**: Feature Enhancement  

@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,8 +16,8 @@ Refine the project workspace UX so Projects only creates/views/opens projects. M
 
 Links:
 
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-about-profile.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-about-profile.md](../../functional/feature-about-profile.md)
 
 Requirements:
 
@@ -73,17 +75,17 @@ Planned tests:
 
 Changed files:
 
-- [backend/app/db/schema.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/schema.py)
-- [backend/app/db/connection.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/connection.py)
-- [backend/app/services/store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py)
-- [backend/app/api/routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py)
-- [backend/tests/test_store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py)
-- [frontend/src/App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx)
-- [frontend/src/components/ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
-- [frontend/src/components/ProfileView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProfileView.tsx)
-- [frontend/src/components/AboutView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/AboutView.tsx)
-- [frontend/src/styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css)
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
+- [backend/app/db/schema.py](../../../backend/app/db/schema.py)
+- [backend/app/db/connection.py](../../../backend/app/db/connection.py)
+- [backend/app/services/store.py](../../../backend/app/services/store.py)
+- [backend/app/api/routes.py](../../../backend/app/api/routes.py)
+- [backend/tests/test_store.py](../../../backend/tests/test_store.py)
+- [frontend/src/App.tsx](../../../frontend/src/App.tsx)
+- [frontend/src/components/ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
+- [frontend/src/components/ProfileView.tsx](../../../frontend/src/components/ProfileView.tsx)
+- [frontend/src/components/AboutView.tsx](../../../frontend/src/components/AboutView.tsx)
+- [frontend/src/styles.css](../../../frontend/src/styles.css)
+- [README.md](../../../README.md)
 
 Verification completed:
 

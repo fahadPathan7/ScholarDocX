@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,8 +16,8 @@ Remove separate Records and Outreach navigation. Treat records as rows inside pr
 
 Links:
 
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 Requirements:
 
@@ -72,12 +74,12 @@ Planned tests:
 
 Changed files:
 
-- [frontend/src/App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx)
-- [frontend/src/components/ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
-- [frontend/src/styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css)
-- [backend/app/services/store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py)
-- [backend/tests/test_store.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py)
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
+- [frontend/src/App.tsx](../../../frontend/src/App.tsx)
+- [frontend/src/components/ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
+- [frontend/src/styles.css](../../../frontend/src/styles.css)
+- [backend/app/services/store.py](../../../backend/app/services/store.py)
+- [backend/tests/test_store.py](../../../backend/tests/test_store.py)
+- [README.md](../../../README.md)
 
 Verification completed:
 

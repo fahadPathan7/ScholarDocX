@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,9 +16,9 @@ Build the documented ScholarDocX MVP from the backlog: local workspace initializ
 
 Links:
 
-- [product-vision.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/product-vision.md)
-- [business-requirements.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-requirements.md)
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [product-vision.md](../../business/product-vision.md)
+- [business-requirements.md](../../business/business-requirements.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -26,9 +28,9 @@ Turns the context foundation into a usable local-first application portal.
 
 Links:
 
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
-- [feature-map.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-map.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [requirements-index.md](../../functional/requirements-index.md)
+- [feature-map.md](../../functional/feature-map.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 
@@ -42,10 +44,10 @@ Requirements:
 
 Links:
 
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
-- [stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/stack-and-runtime.md)
-- [local-storage-and-data.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/local-storage-and-data.md)
-- [testing-strategy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/testing-strategy.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
+- [stack-and-runtime.md](../../technical/stack-and-runtime.md)
+- [local-storage-and-data.md](../../technical/local-storage-and-data.md)
+- [testing-strategy.md](../../technical/testing-strategy.md)
 
 Technical notes:
 
@@ -126,11 +128,11 @@ Expected mitigation:
 
 Changed files:
 
-- [backend/app](/Users/fahadpathan/Documents/ScholarDocX/backend/app)
-- [backend/tests](/Users/fahadpathan/Documents/ScholarDocX/backend/tests)
-- [frontend/src](/Users/fahadpathan/Documents/ScholarDocX/frontend/src)
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
-- [.env.example](/Users/fahadpathan/Documents/ScholarDocX/.env.example)
+- [backend/app](../../../backend/app)
+- [backend/tests](../../../backend/tests)
+- [frontend/src](../../../frontend/src)
+- [README.md](../../../README.md)
+- [.env.example](../../../.env.example)
 
 Verification completed:
 

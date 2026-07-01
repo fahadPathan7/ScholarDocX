@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -32,8 +34,8 @@ The Add Record form in sheet view has multiple UX issues:
 
 Links:
 
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 
@@ -45,8 +47,8 @@ Requirements:
 
 Links:
 
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
-- [coding-standards.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/coding-standards.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
+- [coding-standards.md](../../technical/coding-standards.md)
 
 Current implementation:
 
@@ -159,17 +161,17 @@ Planned tests:
 
 ## Files To Change
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx` - Main implementation
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css` - Add validation error styles, loading states
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md` - Update with validation requirements
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md` - Add form validation criteria
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx` - Main implementation
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css` - Add validation error styles, loading states
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md` - Update with validation requirements
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/acceptance-criteria.md` - Add form validation criteria
 
 ## Completion Notes
 
 Changed files:
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx` - Added auto-save on record add, validation, keyboard shortcuts (Escape to close, Ctrl/Cmd+Enter in textareas), loading states, empty state handling, form reset on cancel, wrapped fields in scrollable container
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css` - Added validation error styling, improved inline-note and empty state styling, fixed form overflow with max-height and flexbox layout, made fields scrollable while keeping header and button fixed
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx` - Added auto-save on record add, validation, keyboard shortcuts (Escape to close, Ctrl/Cmd+Enter in textareas), loading states, empty state handling, form reset on cancel, wrapped fields in scrollable container
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css` - Added validation error styling, improved inline-note and empty state styling, fixed form overflow with max-height and flexbox layout, made fields scrollable while keeping header and button fixed
 
 Verification completed:
 

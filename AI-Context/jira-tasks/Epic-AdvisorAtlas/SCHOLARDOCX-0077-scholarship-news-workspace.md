@@ -4,6 +4,8 @@ Status: In Progress
 
 Owner: AI Agent
 
+Epic: Epic-AdvisorAtlas
+
 Created: 2026-06-06
 
 ## Summary
@@ -29,7 +31,7 @@ Provides users with up-to-date, relevant scholarship opportunities directly with
 Links:
 
 - Functional file:
-  [feature-scholarship-news.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-scholarship-news.md)
+  [feature-scholarship-news.md](../../functional/feature-scholarship-news.md)
 
 Requirements:
 

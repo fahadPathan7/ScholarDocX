@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-UIThemeAndPolish
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,15 +17,15 @@ project sheet counts, and empty calendar behavior.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-about-profile.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-about-profile.md](../../functional/feature-about-profile.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -54,18 +56,18 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/CalendarMonthView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProfileView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-about-profile.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/CalendarMonthView.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProfileView.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-about-profile.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked Documents page layout: category groups stack full-width, rows
   are readable, and no `Uploaded:` label is shown.
 - Browser checked Profile: timezone renders as a dropdown with GMT labels.

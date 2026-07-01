@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -14,8 +16,8 @@ Improve Sticky Notes visual design and add a floating read view for long notes.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 ## Requirements
 

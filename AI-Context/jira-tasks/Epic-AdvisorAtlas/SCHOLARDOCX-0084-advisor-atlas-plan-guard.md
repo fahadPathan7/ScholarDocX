@@ -2,6 +2,8 @@
 
 Status: In progress
 Owner: AI Agent
+
+Epic: Epic-AdvisorAtlas
 Created: 2026-06-27
 
 ## Summary
@@ -13,7 +15,7 @@ Advisor Atlas a premium-tier capability gated by a per-role boolean `can_use_adv
 Free and General see a locked tab that routes to Choose Plan. Reads of existing runs stay
 open so a downgraded user can still view past runs and shortlists. Follows the same shape
 as the per-plan token-pack capability
-([SCHOLARDOCX-0083](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0083-per-plan-token-pack-purchasing.md)).
+([SCHOLARDOCX-0083](../Epic-BillingAndPlans/SCHOLARDOCX-0083-per-plan-token-pack-purchasing.md)).
 
 ## Confirmed Decisions
 
@@ -36,13 +38,13 @@ as the per-plan token-pack capability
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-advisor-atlas.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-advisor-atlas.md)
+- Functional file: [AI-Context/functional/feature-advisor-atlas.md](../../functional/feature-advisor-atlas.md)
 
 ## Technical Context
 
 Links:
 
-- Technical file: [AI-Context/technical/security-privacy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/security-privacy.md)
+- Technical file: [AI-Context/technical/security-privacy.md](../../technical/security-privacy.md)
 
 ## Scope
 

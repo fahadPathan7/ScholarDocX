@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-StickyNotes
+
 Created: 2026-06-28
 
 ## Summary
@@ -14,7 +16,7 @@ Reduce the font size of the created/updated dates in the focused sticky note mod
 
 Links:
 
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Business value:
 
@@ -24,7 +26,7 @@ Business value:
 
 Links:
 
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Requirements:
 

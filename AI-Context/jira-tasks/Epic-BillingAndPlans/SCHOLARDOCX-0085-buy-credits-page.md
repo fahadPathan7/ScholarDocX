@@ -2,6 +2,8 @@
 
 Status: In progress
 Owner: AI Agent
+
+Epic: Epic-BillingAndPlans
 Created: 2026-06-27
 
 ## Summary
@@ -36,13 +38,13 @@ schema, or permission changes.
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-ai-token-economy.md)
+- Functional file: [AI-Context/functional/feature-ai-token-economy.md](../../functional/feature-ai-token-economy.md)
 
 ## Technical Context
 
 Links:
 
-- Technical file: [AI-Context/technical/ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/ai-token-economy.md)
+- Technical file: [AI-Context/technical/ai-token-economy.md](../../technical/ai-token-economy.md)
 
 ## Scope
 

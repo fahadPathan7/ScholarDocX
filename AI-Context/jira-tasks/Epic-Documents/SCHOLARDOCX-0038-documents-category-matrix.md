@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,7 +17,7 @@ right-side overflow when one category has many documents.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -42,12 +44,12 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/visual-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/visual-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked Documents page at 1280x720: category grid renders in three
   columns and two rows, the right-side main content does not scroll, and
   categories with extra files scroll inside their own panel body.

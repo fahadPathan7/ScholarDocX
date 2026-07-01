@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AdvisorAtlas
+
 Created: 2026-06-26
 
 ## Summary
@@ -24,8 +26,8 @@ Business value:
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- Functional file: [AI-Context/functional/feature-advisor-atlas.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-advisor-atlas.md)
+- Functional file: [AI-Context/functional/feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- Functional file: [AI-Context/functional/feature-advisor-atlas.md](../../functional/feature-advisor-atlas.md)
 
 Requirements:
 
@@ -36,7 +38,7 @@ Requirements:
 
 Links:
 
-- Technical file: [AI-Context/technical/ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
+- Technical file: [AI-Context/technical/ai-integrations.md](../../technical/ai-integrations.md)
 
 Technical notes:
 

@@ -5,6 +5,8 @@ In Progress
 
 Owner: AI Agent
 
+Epic: Epic-AuthAndRBAC
+
 Created: 2026-06-04
 
 ## Summary

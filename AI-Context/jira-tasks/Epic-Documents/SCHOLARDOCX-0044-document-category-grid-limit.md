@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -14,7 +16,7 @@ overview to no more than 4 cards per row.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -36,13 +38,13 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDocX/backend`.
+  `/Users/fahadpathan/Documents/ScholarDock/backend`.

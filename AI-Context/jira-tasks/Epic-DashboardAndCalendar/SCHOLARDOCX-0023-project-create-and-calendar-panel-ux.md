@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-DashboardAndCalendar
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -19,8 +21,8 @@ opens the full calendar view.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-dashboard-hierarchy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-dashboard-hierarchy.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-dashboard-hierarchy.md](../../functional/feature-dashboard-hierarchy.md)
 
 Requirements:
 - New Project opens a floating form panel, not an inline same-page section.
@@ -47,10 +49,10 @@ Out of scope:
 ## Completion Notes
 
 Changed files:
-- [ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx) - Converted New Project and Create Sheet into floating modal panels; removed the always-visible sheet-name field and default sheet-name display.
-- [ProjectDashboard.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectDashboard.tsx) - Replaced the always-open full project calendar with a compact calendar summary panel and a full calendar modal.
-- [styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css) - Added compact project calendar and modal sizing styles; kept central dashboard calendar full-width only.
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md) - Documented floating create panels and compact project calendar behavior.
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx) - Converted New Project and Create Sheet into floating modal panels; removed the always-visible sheet-name field and default sheet-name display.
+- [ProjectDashboard.tsx](../../../frontend/src/components/ProjectDashboard.tsx) - Replaced the always-open full project calendar with a compact calendar summary panel and a full calendar modal.
+- [styles.css](../../../frontend/src/styles.css) - Added compact project calendar and modal sizing styles; kept central dashboard calendar full-width only.
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md) - Documented floating create panels and compact project calendar behavior.
 
 Verification completed:
 - `npm run build` passes.

@@ -1,8 +1,10 @@
-# SCHOLARDOCX-0051: Sheet Group Header Readability And Frozen Row Index
+# SCHOLARDOCX-0107: Sheet Group Header Readability And Frozen Row Index
 
 Status: Done
 
 Owner: AI Agent
+
+Epic: Epic-SheetRecords
 
 Created: 2026-05-28
 
@@ -15,14 +17,14 @@ the sheet scrolls horizontally.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -53,11 +55,11 @@ Links:
 
 - `frontend/src/visual-refresh.css`
 - `AI-Context/technical/frontend-visual-system.md`
-- `AI-Context/jira-tasks/SCHOLARDOCX-0051-sheet-group-header-and-row-index.md`
+- `AI-Context/jira-tasks/Epic-SheetRecords/SCHOLARDOCX-0107-sheet-group-header-and-row-index.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked sheet `eee` under project `USA PhD`.
 - Confirmed `.sheet-scroll` can scroll horizontally while the row-number column
   remains fixed at the left edge.

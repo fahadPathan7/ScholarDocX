@@ -18,12 +18,11 @@ The task file gives future AI agents:
 
 ## Files
 
-- [task-template.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/task-template.md): template for new tasks.
-- [backlog.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/backlog.md): initial task backlog.
-- [SCHOLARDOCX-0001-context-foundation.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0001-context-foundation.md): current context setup task.
-- [SCHOLARDOCX-0002-project-scaffold.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0002-project-scaffold.md): future scaffold task draft.
-- `SCHOLARDOCX-0010`: optional Google signin task is listed in [backlog.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/backlog.md).
-- [SCHOLARDOCX-0012-root-readme.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0012-root-readme.md): root README creation task.
+- [task-template.md](task-template.md): template for new tasks.
+- [epic-template.md](epic-template.md): template for new Epic README files.
+- `Epic-*/README.md`: Epic summaries.
+- `Epic-*/SCHOLARDOCX-####-slug.md`: story files. New work must use this nested shape.
+- [Epic-ProjectFoundation/backlog.md](Epic-ProjectFoundation/backlog.md): initial task backlog.
 
 ## Task Statuses
 
@@ -42,3 +41,5 @@ For new features or feature modifications:
 2. Create or update a Jira task file.
 3. Execute code from the Jira task.
 4. Update the task when complete.
+
+Do not create new story files directly in `AI-Context/jira-tasks/`; only templates and this index belong at the root.

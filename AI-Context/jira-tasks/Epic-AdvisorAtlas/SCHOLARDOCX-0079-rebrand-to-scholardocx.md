@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AdvisorAtlas
+
 Created: 2026-06-26
 
 ## Summary
@@ -14,7 +16,7 @@ Rename the product from ScholarDock to ScholarDocX across display text, docs, al
 
 Links:
 
-- Business file: [AI-Context/business/decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md) (BD-009)
+- Business file: [AI-Context/business/decisions.md](../../business/decisions.md) (BD-009)
 
 Business value:
 
@@ -34,7 +36,7 @@ Requirements:
 
 Links:
 
-- Technical file: [AI-Context/technical/local-storage-and-data.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/local-storage-and-data.md)
+- Technical file: [AI-Context/technical/local-storage-and-data.md](../../technical/local-storage-and-data.md)
 
 Technical notes:
 

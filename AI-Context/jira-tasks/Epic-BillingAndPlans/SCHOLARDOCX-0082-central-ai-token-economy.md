@@ -4,6 +4,8 @@ Status: Complete — Phases 1–5 implemented & verified (backend pytest green; 
 
 Owner: AI Agent
 
+Epic: Epic-BillingAndPlans
+
 Created: 2026-06-26
 
 ## Summary
@@ -11,7 +13,7 @@ Created: 2026-06-26
 Replace count-based AI limits with a central, per-user AI token balance metered
 by real input/output tokens. Monthly tier allowance + purchasable packs;
 request→approve purchase flow; super_admin-only model pricing and pack config.
-Full design: [planbook/central-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/planbook/central-ai-token-economy.md).
+Full design: [planbook/central-ai-token-economy.md](../../planbook/central-ai-token-economy.md).
 
 ## Confirmed Decisions
 
@@ -23,14 +25,14 @@ Full design: [planbook/central-ai-token-economy.md](/Users/fahadpathan/Documents
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-ai-token-economy.md)
+- Functional file: [AI-Context/functional/feature-ai-token-economy.md](../../functional/feature-ai-token-economy.md)
 
 ## Technical Context
 
 Links:
 
-- Technical file: [AI-Context/technical/ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/ai-token-economy.md)
-- Design: [AI-Context/planbook/central-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/planbook/central-ai-token-economy.md)
+- Technical file: [AI-Context/technical/ai-token-economy.md](../../technical/ai-token-economy.md)
+- Design: [AI-Context/planbook/central-ai-token-economy.md](../../planbook/central-ai-token-economy.md)
 
 ## Scope
 

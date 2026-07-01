@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0069 — Repo-Carried Agent Skills
 
+Epic: Epic-AIAgentPlatform
+
 ## Status
 Done
 
@@ -34,7 +36,7 @@ Links:
 - Technical file: `AI-Context/technical/testing-strategy.md`
 
 Technical notes:
-- Add repo-carried skills under `AI-Context/agent-skills/`.
+- Add repo-carried skills under `.agents/skills/`, `.claude/skills/`, and `.codex/skills/`.
 - Each skill must use the standard `SKILL.md` frontmatter shape with `name` and `description`.
 - Skills are documentation/context artifacts, not runtime code.
 
@@ -51,14 +53,14 @@ Out of scope:
 - Adding scripts, dependencies, or app tests for docs-only skill artifacts.
 
 ## Acceptance Criteria
-- `AI-Context/agent-skills/` exists with a clear index.
+- `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` exist with clear indexes.
 - Each skill folder contains a concise `SKILL.md` with valid frontmatter.
 - Skills reference ScholarDocX rules and constraints instead of duplicating the entire project context.
 - Root/context docs point agents to the skill index.
 - Verification confirms the expected skill files exist.
 
 ## Implementation Plan
-1. Create `AI-Context/agent-skills/README.md`.
+1. Create skill README indexes in `.agents/skills/`, `.claude/skills/`, and `.codex/skills/`.
 2. Create skill folders and `SKILL.md` files.
 3. Update `AI-Context/README.md`, `AI-Context/technical/project-structure.md`, and `AGENTS.md` with discovery guidance.
 4. Verify structure and frontmatter with shell checks.
@@ -79,8 +81,12 @@ Files expected to be edited:
 - `AGENTS.md`
 - `AI-Context/README.md`
 - `AI-Context/technical/project-structure.md`
-- `AI-Context/agent-skills/**/SKILL.md`
-- `AI-Context/agent-skills/README.md`
+- `.agents/skills/**/SKILL.md`
+- `.claude/skills/**/SKILL.md`
+- `.codex/skills/**/SKILL.md`
+- `.agents/skills/README.md`
+- `.claude/skills/README.md`
+- `.codex/skills/README.md`
 - `AI-Context/jira-tasks/SCHOLARDOCX-0069-agent-skills.md`
 
 Line-count risk:
@@ -99,20 +105,22 @@ Changed files:
 - `CLAUDE.md`
 - `AI-Context/README.md`
 - `AI-Context/technical/project-structure.md`
-- `AI-Context/agent-skills/README.md`
-- `AI-Context/agent-skills/scholardocx-coding/SKILL.md`
-- `AI-Context/agent-skills/scholardocx-context-update/SKILL.md`
-- `AI-Context/agent-skills/scholardocx-test-cases/SKILL.md`
-- `AI-Context/agent-skills/scholardocx-context-review/SKILL.md`
+- `.agents/skills/README.md`
+- `.codex/skills/README.md`
+- `.claude/skills/README.md`
+- `.agents/skills/scholardocx-coding/SKILL.md`
+- `.agents/skills/scholardocx-context-update/SKILL.md`
+- `.agents/skills/scholardocx-test-cases/SKILL.md`
+- `.agents/skills/scholardocx-context-review/SKILL.md`
 
-- `AI-Context/agent-skills/scholardocx-ai-integrations/SKILL.md`
-- `AI-Context/agent-skills/scholardocx-security-privacy/SKILL.md`
-- `AI-Context/agent-skills/scholardocx-handoff/SKILL.md`
+- `.agents/skills/scholardocx-ai-integrations/SKILL.md`
+- `.agents/skills/scholardocx-security-privacy/SKILL.md`
+- `.agents/skills/scholardocx-handoff/SKILL.md`
 - `AI-Context/jira-tasks/SCHOLARDOCX-0069-agent-skills.md`
 
 Verification completed:
-- `find AI-Context/agent-skills -maxdepth 2 -name 'SKILL.md' -print | sort` confirmed 8 skill files.
-- `rg -n "^(name|description):" AI-Context/agent-skills/*/SKILL.md` confirmed each skill has required frontmatter fields.
+- `find .agents/skills .claude/skills .codex/skills -maxdepth 2 -name 'SKILL.md' -print | sort` confirms the repo-carried skill mirrors.
+- `rg -n "^(name|description):" .agents/skills/*/SKILL.md .claude/skills/*/SKILL.md .codex/skills/*/SKILL.md` confirms each skill has required frontmatter fields.
 - `wc -l ...` confirmed all touched files are below the file-size policy limits.
 - `git diff --check` passed with no whitespace errors.
 

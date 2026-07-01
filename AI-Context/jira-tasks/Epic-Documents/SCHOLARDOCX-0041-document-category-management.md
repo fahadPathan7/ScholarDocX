@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-Documents
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,7 +17,7 @@ the associated document records and local files.
 ## Functional Context
 
 Links:
-- [feature-documents-storage.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md)
+- [feature-documents-storage.md](../../functional/feature-documents-storage.md)
 
 ## Requirements
 
@@ -47,27 +49,27 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/categories.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/core/workspace.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/connection.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/schema.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_workspace.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FilePickerField.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/documents-refresh.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-documents-storage.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/local-storage-and-data.md`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/categories.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/core/workspace.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/connection.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/schema.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/api/routes.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_workspace.py`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/FilePickerField.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/documents-refresh.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-documents-storage.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/data-model-draft.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/local-storage-and-data.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDocX/backend`.
+  `/Users/fahadpathan/Documents/ScholarDock/backend`.
 - Full backend `pytest` still fails on the pre-existing async AI tests because
   the current environment lacks a pytest async plugin.
 - Browser checked Documents category UI: default categories render, category

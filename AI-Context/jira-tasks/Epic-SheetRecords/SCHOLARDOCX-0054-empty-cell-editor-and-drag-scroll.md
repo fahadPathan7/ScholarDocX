@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-28
 
 ## Summary
@@ -16,14 +18,14 @@ scrollable work areas support mouse left-click hold-and-drag scrolling.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -66,14 +68,14 @@ Links:
 
 ## Changed Files
 
-- [SheetRecordFields.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/SheetRecordFields.tsx)
-- [ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
-- [horizontalDragScroll.ts](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/lib/horizontalDragScroll.ts)
-- [main.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/main.tsx)
-- [sheet-table-polish.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/sheet-table-polish.css)
-- [visual-refresh.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/visual-refresh.css)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
+- [SheetRecordFields.tsx](../../../frontend/src/components/SheetRecordFields.tsx)
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
+- `frontend/src/lib/horizontalDragScroll.ts` historical helper reference
+- [main.tsx](../../../frontend/src/main.tsx)
+- [sheet-table-polish.css](../../../frontend/src/sheet-table-polish.css)
+- [visual-refresh.css](../../../frontend/src/visual-refresh.css)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
 
 ## Verification
 

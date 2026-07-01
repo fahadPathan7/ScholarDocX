@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -16,8 +18,8 @@ Do not execute this task until the user explicitly asks to start coding or scaff
 
 Links:
 
-- [product-vision.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/product-vision.md)
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [product-vision.md](../../business/product-vision.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -27,7 +29,7 @@ Creates the technical foundation for a local-first, zero-infrastructure applicat
 
 Links:
 
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
+- [requirements-index.md](../../functional/requirements-index.md)
 
 Requirements:
 
@@ -37,9 +39,9 @@ Requirements:
 
 Links:
 
-- [stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/stack-and-runtime.md)
-- [project-structure.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/project-structure.md)
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
+- [stack-and-runtime.md](../../technical/stack-and-runtime.md)
+- [project-structure.md](../../technical/project-structure.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
 
 Technical notes:
 
@@ -90,10 +92,10 @@ Line-count risk:
 
 Changed files:
 
-- [backend](/Users/fahadpathan/Documents/ScholarDocX/backend)
-- [frontend](/Users/fahadpathan/Documents/ScholarDocX/frontend)
-- [.env.example](/Users/fahadpathan/Documents/ScholarDocX/.env.example)
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
+- [backend](../../../backend)
+- [frontend](../../../frontend)
+- [.env.example](../../../.env.example)
+- [README.md](../../../README.md)
 
 Verification completed:
 
@@ -104,4 +106,4 @@ Verification completed:
 
 Unit tests added or updated:
 
-- Backend tests added under [backend/tests](/Users/fahadpathan/Documents/ScholarDocX/backend/tests).
+- Backend tests added under [backend/tests](../../../backend/tests).

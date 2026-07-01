@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,8 +16,8 @@ Delete the original source idea files after their content was absorbed into AI-C
 
 Links:
 
-- [authentication-position.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/authentication-position.md)
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [authentication-position.md](../../business/authentication-position.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -25,8 +27,8 @@ Preserves local-first product direction while allowing optional future identity 
 
 Links:
 
-- [feature-authentication.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-authentication.md)
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
+- [feature-authentication.md](../../functional/feature-authentication.md)
+- [requirements-index.md](../../functional/requirements-index.md)
 
 Requirements:
 
@@ -36,9 +38,9 @@ Requirements:
 
 Links:
 
-- [authentication-and-identity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/authentication-and-identity.md)
-- [testing-strategy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/testing-strategy.md)
-- [security-privacy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
+- [authentication-and-identity.md](../../technical/authentication-and-identity.md)
+- [testing-strategy.md](../../technical/testing-strategy.md)
+- [security-privacy.md](../../technical/security-privacy.md)
 
 Technical notes:
 

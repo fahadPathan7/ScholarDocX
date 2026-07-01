@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AIAgentPlatform
+
 Created: 2026-05-29
 
 Completed: 2026-05-29
@@ -18,7 +20,7 @@ agentic assistant can do.
 
 Links:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -29,9 +31,9 @@ Business value:
 
 Links:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 Requirements:
 
@@ -46,9 +48,9 @@ Requirements:
 
 Links:
 
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
-- [security-privacy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
+- [security-privacy.md](../../technical/security-privacy.md)
 
 Technical notes:
 
@@ -116,11 +118,11 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py)
-- [ai_actions.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai_actions.py)
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx)
-- [AboutView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/AboutView.tsx)
-- [about-refresh.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/about-refresh.css)
+- [routes.py](../../../backend/app/api/routes.py)
+- [ai_actions.py](../../../backend/app/services/ai_actions.py)
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx)
+- [AboutView.tsx](../../../frontend/src/components/AboutView.tsx)
+- [about-refresh.css](../../../frontend/src/about-refresh.css)
 
 Line-count risk:
 
@@ -142,16 +144,16 @@ If any file exceeds 1000 lines, explain why.
 
 Changed files:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md) - Added agentic workspace action behavior and confirmation rules.
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md) - Documented the plan-confirm-execute action flow.
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md) - Added FR-5.5 for confirmed AI workspace actions.
-- [ai_actions.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai_actions.py) - Added action planning, validation, and local execution for projects, sheets, rows, and sticky notes.
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py) - Added `/ai/actions/plan` and `/ai/actions/execute`.
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx) - Added action-plan detection, confirmation card rendering, and confirmed execution.
-- [App.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx) - Refreshes workspace data after confirmed AI actions.
-- [AboutView.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/AboutView.tsx) - Added agentic AI guide content.
-- [about-refresh.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/about-refresh.css) - Styled the agentic AI guide section.
-- [test_ai_actions.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai_actions.py) - Added action planner and execution tests.
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md) - Added agentic workspace action behavior and confirmation rules.
+- [ai-integrations.md](../../technical/ai-integrations.md) - Documented the plan-confirm-execute action flow.
+- [requirements-index.md](../../functional/requirements-index.md) - Added FR-5.5 for confirmed AI workspace actions.
+- [ai_actions.py](../../../backend/app/services/ai_actions.py) - Added action planning, validation, and local execution for projects, sheets, rows, and sticky notes.
+- [routes.py](../../../backend/app/api/routes.py) - Added `/ai/actions/plan` and `/ai/actions/execute`.
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx) - Added action-plan detection, confirmation card rendering, and confirmed execution.
+- [App.tsx](../../../frontend/src/App.tsx) - Refreshes workspace data after confirmed AI actions.
+- [AboutView.tsx](../../../frontend/src/components/AboutView.tsx) - Added agentic AI guide content.
+- [about-refresh.css](../../../frontend/src/about-refresh.css) - Styled the agentic AI guide section.
+- [test_ai_actions.py](../../../backend/tests/test_ai_actions.py) - Added action planner and execution tests.
 
 Verification completed:
 

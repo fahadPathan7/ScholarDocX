@@ -5,6 +5,8 @@ Completed
 
 Owner: AI Agent
 
+Epic: Epic-AuthAndRBAC
+
 Created: 2026-05-31
 
 ## Summary
@@ -99,7 +101,7 @@ If any file exceeds 1000 lines, explain why.
 
 ## Verification Plan
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDocX/frontend run build`
+- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
 
 ## Completion Notes
 Additional follow-up (2026-05-31):
@@ -120,7 +122,7 @@ Changed files:
 
 Verification completed:
 
-- `npm --prefix /Users/fahadpathan/Documents/ScholarDocX/frontend run build`
+- `npm --prefix /Users/fahadpathan/Documents/ScholarDock/frontend run build`
 
 Unit tests added or updated:
 

@@ -2,6 +2,8 @@
 
 Status: In progress
 Owner: AI Agent
+
+Epic: Epic-BillingAndPlans
 Created: 2026-06-27
 
 ## Summary
@@ -12,7 +14,7 @@ every plan by default. Add a per-role boolean capability `can_purchase_token_pac
 endpoint, expose it through the balance response + plan data, surface it as a
 toggle in the admin role-limits editor, and show it as a ✓/✗ feature row in the
 "Choose your plan" view. Extension of the central AI token economy
-([SCHOLARDOCX-0082](/Users/fahadpathan/Documents/ScholarDock/AI-Context/jira-tasks/SCHOLARDOCX-0082-central-ai-token-economy.md)).
+([SCHOLARDOCX-0082](SCHOLARDOCX-0082-central-ai-token-economy.md)).
 
 ## Confirmed Decisions
 
@@ -29,13 +31,13 @@ toggle in the admin role-limits editor, and show it as a ✓/✗ feature row in 
 
 Links:
 
-- Functional file: [AI-Context/functional/feature-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-ai-token-economy.md)
+- Functional file: [AI-Context/functional/feature-ai-token-economy.md](../../functional/feature-ai-token-economy.md)
 
 ## Technical Context
 
 Links:
 
-- Technical file: [AI-Context/technical/ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/ai-token-economy.md)
+- Technical file: [AI-Context/technical/ai-token-economy.md](../../technical/ai-token-economy.md)
 
 ## Scope
 

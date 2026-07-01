@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-StickyNotes
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,7 +17,7 @@ workspace panel.
 ## Functional Context
 
 Links:
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 ## Requirements
 
@@ -46,23 +48,23 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/db/schema.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/project-structure.md`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/db/schema.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/app/api/routes.py`
+- `/Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/api-boundaries.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/data-model-draft.md`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/technical/project-structure.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Passed: `pytest tests/test_store.py tests/test_workspace.py` in
-  `/Users/fahadpathan/Documents/ScholarDocX/backend`.
+  `/Users/fahadpathan/Documents/ScholarDock/backend`.
 - Browser checked the Sticky Notes tab renders after Documents and shows the
   composer, color controls, bold/checklist controls, and note board.
 - API smoke-created text and checklist notes, confirmed they rendered in the

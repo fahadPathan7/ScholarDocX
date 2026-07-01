@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-StickyNotes
+
 Created: 2026-05-28
 
 ## Summary
@@ -16,7 +18,7 @@ long-note layout so dates do not overlap note content.
 ## Functional Context
 
 Links:
-- [feature-sticky-notes.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md)
+- [feature-sticky-notes.md](../../functional/feature-sticky-notes.md)
 
 ## Requirements
 
@@ -46,13 +48,13 @@ Links:
 
 ## Changed Files
 
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/StickyNotesView.tsx`
-- `/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/sticky-notes.css`
-- `/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-sticky-notes.md`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/StickyNotesView.tsx`
+- `/Users/fahadpathan/Documents/ScholarDock/frontend/src/components/sticky-notes.css`
+- `/Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-sticky-notes.md`
 
 ## Verification
 
-- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDocX/frontend`.
+- Passed: `npm run build` in `/Users/fahadpathan/Documents/ScholarDock/frontend`.
 - Browser checked the Sticky Notes board: only one create button is visible on
   the page, the modal opens from that button, bold is gone, checklist controls
   are visible, and long checklist content scrolls above the date footer.

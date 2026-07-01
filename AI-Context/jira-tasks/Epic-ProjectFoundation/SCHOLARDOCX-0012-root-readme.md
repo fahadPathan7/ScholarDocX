@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-ProjectFoundation
+
 Created: 2026-05-27
 
 ## Summary
@@ -14,8 +16,8 @@ Create a root-level README for ScholarDocX that explains the project, current st
 
 Links:
 
-- [product-vision.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/product-vision.md)
-- [business-requirements.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-requirements.md)
+- [product-vision.md](../../business/product-vision.md)
+- [business-requirements.md](../../business/business-requirements.md)
 
 Business value:
 
@@ -25,8 +27,8 @@ Gives humans and AI agents a fast project overview before diving into granular c
 
 Links:
 
-- [requirements-index.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/requirements-index.md)
-- [feature-map.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-map.md)
+- [requirements-index.md](../../functional/requirements-index.md)
+- [feature-map.md](../../functional/feature-map.md)
 
 Requirements:
 
@@ -36,9 +38,9 @@ Requirements:
 
 Links:
 
-- [stack-and-runtime.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/stack-and-runtime.md)
-- [coding-standards.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/coding-standards.md)
-- [testing-strategy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/testing-strategy.md)
+- [stack-and-runtime.md](../../technical/stack-and-runtime.md)
+- [coding-standards.md](../../technical/coding-standards.md)
+- [testing-strategy.md](../../technical/testing-strategy.md)
 
 Technical notes:
 
@@ -91,8 +93,8 @@ Line-count risk:
 
 Changed files:
 
-- [README.md](/Users/fahadpathan/Documents/ScholarDocX/README.md)
-- [SCHOLARDOCX-0012-root-readme.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/jira-tasks/SCHOLARDOCX-0012-root-readme.md)
+- [README.md](../../../README.md)
+- [SCHOLARDOCX-0012-root-readme.md](SCHOLARDOCX-0012-root-readme.md)
 
 Verification completed:
 

@@ -1,7 +1,7 @@
 # Technical: AI Token Economy
 
 Full design lives in
-[planbook/central-ai-token-economy.md](/Users/fahadpathan/Documents/ScholarDock/AI-Context/planbook/central-ai-token-economy.md).
+[planbook/central-ai-token-economy.md](../planbook/central-ai-token-economy.md).
 This file is the condensed technical reference for implementers.
 
 ## Two-Currency Model

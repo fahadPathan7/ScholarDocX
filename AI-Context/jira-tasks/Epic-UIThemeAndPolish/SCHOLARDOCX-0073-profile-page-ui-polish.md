@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0073 — Profile Page UI Polish
 
+Epic: Epic-UIThemeAndPolish
+
 ## Status
 
 Done
@@ -10,7 +12,7 @@ Fix the Profile page UI after screenshot review.
 
 ## Context
 
-- Technical visual system: [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
+- Technical visual system: [frontend-visual-system.md](../../technical/frontend-visual-system.md)
 
 
 ## Scope

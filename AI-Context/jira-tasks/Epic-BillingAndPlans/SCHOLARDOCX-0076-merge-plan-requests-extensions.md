@@ -1,5 +1,7 @@
 # SCHOLARDOCX-0076: Merge Plan Requests and Plan Extensions
 
+Epic: Epic-BillingAndPlans
+
 ## Goal
 Merge the Plan Requests and Plan Extensions tabs in the admin panel into a single tab. Remove the `admin_manage_plan_extensions` role feature entirely and rely solely on `admin_manage_plan_requests` for both upgrade and renewal/extension requests.
 

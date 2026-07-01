@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AIAgentPlatform
+
 Created: 2026-05-29
 
 Completed: 2026-05-29
@@ -18,7 +20,7 @@ errors behave predictably.
 
 Links:
 
-- [decisions.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/decisions.md)
+- [decisions.md](../../business/decisions.md)
 
 Business value:
 
@@ -29,8 +31,8 @@ Business value:
 
 Links:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 
@@ -42,10 +44,10 @@ Requirements:
 
 Links:
 
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
-- [api-boundaries.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
-- [security-privacy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
-- [testing-strategy.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/testing-strategy.md)
+- [ai-integrations.md](../../technical/ai-integrations.md)
+- [api-boundaries.md](../../technical/api-boundaries.md)
+- [security-privacy.md](../../technical/security-privacy.md)
+- [testing-strategy.md](../../technical/testing-strategy.md)
 
 Technical notes:
 
@@ -106,10 +108,10 @@ If no unit tests are needed, explain why:
 
 Files expected to be edited:
 
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx)
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py)
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py)
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py)
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx)
+- [ai.py](../../../backend/app/services/ai.py)
+- [routes.py](../../../backend/app/api/routes.py)
+- [test_ai.py](../../../backend/tests/test_ai.py)
 
 Line-count risk:
 
@@ -118,7 +120,7 @@ Line-count risk:
 
 If any file exceeds 1000 lines, explain why.
 
-- Existing [styles.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css) exceeds the limit before this task and is not edited here.
+- Existing [styles.css](../../../frontend/src/styles.css) exceeds the limit before this task and is not edited here.
 
 ## Verification Plan
 
@@ -131,12 +133,12 @@ If any file exceeds 1000 lines, explain why.
 
 Changed files:
 
-- [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md) - Documented rolling memory, web search hint, fail-open routing, and off-domain response behavior.
-- [ai-integrations.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md) - Documented separated routing/synthesis/memory prompts, provider-error mode preservation, and routing tests.
-- [FloatingAssistant.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FloatingAssistant.tsx) - Fixed stale attachment references/imports, added memory context builder, gated summarization to four-message sessions, and ignored failed summaries.
-- [ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/services/ai.py) - Added prompt constants, fail-open routing parser, search metadata, provider-error mode preservation, and dedicated memory summarization.
-- [routes.py](/Users/fahadpathan/Documents/ScholarDocX/backend/app/api/routes.py) - Routed `/ai/summarize` through the dedicated summary method.
-- [test_ai.py](/Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_ai.py) - Added routing and summarization boundary tests.
+- [feature-ai-assistant.md](../../functional/feature-ai-assistant.md) - Documented rolling memory, web search hint, fail-open routing, and off-domain response behavior.
+- [ai-integrations.md](../../technical/ai-integrations.md) - Documented separated routing/synthesis/memory prompts, provider-error mode preservation, and routing tests.
+- [FloatingAssistant.tsx](../../../frontend/src/components/FloatingAssistant.tsx) - Fixed stale attachment references/imports, added memory context builder, gated summarization to four-message sessions, and ignored failed summaries.
+- [ai.py](../../../backend/app/services/ai.py) - Added prompt constants, fail-open routing parser, search metadata, provider-error mode preservation, and dedicated memory summarization.
+- [routes.py](../../../backend/app/api/routes.py) - Routed `/ai/summarize` through the dedicated summary method.
+- [test_ai.py](../../../backend/tests/test_ai.py) - Added routing and summarization boundary tests.
 
 Verification completed:
 

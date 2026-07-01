@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-AdvisorAtlas
+
 Created: 2026-06-11
 
 ## Summary
@@ -58,9 +60,9 @@ Implementation constraints:
 Links:
 
 - Business requirement:
-  [BR-006 AI-Powered Strategic Assistance](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-requirements.md)
+  [BR-006 AI-Powered Strategic Assistance](../../business/business-requirements.md)
 - Detailed feature plan:
-  [Advisor Atlas planbook](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/planbook/professor-discovery-agent.md)
+  [Advisor Atlas planbook](../../planbook/professor-discovery-agent.md)
 
 Business value:
 
@@ -79,9 +81,9 @@ Business value:
 Links:
 
 - Planbook:
-  [Advisor Atlas](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/planbook/professor-discovery-agent.md)
+  [Advisor Atlas](../../planbook/professor-discovery-agent.md)
 - Existing AI behavior:
-  [feature-ai-assistant.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-ai-assistant.md)
+  [feature-ai-assistant.md](../../functional/feature-ai-assistant.md)
 
 Requirements:
 
@@ -137,11 +139,11 @@ Requirements:
 
 Links:
 
-- [AI integrations](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/ai-integrations.md)
-- [API boundaries](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/api-boundaries.md)
-- [Security and privacy](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/security-privacy.md)
-- [Data model draft](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/data-model-draft.md)
-- [Planbook technical architecture](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/planbook/professor-discovery-agent.md#8-proposed-technical-architecture)
+- [AI integrations](../../technical/ai-integrations.md)
+- [API boundaries](../../technical/api-boundaries.md)
+- [Security and privacy](../../technical/security-privacy.md)
+- [Data model draft](../../technical/data-model-draft.md)
+- [Planbook technical architecture](../../planbook/professor-discovery-agent.md#8-proposed-technical-architecture)
 
 Technical notes:
 

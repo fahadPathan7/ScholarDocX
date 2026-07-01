@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-28
 
 ## Summary
@@ -15,14 +17,14 @@ the table preview after save.
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 ## Technical Context
 
 Links:
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
-- [file-size-and-modularity.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/file-size-and-modularity.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
+- [file-size-and-modularity.md](../../technical/file-size-and-modularity.md)
 
 ## Requirements
 
@@ -58,11 +60,11 @@ Links:
 
 ## Changed Files
 
-- [ProjectWorkspace.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx)
-- [SheetRecordFields.tsx](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/SheetRecordFields.tsx)
-- [sheet-table-polish.css](/Users/fahadpathan/Documents/ScholarDocX/frontend/src/sheet-table-polish.css)
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [frontend-visual-system.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/frontend-visual-system.md)
+- [ProjectWorkspace.tsx](../../../frontend/src/components/ProjectWorkspace.tsx)
+- [SheetRecordFields.tsx](../../../frontend/src/components/SheetRecordFields.tsx)
+- [sheet-table-polish.css](../../../frontend/src/sheet-table-polish.css)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [frontend-visual-system.md](../../technical/frontend-visual-system.md)
 
 ## Verification
 

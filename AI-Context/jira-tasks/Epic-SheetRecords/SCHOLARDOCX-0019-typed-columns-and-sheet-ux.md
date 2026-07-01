@@ -4,6 +4,8 @@ Status: Done
 
 Owner: AI Agent
 
+Epic: Epic-SheetRecords
+
 Created: 2026-05-27
 
 Completed: 2026-05-27
@@ -15,7 +17,7 @@ Implement typed columns (`text | number | bool | file`) in the sheets system. Re
 ## Business Context
 
 Links:
-- [business-goals.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/business/business-goals.md)
+- [business-requirements.md](../../business/business-requirements.md)
 
 Business value:
 - Promotes privacy-first local document management by centralizing document uploads and linking them to sheet cells dynamically.
@@ -24,8 +26,8 @@ Business value:
 ## Functional Context
 
 Links:
-- [feature-project-workspace.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md)
-- [acceptance-criteria.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md)
+- [feature-project-workspace.md](../../functional/feature-project-workspace.md)
+- [acceptance-criteria.md](../../functional/acceptance-criteria.md)
 
 Requirements:
 - FR-7.5: Sheet can have editable, addable, and deletable columns and rows.
@@ -36,7 +38,7 @@ Requirements:
 ## Technical Context
 
 Links:
-- [architecture-overview.md](/Users/fahadpathan/Documents/ScholarDocX/AI-Context/technical/architecture-overview.md)
+- [architecture-overview.md](../../technical/architecture-overview.md)
 
 Technical notes:
 - Stored sheets previously defined columns as simple `string[]`. They must be migrated to `{name, type}[]` objects.
@@ -76,15 +78,15 @@ Out of scope:
 ## Completion Notes
 
 Changed files:
-- [store.py](file:///Users/fahadpathan/Documents/ScholarDocX/backend/app/services/store.py) - Updated default columns to dicts, added transparent schema migration in `_decode_page`, completely removed generic "Attachments" and "Linked documents" columns, and dynamically inserted degree-appropriate document fields (PhD, Masters/MSc, Bachelors/BSc) before the "Status" column.
-- [test_store.py](file:///Users/fahadpathan/Documents/ScholarDocX/backend/tests/test_store.py) - Updated backend test assertions to match the migrated format and verify that generic columns are excluded while correct degree-specific default columns are loaded.
-- [App.tsx](file:///Users/fahadpathan/Documents/ScholarDocX/frontend/src/App.tsx) - Passed onFilesChanged callback to ProjectWorkspace.
-- [FilePickerField.tsx](file:///Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/FilePickerField.tsx) - Added new file picker component.
-- [ProjectWorkspace.tsx](file:///Users/fahadpathan/Documents/ScholarDocX/frontend/src/components/ProjectWorkspace.tsx) - Redesigned workspace with inline column creation, single-column record form, auto-save status, toggleable Create Project form, cascade confirmations for deleting projects and sheets, dedicated "Edit Columns" form panel (rename, delete, reorder), mouse-drag row/column resizing, and auto-growing cells.
-- [styles.css](file:///Users/fahadpathan/Documents/ScholarDocX/frontend/src/styles.css) - Polished layouts, scrollbars, list containers, toggle switches, resize handle highlights, row headers, and reorder controls.
-- [api.ts](file:///Users/fahadpathan/Documents/ScholarDocX/frontend/src/lib/api.ts) - Added `delete` method to frontend API client and `deleteRecord` helper function.
-- [acceptance-criteria.md](file:///Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/acceptance-criteria.md) - Documented typed columns, deletions, resizing, and cell auto-grow criteria.
-- [feature-project-workspace.md](file:///Users/fahadpathan/Documents/ScholarDocX/AI-Context/functional/feature-project-workspace.md) - Documented column type behaviors, layout resizing, and customization rules.
+- [store.py](file:///Users/fahadpathan/Documents/ScholarDock/backend/app/services/store.py) - Updated default columns to dicts, added transparent schema migration in `_decode_page`, completely removed generic "Attachments" and "Linked documents" columns, and dynamically inserted degree-appropriate document fields (PhD, Masters/MSc, Bachelors/BSc) before the "Status" column.
+- [test_store.py](file:///Users/fahadpathan/Documents/ScholarDock/backend/tests/test_store.py) - Updated backend test assertions to match the migrated format and verify that generic columns are excluded while correct degree-specific default columns are loaded.
+- [App.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/App.tsx) - Passed onFilesChanged callback to ProjectWorkspace.
+- [FilePickerField.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/components/FilePickerField.tsx) - Added new file picker component.
+- [ProjectWorkspace.tsx](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/components/ProjectWorkspace.tsx) - Redesigned workspace with inline column creation, single-column record form, auto-save status, toggleable Create Project form, cascade confirmations for deleting projects and sheets, dedicated "Edit Columns" form panel (rename, delete, reorder), mouse-drag row/column resizing, and auto-growing cells.
+- [styles.css](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/styles.css) - Polished layouts, scrollbars, list containers, toggle switches, resize handle highlights, row headers, and reorder controls.
+- [api.ts](file:///Users/fahadpathan/Documents/ScholarDock/frontend/src/lib/api.ts) - Added `delete` method to frontend API client and `deleteRecord` helper function.
+- [acceptance-criteria.md](file:///Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/acceptance-criteria.md) - Documented typed columns, deletions, resizing, and cell auto-grow criteria.
+- [feature-project-workspace.md](file:///Users/fahadpathan/Documents/ScholarDock/AI-Context/functional/feature-project-workspace.md) - Documented column type behaviors, layout resizing, and customization rules.
 
 Verification completed:
 - Frontend builds cleanly: `npm run build`

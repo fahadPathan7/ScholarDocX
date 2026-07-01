@@ -526,6 +526,7 @@
 .atlas-profile-builder {
   display: grid;
   gap: 20px;
+  flex-shrink: 0;
 }
 
 .atlas-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -584,7 +585,7 @@
 
 .atlas-profile-toggle {
   width: 100%;
-  min-height: 0;
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -612,9 +613,11 @@
   border: 0;
   border-radius: 0;
   background: transparent;
+  flex-shrink: 0;
 }
 
-.atlas-profile-builder .wide { grid-column: 1 / -1; }
+.atlas-profile-builder .wide,
+.atlas-form-grid .wide { grid-column: 1 / -1; }
 
 .atlas-interests-list {
   display: flex;
@@ -691,6 +694,7 @@
   border-top: 1px solid rgba(34, 94, 91, 0.16);
   border-radius: 0;
   background: transparent;
+  flex-shrink: 0;
 }
 
 .atlas-privacy-note {

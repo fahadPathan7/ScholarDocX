@@ -86,7 +86,7 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
     if (mode === "professor") {
       const missing = [
         ["university name", form.universityName],
-        ["official university or professor URL", form.universityUrl],
+        ["official professor URL", form.universityUrl],
         ["department or research area", form.department],
         ["professor name", form.professorName],
         ["intended intake", form.intakeTerm],
@@ -170,12 +170,12 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
 
 
       <div className="atlas-form-grid">
-        <label>
+        <label className="wide">
           <span>University name *</span>
           <input required value={form.universityName} onChange={(e) => update("universityName", e.target.value)} placeholder="e.g. University of Toronto" />
         </label>
-        <label>
-          <span>Official university or professor URL {mode === "professor" ? "*" : ""}</span>
+        <label className="wide">
+          <span>{mode === "department" ? "Official university URL" : "Official professor URL *"}</span>
           <input
             id="atlas-official-url"
             type="url"
@@ -183,7 +183,7 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
             aria-describedby={mode === "professor" ? "atlas-official-url-help" : undefined}
             value={form.universityUrl}
             onChange={(e) => update("universityUrl", e.target.value)}
-            placeholder="https://www.university.edu/..."
+            placeholder={mode === "department" ? "https://www.university.edu/..." : "https://www.university.edu/faculty/..."}
           />
           {mode === "professor" && <small id="atlas-official-url-help" className="atlas-field-help">Anchors identity to the correct institution and faculty domain.</small>}
         </label>

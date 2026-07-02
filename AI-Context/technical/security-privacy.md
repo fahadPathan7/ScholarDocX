@@ -73,6 +73,35 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
   budget is consumed before the email lookup so the limit cannot be used as a
   timing/enumeration oracle.
 - Do not require remote signin for local-only MVP workflows.
+
+## Role Limits And Billing Guards (SCHOLARDOCX-0111)
+
+- Plan expiry is enforced at auth time: `get_current_user` strips expired
+  user-tier roles and falls back to `free_user`. `check_and_increment_limit`
+  only checks the not-yet-started plan date.
+- Count-based usage (`total_projects`, `total_sheets`, `total_records`,
+  `total_documents_bytes`, `total_sticky_notes`, `total_whiteboards`) means
+  *current* usage, not lifetime. Deletes must free quota:
+  `resync_usage_counts` in `app/auth/limits.py` recounts from live data and
+  runs after route deletes (`RESYNC_FEATURES_BY_TABLE`), after every agent
+  plan, and at startup. `total_records` counts rows inside `rows_json`
+  (`json_array_length`), never pages.
+- Create paths pre-increment the counter, so a failed storage write must give
+  the quota back (compensating decrement in the CRUD create, sheet-create,
+  rows-update, and file-upload routes). Upload also settles the difference
+  between the client-declared size and the bytes actually written.
+- `verify_model_permission` must be called with the settings object: when no
+  model is specified it resolves the same default-provider chain `AiService`
+  uses (groq→gemini→mistral→glm) and enforces `can_use_<provider>` — omitting
+  the model is not a provider-permission bypass.
+- Billing (`ai_tokens.py`): both `charge` and `charge_flat_fee` gate the
+  purchased bucket on `can_use_purchased_tokens`; `compute_cost` prices
+  deactivated models (deactivation blocks selection, not billing); duplicate
+  Pending purchase requests per user+pack are rejected; pack approval is
+  idempotent via the Pending-status guard.
+- Missing role-limit rows default to allow (`check_and_increment_limit`) and
+  no-cap (`get_user_limit` → -1); users without any user-tier role get 0.
+  Admin role-limit edits must call `invalidate_limits_cache()`.
 - If Google OAuth is added, keep it optional unless a later business decision changes this.
 - Request minimal scopes.
 - Store only necessary identity fields.

@@ -623,8 +623,13 @@ def migrate_database(connection: sqlite3.Connection) -> None:
                 JOIN projects p ON ps.project_id = p.id 
                 WHERE p.user_id = ?
             """, (uid,)).fetchone()[0],
+            # total_records counts the rows inside each sheet page (rows_json
+            # arrays), matching the per-row increments used at runtime —
+            # COUNT(pp.id) would count pages and wipe the real row usage.
             "total_records": connection.execute("""
-                SELECT COUNT(pp.id) FROM project_pages pp
+                SELECT COALESCE(SUM(json_array_length(
+                    COALESCE(NULLIF(pp.rows_json, ''), '[]'))), 0)
+                FROM project_pages pp
                 JOIN projects p ON pp.project_id = p.id
                 WHERE p.user_id = ?
             """, (uid,)).fetchone()[0],

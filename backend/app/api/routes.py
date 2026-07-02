@@ -21,11 +21,31 @@ from app.auth.dependencies import get_user_store
 router = APIRouter()
 
 
-def verify_model_permission(model: Optional[str], current_user: dict, connection):
+def _default_provider(settings: Settings) -> Optional[str]:
+    """First configured provider — must match AiService's fallback order."""
+    if settings.groq_api_key:
+        return "groq"
+    if settings.gemini_api_key:
+        return "gemini"
+    if settings.mistral_api_key:
+        return "mistral"
+    if settings.glm_api_key:
+        return "glm"
+    return None
+
+
+def verify_model_permission(model: Optional[str], current_user: dict, connection, settings: Optional[Settings] = None):
     from app.auth.limits import check_and_increment_limit
     if not model:
-        return # AiService will pick a default, could add stricter checks here later
-    
+        # No explicit model → AiService falls back to the first configured
+        # provider. Enforce that provider's permission so omitting the model
+        # cannot bypass can_use_<provider> role limits.
+        if settings is not None:
+            provider = _default_provider(settings)
+            if provider:
+                check_and_increment_limit(current_user, f"can_use_{provider}", 0, connection)
+        return
+
     provider = "glm"
     model_lower = model.lower()
     if ":" in model_lower:
@@ -143,6 +163,8 @@ def create_project_sheet(
     try:
         return store.create_sheet_with_defaults(project_id, payload.name)
     except LookupError as exc:
+        # Give the sheet quota back if the project lookup/creation failed.
+        check_and_increment_limit(current_user, "total_sheets", -1, store.db)
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
@@ -185,6 +207,18 @@ def delete_document_category(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+# Deleting from these tables frees plan quota; the affected count-based
+# usage counters are resynced from live data right after the delete.
+RESYNC_FEATURES_BY_TABLE = {
+    "projects": ("total_projects", "total_sheets", "total_records"),
+    "project_sheets": ("total_sheets", "total_records"),
+    "project_pages": ("total_records",),
+    "sticky_notes": ("total_sticky_notes",),
+    "whiteboards": ("total_whiteboards",),
+    "static_files": ("total_documents_bytes",),
+}
+
+
 def _crud_routes(table: str):
     @router.get(f"/{table}")
     def list_records(store: Store = Depends(get_user_store), table_name: str = table) -> list[dict]:
@@ -192,8 +226,8 @@ def _crud_routes(table: str):
 
     @router.post(f"/{table}")
     def create_record(
-        payload: Payload, 
-        store: Store = Depends(get_user_store), 
+        payload: Payload,
+        store: Store = Depends(get_user_store),
         current_user: dict = Depends(get_current_user),
         table_name: str = table
     ) -> dict:
@@ -203,15 +237,20 @@ def _crud_routes(table: str):
             "sticky_notes": "total_sticky_notes",
             "whiteboards": "total_whiteboards"
         }
-        
+
         feature = feature_map.get(table_name)
         if feature:
             from app.auth.limits import check_and_increment_limit
             check_and_increment_limit(current_user, feature, 1, store.db)
-            
+
         try:
             return store.create_record(table_name, payload.data)
         except (ValueError, LookupError) as exc:
+            # The counter was incremented before the write; give the quota
+            # back so a failed create does not permanently consume it.
+            if feature:
+                from app.auth.limits import check_and_increment_limit
+                check_and_increment_limit(current_user, feature, -1, store.db)
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.patch(f"/{table}" + "/{record_id}")
@@ -240,6 +279,12 @@ def _crud_routes(table: str):
                 
                 if rows_diff != 0:
                     check_and_increment_limit(current_user, "total_records", rows_diff, store.db)
+                    try:
+                        return store.update_record(table_name, record_id, payload.data)
+                    except LookupError as exc:
+                        # Give the row quota back if the write itself failed.
+                        check_and_increment_limit(current_user, "total_records", -rows_diff, store.db)
+                        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
         try:
             return store.update_record(table_name, record_id, payload.data)
@@ -247,11 +292,21 @@ def _crud_routes(table: str):
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @router.delete(f"/{table}" + "/{record_id}")
-    def delete_record(record_id: int, store: Store = Depends(get_user_store), table_name: str = table) -> dict:
+    def delete_record(
+        record_id: int,
+        store: Store = Depends(get_user_store),
+        table_name: str = table,
+        current_user: dict = Depends(get_current_user),
+    ) -> dict:
         try:
-            return store.delete_record(table_name, record_id)
+            deleted = store.delete_record(table_name, record_id)
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        features = RESYNC_FEATURES_BY_TABLE.get(table_name)
+        if features:
+            from app.auth.limits import resync_usage_counts
+            resync_usage_counts(current_user["id"], store.db, features)
+        return deleted
 
 
 for table_name in (
@@ -292,15 +347,30 @@ def upload_file(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
-    from app.auth.limits import check_and_increment_limit
+    from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
+    file_size = file.size or 0
+    check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.db)
+    charged_bytes = file_size
     try:
-        file_size = file.size or 0
-        check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.db)
-        
         category_slug = normalize_media_category(category)
         file_type_slug = normalize_media_category(file_type or category_slug)
         store.ensure_document_category(category_slug)
         saved = save_upload(settings, category_slug, file.filename or "upload", file.file)
+        # The pre-charge used the client-declared size, which can be absent or
+        # wrong; settle the difference against the bytes actually written.
+        actual_size = int(saved["size_bytes"] or 0)
+        if actual_size != file_size:
+            try:
+                check_and_increment_limit(
+                    current_user, "total_documents_bytes", actual_size - file_size, store.db
+                )
+            except UsageLimitExceeded:
+                (settings.workspace_path / saved["relative_path"]).unlink(missing_ok=True)
+                check_and_increment_limit(
+                    current_user, "total_documents_bytes", -file_size, store.db
+                )
+                raise
+            charged_bytes = actual_size
         return store.create_record(
             "static_files",
             {
@@ -314,6 +384,9 @@ def upload_file(
             },
         )
     except ValueError as exc:
+        # Give the byte quota back if validation/saving failed after the
+        # pre-charge.
+        check_and_increment_limit(current_user, "total_documents_bytes", -charged_bytes, store.db)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -373,7 +446,7 @@ async def ai_chat(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.db)
+    verify_model_permission(payload.model, current_user, store.db, settings)
     
     # Enforce per-session limit without persisting a global counter
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
@@ -403,9 +476,9 @@ async def ai_research(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.db)
+    verify_model_permission(payload.model, current_user, store.db, settings)
     if payload.background_model:
-        verify_model_permission(payload.background_model, current_user, store.db)
+        verify_model_permission(payload.background_model, current_user, store.db, settings)
         
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
@@ -443,7 +516,7 @@ async def ai_summarize(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    verify_model_permission(payload.model, current_user, store.db)
+    verify_model_permission(payload.model, current_user, store.db, settings)
     return await AiService(settings, user=current_user, session=store.db).summarize_memory(payload.text, payload.model)
 
 
@@ -455,7 +528,7 @@ async def ai_action_plan(
     current_user: dict = Depends(get_current_user)
 ) -> dict:
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
-    verify_model_permission(payload.model, current_user, store.db)
+    verify_model_permission(payload.model, current_user, store.db, settings)
     check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
     
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)

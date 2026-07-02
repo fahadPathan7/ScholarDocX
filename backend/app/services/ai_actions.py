@@ -257,15 +257,22 @@ class AiActionService:
 
         refs: dict[str, Any] = {"projects": {}, "sheets": {}, "latest_project": None, "latest_sheet": None}
         results = []
-        for action in normalized["actions"]:
-            action_type = action["type"]
-            executor = WORKSPACE_EXECUTORS.get(action_type)
-            if executor:
-                results.append(executor(self, action, refs))
-            elif action_type in records.RECORD_ACTIONS:
-                results.append(records.execute_record_action(self.store, action))
-            else:
-                raise ValueError(f"Unsupported action: {action_type}")
+        try:
+            for action in normalized["actions"]:
+                action_type = action["type"]
+                executor = WORKSPACE_EXECUTORS.get(action_type)
+                if executor:
+                    results.append(executor(self, action, refs))
+                elif action_type in records.RECORD_ACTIONS:
+                    results.append(records.execute_record_action(self.store, action))
+                else:
+                    raise ValueError(f"Unsupported action: {action_type}")
+        finally:
+            # Agent deletes free plan quota and partial failures must not leave
+            # counters inflated: recount from live data after every plan.
+            if self.user and self.session is not None:
+                from app.auth.limits import resync_usage_counts
+                resync_usage_counts(self.user["id"], self.session)
 
         return {
             "status": "done",

@@ -252,6 +252,9 @@ def test_execute_enforces_role_limits(tmp_path):
         ).fetchone()
         user = {"id": user_row[0], "roles": ["free_user"]}
 
+        # Mirror production: get_user_store always scopes the store to the
+        # caller, which the post-plan usage resync relies on.
+        store.current_user_id = user["id"]
         service = make_service(store)
         plan = {"status": "needs_confirmation", "actions": [
             {"type": "create_project", "project": {"name": "First", "degree_type": "phd"}},

@@ -13,8 +13,19 @@ def test_openrouter_charge(tmp_path, monkeypatch):
     with Session(get_engine(settings.database_path)) as db:
         ai_tokens.refresh_balance(user, db)
         ai_tokens.grant_purchased(user["id"], 10000, session=db, source="test")
+        # Drain the subscription bucket (pinning the current period so
+        # refresh_balance does not refill it) so the charge must hit the
+        # purchased bucket.
+        from sqlalchemy import text
+        db.execute(
+            text(
+                "UPDATE ai_token_balances SET subscription_remaining = 0, "
+                "subscription_period = :period WHERE user_id = :uid"
+            ),
+            {"uid": user["id"], "period": ai_tokens._current_period(user)},
+        )
         db.commit()
-        
+
         balance_before = get_balance(settings, user["id"])
         
         # Charge openrouter
@@ -38,4 +49,4 @@ def test_openrouter_charge(tmp_path, monkeypatch):
         print("Cost USD: $0.28")
         
         assert res["charged"] > 0
-        assert balance_after["purchased_balance"] < balance_before["purchased_balance"]
+        assert balance_after["purchased_remaining"] < balance_before["purchased_remaining"]

@@ -152,6 +152,7 @@ async def create_run(
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
     store: Store = Depends(get_store),
+    settings: Settings = Depends(get_settings),
 ):
     # Advisor Atlas is a plan-gated feature (Pro/Max). Check before any token
     # spend so ineligible plans get a clear upgrade message.
@@ -160,9 +161,9 @@ async def create_run(
     # monthly search count. Pre-flight check here; the background task charges
     # the actual usage per AI call.
     ai_tokens.ensure_can_spend(user, store.db)
-    
+
     from app.api.routes import verify_model_permission
-    verify_model_permission(service.ai_service.settings.advisor_atlas_glm_model, user, store.db)
+    verify_model_permission(settings.advisor_atlas_glm_model, user, store.db)
     
     run = service.repository.create_run(
         int(user["id"]),

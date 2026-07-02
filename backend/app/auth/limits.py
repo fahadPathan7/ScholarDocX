@@ -53,24 +53,28 @@ def invalidate_limits_cache():
     _role_limits_cache.clear()
 
 def get_user_limit(user: dict, feature: str, session: Session) -> int:
-    """Returns the limit_count for a given user and feature, or -1 if unlimited/not found."""
+    """Returns the limit_count for a given user and feature.
+
+    Missing feature row → -1 (no cap), matching check_and_increment_limit's
+    default-allow for undefined features. No user-tier role → 0 (blocked).
+    """
     primary_role = get_primary_user_role(user)
     if not primary_role:
         return 0
-        
+
     cache_key = f"{primary_role}:{feature}"
     limit_record = _role_limits_cache.get(cache_key)
-    
+
     if not limit_record:
         limit_record = session.execute(
             text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
             {"role": primary_role, "feature": feature}
         ).mappings().fetchone()
-        
+
         if limit_record:
             limit_record = dict(limit_record)
             _role_limits_cache[cache_key] = limit_record
-    return limit_record["limit_count"] if limit_record else 0
+    return limit_record["limit_count"] if limit_record else -1
 
 def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Session = None):
     if session is None:
@@ -105,10 +109,10 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
         raise UsageLimitExceeded("You must have a user-level role to use this feature.")
 
     # ── Plan date guard ─────────────────────────────────────────────────────
+    # (Plan expiry is enforced by the auth-time role downgrade in
+    # app/auth/dependencies.py; only the not-yet-started case is checked here.)
     now = datetime.utcnow()
     plan_started_at = user.get("plan_started_at")
-    plan_ends_at = user.get("plan_ends_at")
-
 
     if plan_started_at:
         try:
@@ -185,6 +189,60 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
         session.commit()
 
     return True
+
+
+# Live-data queries for count-based usage features. total_records sums the
+# rows inside each sheet page (rows_json arrays), matching the per-row
+# increments applied by the create/update paths.
+_USAGE_COUNT_QUERIES = {
+    "total_projects": "SELECT COUNT(*) FROM projects WHERE user_id = :uid",
+    "total_sheets": (
+        "SELECT COUNT(ps.id) FROM project_sheets ps "
+        "JOIN projects p ON ps.project_id = p.id WHERE p.user_id = :uid"
+    ),
+    "total_records": (
+        "SELECT COALESCE(SUM(json_array_length("
+        "COALESCE(NULLIF(pp.rows_json, ''), '[]'))), 0) "
+        "FROM project_pages pp JOIN projects p ON pp.project_id = p.id "
+        "WHERE p.user_id = :uid"
+    ),
+    "total_documents_bytes": (
+        "SELECT COALESCE(SUM(size_bytes), 0) FROM static_files WHERE user_id = :uid"
+    ),
+    "total_sticky_notes": "SELECT COUNT(*) FROM sticky_notes WHERE user_id = :uid",
+    "total_whiteboards": "SELECT COUNT(*) FROM whiteboards WHERE user_id = :uid",
+}
+
+
+def resync_usage_counts(user_id: int, session: Session, features=None) -> None:
+    """Recompute count-based usage counters from live data.
+
+    Deletes (and failed writes) would otherwise leave counters inflated until
+    the next server restart, blocking users who freed up quota. Call after any
+    operation that removes projects, sheets, rows, sticky notes, whiteboards,
+    or files. Recounting is idempotent and self-healing, so it also corrects
+    any historical drift.
+    """
+    for feature in (features or _USAGE_COUNT_QUERIES):
+        query = _USAGE_COUNT_QUERIES.get(feature)
+        if not query:
+            continue
+        try:
+            count = session.execute(text(query), {"uid": user_id}).scalar() or 0
+        except Exception:
+            # A malformed rows_json must not break the delete that triggered
+            # the resync; the stale counter is corrected on the next sync.
+            continue
+        session.execute(
+            text(
+                "INSERT INTO user_usage_stats (user_id, feature, current_count, last_reset_at) "
+                "VALUES (:uid, :feature, :count, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(user_id, feature) "
+                "DO UPDATE SET current_count = excluded.current_count"
+            ),
+            {"uid": user_id, "feature": feature, "count": int(count)},
+        )
+    session.commit()
 
 
 # User-tier plan metadata. Used to describe which plans include an

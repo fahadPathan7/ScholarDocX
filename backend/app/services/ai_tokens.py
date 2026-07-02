@@ -283,10 +283,13 @@ def compute_cost(
     input_price = 0.0
     output_price = 0.0
     if model_id:
+        # Pricing applies regardless of is_active: deactivation blocks new
+        # selection at the route level, but internal/background calls that
+        # still hit the model must not become free.
         row = session.execute(
             text(
                 "SELECT input_price_per_1m, output_price_per_1m FROM ai_models "
-                "WHERE model_id = :m AND is_active = 1"
+                "WHERE model_id = :m"
             ),
             {"m": model_id},
         ).mappings().fetchone()
@@ -501,7 +504,13 @@ def charge_flat_fee(
         }
 
     sub_remaining = int(balance["subscription_remaining"])
-    purch_remaining = int(balance["purchased_remaining"])
+    # Same gate as charge(): plans without can_use_purchased_tokens must not
+    # spend the purchased bucket on flat fees either.
+    purch_remaining = (
+        int(balance["purchased_remaining"])
+        if can_use_purchased_tokens_feature(user, session)
+        else 0
+    )
 
     sub_used = min(tokens, sub_remaining)
     purch_used = min(tokens - sub_used, purch_remaining)
@@ -736,6 +745,19 @@ def submit_purchase_request(
     pack = get_pack(pack_code, session)
     if pack is None:
         raise LookupError("Selected AI credit pack is not available.")
+    duplicate = session.execute(
+        text(
+            "SELECT id FROM ai_token_purchase_requests "
+            "WHERE user_id = :uid AND pack_id = :pack_id "
+            "AND LOWER(status) = 'pending'"
+        ),
+        {"uid": user_id, "pack_id": pack["id"]},
+    ).fetchone()
+    if duplicate:
+        raise ValueError(
+            "You already have a pending request for this pack. "
+            "Wait for review or cancel it first."
+        )
     cur = session.execute(
         text(
             "INSERT INTO ai_token_purchase_requests "

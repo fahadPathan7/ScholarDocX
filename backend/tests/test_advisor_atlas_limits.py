@@ -143,8 +143,11 @@ async def test_create_run_gates_on_ai_tokens(monkeypatch):
         return True
 
     monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
-    # Plan gate is tested separately; neutralize it here to isolate token gating.
+    # Plan and model gates are tested separately; neutralize them here to
+    # isolate token gating.
     monkeypatch.setattr(advisor_atlas_api, "_require_advisor_atlas_access", lambda *a, **k: None)
+    import app.api.routes as routes_api
+    monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
 
     result = await advisor_atlas_api.create_run(
         professor_request(),
@@ -152,6 +155,7 @@ async def test_create_run_gates_on_ai_tokens(monkeypatch):
         user={"id": 7, "roles": ["general_user"]},
         service=FakeService(),  # type: ignore
         store=FakeStore(),  # type: ignore
+        settings=Settings(),
     )
 
     assert result["id"] == 44
@@ -189,6 +193,7 @@ async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatc
             user={"id": 7, "roles": ["general_user"]},
             service=FakeService(),  # type: ignore
             store=FakeStore(),  # type: ignore
+            settings=Settings(),
         )
 
     assert created == []
@@ -343,6 +348,8 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
 
     monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", allow)
     monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
+    import app.api.routes as routes_api
+    monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
 
     result = await advisor_atlas_api.create_run(
         professor_request(),
@@ -350,6 +357,7 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
         user={"id": 9, "roles": ["pro_user"]},
         service=FakeService(),  # type: ignore
         store=FakeStore(),  # type: ignore
+        settings=Settings(),
     )
 
     assert result["id"] == 50

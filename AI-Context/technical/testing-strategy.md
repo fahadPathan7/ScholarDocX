@@ -51,7 +51,20 @@ cd backend
 
 ## Frontend Testing
 
-Test:
+Unit tests run with vitest (introduced in SCHOLARDOCX-0118, dev-only):
+
+```bash
+cd frontend
+npm test
+```
+
+Pure logic modules (no DOM needed) live next to their feature in
+`__tests__/` folders — e.g. `src/components/sheet/__tests__/` covers sort
+comparators, filter predicates, TSV/CSV parsing, and undo/redo history.
+Extract logic out of components/hooks into plain modules so it stays
+testable without a DOM environment.
+
+Also test (manually until a DOM test environment is added):
 
 - Dashboard rendering.
 - Forms and validation.

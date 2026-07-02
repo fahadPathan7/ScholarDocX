@@ -1,8 +1,13 @@
 /* ------------------------------------------------------------------ */
-/*  CSV Utilities for Sheet                                            */
+/*  CSV / delimited-text utilities for Sheet                           */
 /* ------------------------------------------------------------------ */
 
-export function parseCSV(text: string): string[][] {
+/**
+ * Parse delimiter-separated text with RFC-4180 style quoting
+ * (quoted values may contain the delimiter, newlines, and "" escapes).
+ * Used for CSV (",") and clipboard TSV ("\t").
+ */
+export function parseDelimited(text: string, delimiter: string): string[][] {
   const result: string[][] = [];
   let row: string[] = [];
   let currentVal = '';
@@ -27,9 +32,9 @@ export function parseCSV(text: string): string[][] {
         currentVal += char;
       }
     } else {
-      if (char === '"') {
+      if (char === '"' && currentVal === '') {
         inQuotes = true;
-      } else if (char === ',') {
+      } else if (char === delimiter) {
         row.push(currentVal);
         currentVal = '';
       } else if (char === '\n' || char === '\r') {
@@ -54,11 +59,15 @@ export function parseCSV(text: string): string[][] {
   return result;
 }
 
+export function parseCSV(text: string): string[][] {
+  return parseDelimited(text, ',');
+}
+
 export function formatCSV(rows: string[][]): string {
   return rows.map(row => {
     return row.map(val => {
       if (val === undefined || val === null) return '';
-      
+
       const strVal = String(val);
       // Escape if contains comma, newline, or quotes
       if (strVal.includes(',') || strVal.includes('\n') || strVal.includes('\r') || strVal.includes('"')) {

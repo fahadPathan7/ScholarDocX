@@ -3,29 +3,29 @@
 /* ------------------------------------------------------------------ */
 
 import type { ColumnDef } from "./sheetModel";
+import { parseDelimited } from "./sheetCsv";
 
 /**
- * Parse a TSV string from clipboard into an array of row objects mapped to visible columns.
+ * Parse a TSV string from the clipboard into row objects mapped to the
+ * visible columns left-to-right. Handles quoted cells (multiline values,
+ * embedded tabs) the way Excel/Google Sheets emit them — and the way our
+ * own formatTSV emits them, so copy → paste round-trips.
  */
 export function parseTSV(tsv: string, visibleColumns: ColumnDef[]): Record<string, string>[] {
   const newRows: Record<string, string>[] = [];
-  
+
   if (!tsv.trim()) return newRows;
 
-  // Split by newline, handling Windows (\r\n) and Unix (\n)
-  const lines = tscSplit(tsv);
+  const lines = parseDelimited(tsv, '\t');
 
-  for (const line of lines) {
-    if (!line.trim()) continue; // skip empty lines
-
-    const cells = line.split('\t');
+  for (const cells of lines) {
     const newRow: Record<string, string> = {};
 
     // Map cells to visible columns left-to-right
     for (let i = 0; i < Math.min(cells.length, visibleColumns.length); i++) {
       const colName = visibleColumns[i].name;
       const cellValue = cells[i].trim();
-      
+
       if (cellValue) {
         newRow[colName] = cellValue;
       }
@@ -40,15 +40,6 @@ export function parseTSV(tsv: string, visibleColumns: ColumnDef[]): Record<strin
 }
 
 /**
- * Safely split TSV into lines avoiding issues with quoted newlines (basic implementation)
- */
-function tscSplit(tsv: string): string[] {
-  // A robust CSV/TSV parser would handle quotes. 
-  // For basic TSV paste, splitting by \n is usually sufficient for Excel/Google Sheets.
-  return tsv.split(/\r?\n/);
-}
-
-/**
  * Format an array of rows into a TSV string using visible columns.
  */
 export function formatTSV(rows: Record<string, string>[], visibleColumns: ColumnDef[]): string {
@@ -56,7 +47,7 @@ export function formatTSV(rows: Record<string, string>[], visibleColumns: Column
     return visibleColumns.map(col => {
       const val = row[col.name] || "";
       // Escape tabs and newlines within the value by wrapping in quotes
-      if (val.includes('\t') || val.includes('\n') || val.includes('\r')) {
+      if (val.includes('\t') || val.includes('\n') || val.includes('\r') || val.includes('"')) {
         return `"${val.replace(/"/g, '""')}"`;
       }
       return val;

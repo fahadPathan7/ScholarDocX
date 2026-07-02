@@ -73,7 +73,10 @@ export function SheetFooter({
     if (boolCols.length > 0 && viewRows.length > 0) {
       // Pick the first bool col to use as completion
       const bCol = boolCols[0];
-      const trueCount = viewRows.filter(r => r[bCol.name] === 'true').length;
+      const trueCount = viewRows.filter(r => {
+        const v = r[bCol.name];
+        return v === 'Yes' || v === 'true' || v === '1';
+      }).length;
       completionMetric = {
         name: bCol.name,
         pct: Math.round((trueCount / viewRows.length) * 100)

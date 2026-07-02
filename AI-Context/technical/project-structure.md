@@ -37,12 +37,25 @@ frontend/
       advisor-atlas/
       news/
       sheet/
-        sheetModel.ts
-        useSheetPage.ts
-        ColumnEditor.tsx
+        sheetModel.ts        (types, templates, column migration)
+        sheetFilters.ts      (sort/filter/search pipeline + view types)
+        sheetUndo.ts         (pure history fns + useUndoRedo hook)
+        sheetCsv.ts          (parseDelimited/CSV format, shared by paste)
+        sheetPaste.ts        (quoted TSV parse/format for clipboard)
+        useSheetPage.ts      (page state, persistence, CRUD, bulk ops)
+        SheetTable.tsx       (grid orchestrator, keyboard flow)
+        SheetTableRow.tsx    (memoized row)
+        InlineCellEditor.tsx (in-cell editor, commit-and-move)
+        FilterMenu.tsx       (per-column filter popup)
         SheetToolbar.tsx
-        SheetTable.tsx
+        SheetFooter.tsx
+        SelectionToolbar.tsx (bulk copy/duplicate/delete/set-value)
+        ColumnEditor.tsx
         RecordFormModal.tsx
+        RowPeekPanel.tsx
+        CsvImportModal.tsx
+        DateColorConfigModal.tsx
+        __tests__/           (vitest unit tests for the pure modules)
       AboutView.tsx
       AdminView.tsx
       CalendarMonthView.tsx

@@ -86,8 +86,8 @@ def _enforce_sheet_limits(svc, project_id: int) -> None:
     per_project_limit = svc.limit_for("sheets_per_project")
     if per_project_limit != -1:
         current = svc.store.legacy_connection.execute(
-            "SELECT COUNT(*) FROM project_sheets WHERE project_id = ?", (project_id,)
-        ).fetchone()[0]
+            "SELECT COUNT(*) AS sheet_count FROM project_sheets WHERE project_id = ?", (project_id,)
+        ).fetchone()["sheet_count"]
         if current >= per_project_limit:
             svc.raise_limit(f"Limit exceeded for sheets_per_project. Your plan allows {per_project_limit}.")
     svc.enforce("total_sheets", 1)

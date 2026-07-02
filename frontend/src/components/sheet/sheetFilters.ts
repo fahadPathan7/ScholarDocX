@@ -112,9 +112,41 @@ export type ColumnFilter = {
   | { kind: "text"; contains: string }              // text, url
   | { kind: "number"; min?: number; max?: number }  // number
   | { kind: "datePreset"; preset: DateFilterPreset } // date
+  | { kind: "dateRange"; from?: string; to?: string } // date custom range
 );
 
 export type DateFilterPreset = "overdue" | "next3" | "next7" | "next30" | "all";
+
+export const DATE_PRESET_LABELS: { value: DateFilterPreset; label: string }[] = [
+  { value: "overdue", label: "Overdue" },
+  { value: "next3", label: "Next 3 days" },
+  { value: "next7", label: "Next 7 days" },
+  { value: "next30", label: "Next 30 days" },
+];
+
+/** Short human label for an active filter chip. */
+export function filterSummary(filter: ColumnFilter): string {
+  switch (filter.kind) {
+    case "values":
+      return filter.values.size === 0 ? "any" : Array.from(filter.values).slice(0, 2).join(", ") + (filter.values.size > 2 ? ` +${filter.values.size - 2}` : "");
+    case "text":
+      return filter.contains ? `contains "${filter.contains}"` : "any";
+    case "number": {
+      if (filter.min !== undefined && filter.max !== undefined) return `${filter.min}–${filter.max}`;
+      if (filter.min !== undefined) return `≥ ${filter.min}`;
+      if (filter.max !== undefined) return `≤ ${filter.max}`;
+      return "any";
+    }
+    case "datePreset":
+      return DATE_PRESET_LABELS.find(p => p.value === filter.preset)?.label || filter.preset;
+    case "dateRange": {
+      if (filter.from && filter.to) return `${filter.from} → ${filter.to}`;
+      if (filter.from) return `from ${filter.from}`;
+      if (filter.to) return `until ${filter.to}`;
+      return "any";
+    }
+  }
+}
 
 function matchesFilter(value: string, filter: ColumnFilter): boolean {
   const trimmed = (value || "").trim();
@@ -151,6 +183,23 @@ function matchesFilter(value: string, filter: ColumnFilter): boolean {
         case "next30": return diffDays >= 0 && diffDays <= 30;
         default: return true;
       }
+    }
+
+    case "dateRange": {
+      if (!trimmed) return false;
+      const d = new Date(trimmed);
+      if (isNaN(d.getTime())) return false;
+      if (filter.from) {
+        const from = new Date(filter.from);
+        if (!isNaN(from.getTime()) && d < from) return false;
+      }
+      if (filter.to) {
+        const to = new Date(filter.to);
+        // include the whole "to" day
+        to.setHours(23, 59, 59, 999);
+        if (!isNaN(to.getTime()) && d > to) return false;
+      }
+      return true;
     }
   }
 }

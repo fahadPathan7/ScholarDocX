@@ -147,6 +147,7 @@ export function ProjectWorkspace({
     refreshSummary,
     files,
     onFilesChanged,
+    recordsPerSheetLimit,
   });
 
   /* ---------------------------------------------------------------- */
@@ -712,9 +713,11 @@ export function ProjectWorkspace({
 
             <SelectionToolbar
               selectedCount={sheet.selectedRows.size}
+              columns={sheet.columns}
               onClear={sheet.clearSelection}
               onDelete={sheet.bulkDelete}
               onDuplicate={sheet.bulkDuplicate}
+              onSetValue={sheet.bulkSetValue}
               onCopy={() => {
                 import("./sheet/sheetPaste").then(({ formatTSV }) => {
                   const visibleCols = sheet.columns.filter(c => c.type !== 'group' && !c.hidden);
@@ -795,6 +798,8 @@ export function ProjectWorkspace({
               columns={sheet.columns}
               rows={sheet.rows}
               viewRows={sheet.viewRows}
+              rowIndexMap={sheet.rowIndexMap}
+              searchQuery={sheet.searchQuery}
               groupBy={sheet.groupBy}
               files={files}
               fullScreenMode={fullScreenMode}
@@ -822,6 +827,7 @@ export function ProjectWorkspace({
               onFocusedCellChange={sheet.setFocusedCell}
               onUndo={sheet.handleUndo}
               onRedo={sheet.handleRedo}
+              onQuickAddRow={sheet.quickAddRow}
               dateColorConfig={dateColorConfig}
               onPeekRow={(idx) => setPeekRowIndex(idx)}
             />
@@ -882,12 +888,12 @@ export function ProjectWorkspace({
             currentRowsCount={sheet.rows.length}
             onClose={() => setCsvImportFile(null)}
             onImport={async (newRows, newCols) => {
-              sheet.pushState({ columns: sheet.columns, rows: sheet.rows });
               const nextCols = [...sheet.columns, ...newCols];
               const nextRows = [...sheet.rows, ...newRows];
-              
+
               sheet.setColumns(nextCols);
               sheet.setRows(nextRows);
+              sheet.record({ columns: nextCols, rows: nextRows });
               sheet.persistPage(nextCols, nextRows);
               setCsvImportFile(null);
             }}

@@ -155,7 +155,9 @@ def create_project_sheet(
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
     limit_count = get_user_limit(current_user, "sheets_per_project", store.db)
     if limit_count != -1:
-        current_sheet_count = store.legacy_connection.execute("SELECT COUNT(*) FROM project_sheets WHERE project_id = ?", (project_id,)).fetchone()[0]
+        current_sheet_count = store.legacy_connection.execute(
+            "SELECT COUNT(*) AS sheet_count FROM project_sheets WHERE project_id = ?", (project_id,)
+        ).fetchone()["sheet_count"]
         if current_sheet_count >= limit_count:
             raise UsageLimitExceeded(f"Limit exceeded for sheets_per_project. Your plan allows {limit_count}.")
             

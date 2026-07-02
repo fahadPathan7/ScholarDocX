@@ -8,6 +8,38 @@ import type { ColumnDef, DateColorConfig } from "./sheet/sheetModel";
 const CELL_EDITOR_MIN_LINES = 3;
 const CELL_EDITOR_MAX_LINES = 10;
 
+/* One shared ResizeObserver for every cell's overflow detection —
+   thousands of per-cell observers measurably slow large sheets. */
+const overflowCallbacks = new WeakMap<Element, () => void>();
+const sharedOverflowObserver = typeof ResizeObserver !== "undefined"
+  ? new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        overflowCallbacks.get(entry.target)?.();
+      }
+    })
+  : null;
+
+/* Muted pill palette for select options, aligned with the academic theme */
+const SELECT_PILL_COLORS = [
+  { bg: "rgba(47, 109, 122, 0.14)", fg: "#1f4f5a" },   // teal
+  { bg: "rgba(217, 154, 61, 0.18)", fg: "#8a5a14" },   // gold
+  { bg: "rgba(56, 163, 127, 0.16)", fg: "#1f6b52" },   // green
+  { bg: "rgba(178, 79, 79, 0.14)", fg: "#8a3535" },    // red
+  { bg: "rgba(111, 66, 193, 0.12)", fg: "#54348f" },   // violet
+  { bg: "rgba(23, 63, 70, 0.12)", fg: "#173f46" },     // ink
+];
+
+function selectPillStyle(value: string, column: ColumnDef) {
+  const options = column.options || [];
+  let idx = options.indexOf(value);
+  if (idx < 0) {
+    // Stable fallback for values not in the declared options
+    idx = 0;
+    for (let i = 0; i < value.length; i++) idx = (idx * 31 + value.charCodeAt(i)) % 997;
+  }
+  return SELECT_PILL_COLORS[idx % SELECT_PILL_COLORS.length];
+}
+
 function resizeCellEditor(textarea: HTMLTextAreaElement) {
   const styles = window.getComputedStyle(textarea);
   const parsedLineHeight = Number.parseFloat(styles.lineHeight);
@@ -147,7 +179,8 @@ export function CellRenderer({
   onFileUploaded,
   isEditing,
   onCloseEdit,
-  dateColorConfig
+  dateColorConfig,
+  openOnClick = true
 }: {
   column: ColumnDef;
   value: string;
@@ -157,6 +190,8 @@ export function CellRenderer({
   isEditing?: boolean;
   onCloseEdit?: () => void;
   dateColorConfig?: DateColorConfig;
+  /** When false, single click does not open the modal viewer (grid focuses instead). */
+  openOnClick?: boolean;
 }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -210,20 +245,24 @@ export function CellRenderer({
     // Initial check with delay for rendering
     const timeoutId = setTimeout(checkOverflow, 30);
 
-    // Watch for size changes on cell and content
-    const resizeObserver = new ResizeObserver(() => {
-      checkOverflow();
-    });
-
+    // Watch for size changes via the shared observer (one per app, not per cell)
     const parentCell = content.closest('td');
-    if (parentCell) {
-      resizeObserver.observe(parentCell);
+    const observed: Element[] = [];
+    if (sharedOverflowObserver) {
+      for (const el of [parentCell, content]) {
+        if (!el) continue;
+        overflowCallbacks.set(el, checkOverflow);
+        sharedOverflowObserver.observe(el);
+        observed.push(el);
+      }
     }
-    resizeObserver.observe(content);
 
     return () => {
       clearTimeout(timeoutId);
-      resizeObserver.disconnect();
+      for (const el of observed) {
+        sharedOverflowObserver?.unobserve(el);
+        overflowCallbacks.delete(el);
+      }
     };
   }, [value]);
 
@@ -414,6 +453,16 @@ export function CellRenderer({
     </div>
   );
 
+  const interactiveProps = openOnClick
+    ? {
+        "aria-label": `Open full value for ${column.name}`,
+        role: "button" as const,
+        tabIndex: 0,
+        onClick: openViewer,
+        onKeyDown: handlePreviewKeyDown,
+      }
+    : {};
+
   if (column.type === "file") {
     const parts = value.split(", ").filter(Boolean);
     return (
@@ -421,11 +470,7 @@ export function CellRenderer({
         <span
           ref={contentRef}
           className="file-badge sheet-cell-preview sheet-cell-trigger"
-          aria-label={`Open full value for ${column.name}`}
-          role="button"
-          tabIndex={0}
-          onClick={openViewer}
-          onKeyDown={handlePreviewKeyDown}
+          {...interactiveProps}
         >
           {parts.length ? (
             <>
@@ -501,22 +546,38 @@ export function CellRenderer({
     }
   }
 
+  // Select and bool values render as scannable status pills
+  let pillContent = null;
+  if (value && column.type === "select") {
+    const pill = selectPillStyle(value, column);
+    pillContent = (
+      <span className="sheet-select-pill" style={{ backgroundColor: pill.bg, color: pill.fg }}>
+        {value}
+      </span>
+    );
+  } else if (value && column.type === "bool") {
+    const isYes = value === "Yes" || value === "true" || value === "1";
+    pillContent = (
+      <span className={`sheet-bool-pill ${isYes ? "yes" : "no"}`}>
+        {isYes ? "Yes" : "No"}
+      </span>
+    );
+  }
+
   return (
     <>
       <span
         ref={contentRef}
         className="sheet-cell-preview sheet-cell-trigger"
-        aria-label={`Open full value for ${column.name}`}
-        role="button"
-        tabIndex={0}
-        onClick={openViewer}
-        onKeyDown={handlePreviewKeyDown}
+        {...interactiveProps}
       >
         {value ? (
           column.type === "url" ? (
             <a href={value} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} style={{ color: "var(--ui-brand)", textDecoration: "underline" }}>
               {value}
             </a>
+          ) : pillContent ? (
+            pillContent
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center' }}>

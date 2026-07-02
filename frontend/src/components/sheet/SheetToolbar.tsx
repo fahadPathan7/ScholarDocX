@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------ */
 
 import { useState, useRef, useEffect } from "react";
-import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, Eye, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Sparkles, Info } from "lucide-react";
+import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Sparkles, Info } from "lucide-react";
 import type { ColumnDef } from "./sheetModel";
 import type { SheetView } from "./sheetFilters";
 import { useDialog } from "../DialogProvider";
@@ -112,8 +112,10 @@ export function SheetToolbar({
             placeholder="Search rows..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            style={{ 
-              paddingLeft: '28px', 
+            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onSearchChange(""); } }}
+            style={{
+              paddingLeft: '28px',
+              paddingRight: searchQuery ? '24px' : undefined,
               height: fullScreenMode ? '28px' : '32px',
               fontSize: fullScreenMode ? '11px' : '13px',
               width: '180px',
@@ -127,12 +129,20 @@ export function SheetToolbar({
               type="button"
               className="icon-button"
               onClick={() => onSearchChange("")}
+              title="Clear search (Esc)"
               style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', padding: '2px' }}
             >
-              <EyeOff size={12} />
+              <X size={12} />
             </button>
           )}
         </div>
+
+        {/* Match count when the view is narrowed by search/filters */}
+        {isFiltering && (
+          <span className="sheet-match-count" title="Rows matching the current search and filters">
+            {viewRows.length} of {rows.length}
+          </span>
+        )}
 
         {/* 3. Columns Menu */}
         <div className="columns-menu-container" ref={columnsMenuRef} style={{ position: 'relative' }}>

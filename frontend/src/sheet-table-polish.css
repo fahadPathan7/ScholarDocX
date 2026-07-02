@@ -836,3 +836,195 @@
   padding: 1px 6px;
   text-transform: uppercase;
 }
+
+/* ================================================================== */
+/*  SCHOLARDOCX-0118 — spreadsheet-grade editing, perf, polish         */
+/* ================================================================== */
+
+/* Off-screen rows skip layout/paint entirely (table-layout is fixed,
+   so column widths never depend on off-screen row content) */
+.sheet-table tbody tr.sheet-table-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
+}
+
+/* Focused cell: crisp spreadsheet-style ring */
+.sheet-table td.data-cell {
+  position: relative;
+  cursor: default;
+}
+
+.sheet-table td.data-cell.cell-focused {
+  outline: 2px solid #2f6d7a;
+  outline-offset: -2px;
+  background-color: rgba(47, 109, 122, 0.06);
+}
+
+/* Search hit highlight */
+.sheet-table td.data-cell.cell-search-match {
+  background-color: rgba(217, 154, 61, 0.16);
+}
+
+.sheet-table td.data-cell.cell-search-match.cell-focused {
+  background-color: rgba(217, 154, 61, 0.22);
+}
+
+/* Inline in-cell editor */
+.sheet-inline-editor {
+  background: #ffffff;
+  border: none;
+  outline: 2px solid #2f6d7a;
+  outline-offset: -2px;
+  border-radius: 2px;
+  box-shadow: 0 4px 14px rgba(23, 32, 29, 0.16);
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 13px;
+  height: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  width: 100%;
+}
+
+.sheet-inline-editor:focus {
+  outline: 2px solid #2f6d7a;
+}
+
+/* Expand-to-modal affordance on the focused cell */
+.cell-expand-btn {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7d2c8;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(23, 32, 29, 0.12);
+  color: #65756d;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: 3px;
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  z-index: 5;
+}
+
+.cell-expand-btn:hover {
+  background: #f2f7f5;
+  color: #1f4f5a;
+}
+
+/* Select-option and boolean pills */
+.sheet-select-pill {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-bool-pill {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 1px 9px;
+}
+
+.sheet-bool-pill.yes {
+  background: rgba(56, 163, 127, 0.16);
+  color: #1f6b52;
+}
+
+.sheet-bool-pill.no {
+  background: rgba(23, 32, 29, 0.07);
+  color: #65756d;
+}
+
+/* Quick add row at the bottom of the grid */
+.quick-add-row td {
+  background: #fcfbf8;
+  border: 1px solid #e2ddd5;
+}
+
+.quick-add-row-btn {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: #70827f;
+  cursor: pointer;
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  padding: 8px 14px;
+  width: 100%;
+}
+
+.quick-add-row-btn:hover {
+  background: rgba(47, 109, 122, 0.06);
+  color: #1f4f5a;
+}
+
+/* Toolbar match count chip */
+.sheet-match-count {
+  background: rgba(217, 154, 61, 0.14);
+  border: 1px solid rgba(217, 154, 61, 0.35);
+  border-radius: 999px;
+  color: #8a5a14;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* Bulk set-value popover */
+.set-value-popover {
+  background: var(--ui-paper-strong, #fcf9f2);
+  border: 1px solid var(--ui-line, #e2ddd5);
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(23, 32, 29, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 240px;
+  z-index: 120;
+}
+
+.set-value-popover-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #17201d;
+}
+
+.set-value-popover label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #65756d;
+  gap: 4px;
+}
+
+.set-value-popover select,
+.set-value-popover input {
+  border: 1px solid #d7d2c8;
+  border-radius: 6px;
+  font-size: 12.5px;
+  padding: 6px 8px;
+}
+
+.set-value-popover-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

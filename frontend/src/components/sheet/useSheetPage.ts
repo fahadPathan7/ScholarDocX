@@ -2,7 +2,7 @@
 /*  useSheetPage — state hook for sheet page data, persistence, CRUD   */
 /* ------------------------------------------------------------------ */
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnDef, ColumnType, migrateColumns, SheetPage } from "./sheetModel";
 import { api, listRecords, RecordMap, notify } from "../../lib/api";
 import { composeEmailUrl, ComposeProvider } from "../../lib/email";
@@ -10,7 +10,7 @@ import { useDialog } from "../DialogProvider";
 import { EmailConfig } from "../EmailConfigModal";
 import { SortState, ColumnFilter, SheetView, applyViewState, nextSortDirection } from "./sheetFilters";
 import { useUndoRedo } from "./sheetUndo";
-import { parseTSV, formatTSV } from "./sheetPaste";
+import { parseTSV } from "./sheetPaste";
 import { formatCSV } from "./sheetCsv";
 
 export interface UseSheetPageParams {
@@ -21,6 +21,7 @@ export interface UseSheetPageParams {
   refreshSummary: () => Promise<void>;
   files: RecordMap[];
   onFilesChanged?: () => Promise<void>;
+  recordsPerSheetLimit?: number;
 }
 
 export function useSheetPage({
@@ -30,6 +31,7 @@ export function useSheetPage({
   onToast,
   refreshSummary,
   files,
+  recordsPerSheetLimit = -1,
 }: UseSheetPageParams) {
   const { showAlert, showConfirm } = useDialog();
 
@@ -42,7 +44,7 @@ export function useSheetPage({
   const [isSaving, setIsSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  const { pushState, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo({ columns: [], rows: [] });
+  const { record, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo({ columns: [], rows: [] });
 
   /* ---------------------------------------------------------------- */
   /*  View state (search, filter, sort, focus, selection)              */
@@ -52,16 +54,26 @@ export function useSheetPage({
   const [sortState, setSortState] = useState<SortState>({ column: "", direction: "off" });
   const [filters, setFilters] = useState<ColumnFilter[]>([]);
   const [groupBy, setGroupBy] = useState<string | null>(null);
-  
+
   const [savedViews, setSavedViews] = useState<SheetView[]>([]);
   const [currentViewId, setCurrentViewId] = useState<string | null>(null);
-  
+
   const [focusedCell, setFocusedCell] = useState<{ rowIndex: number, colName: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [lastSelectedRowIndex, setLastSelectedRowIndex] = useState<number | null>(null);
 
-  // Derived view data
-  const { viewRows, totalCount, filteredCount } = applyViewState(rows, searchQuery, filters, sortState, groupBy, columns);
+  // Derived view data — memoized so typing/rendering never re-sorts for free
+  const { viewRows, totalCount, filteredCount } = useMemo(
+    () => applyViewState(rows, searchQuery, filters, sortState, groupBy, columns),
+    [rows, searchQuery, filters, sortState, groupBy, columns]
+  );
+
+  // Row object → index in `rows`, so the table never does O(n²) indexOf
+  const rowIndexMap = useMemo(() => {
+    const map = new Map<Record<string, string>, number>();
+    rows.forEach((row, index) => map.set(row, index));
+    return map;
+  }, [rows]);
 
   /* ---------------------------------------------------------------- */
   /*  Modal state                                                      */
@@ -93,41 +105,71 @@ export function useSheetPage({
   const [validationError, setValidationError] = useState("");
 
   /* ---------------------------------------------------------------- */
-  /*  Page load effect                                                 */
+  /*  Page load + server sync                                          */
+  /*                                                                   */
+  /*  Two distinct situations share this effect:                       */
+  /*  1. The user opened a different sheet → full reset (data, view    */
+  /*     state, history, selection).                                   */
+  /*  2. The same sheet's updated_at changed after a persist (ours or  */
+  /*     an agent's). Our own persists are recognized via              */
+  /*     lastSyncedRef and skipped, so sort/filter/search/undo survive */
+  /*     every save. External changes re-sync data but keep the view.  */
   /* ---------------------------------------------------------------- */
+
+  const loadedPageIdRef = useRef<string>("");
+  const lastSyncedRef = useRef<string>("");
+
+  const contentSignature = (cols: ColumnDef[], rws: Record<string, string>[]) =>
+    JSON.stringify({ c: cols, r: rws });
 
   useEffect(() => {
     if (!selectedPage) {
       setColumns([]);
       setRows([]);
+      loadedPageIdRef.current = "";
+      lastSyncedRef.current = "";
       return;
     }
     const rawCols = selectedPage.columns || JSON.parse(selectedPage.columns_json || "[]");
     const migratedCols = migrateColumns(rawCols);
     const rawRows = selectedPage.rows || JSON.parse(selectedPage.rows_json || "[]");
+    const incoming = contentSignature(migratedCols, rawRows);
+
+    if (loadedPageIdRef.current !== selectedPageId) {
+      // Different sheet: load everything fresh
+      loadedPageIdRef.current = selectedPageId;
+      lastSyncedRef.current = incoming;
+      setColumns(migratedCols);
+      setRows(rawRows);
+      resetHistory({ columns: migratedCols, rows: rawRows });
+
+      try {
+        const viewsData = localStorage.getItem(`scholardock_views_${selectedPageId}`);
+        setSavedViews(viewsData ? JSON.parse(viewsData) : []);
+      } catch (e) {
+        console.error("Failed to load views", e);
+      }
+
+      setCurrentViewId(null);
+      setSearchQuery("");
+      setSortState({ column: "", direction: "off" });
+      setFilters([]);
+      setGroupBy(null);
+      setSelectedRows(new Set());
+      setFocusedCell(null);
+      return;
+    }
+
+    // Same sheet refreshed: skip our own persisted echo entirely
+    if (incoming === lastSyncedRef.current) return;
+
+    // External change (agent action, another tab): sync data, keep the view
+    lastSyncedRef.current = incoming;
     setColumns(migratedCols);
     setRows(rawRows);
     resetHistory({ columns: migratedCols, rows: rawRows });
-
-    // Load saved views
-    try {
-      const viewsData = localStorage.getItem(`scholardock_views_${selectedPageId}`);
-      if (viewsData) {
-        setSavedViews(JSON.parse(viewsData));
-      } else {
-        setSavedViews([]);
-      }
-    } catch (e) {
-      console.error("Failed to load views", e);
-    }
-    
-    // Reset view state
-    setCurrentViewId(null);
-    setSearchQuery("");
-    setSortState({ column: "", direction: "off" });
-    setFilters([]);
-    setGroupBy(null);
-    // Note: hiddenColumns are part of `columns` state via `hidden` flag, handled by resetHistory
+    setSelectedRows(new Set());
+    setFocusedCell(null);
   }, [selectedPageId, selectedPage?.updated_at]);
 
   /* ---------------------------------------------------------------- */
@@ -138,7 +180,7 @@ export function useSheetPage({
     if (!selectedPageId) return;
     const id = "view_" + Date.now();
     const hiddenColumns = columns.filter(c => c.hidden).map(c => c.name);
-    
+
     const newView: SheetView = {
       id,
       name,
@@ -158,15 +200,13 @@ export function useSheetPage({
 
   const handleLoadView = (viewId: string | null) => {
     if (!viewId) {
-      // Default view: clear everything
+      // Default view: clear everything (view switches are not undo steps)
       setCurrentViewId(null);
       setSearchQuery("");
       setSortState({ column: "", direction: "off" });
       setFilters([]);
       setGroupBy(null);
-      const nextCols = columns.map(c => ({ ...c, hidden: false }));
-      setColumns(nextCols);
-      pushState({ columns: nextCols, rows });
+      setColumns(current => current.map(c => ({ ...c, hidden: false })));
       return;
     }
 
@@ -180,12 +220,10 @@ export function useSheetPage({
     setGroupBy(view.groupBy || null);
 
     const hiddenCols = new Set(view.hiddenColumns || []);
-    const nextCols = columns.map(c => ({
+    setColumns(current => current.map(c => ({
       ...c,
       hidden: hiddenCols.has(c.name)
-    }));
-    setColumns(nextCols);
-    pushState({ columns: nextCols, rows });
+    })));
   };
 
   const handleDeleteView = (viewId: string) => {
@@ -209,7 +247,7 @@ export function useSheetPage({
       if (uniqueCols.length > 0) {
         const combinations = new Set<string>();
         let hasDuplicate = false;
-        
+
         for (const row of nextRows) {
           const combo = uniqueCols.map(col => (row[col] || "").trim().toLowerCase()).join("|");
           if (combo && combo !== "|".repeat(uniqueCols.length - 1)) {
@@ -220,7 +258,7 @@ export function useSheetPage({
             combinations.add(combo);
           }
         }
-        
+
         if (hasDuplicate) {
           await showAlert(`Warning: This combination of ${uniqueCols.join(" and ")} already exists in the sheet.`, "Duplicate Found");
         }
@@ -229,6 +267,7 @@ export function useSheetPage({
 
     if (!selectedPageId || isSaving) return;
     setIsSaving(true);
+    lastSyncedRef.current = contentSignature(nextColumns, nextRows);
     try {
       await api.patch(`/project_pages/${selectedPageId}`, {
         data: { columns_json: nextColumns, rows_json: nextRows }
@@ -261,6 +300,19 @@ export function useSheetPage({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  /** Role-limit guard for any operation that appends rows (FR-7.21). */
+  const ensureRowCapacity = async (adding: number): Promise<boolean> => {
+    if (recordsPerSheetLimit > 0 && rows.length + adding > recordsPerSheetLimit) {
+      const remaining = Math.max(0, recordsPerSheetLimit - rows.length);
+      await showAlert(
+        `Your plan allows ${recordsPerSheetLimit} records per sheet. This sheet has ${rows.length} and this action would add ${adding} more (${remaining} remaining).`,
+        "Record Limit Reached"
+      );
+      return false;
+    }
+    return true;
   };
 
   /* ---------------------------------------------------------------- */
@@ -347,17 +399,17 @@ export function useSheetPage({
       await showAlert("Column names cannot be empty.", "Invalid Configuration");
       return;
     }
-    
+
     // Check duplicates separately for data columns and groups
     const dataColNames = tempColumns.filter(c => c.type !== "group").map(c => c.name.trim());
     const groupColNames = tempColumns.filter(c => c.type === "group").map(c => c.name.trim());
-    
+
     const dataDuplicates = dataColNames.filter((name, index) => dataColNames.indexOf(name) !== index);
     if (dataDuplicates.length > 0) {
       await showAlert(`Duplicate data column name found: "${dataDuplicates[0]}". Data columns must have unique names so their data doesn't overlap.`, "Duplicate Name");
       return;
     }
-    
+
     const groupDuplicates = groupColNames.filter((name, index) => groupColNames.indexOf(name) !== index);
     if (groupDuplicates.length > 0) {
       await showAlert(`Duplicate group name found: "${groupDuplicates[0]}". Groups must have unique names.`, "Duplicate Name");
@@ -398,9 +450,9 @@ export function useSheetPage({
 
     const nextColumns: ColumnDef[] = tempColumns.map(({ _originalName, ...col }) => col);
 
-    pushState({ columns, rows });
     setColumns(nextColumns);
     setRows(nextRows);
+    record({ columns: nextColumns, rows: nextRows });
     setShowEditColumns(false);
     await persistPage(nextColumns, nextRows);
   };
@@ -425,7 +477,7 @@ export function useSheetPage({
     const handleMouseUp = async (upEvent: MouseEvent) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
-      
+
       const dx = upEvent.clientX - startX;
       if (dx === 0) return;
 
@@ -433,8 +485,8 @@ export function useSheetPage({
       const nextColumns = columns.map((col, idx) =>
         idx === columnIndex ? { ...col, width: finalWidth } : col
       );
-      pushState({ columns, rows });
       setColumns(nextColumns);
+      record({ columns: nextColumns, rows });
       await persistPage(nextColumns, rows, true);
     };
 
@@ -468,8 +520,8 @@ export function useSheetPage({
       const nextRows = rows.map((row, idx) =>
         idx === rowIndex ? { ...row, _height: String(finalHeight) } : row
       );
-      pushState({ columns, rows });
       setRows(nextRows);
+      record({ columns, rows: nextRows });
       await persistPage(columns, nextRows, true);
     };
 
@@ -505,18 +557,19 @@ export function useSheetPage({
       return;
     }
     setValidationError("");
-    
+
     let nextRows: Record<string, string>[];
     if (editingRowIndex !== null) {
       nextRows = [...rows];
       nextRows[editingRowIndex] = recordForm;
     } else {
+      if (!(await ensureRowCapacity(1))) return;
       nextRows = [...rows, recordForm];
       await notify("record_create", { project_id: Number(selectedProjectId) });
     }
-    
-    pushState({ columns, rows });
+
     setRows(nextRows);
+    record({ columns, rows: nextRows });
     setRecordForm({});
     setEditingRowIndex(null);
     setShowRecordForm(false);
@@ -529,32 +582,49 @@ export function useSheetPage({
     setValidationError("");
   };
 
+  /** Append an empty row inline (spreadsheet-style quick add). Returns its index. */
+  const quickAddRow = async (): Promise<number | null> => {
+    if (columns.length === 0) return null;
+    if (!(await ensureRowCapacity(1))) return null;
+    const nextRows = [...rows, {}];
+    setRows(nextRows);
+    record({ columns, rows: nextRows });
+    await notify("record_create", { project_id: Number(selectedProjectId) });
+    await persistPage(columns, nextRows, true);
+    return nextRows.length - 1;
+  };
+
   const deleteRow = async (rowIndex: number) => {
     const confirmed = await showConfirm("Are you sure you want to delete this record? This cannot be undone.", "Delete Record");
     if (!confirmed) return;
     const nextRows = rows.filter((_, index) => index !== rowIndex);
     await notify("record_delete", { project_id: Number(selectedProjectId) });
-    pushState({ columns, rows });
     setRows(nextRows);
+    record({ columns, rows: nextRows });
+    // Indices after the deleted row shifted; stale selection/focus would point at the wrong rows
+    setSelectedRows(new Set());
+    setFocusedCell(null);
     await persistPage(columns, nextRows);
   };
 
   const saveCellValue = async (rowIndex: number, column: string, value: string) => {
-    if (!selectedPageId || isSaving) throw new Error("Sheet is busy.");
-    if (rows[rowIndex][column] === value) return; // no-op
+    if (!selectedPageId || !rows[rowIndex]) throw new Error("Sheet is busy.");
+    if ((rows[rowIndex][column] || "") === value) return; // no-op
 
-    pushState({ columns, rows });
     const nextRows = rows.map((row, index) => (index === rowIndex ? { ...row, [column]: value } : row));
     setRows(nextRows);
     setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
       await api.patch(`/project_pages/${selectedPageId}`, {
         data: { columns_json: columns, rows_json: nextRows }
       });
+      record({ columns, rows: nextRows });
       onToast?.("Cell saved.");
       await refreshSummary();
     } catch (error) {
       setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
       onToast?.("Cell save failed. Please try again.");
       throw error;
     } finally {
@@ -575,7 +645,7 @@ export function useSheetPage({
 
     const profiles = await api.get<RecordMap[]>("/local_profiles");
     const provider = (profiles[0]?.preferred_email_provider || "gmail") as ComposeProvider;
-    
+
     const to = row[toCol] || row["Professor email"] || "";
     let subject = row[subCol] || "";
     if (!subject && !config?.subjectColumn) {
@@ -655,11 +725,11 @@ export function useSheetPage({
   };
 
   const toggleColumnVisibility = async (columnName: string) => {
-    const nextColumns = columns.map(c => 
+    const nextColumns = columns.map(c =>
       c.name === columnName ? { ...c, hidden: !c.hidden } : c
     );
-    pushState({ columns, rows });
     setColumns(nextColumns);
+    record({ columns: nextColumns, rows });
     await persistPage(nextColumns, rows, true);
   };
 
@@ -667,8 +737,8 @@ export function useSheetPage({
     const nextColumns = [...columns];
     const [removed] = nextColumns.splice(dragIndex, 1);
     nextColumns.splice(hoverIndex, 0, removed);
-    pushState({ columns, rows });
     setColumns(nextColumns);
+    record({ columns: nextColumns, rows });
     await persistPage(nextColumns, rows, true);
   };
 
@@ -717,37 +787,52 @@ export function useSheetPage({
   };
 
   const selectAll = () => {
-    if (selectedRows.size === viewRows.length) {
-      setSelectedRows(new Set());
-    } else {
-      setSelectedRows(new Set(viewRows.map(r => rows.indexOf(r))));
-    }
+    const viewIndices = viewRows
+      .map(r => rowIndexMap.get(r))
+      .filter((i): i is number => i !== undefined);
+    const allSelected = viewIndices.length > 0 && viewIndices.every(i => selectedRows.has(i));
+    setSelectedRows(allSelected ? new Set() : new Set(viewIndices));
   };
 
   const clearSelection = () => setSelectedRows(new Set());
 
   const bulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    const confirmed = await showConfirm(`Are you sure you want to delete ${selectedRows.size} row(s)?`, "Bulk Delete");
+    const count = selectedRows.size;
+    const confirmed = await showConfirm(`Are you sure you want to delete ${count} row(s)?`, "Bulk Delete");
     if (!confirmed) return;
 
-    pushState({ columns, rows });
     const nextRows = rows.filter((_, idx) => !selectedRows.has(idx));
     setRows(nextRows);
+    record({ columns, rows: nextRows });
     clearSelection();
-    onToast?.(`Deleted ${selectedRows.size} row(s)`);
+    setFocusedCell(null);
+    onToast?.(`Deleted ${count} row(s)`);
     await persistPage(columns, nextRows);
   };
 
   const bulkDuplicate = async () => {
     if (selectedRows.size === 0) return;
-    pushState({ columns, rows });
-    
-    const duplicates = Array.from(selectedRows).map(idx => ({ ...rows[idx] }));
+    if (!(await ensureRowCapacity(selectedRows.size))) return;
+
+    const duplicates = Array.from(selectedRows).sort((a, b) => a - b).map(idx => ({ ...rows[idx] }));
     const nextRows = [...rows, ...duplicates];
     setRows(nextRows);
+    record({ columns, rows: nextRows });
     clearSelection();
-    onToast?.(`Duplicated ${selectedRows.size} row(s)`);
+    onToast?.(`Duplicated ${duplicates.length} row(s)`);
+    await persistPage(columns, nextRows);
+  };
+
+  /** Write one value into one column for every selected row. */
+  const bulkSetValue = async (columnName: string, value: string) => {
+    if (selectedRows.size === 0) return;
+    const nextRows = rows.map((row, idx) =>
+      selectedRows.has(idx) ? { ...row, [columnName]: value } : row
+    );
+    setRows(nextRows);
+    record({ columns, rows: nextRows });
+    onToast?.(`Set "${columnName}" on ${selectedRows.size} row(s)`);
     await persistPage(columns, nextRows);
   };
 
@@ -755,10 +840,11 @@ export function useSheetPage({
     const visibleCols = columns.filter(c => c.type !== 'group' && !c.hidden);
     const newRows = parseTSV(tsvText, visibleCols);
     if (newRows.length === 0) return;
+    if (!(await ensureRowCapacity(newRows.length))) return;
 
-    pushState({ columns, rows });
     const nextRows = [...rows, ...newRows];
     setRows(nextRows);
+    record({ columns, rows: nextRows });
     onToast?.(`Pasted ${newRows.length} row(s)`);
     await persistPage(columns, nextRows);
   };
@@ -768,7 +854,7 @@ export function useSheetPage({
     const visibleCols = columns.filter(c => c.type !== 'group' && !c.hidden);
     const headers = visibleCols.map(c => c.name);
     const csvRows = [headers];
-    
+
     for (const row of viewRows) {
       csvRows.push(visibleCols.map(c => row[c.name] || ""));
     }
@@ -793,6 +879,7 @@ export function useSheetPage({
     columns, setColumns,
     rows, setRows,
     viewRows,
+    rowIndexMap,
     totalCount,
     filteredCount,
     isSaving,
@@ -824,11 +911,12 @@ export function useSheetPage({
     canRedo,
     bulkDelete,
     bulkDuplicate,
+    bulkSetValue,
     handlePaste,
 
     // Phase 3 actions
     handleExportCsv,
-    pushState,
+    record,
     persistPage,
 
     // Modal state
@@ -872,6 +960,7 @@ export function useSheetPage({
     cancelRecord,
     deleteRow,
     saveCellValue,
+    quickAddRow,
 
     // Persistence
     saveEmailConfig,

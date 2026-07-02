@@ -2,18 +2,21 @@
 /*  SheetTable — the data grid (headers, rows, cells, resize, scroll)  */
 /* ------------------------------------------------------------------ */
 
-import React, { useState, useRef, useEffect } from "react";
-import { Edit, Mail, Trash2, ArrowUp, ArrowDown, Filter, X, Copy, Eye, ChevronRight, ChevronDown } from "lucide-react";
-import { CellRenderer, rowClass } from "../SheetRecordFields";
-import type { ColumnDef, ColumnType, DateColorConfig } from "./sheetModel";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { ArrowUp, ArrowDown, Filter, X, Plus } from "lucide-react";
+import type { ColumnDef, DateColorConfig } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
-import { SortState, ColumnFilter, DateFilterPreset } from "./sheetFilters";
+import { SortState, ColumnFilter, filterSummary } from "./sheetFilters";
+import { FilterMenuContent } from "./FilterMenu";
+import { SheetTableRow, RowCallbacks } from "./SheetTableRow";
+import type { CommitDirection } from "./InlineCellEditor";
+import { formatTSV } from "./sheetPaste";
 
 /* ------------------------------------------------------------------ */
 /*  RenderColumn type for group/data column layout                     */
 /* ------------------------------------------------------------------ */
 
-type RenderColumn = 
+export type RenderColumn =
   | { type: 'data'; col: ColumnDef; originalIndex: number; groupName?: string }
   | { type: 'group-control'; groupName: string; collapsed: boolean };
 
@@ -69,12 +72,14 @@ export function SheetTable({
   columns,
   rows,
   viewRows,
+  rowIndexMap,
   files,
   fullScreenMode,
   collapsedGroups,
   focusedRowIndex,
   sortState,
   filters,
+  searchQuery,
   onToggleGroup,
   onResizeColumn,
   onResizeRow,
@@ -95,6 +100,7 @@ export function SheetTable({
   onFocusedCellChange,
   onUndo,
   onRedo,
+  onQuickAddRow,
   groupBy,
   dateColorConfig,
   onPeekRow,
@@ -102,16 +108,18 @@ export function SheetTable({
   columns: ColumnDef[];
   rows: Record<string, string>[];
   viewRows: Record<string, string>[];
+  rowIndexMap: Map<Record<string, string>, number>;
   files: RecordMap[];
   fullScreenMode: boolean;
   collapsedGroups: Record<string, boolean>;
   focusedRowIndex: number | null;
   sortState: SortState;
   filters: ColumnFilter[];
+  searchQuery: string;
   onToggleGroup: (groupName: string) => void;
   onResizeColumn: (e: React.MouseEvent, index: number) => void;
   onResizeRow: (e: React.MouseEvent, rowIndex: number) => void;
-  onSaveCellValue: (rowIndex: number, colName: string, value: string) => void;
+  onSaveCellValue: (rowIndex: number, colName: string, value: string) => Promise<void>;
   onEditRow: (rowIndex: number) => void;
   onCompose: (row: Record<string, string>) => void;
   onDeleteRow: (rowIndex: number) => void;
@@ -128,13 +136,44 @@ export function SheetTable({
   onFocusedCellChange: (cell: { rowIndex: number, colName: string } | null) => void;
   onUndo: () => void;
   onRedo: () => void;
+  onQuickAddRow?: () => Promise<number | null>;
   groupBy?: string | null;
   dateColorConfig?: DateColorConfig;
   onPeekRow?: (rowIndex: number) => void;
 }) {
-  const renderColumns = buildRenderColumns(columns, collapsedGroups);
-  
-  // Header filter menu state
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const renderColumns = useMemo(
+    () => buildRenderColumns(columns, collapsedGroups),
+    [columns, collapsedGroups]
+  );
+  const visibleDataCols = useMemo(
+    () => renderColumns.filter((c): c is Extract<RenderColumn, { type: 'data' }> => c.type === 'data'),
+    [renderColumns]
+  );
+
+  // Position of each original row index inside the current view order,
+  // so keyboard navigation follows what the user actually sees
+  const viewPositions = useMemo(() => {
+    const byRowIndex = new Map<number, number>();
+    viewRows.forEach((row, pos) => {
+      const rowIndex = rowIndexMap.get(row);
+      if (rowIndex !== undefined) byRowIndex.set(rowIndex, pos);
+    });
+    return byRowIndex;
+  }, [viewRows, rowIndexMap]);
+
+  const allViewSelected = useMemo(() => {
+    if (viewRows.length === 0) return false;
+    for (const row of viewRows) {
+      const idx = rowIndexMap.get(row);
+      if (idx === undefined || !selectedRows.has(idx)) return false;
+    }
+    return true;
+  }, [viewRows, rowIndexMap, selectedRows]);
+
+  /* -------------------- header filter menu state -------------------- */
+
   const [activeFilterMenu, setActiveFilterMenu] = useState<string | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -148,7 +187,22 @@ export function SheetTable({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Drag and Drop state
+  // Checklist choices for the open select/bool filter menu: declared options
+  // plus any values already present in rows (covers legacy values)
+  const filterValueOptions = useMemo(() => {
+    if (!activeFilterMenu) return [];
+    const col = columns.find(c => c.name === activeFilterMenu);
+    if (!col || (col.type !== 'select' && col.type !== 'bool')) return [];
+    const values = new Set<string>(col.type === 'bool' ? ["Yes", "No"] : (col.options || []));
+    rows.forEach(row => {
+      const v = (row[col.name] || "").trim();
+      if (v) values.add(v);
+    });
+    return Array.from(values);
+  }, [activeFilterMenu, columns, rows]);
+
+  /* -------------------- column drag and drop -------------------- */
+
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -176,9 +230,86 @@ export function SheetTable({
     setDragOverIndex(null);
   };
 
+  /* -------------------- inline editing state -------------------- */
+
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number, colName: string, seed?: string } | null>(null);
+  const [modalCell, setModalCell] = useState<{ rowIndex: number, colName: string } | null>(null);
+
+  const refocusGrid = useCallback(() => {
+    containerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  /** Move focus by view-order offsets; returns the target cell (or null at an edge). */
+  const neighborCell = useCallback((rowIndex: number, colName: string, dRow: number, dCol: number, wrap = false) => {
+    const colIdx = visibleDataCols.findIndex(c => c.col.name === colName);
+    if (colIdx === -1) return null;
+    let nextColIdx = colIdx + dCol;
+    let pos = viewPositions.get(rowIndex);
+    if (pos === undefined) return null;
+
+    if (nextColIdx >= visibleDataCols.length) {
+      if (!wrap) return null;
+      nextColIdx = 0;
+      pos += 1; // Tab past the last column wraps to the next row
+    } else if (nextColIdx < 0) {
+      return null;
+    }
+    pos += dRow;
+    if (pos < 0 || pos >= viewRows.length) return null;
+    const targetRowIndex = rowIndexMap.get(viewRows[pos]);
+    if (targetRowIndex === undefined) return null;
+    return { rowIndex: targetRowIndex, colName: visibleDataCols[nextColIdx].col.name };
+  }, [visibleDataCols, viewPositions, viewRows, rowIndexMap]);
+
+  const commitEdit = useCallback((rowIndex: number, colName: string, value: string, direction: CommitDirection) => {
+    setEditingCell(null);
+    onSaveCellValue(rowIndex, colName, value).catch(() => { /* toast handled upstream */ });
+    if (direction !== "none") {
+      const next = neighborCell(rowIndex, colName, direction === "down" ? 1 : 0, direction === "right" ? 1 : 0, direction === "right");
+      onFocusedCellChange(next || { rowIndex, colName });
+    }
+    refocusGrid();
+  }, [onSaveCellValue, neighborCell, onFocusedCellChange, refocusGrid]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingCell(null);
+    refocusGrid();
+  }, [refocusGrid]);
+
+  /* -------------------- stable row callbacks -------------------- */
+
+  const rowCallbacks: RowCallbacks = useMemo(() => ({
+    onToggleRowSelection,
+    onResizeRow,
+    onFocusCell: (rowIndex, colName) => onFocusedCellChange({ rowIndex, colName }),
+    onStartEdit: (rowIndex, colName, seed) => {
+      onFocusedCellChange({ rowIndex, colName });
+      setEditingCell({ rowIndex, colName, seed });
+    },
+    onCommitEdit: commitEdit,
+    onCancelEdit: cancelEdit,
+    onOpenModal: (rowIndex, colName) => setModalCell({ rowIndex, colName }),
+    onCloseModal: () => setModalCell(null),
+    onSaveCellValue: (rowIndex, colName, value) => { onSaveCellValue(rowIndex, colName, value).catch(() => {}); },
+    onFilesChanged,
+    onEditRow,
+    onCompose,
+    onDeleteRow,
+    onPeekRow: (rowIndex) => onPeekRow?.(rowIndex),
+  }), [onToggleRowSelection, onResizeRow, onFocusedCellChange, commitEdit, cancelEdit, onSaveCellValue, onFilesChanged, onEditRow, onCompose, onDeleteRow, onPeekRow]);
+
+  /* -------------------- keyboard flow -------------------- */
+
+  // Keep the keyboard-focused cell in view
+  useEffect(() => {
+    if (!focusedCell || !containerRef.current) return;
+    const cell = containerRef.current.querySelector("td.cell-focused");
+    cell?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [focusedCell]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Global undo/redo
-    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();
       if (e.shiftKey) onRedo();
       else onUndo();
@@ -186,89 +317,107 @@ export function SheetTable({
     }
 
     if (!focusedCell) return;
-    
-    // Check if we're actually inside a cell editor (input or textarea)
-    // If so, let the editor handle most keys except Escape
+
+    // Inside an editor (inline editors stopPropagation; this covers the modal)
     const activeEl = document.activeElement;
-    const isEditing = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA";
+    const isTyping = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA" || activeEl?.tagName === "SELECT";
 
     if (e.key === "Escape") {
       onFocusedCellChange(null);
-      // Blur the element if editing
-      if (isEditing) (activeEl as HTMLElement).blur();
+      setEditingCell(null);
+      if (isTyping) (activeEl as HTMLElement).blur();
       return;
     }
 
-    if (isEditing) return; // Ignore nav keys while typing
+    if (isTyping || editingCell || modalCell) return;
 
     const { rowIndex, colName } = focusedCell;
-    const visibleDataCols = renderColumns.filter(c => c.type === 'data');
-    const colIdx = visibleDataCols.findIndex(c => c.type === 'data' && c.col.name === colName);
+    const focusedColDef = visibleDataCols.find(c => c.col.name === colName)?.col;
 
-    if (colIdx === -1) return;
+    const move = (dRow: number, dCol: number) => {
+      const next = neighborCell(rowIndex, colName, dRow, dCol);
+      if (next) onFocusedCellChange(next);
+    };
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (rowIndex > 0) onFocusedCellChange({ rowIndex: rowIndex - 1, colName });
+      move(-1, 0);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (rowIndex < viewRows.length - 1) onFocusedCellChange({ rowIndex: rowIndex + 1, colName });
+      move(1, 0);
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      if (colIdx > 0) onFocusedCellChange({ rowIndex, colName: (visibleDataCols[colIdx - 1] as any).col.name });
+      move(0, -1);
     } else if (e.key === "ArrowRight" || e.key === "Tab") {
       e.preventDefault();
-      if (colIdx < visibleDataCols.length - 1) {
-        onFocusedCellChange({ rowIndex, colName: (visibleDataCols[colIdx + 1] as any).col.name });
-      } else if (e.key === "Tab" && rowIndex < viewRows.length - 1) {
-        // Tab wraps to next row
-        onFocusedCellChange({ rowIndex: rowIndex + 1, colName: (visibleDataCols[0] as any).col.name });
+      const next = neighborCell(rowIndex, colName, 0, 1, e.key === "Tab");
+      if (next) onFocusedCellChange(next);
+    } else if (e.key === "Enter" || e.key === "F2") {
+      e.preventDefault();
+      if (focusedColDef?.type === 'file') setModalCell({ rowIndex, colName });
+      else setEditingCell({ rowIndex, colName });
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      onSaveCellValue(rowIndex, colName, "").catch(() => {});
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+      // Copy selected rows as TSV, or just the focused cell value
+      const domSelection = window.getSelection();
+      if (domSelection && !domSelection.isCollapsed) return; // let real text selection copy normally
+      e.preventDefault();
+      if (selectedRows.size > 0) {
+        const visibleCols = columns.filter(c => c.type !== 'group' && !c.hidden);
+        const selectedData = Array.from(selectedRows).sort((a, b) => a - b).map(idx => rows[idx]).filter(Boolean);
+        navigator.clipboard.writeText(formatTSV(selectedData, visibleCols)).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(rows[rowIndex]?.[colName] || "").catch(() => {});
       }
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+      // Fill down from the visible row above
+      e.preventDefault();
+      const above = neighborCell(rowIndex, colName, -1, 0);
+      if (above) {
+        onSaveCellValue(rowIndex, colName, rows[above.rowIndex]?.[above.colName] || "").catch(() => {});
+      }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Type-to-edit: replace the value with what was typed (spreadsheet convention).
+      // Only free-text-like cells take the typed seed; select/bool/date just open.
+      if (!focusedColDef || focusedColDef.type === 'file') return;
+      e.preventDefault();
+      const takesSeed =
+        focusedColDef.type === 'text' ||
+        focusedColDef.type === 'url' ||
+        (focusedColDef.type === 'number' && /[0-9.\-]/.test(e.key));
+      setEditingCell({ rowIndex, colName, seed: takesSeed ? e.key : undefined });
     }
   };
 
-  // State to force editor open when Enter is pressed
-  const [editingCell, setEditingCell] = useState<{rowIndex: number, colName: string} | null>(null);
-
-  useEffect(() => {
-    const handleGlobalKey = (e: KeyboardEvent) => {
-      if (focusedCell && e.key === "Enter") {
-        const activeEl = document.activeElement;
-        const isEditing = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA";
-        if (!isEditing) {
-          e.preventDefault();
-          setEditingCell(focusedCell);
-        }
-      }
-    };
-    window.addEventListener("keydown", handleGlobalKey);
-    return () => window.removeEventListener("keydown", handleGlobalKey);
-  }, [focusedCell]);
-
   return (
-    <div 
-      className="sheet-scroll" 
+    <div
+      ref={containerRef}
+      className="sheet-scroll"
       style={fullScreenMode ? { fontSize: '11px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' } : {}}
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onFocus={(e) => {
         // If focusing the container without a cell, default to first cell
         if (!focusedCell && viewRows.length > 0 && e.target === e.currentTarget) {
-          const firstCol = renderColumns.find(c => c.type === 'data');
-          if (firstCol && firstCol.type === 'data') {
-            onFocusedCellChange({ rowIndex: 0, colName: firstCol.col.name });
+          const firstCol = visibleDataCols[0];
+          const firstRowIndex = rowIndexMap.get(viewRows[0]);
+          if (firstCol && firstRowIndex !== undefined) {
+            onFocusedCellChange({ rowIndex: firstRowIndex, colName: firstCol.col.name });
           }
         }
       }}
     >
       {/* Active filters chips area */}
       {filters.length > 0 && (
-        <div className="active-filters-row" style={{ display: 'flex', gap: '8px', padding: '8px 12px', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
+        <div className="active-filters-row" style={{ display: 'flex', gap: '8px', padding: '8px 12px', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}><Filter size={12}/> Filters:</span>
           {filters.map(f => (
             <div key={f.column} className="filter-chip" style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', padding: '2px 8px', fontSize: '12px' }}>
               <span style={{ fontWeight: 600 }}>{f.column}</span>
-              <button className="icon-button" style={{ padding: '2px' }} onClick={() => onRemoveFilter(f.column)}><X size={12}/></button>
+              <span style={{ color: 'var(--text-secondary)' }}>{filterSummary(f)}</span>
+              <button className="icon-button" style={{ padding: '2px' }} onClick={() => onRemoveFilter(f.column)} title={`Remove ${f.column} filter`}><X size={12}/></button>
             </div>
           ))}
           <button className="text-button" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={onClearFilters}>Clear all</button>
@@ -279,11 +428,11 @@ export function SheetTable({
         <thead>
           <tr>
             <th className="row-index-header" style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '0' }}>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 className="row-checkbox"
-                title="Select all rows"
-                checked={selectedRows.size === viewRows.length && viewRows.length > 0}
+                title="Select all visible rows"
+                checked={allViewSelected}
                 onChange={onSelectAll}
                 style={{ width: '13px', height: '13px', margin: 0, padding: 0 }}
               />
@@ -291,14 +440,14 @@ export function SheetTable({
             {renderColumns.map((rCol, cIndex) => {
               const groupDef = columns.find(c => c.type === 'group' && c.name === rCol.groupName);
               const groupColor = groupDef?.color || "#2f6d7a";
-              
+
               if (rCol.type === 'group-control') {
                 return (
-                  <th 
-                    key={`ctrl-${rCol.groupName}`} 
+                  <th
+                    key={`ctrl-${rCol.groupName}`}
                     className="group-control-cell"
-                    style={{ 
-                      width: groupDef?.width ? `${groupDef.width}px` : "130px", 
+                    style={{
+                      width: groupDef?.width ? `${groupDef.width}px` : "130px",
                       cursor: "pointer",
                       ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
                     }}
@@ -306,7 +455,7 @@ export function SheetTable({
                   >
                     <div className="column-head-text" style={{ fontWeight: 600, color: groupColor, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '4px' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.groupName}</span>
-                      {rCol.collapsed ? <ChevronRight size={14} style={{ opacity: 0.7, flexShrink: 0 }} /> : <ChevronDown size={14} style={{ opacity: 0.7, flexShrink: 0 }} />}
+                      {rCol.collapsed ? <span style={{ opacity: 0.7, flexShrink: 0 }}>▸</span> : <span style={{ opacity: 0.7, flexShrink: 0 }}>▾</span>}
                     </div>
                   </th>
                 );
@@ -318,7 +467,7 @@ export function SheetTable({
                 const isDragOver = dragOverIndex === rCol.originalIndex;
 
                 return (
-                  <th 
+                  <th
                     key={`col-${rCol.col.name}-${cIndex}`}
                     className={`${rCol.groupName ? "group-child-cell" : ""} ${isDragged ? "dragging" : ""} ${isDragOver ? "drag-over" : ""}`}
                     draggable
@@ -326,8 +475,8 @@ export function SheetTable({
                     onDragOver={(e) => handleDragOver(e, rCol.originalIndex)}
                     onDrop={(e) => handleDrop(e, rCol.originalIndex)}
                     onDragEnd={handleDragEnd}
-                    style={{ 
-                      width: rCol.col.width ? `${rCol.col.width}px` : "150px", 
+                    style={{
+                      width: rCol.col.width ? `${rCol.col.width}px` : "150px",
                       position: "relative",
                       zIndex: activeFilterMenu === rCol.col.name ? 100 : 1,
                       ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
@@ -346,6 +495,7 @@ export function SheetTable({
                           className="column-head-text"
                           onClick={() => onToggleSort(rCol.col.name)}
                           style={{ cursor: 'pointer', flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
+                          title="Sort (click to cycle)"
                         >
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.col.name}</span>
                           {sortDir === "asc" && <ArrowUp size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
@@ -356,6 +506,7 @@ export function SheetTable({
                           <button
                             className={`icon-button ${isFiltered ? 'active-filter' : ''}`}
                             onClick={(e) => { e.stopPropagation(); setActiveFilterMenu(activeFilterMenu === rCol.col.name ? null : rCol.col.name); }}
+                            title={`Filter ${rCol.col.name}`}
                             style={{
                               padding: '2px',
                               color: isFiltered ? 'var(--primary)' : 'var(--text-secondary)',
@@ -398,6 +549,7 @@ export function SheetTable({
                               <FilterMenuContent
                                 col={rCol.col}
                                 currentFilter={filters.find(f => f.column === rCol.col.name)}
+                                valueOptions={filterValueOptions}
                                 onApply={(f) => { onAddFilter(f); setActiveFilterMenu(null); }}
                                 onClear={() => { onRemoveFilter(rCol.col.name); setActiveFilterMenu(null); }}
                                 onClose={() => setActiveFilterMenu(null)}
@@ -408,7 +560,7 @@ export function SheetTable({
                       </div>
                     </div>
 
-                    <div 
+                    <div
                       className="col-resize-handle"
                       onMouseDown={(e) => onResizeColumn(e, rCol.originalIndex)}
                     />
@@ -416,8 +568,8 @@ export function SheetTable({
                 );
               }
             })}
-            <th style={{ 
-              width: "140px", 
+            <th style={{
+              width: "140px",
               minWidth: "140px",
               ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px', width: '100px', minWidth: '100px' } : {})
             }}>Actions</th>
@@ -426,13 +578,12 @@ export function SheetTable({
         <tbody>
           {(() => {
             let prevGroupVal: string | undefined = undefined;
-            return viewRows.map((row, _idx) => {
-              const rowIndex = rows.indexOf(row);
-              const isRowSelected = selectedRows.has(rowIndex);
-              
+            return viewRows.map((row) => {
+              const rowIndex = rowIndexMap.get(row) ?? -1;
+
               const rowGroupVal = groupBy ? (row[groupBy] || "(Empty)") : undefined;
               let groupHeader = null;
-              
+
               const groupStateKey = `__group_${groupBy}_${rowGroupVal}`;
               // Groups are expanded by default (false = not collapsed)
               const isGroupCollapsed = groupBy ? (collapsedGroups[groupStateKey] ?? false) : false;
@@ -441,10 +592,10 @@ export function SheetTable({
                 prevGroupVal = rowGroupVal;
                 groupHeader = (
                   <tr key={`group-header-${rowGroupVal}`} className="sheet-table-row group-header-row" onClick={() => onToggleGroup(groupStateKey)}>
-                    <td colSpan={renderColumns.length + 2} style={{ 
-                      padding: '8px 12px', 
-                      fontWeight: 600, 
-                      backgroundColor: 'var(--bg-secondary)', 
+                    <td colSpan={renderColumns.length + 2} style={{
+                      padding: '8px 12px',
+                      fontWeight: 600,
+                      backgroundColor: 'var(--bg-secondary)',
                       cursor: 'pointer',
                       borderBottom: '1px solid var(--border)'
                     }}>
@@ -456,217 +607,58 @@ export function SheetTable({
                   </tr>
                 );
               }
-              
+
               if (isGroupCollapsed) {
                 return <React.Fragment key={`row-frag-${rowIndex}`}>{groupHeader}</React.Fragment>;
               }
 
+              const isRowFocused = focusedCell?.rowIndex === rowIndex;
+
               return (
                 <React.Fragment key={`row-frag-${rowIndex}`}>
                   {groupHeader}
-                  <tr
-                    className={`sheet-table-row ${rowClass(row)} ${isRowSelected ? "row-selected" : ""} ${focusedRowIndex === rowIndex ? "row-focused" : ""}`}
-                    data-row-index={rowIndex}
-                  >
-                    <td 
-                      className="row-header" 
-                      style={{ 
-                        height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'), 
-                        textAlign: 'center', 
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        position: 'relative'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleRowSelection(rowIndex, (e.nativeEvent as any).shiftKey);
-                      }}
-                    >
-                      <span className="row-index-number" style={{ userSelect: 'none' }}>
-                        {isRowSelected ? (
-                          <input 
-                            type="checkbox" 
-                            checked={true}
-                            readOnly
-                            style={{ width: '13px', height: '13px', margin: 0, padding: 0, pointerEvents: 'none' }}
-                          />
-                        ) : (
-                          rowIndex + 1
-                        )}
-                      </span>
-                      <div 
-                        className="row-resize-handle"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          onResizeRow(e, rowIndex);
-                        }}
-                      />
-                    </td>
-                    {renderColumns.map((rCol, cIndex) => {
-                      if (rCol.type === 'group-control') {
-                        return (
-                          <td
-                            key={`ctrl-${rCol.groupName}`}
-                            className="group-control-cell"
-                            style={{
-                              height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                              ...(fullScreenMode ? { padding: '2px 4px' } : {})
-                            }}
-                          ></td>
-                        );
-                      } else {
-                        const isFocused = focusedCell?.rowIndex === rowIndex && focusedCell?.colName === rCol.col.name;
-                        const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colName === rCol.col.name;
-                        
-                        return (
-                          <td
-                            key={`cell-${rowIndex}-${cIndex}`}
-                            className={`data-cell ${rCol.groupName ? "group-child-cell" : ""} ${isFocused ? 'cell-focused' : ''}`}
-                            onClick={() => onFocusedCellChange({ rowIndex, colName: rCol.col.name })}
-                            style={{
-                              height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                              ...(fullScreenMode ? { padding: '2px 4px' } : {})
-                            }}
-                          >
-                            <CellRenderer 
-                              column={rCol.col} 
-                              value={row[rCol.col.name] || ""} 
-                              files={files}
-                              onSave={(nextValue) => onSaveCellValue(rowIndex, rCol.col.name, nextValue)}
-                              onFileUploaded={onFilesChanged}
-                              isEditing={isEditing}
-                              onCloseEdit={() => setEditingCell(null)}
-                              dateColorConfig={dateColorConfig}
-                            />
-                          </td>
-                        );
-                      }
-                    })}
-                    <td style={{
-                      height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                      width: "140px",
-                      minWidth: "140px",
-                      ...(fullScreenMode ? { padding: '2px 4px', width: '100px', minWidth: '100px' } : {})
-                    }}>
-                      <div className="row-actions static-actions">
-                        <button className="secondary" onClick={() => onPeekRow?.(rowIndex)} title="Peek record details" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                          <Eye size={12} />
-                        </button>
-                        <button className="secondary" onClick={() => onEditRow(rowIndex)} title="Edit record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                          <Edit size={12} />
-                        </button>
-                        <button className="secondary" onClick={() => onCompose(row)} title="Open email composer" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                          <Mail size={12} />
-                        </button>
-                        <button className="secondary danger" onClick={() => onDeleteRow(rowIndex)} title="Delete record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <SheetTableRow
+                    row={row}
+                    rowIndex={rowIndex}
+                    renderColumns={renderColumns}
+                    files={files}
+                    fullScreenMode={fullScreenMode}
+                    isSelected={selectedRows.has(rowIndex)}
+                    isNavFocused={focusedRowIndex === rowIndex}
+                    focusedColName={isRowFocused ? focusedCell!.colName : null}
+                    editingColName={editingCell?.rowIndex === rowIndex ? editingCell.colName : null}
+                    editingSeed={editingCell?.rowIndex === rowIndex ? editingCell.seed : undefined}
+                    modalColName={modalCell?.rowIndex === rowIndex ? modalCell.colName : null}
+                    searchQuery={searchQuery}
+                    dateColorConfig={dateColorConfig}
+                    callbacks={rowCallbacks}
+                  />
                 </React.Fragment>
               );
             });
           })()}
+          {onQuickAddRow && columns.length > 0 ? (
+            <tr className="quick-add-row">
+              <td colSpan={renderColumns.length + 2} style={{ padding: 0 }}>
+                <button
+                  type="button"
+                  className="quick-add-row-btn"
+                  onClick={async () => {
+                    const newIndex = await onQuickAddRow();
+                    if (newIndex !== null && visibleDataCols.length > 0) {
+                      const colName = visibleDataCols[0].col.name;
+                      onFocusedCellChange({ rowIndex: newIndex, colName });
+                      setEditingCell({ rowIndex: newIndex, colName });
+                    }
+                  }}
+                >
+                  <Plus size={13} /> New row
+                </button>
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Filter Menu Content Sub-component                                  */
-/* ------------------------------------------------------------------ */
-
-function FilterMenuContent({
-  col,
-  currentFilter,
-  onApply,
-  onClear,
-  onClose
-}: {
-  col: ColumnDef;
-  currentFilter?: ColumnFilter;
-  onApply: (f: ColumnFilter) => void;
-  onClear: () => void;
-  onClose: () => void;
-}) {
-  const [textVal, setTextVal] = useState(currentFilter?.kind === 'text' ? currentFilter.contains : "");
-  const [numMin, setNumMin] = useState(currentFilter?.kind === 'number' ? (currentFilter.min?.toString() || "") : "");
-  const [numMax, setNumMax] = useState(currentFilter?.kind === 'number' ? (currentFilter.max?.toString() || "") : "");
-  
-  // Basic select support
-  const [selValues, setSelValues] = useState<Set<string>>(
-    currentFilter?.kind === 'values' ? currentFilter.values : new Set()
-  );
-
-  const handleApply = () => {
-    if (col.type === 'number') {
-      const min = numMin ? parseFloat(numMin) : undefined;
-      const max = numMax ? parseFloat(numMax) : undefined;
-      onApply({ column: col.name, type: col.type, kind: 'number', min, max });
-    } else if (col.type === 'select' || col.type === 'bool') {
-      onApply({ column: col.name, type: col.type, kind: 'values', values: selValues });
-    } else if (col.type === 'date') {
-      // Date preset is implemented later, fallback to text for now or simple preset
-      // Just hardcoding "overdue" for date demo
-      onApply({ column: col.name, type: col.type, kind: 'datePreset', preset: 'overdue' });
-    } else {
-      onApply({ column: col.name, type: col.type, kind: 'text', contains: textVal });
-    }
-  };
-
-  return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600 }}>Filter {col.name}</div>
-        <button className="icon-button" onClick={onClose} style={{ padding: '2px', margin: '-4px' }} title="Close">
-          <X size={14} />
-        </button>
-      </div>
-      
-      {col.type === 'number' ? (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <input type="number" placeholder="Min" value={numMin} onChange={e => setNumMin(e.target.value)} style={{ width: '80px', padding: '4px' }} />
-          <span>-</span>
-          <input type="number" placeholder="Max" value={numMax} onChange={e => setNumMax(e.target.value)} style={{ width: '80px', padding: '4px' }} />
-        </div>
-      ) : col.type === 'select' || col.type === 'bool' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '150px', overflowY: 'auto' }}>
-          {(col.options || (col.type === 'bool' ? ['true', 'false'] : [])).map(opt => (
-            <label key={opt} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
-              <input 
-                type="checkbox" 
-                checked={selValues.has(opt)} 
-                onChange={(e) => {
-                  const next = new Set(selValues);
-                  if (e.target.checked) next.add(opt); else next.delete(opt);
-                  setSelValues(next);
-                }} 
-              />
-              {opt}
-            </label>
-          ))}
-        </div>
-      ) : col.type === 'date' ? (
-        <div style={{ fontSize: '12px' }}>
-           <p>Date filtering preset demo: OVERDUE.</p>
-        </div>
-      ) : (
-        <input 
-          type="text" 
-          placeholder="Contains text..." 
-          value={textVal} 
-          onChange={e => setTextVal(e.target.value)} 
-          style={{ padding: '6px', width: '100%', boxSizing: 'border-box' }}
-          onKeyDown={e => { if(e.key === 'Enter') handleApply(); }}
-        />
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-        <button className="text-button danger" onClick={onClear} style={{ fontSize: '12px', padding: '4px 8px' }}>Clear</button>
-        <button className="primary" onClick={handleApply} style={{ fontSize: '12px', padding: '0 14px', height: '28px', minHeight: '28px', borderRadius: '6px' }}>Apply</button>
-      </div>
-    </>
   );
 }

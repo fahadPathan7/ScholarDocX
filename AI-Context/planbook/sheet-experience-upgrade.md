@@ -1,6 +1,7 @@
 # Planbook: Sheet Experience Upgrade
 
-Status: All Phases (1-5) complete
+Status: Phases 1-5 complete; Phase 6 (spreadsheet-grade editing, performance,
+reliability — SCHOLARDOCX-0118) in progress
 
 Related: functional/feature-project-workspace.md (FR-7), Epic-SheetRecords
 
@@ -109,6 +110,17 @@ Exit criteria: identical behavior, existing tests green, each file ≤ 1000.
    without follow-up questions.
 2. **Smart column suggestions** on sheet creation (local heuristics from the
    default-column catalog; no provider call).
+
+## Phase 6 — Spreadsheet-grade editing, performance, reliability
+
+Driven by defects found after Phases 1–5 shipped (see SCHOLARDOCX-0118 for the
+defect list D1–D8). Highlights: persists no longer reset view state or undo
+history; redo actually works; inline in-cell editing with full keyboard flow
+(type-to-edit, Enter/Tab commit-and-move, Delete clears, Ctrl+C/Ctrl+D);
+quoted-TSV paste round-trip; real date filter presets + range; bulk set-value;
+search highlight; colored select pills; memoized view pipeline, memoized row
+component, shared ResizeObserver, content-visibility rows; vitest unit tests
+for the pure logic modules.
 
 ## Non-Goals (for this planbook)
 

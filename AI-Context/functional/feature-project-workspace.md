@@ -125,11 +125,15 @@ polished spreadsheet/data grid:
 - Horizontal scrolling should keep the row-number/index column frozen on the
   left.
 - Users should be able to inspect full cell content from the grid without
-  opening edit mode. Clipped cell previews should open a readable full-cell
-  viewer, while the grid itself continues to prioritize scanning and comparison.
+  opening edit mode. The focused cell exposes an expand control that opens a
+  readable full-cell viewer, while the grid itself continues to prioritize
+  scanning and comparison.
 - Clickable cell previews should consume the full visible cell area. Avoid
   inner pills, chip-like borders, browser tooltips, or zoom-style cursors that
-  make a value look like a separate control inside the cell.
+  make a value look like a separate control inside the cell. Exception:
+  select-column values render as colored status pills and bool values as
+  Yes/No pills, because at-a-glance status scanning is the point of those
+  columns.
 - The full-cell viewer should allow editing and saving only that cell's value,
   without opening the whole row form or changing neighboring cells.
 - The full-cell text editor should grow with multi-line input up to 10 visible
@@ -142,6 +146,34 @@ polished spreadsheet/data grid:
 - Wide sheet work areas and other horizontal scrollers should support mouse
   left-click hold-and-drag horizontal scrolling, while preserving normal clicks
   and text/file editing interactions inside controls.
+
+## Spreadsheet Interaction Model (SCHOLARDOCX-0118)
+
+The grid follows spreadsheet conventions so students never miss Google Sheets:
+
+- Single click focuses a cell (visible focus ring); it does not open an editor.
+- Double-click, Enter, F2, or typing a printable character starts an inline
+  in-cell editor for text, number, url, date, select, and bool columns.
+  Typing replaces the value with what was typed (spreadsheet convention).
+- In the inline editor: Enter commits and moves focus down, Tab commits and
+  moves right, Escape cancels without saving. Blur commits.
+- File cells keep the modal editor (document picker flow). The focused cell's
+  expand control opens the full modal editor for any type (long text, copy).
+- Delete/Backspace clears the focused cell. Ctrl/Cmd+C copies the focused cell
+  value, or the selected rows as TSV when a row selection exists. Ctrl/Cmd+D
+  fills the focused cell from the cell above. Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z
+  undo/redo.
+- Sort, filters, search, grouping, selection, and undo history survive cell
+  edits and other persists; they reset only when switching sheets.
+- Date columns filter by Overdue / Next 3 / Next 7 / Next 30 days or a custom
+  From–To range. Active filters show as removable chips.
+- Quick search highlights matching cells and shows a match count; Escape in
+  the search box clears it.
+- With rows selected, the selection toolbar offers Copy, Duplicate, Delete,
+  and Set value (write one value into one column for all selected rows).
+- A "quick add row" control at the bottom of the grid appends an empty row and
+  starts inline editing in the first visible column, respecting the
+  records-per-sheet limit with the standard styled alert (FR-7.21).
 
 ## Column Types and Record Form UX
 

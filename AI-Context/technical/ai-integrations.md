@@ -252,17 +252,54 @@ Agentic workspace actions use a plan-confirm-execute pattern:
 6. `/ai/actions/execute` checks `can_use_agents` as a boolean permission only;
    it does not consume a separate usage counter.
 
-Supported MVP action types:
+Supported action types (SCHOLARDOCX-0110 expanded the agent to all non-admin
+user domains):
 
-- **CREATE**: `create_project`, `create_sheet`, `add_rows`, `create_sticky_note`, `duplicate_sheet`
-- **UPDATE**: `update_project`, `update_sheet`, `update_row`, `rename_project`, `rename_sheet`, `bulk_update_rows`, `update_sticky_note`
-- **DELETE**: `delete_project`, `delete_sheet`, `delete_row`, `clear_sheet`, `delete_sticky_note`
-- **MODIFY**: `add_column`, `add_group`, `pin_project`, `pin_sheet`, `unpin_project`, `unpin_sheet`, `add_to_dashboard`, `remove_from_dashboard`
-- **READ (Smart)**: `search_rows`, `filter_rows`, `analyze_sheet`, `get_deadlines`, `get_overdue_rows`, `get_column_values`, `get_projects`, `get_sheets`, `get_rows`, `get_project_summary`, `get_sticky_notes`, `get_dashboard`, `get_notifications`, `count_items`
+- **Sheet workspace CREATE**: `create_project`, `create_sheet`, `add_rows`, `create_sticky_note`, `duplicate_sheet`
+- **Sheet workspace UPDATE**: `update_project`, `update_sheet`, `update_row`, `rename_project`, `rename_sheet`, `bulk_update_rows`, `update_sticky_note`
+- **Sheet workspace DELETE**: `delete_project`, `delete_sheet`, `delete_row`, `clear_sheet`, `delete_sticky_note`
+- **Sheet workspace MODIFY**: `add_column`, `add_group`, `pin_project`, `pin_sheet`, `unpin_project`, `unpin_sheet`, `add_to_dashboard`, `remove_from_dashboard`
+- **Sheet workspace READ (Smart)**: `search_rows`, `filter_rows`, `analyze_sheet`, `get_deadlines`, `get_overdue_rows`, `get_column_values`, `get_projects`, `get_sheets`, `get_rows`, `get_project_summary`, `get_sticky_notes`, `get_dashboard`, `get_notifications`, `count_items`
+- **Record domains** (spec-driven `create_/update_/delete_/list_` quadruples in
+  `ai_actions_records.py`): documents, email templates, email drafts,
+  reminders, deadlines, universities, programs, professors, applications,
+  research notes.
+- **Record specials**: `add_document_version`, `complete_reminder`,
+  `complete_deadline`, `log_outreach` (optional `follow_up_days` creates a
+  reminder via `Store.log_outreach`), `update_outreach_log`,
+  `list_outreach_logs`, `get_due_reminders`, `mark_notifications_read`.
+
+Agent action architecture:
+
+- `ai_actions.py` — `AiActionService` orchestration, planner prompt assembly,
+  heuristic fallback, plan normalization core.
+- `ai_actions_catalog.py` — action registry (supported/read-only sets,
+  create-limit feature map, plan descriptions, execution messages).
+- `ai_actions_workspace.py` — normalizers for the sheet-workspace actions
+  (moved out of `ai_actions.py` for the file-size rule).
+- `ai_actions_execute.py` — executors for the sheet-workspace actions plus the
+  project/page resolution helpers; create executors call the service's
+  role-limit hooks before mutating.
+- `ai_actions_records.py` — domain spec table plus a generic
+  normalize/execute engine for the record domains and specials. Foreign keys
+  are resolved by name (university/program/professor/template/application),
+  never by trusting provider-supplied ids.
+- `ai_actions_read.py` — smart read/analysis helpers (unchanged).
+
+Execution permissions:
+
+- `/ai/actions/execute` passes the authenticated user into the service.
+  Create-type actions enforce the same role limits as the manual routes:
+  `total_projects`, `total_sheets`, `sheets_per_project`, `total_records`,
+  `records_per_sheet`, `total_sticky_notes` via `check_and_increment_limit`
+  and `get_user_limit`. `can_use_agents` stays a boolean gate with no counter.
+- Admin actions are structurally impossible: no admin action type exists in
+  the registry and the planner prompt instructs an explicit refusal for user
+  management, roles, limits, invites, tokens, settings, and model management.
 
 All actions are local SQLite mutations. They do not send emails, submit
-applications, upload files externally, overwrite documents, or call cloud
-storage.
+applications, upload files externally, overwrite existing document versions,
+or call cloud storage.
 
 ## Privacy Rules
 

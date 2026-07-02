@@ -42,3 +42,4 @@ env/
 # Workspaces / User Data
 workspace/
 **/workspace/
+.claude/settings.local.json

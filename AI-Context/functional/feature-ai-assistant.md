@@ -86,12 +86,35 @@ but it may offer a ScholarDocX-relevant follow-up when useful.
 ## Agentic Workspace Actions
 
 The assistant may prepare local workspace actions when the user explicitly asks
-it to create, edit, delete, or read ScholarDocX data. Supported actions include:
+it to create, edit, delete, or read ScholarDocX data. As of SCHOLARDOCX-0110
+the agent covers every user-owned workspace domain, not only the sheet
+workspace:
 
-- **Create**: Projects, sheets (and duplicates), rows, sticky notes.
-- **Update/Modify**: Rename projects/sheets, update/bulk update rows, add columns/groups, pin/unpin items, dashboard management.
-- **Delete**: Delete projects, sheets, rows, sticky notes, clear sheets.
-- **Read & Analyze**: Semantic filtering, data aggregation, overdue/deadline fetching, unique column values, row searching, and project summaries.
+- **Sheet workspace**: Projects, sheets (and duplicates), rows, columns,
+  groups, pins, dashboard placement, sticky notes.
+- **Documents**: Documents and document versions (create, update metadata,
+  add a new version, delete, list). The agent adds versions; it never
+  overwrites an existing version's content.
+- **Email & outreach**: Email templates, email drafts, outreach logs (with
+  optional auto follow-up reminder), outreach response status.
+- **Time management**: Reminders and deadlines, including complete/uncomplete
+  and due/overdue queries.
+- **Academic catalog**: Universities, programs, professors, and applications,
+  with name-based linking (e.g. a professor can be attached to a university by
+  name).
+- **Research notes**: Create, update, delete, list.
+- **Notifications**: Read and mark-as-read.
+- **Read & Analyze**: Semantic filtering, data aggregation, overdue/deadline
+  fetching, unique column values, row searching, and project summaries.
+
+Excluded on purpose:
+
+- **Admin tasks are never available to the agent**, regardless of the user's
+  role: user management, suspensions, roles, role limits, invites, token
+  grants, app settings, and AI model management. The planner refuses these
+  with a clear message instead of planning them.
+- Whiteboard canvas mutations, binary file uploads, sending emails, and any
+  external side effects.
 
 Agentic action rules:
 
@@ -107,6 +130,12 @@ Agentic action rules:
 - `can_use_agents` remains a boolean permission guard only. Opening the action
   planner may consume normal AI chat quotas, but confirming execution must not
   consume an agent permission counter because the feature is not quota-based.
+- Confirmed execution enforces the same plan role limits as manual routes
+  (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`,
+  `records_per_sheet`, `total_sticky_notes`). The agent cannot create records
+  past the user's plan; violations show the standard limit-exceeded error.
+- Relative dates in requests ("remind me in 3 days") are resolved by the
+  planner using the backend's current date, never hard-coded.
 
 ## Privacy UX
 

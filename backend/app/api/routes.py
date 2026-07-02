@@ -479,6 +479,9 @@ def ai_action_execute(payload: AiActionExecutePayload, store: Store = Depends(ge
     from app.auth.limits import check_and_increment_limit
     check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
     try:
-        return AiActionService(settings, store).execute(payload.plan)
+        # Passing the user enables the same role-limit checks manual routes use.
+        return AiActionService(settings, store).execute(
+            payload.plan, user=current_user, session=store.db
+        )
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

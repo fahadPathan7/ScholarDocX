@@ -3,8 +3,7 @@
 ## Providers
 
 - GLM AI API for chat, drafting, summarization, and rewriting.
-- 9Router for optional assistant chat, summarization, research synthesis, and
-  AI action planning through the user's local OpenAI-compatible router.
+
 - Google AI Studio Gemini API for optional chat, drafting, summarization, and
   rewriting fallback.
 - Tavily API for real-time AI-chat web research and the separate filtered
@@ -26,24 +25,7 @@ Gemini support is built around free-tier local use:
 - Tavily remains the web-search source so search behavior and source rendering
   stay provider-neutral.
 
-9Router assistant support uses the local OpenAI-compatible service:
 
-- Read `NINE_ROUTER_API_KEY` and optional `NINE_ROUTER_BASE_URL` from the
-  backend environment.
-- Default to `http://localhost:20128/v1`.
-- Send assistant requests to `/chat/completions` and discover the user's
-  connected models from `/models`.
-- Send `stream: false` because ScholarDocX expects one OpenAI-compatible JSON
-  response rather than a server-sent event stream.
-- Always include `NINE_ROUTER_DEFAULT_MODEL` in the assistant model list when
-  configured, because custom/no-auth provider models may not appear in
-  9Router's `/models` catalog.
-- Prefix frontend model values with `9router:` so role guards can distinguish
-  routed models from direct provider models.
-- Guard assistant access with `can_use_9router` role limits just like other
-  provider permissions. Pro and Max roles enable it by default.
-- 9Router can power chat, summarization, research synthesis, and AI action
-  planning, but not direct local mutation execution.
 - Tavily remains the only live web-search provider. OpenRouter remains isolated
   to Scholarship Hunt query generation.
 
@@ -290,7 +272,6 @@ storage.
 - Test routing JSON parsing and fail-open search behavior.
 - Test summarization fallback behavior so failed providers do not poison memory.
 - Test Gemini payload/response parsing and provider fallback ordering.
-- Test 9Router missing-key behavior, model discovery, provider errors, and
-  permission mapping.
+
 - Test action planning validation, missing-info behavior, and confirmed local
   execution.

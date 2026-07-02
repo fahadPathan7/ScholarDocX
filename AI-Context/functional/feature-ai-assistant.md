@@ -11,9 +11,7 @@ The AI assistant helps with research, summarization, drafting, and review while 
 - GLM AI API: chat, completion, summarization, drafting. GLM-5.2 is the latest
   selectable model in the assistant picker; GLM-5.1, GLM-5, GLM-5-Turbo, and
   GLM-4.7 remain available.
-- 9Router: optional local routing for chat and agent-planning models exposed
-  through the assistant model picker when the local 9Router service and
-  `NINE_ROUTER_API_KEY` are configured.
+
 - Tavily API: real-time web search and research context.
 
 ## Chat UI
@@ -29,11 +27,7 @@ Rules:
 - Model selectors in assistant settings must reflect role/provider permissions.
   Providers blocked by role limits should appear unavailable and must not be
   selected for chat or background tasks.
-- 9Router models must follow the same role guard as GLM/Gemini/Groq/Mistral.
-  If `can_use_9router` is disabled, saved 9Router selections must recover
-  to an allowed provider instead of failing silently.
-- Available 9Router models are loaded from the local 9Router `/v1/models`
-  endpoint because the list depends on providers connected in its dashboard.
+
 
 ## Research Workflow
 

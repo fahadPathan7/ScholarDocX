@@ -1,149 +1,38 @@
-import { FormEvent, useEffect, useState } from "react";
-import { ChevronLeft, ChevronUp, ChevronDown, Edit, ExternalLink, FolderOpen, LayoutDashboard, Mail, Pin, Plus, Settings, Trash2, X } from "lucide-react";
+import { FormEvent, useEffect, useState, useRef } from "react";
+import { ChevronLeft, Edit, LayoutDashboard, Pin, Plus, Trash2, X } from "lucide-react";
 import { Field } from "./Field";
 
 import { PinActions } from "./PinActions";
 import { Section } from "./Section";
 import { EmailConfigModal, EmailConfig } from "./EmailConfigModal";
 import { ProjectDashboard } from "./ProjectDashboard";
-import { CellRenderer, rowClass, TypedRecordField } from "./SheetRecordFields";
 import { api, createRecord, listRecords, RecordMap, notify } from "../lib/api";
 import { formatLongDate } from "../lib/date";
-import { composeEmailUrl, ComposeProvider } from "../lib/email";
 import { useDialog } from "./DialogProvider";
 import { useUsage } from "../contexts/UsageContext";
 
-/* ------------------------------------------------------------------ */
-/*  Column definition types                                           */
-/* ------------------------------------------------------------------ */
+/* Re-export shared types so external consumers don't break */
+export type { ColumnType, ColumnDef, ProjectNavigationTarget } from "./sheet/sheetModel";
+export { GROUP_COLORS } from "./sheet/sheetModel";
 
-export type ColumnType = "text" | "number" | "bool" | "file" | "date" | "select" | "group" | "url";
-
-export type ColumnDef = {
-  name: string;
-  type: ColumnType;
-  width?: number;
-  group?: string;
-  color?: string;
-  options?: string[];
-  unique?: boolean;
-};
-
-export const GROUP_COLORS = ["#2f6d7a", "#b24f4f", "#c58940", "#4f8a45", "#6f42c1", "#007bff"];
-
-const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
-  { value: "text", label: "Text" },
-  { value: "number", label: "Number" },
-  { value: "bool", label: "Yes / No" },
-  { value: "file", label: "File / Document" },
-  { value: "date", label: "Date" },
-  { value: "select", label: "Dropdown" },
-  { value: "url", label: "Link" },
-];
-
-/** Migrate old string[] columns to ColumnDef[]. */
-function migrateColumns(raw: unknown[]): ColumnDef[] {
-  if (!raw || raw.length === 0) return [];
-  let cols: ColumnDef[];
-  if (typeof raw[0] === "string") {
-    cols = (raw as string[]).map((name) => ({ name, type: "text" as ColumnType }));
-  } else {
-    cols = raw as ColumnDef[];
-  }
-
-  let hasEmailGroup = cols.some(c => c.type === "group" && c.name === "Email");
-  let hasAttachGroup = cols.some(c => c.type === "group" && c.name === "Attachments");
-  
-  const finalCols: ColumnDef[] = [];
-  for (const col of cols) {
-    if (!hasEmailGroup && !col.group && (col.name.toLowerCase().includes("email subject") || col.name.toLowerCase().includes("email body"))) {
-      finalCols.push({ name: "Email", type: "group", color: "#4f8a45" });
-      hasEmailGroup = true;
-    }
-    if (!hasAttachGroup && col.type === "file" && !col.group) {
-      finalCols.push({ name: "Attachments", type: "group", color: "#c58940" });
-      hasAttachGroup = true;
-    }
-
-    if (col.name.toLowerCase().includes("email subject") || col.name.toLowerCase().includes("email body")) {
-      if (!col.group) col.group = "Email";
-    } else if (col.type === "file" && !col.group) {
-      col.group = "Attachments";
-    }
-    
-    finalCols.push(col);
-  }
-  
-  return finalCols;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Sheet page type                                                   */
-/* ------------------------------------------------------------------ */
-
-type SheetPage = RecordMap & {
-  columns?: ColumnDef[];
-  rows?: Record<string, string>[];
-  email_config?: EmailConfig;
-};
-
-export type ProjectNavigationTarget = {
-  token: number;
-  projectId: number | string;
-  sheetId?: number | string;
-  pageId?: number | string;
-  rowIndex?: number;
-};
+/* Sheet sub-components */
+import type { SheetPage } from "./sheet/sheetModel";
+import type { ProjectNavigationTarget } from "./sheet/sheetModel";
+import { useSheetPage } from "./sheet/useSheetPage";
+import { SheetToolbar } from "./sheet/SheetToolbar";
+import { SheetFooter } from "./sheet/SheetFooter";
+import { AddColumnModal, EditColumnsModal } from "./sheet/ColumnEditor";
+import { SheetTable } from "./sheet/SheetTable";
+import { RecordFormModal } from "./sheet/RecordFormModal";
+import { RowPeekPanel } from "./sheet/RowPeekPanel";
+import { SelectionToolbar } from "./sheet/SelectionToolbar";
+import { CsvImportModal } from "./sheet/CsvImportModal";
+import { DateColorConfigModal } from "./sheet/DateColorConfigModal";
+import { DateColorConfig, SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
 
 /* ------------------------------------------------------------------ */
 /*  Main workspace component                                          */
 /* ------------------------------------------------------------------ */
-
-function SelectOptionsEditor({ options, onChange }: { options: string[], onChange: (opts: string[]) => void }) {
-  const [newOpt, setNewOpt] = useState("");
-  
-  return (
-    <div className="select-options-editor">
-      <div className="select-options-list">
-        {options.map((opt, i) => (
-          <div key={i} className="select-option-pill">
-            <input 
-              value={opt} 
-              onChange={(e) => {
-                const newOpts = [...options];
-                newOpts[i] = e.target.value;
-                onChange(newOpts);
-              }}
-            />
-            <button type="button" onClick={() => onChange(options.filter((_, idx) => idx !== i))}><X size={12} /></button>
-          </div>
-        ))}
-      </div>
-      <div className="select-add-row">
-        <input 
-          value={newOpt} 
-          onChange={(e) => setNewOpt(e.target.value)} 
-          placeholder="New option..." 
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              if (newOpt.trim()) {
-                onChange([...options, newOpt.trim()]);
-                setNewOpt("");
-              }
-            }
-          }}
-        />
-        <button type="button" onClick={() => {
-          if (newOpt.trim()) {
-            onChange([...options, newOpt.trim()]);
-            setNewOpt("");
-          }
-        }}>Add</button>
-      </div>
-    </div>
-  );
-}
 
 export function ProjectWorkspace({
   files,
@@ -176,15 +65,8 @@ export function ProjectWorkspace({
   const [selectedPageId, setSelectedPageId] = useState(navigationTarget?.pageId ? String(navigationTarget.pageId) : "");
   const [projectForm, setProjectForm] = useState({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
   const [sheetName, setSheetName] = useState("");
-  const [columns, setColumns] = useState<ColumnDef[]>([]);
-  const [rows, setRows] = useState<Record<string, string>[]>([]);
-  const [showColumnForm, setShowColumnForm] = useState(false);
-  const [showRecordForm, setShowRecordForm] = useState(false);
-  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
-  const [showEditColumns, setShowEditColumns] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [tempColumns, setTempColumns] = useState<(ColumnDef & { _originalName?: string })[]>([]);
-  const [isEmailConfigOpen, setIsEmailConfigOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
+  const [customTemplates, setCustomTemplates] = useState(() => getCustomTemplates());
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
@@ -193,20 +75,9 @@ export function ProjectWorkspace({
   const [editProjectForm, setEditProjectForm] = useState({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
   const [editingSheet, setEditingSheet] = useState<RecordMap | null>(null);
   const [editSheetName, setEditSheetName] = useState("");
-  const [recordForm, setRecordForm] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [validationError, setValidationError] = useState("");
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
   const [lastHandledToken, setLastHandledToken] = useState<number | null>(null);
-
-  /* Column form state */
-  const [newColName, setNewColName] = useState("");
-  const [newColType, setNewColType] = useState<ColumnType>("text");
-  const [newColColor, setNewColColor] = useState<string>(GROUP_COLORS[0]);
-  const [newColOptions, setNewColOptions] = useState("");
-  const [newColGroup, setNewColGroup] = useState("");
-  const [newColUnique, setNewColUnique] = useState(false);
   const [projectSheetCounts, setProjectSheetCounts] = useState<Record<string, number>>({});
 
   const selectedProject = projects.find((item) => String(item.id) === selectedProjectId);
@@ -216,6 +87,71 @@ export function ProjectWorkspace({
   const selectedPage = selectedSheetId
     ? pages.find((item) => String(item.sheet_id) === selectedSheetId)
     : pages.find((item) => String(item.id) === selectedPageId);
+
+  /* CSV Import State */
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvImportFile, setCsvImportFile] = useState<File | null>(null);
+
+  /* Date Colors Config */
+  const [showDateColorConfig, setShowDateColorConfig] = useState(false);
+  const [peekRowIndex, setPeekRowIndex] = useState<number | null>(null);
+  const [dateColorConfig, setDateColorConfig] = useState<DateColorConfig>(() => {
+    try {
+      const stored = localStorage.getItem(`scholardock_date_colors_${selectedProjectId}`);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      // ignore
+    }
+    return { redDays: 3, yellowDays: 7 };
+  });
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      try {
+        const stored = localStorage.getItem(`scholardock_date_colors_${selectedProjectId}`);
+        if (stored) setDateColorConfig(JSON.parse(stored));
+        else setDateColorConfig({ redDays: 3, yellowDays: 7 });
+      } catch (e) {
+        setDateColorConfig({ redDays: 3, yellowDays: 7 });
+      }
+    }
+  }, [selectedProjectId]);
+
+  const saveDateColorConfig = (config: DateColorConfig) => {
+    setDateColorConfig(config);
+    if (selectedProjectId) {
+      localStorage.setItem(`scholardock_date_colors_${selectedProjectId}`, JSON.stringify(config));
+    }
+    setShowDateColorConfig(false);
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Sheet page hook (all column/row state, CRUD, modals)             */
+  /* ---------------------------------------------------------------- */
+
+  const refreshSummary = async (projectId = selectedProjectId) => {
+    if (!projectId) return;
+    const data = await api.get<RecordMap>(`/projects/${projectId}/summary`);
+    setSummary(data);
+    if (selectedSheetId) {
+      const nextPage = data.pages?.find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
+      setSelectedPageId(nextPage ? String(nextPage.id) : "");
+    }
+  };
+
+  const sheet = useSheetPage({
+    selectedPageId,
+    selectedPage,
+    selectedProjectId,
+    onToast,
+    refreshSummary,
+    files,
+    onFilesChanged,
+  });
+
+  /* ---------------------------------------------------------------- */
+  /*  Project/sheet data loading                                       */
+  /* ---------------------------------------------------------------- */
 
   const refreshProjects = async () => {
     setProjects(await listRecords<RecordMap>("projects"));
@@ -234,16 +170,6 @@ export function ProjectWorkspace({
       })
     );
     setProjectSheetCounts(counts);
-  };
-
-  const refreshSummary = async (projectId = selectedProjectId) => {
-    if (!projectId) return;
-    const data = await api.get<RecordMap>(`/projects/${projectId}/summary`);
-    setSummary(data);
-    if (selectedSheetId) {
-      const nextPage = data.pages?.find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
-      setSelectedPageId(nextPage ? String(nextPage.id) : "");
-    }
   };
 
   useEffect(() => {
@@ -282,9 +208,27 @@ export function ProjectWorkspace({
     }
   }, [navigationTarget?.token]);
 
+  // Global paste handler for TSV import
+  useEffect(() => {
+    if (!selectedPageId) return;
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // Don't intercept paste if user is typing in an input/textarea
+      const activeElement = document.activeElement;
+      if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+      const tsvText = e.clipboardData?.getData("text/plain");
+      if (tsvText) {
+        sheet.handlePaste(tsvText);
+      }
+    };
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, [selectedPageId, sheet.handlePaste]);
+
   // Lock main scroll when any modal is open
   useEffect(() => {
-    const anyModalOpen = showEditColumns || showColumnForm || showRecordForm || showCreateProject || showCreateSheet || !!editingProject || !!editingSheet;
+    const anyModalOpen = sheet.showEditColumns || sheet.showColumnForm || sheet.showRecordForm || showCreateProject || showCreateSheet || !!editingProject || !!editingSheet || peekRowIndex !== null;
     const mainEl = document.querySelector("main");
     if (mainEl) {
       mainEl.style.overflow = anyModalOpen ? "hidden" : "";
@@ -292,7 +236,7 @@ export function ProjectWorkspace({
     return () => {
       if (mainEl) mainEl.style.overflow = "";
     };
-  }, [showEditColumns, showColumnForm, showRecordForm, showCreateProject, showCreateSheet, editingProject, editingSheet]);
+  }, [sheet.showEditColumns, sheet.showColumnForm, sheet.showRecordForm, showCreateProject, showCreateSheet, editingProject, editingSheet]);
 
   useEffect(() => {
     if (!navigationTarget || !summary || navigationTarget.token === lastHandledToken) return;
@@ -321,82 +265,6 @@ export function ProjectWorkspace({
       window.clearTimeout(clearTimer);
     };
   }, [focusedRowIndex, selectedSheetId]);
-
-  useEffect(() => {
-    if (!selectedPage) {
-      setColumns([]);
-      setRows([]);
-      return;
-    }
-    const rawCols = selectedPage.columns || JSON.parse(selectedPage.columns_json || "[]");
-    setColumns(migrateColumns(rawCols));
-    setRows(selectedPage.rows || JSON.parse(selectedPage.rows_json || "[]"));
-  }, [selectedPageId, selectedPage?.updated_at]);
-
-  /* ---------------------------------------------------------------- */
-  /*  Persist helpers                                                  */
-  /* ---------------------------------------------------------------- */
-
-  const persistPage = async (nextColumns: ColumnDef[], nextRows: Record<string, string>[], silent = false) => {
-    // Unique combination check
-    if (!silent) {
-      const uniqueCols = nextColumns.filter(c => c.unique).map(c => c.name);
-      if (uniqueCols.length > 0) {
-        const combinations = new Set<string>();
-        let hasDuplicate = false;
-        
-        for (const row of nextRows) {
-          const combo = uniqueCols.map(col => (row[col] || "").trim().toLowerCase()).join("|");
-          if (combo && combo !== "|".repeat(uniqueCols.length - 1)) {
-            if (combinations.has(combo)) {
-              hasDuplicate = true;
-              break;
-            }
-            combinations.add(combo);
-          }
-        }
-        
-        if (hasDuplicate) {
-          await showAlert(`Warning: This combination of ${uniqueCols.join(" and ")} already exists in the sheet.`, "Duplicate Found");
-        }
-      }
-    }
-
-    if (!selectedPageId || isSaving) return;
-    setIsSaving(true);
-    try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: nextColumns, rows_json: nextRows }
-      });
-      if (!silent) {
-        onToast?.("Saved.");
-      }
-      await refreshSummary();
-    } catch (error) {
-      if (!silent) onToast?.("Save failed. Please try again.");
-      console.error("Save error:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const saveEmailConfig = async (config: EmailConfig) => {
-    if (!selectedPageId || isSaving) return;
-    setIsSaving(true);
-    try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { email_config_json: config }
-      });
-      onToast?.("Email configuration saved.");
-      setIsEmailConfigOpen(false);
-      await refreshSummary();
-    } catch (error) {
-      console.error(error);
-      onToast?.("Failed to save email config.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   /* ---------------------------------------------------------------- */
   /*  Project CRUD                                                     */
@@ -441,10 +309,24 @@ export function ProjectWorkspace({
     event.preventDefault();
     if (!selectedProjectId) return;
     const cleanName = sheetName.trim() || "Application sheet";
+    
+    // 1. Create the sheet (creates a page with default columns in backend)
     const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
+    
+    // 2. If a template is selected, immediately patch the new page with template columns
+    if (selectedTemplateId !== "default") {
+      const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
+      if (template && result.page?.id) {
+        await api.patch(`/project_pages/${result.page.id}`, {
+          data: { columns_json: template.columns, rows_json: [] }
+        });
+      }
+    }
+
     await notify("sheet_create", { project_id: Number(selectedProjectId), sheetName: result.sheet.name, sheetId: Number(result.sheet.id) });
     onToast?.(`Sheet created: ${result.sheet.name}.`);
     setSheetName("");
+    setSelectedTemplateId("default");
     setShowCreateSheet(false);
     const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/summary`);
     setSummary(data);
@@ -521,12 +403,12 @@ export function ProjectWorkspace({
     await onChanged?.();
   };
 
-  const updateSheetPin = async (sheet: RecordMap, data: RecordMap) => {
-    await api.patch(`/project_sheets/${sheet.id}`, { data });
+  const updateSheetPin = async (sheetItem: RecordMap, data: RecordMap) => {
+    await api.patch(`/project_sheets/${sheetItem.id}`, { data });
     if (data.is_pinned !== undefined || data.pinned_to_dashboard !== undefined) {
       await notify("sheet_pin", {
-        project_id: sheet.project_id,
-        sheetName: sheet.name,
+        project_id: sheetItem.project_id,
+        sheetName: sheetItem.name,
         actionLabel: data.pinned_to_dashboard !== undefined
           ? (data.pinned_to_dashboard ? "added to dashboard" : "removed from dashboard")
           : (data.is_pinned ? "pinned" : "unpinned")
@@ -536,354 +418,16 @@ export function ProjectWorkspace({
     await onChanged?.();
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Column CRUD (auto-saves)                                        */
-  /* ---------------------------------------------------------------- */
-
-  const addColumn = async (event: FormEvent) => {
-    event.preventDefault();
-    const clean = newColName.trim().slice(0, 30);
-    if (!clean || tempColumns.some((col) => col.name === clean)) return;
-
-    const newCol: ColumnDef = { name: clean, type: newColType };
-    if (newColType === "group") {
-      newCol.color = newColColor;
-    }
-    if (newColType === "select" && newColOptions.trim()) {
-      newCol.options = newColOptions.split(",").map((opt) => opt.trim()).filter(Boolean);
-    }
-    if (newColGroup.trim()) {
-      newCol.group = newColGroup.trim();
-    }
-    if (newColUnique && newColType !== "group") {
-      newCol.unique = true;
-    }
-    setTempColumns((current) => [...current, newCol]);
-
-    setNewColName("");
-    setNewColType("text");
-    setNewColColor(GROUP_COLORS[0]);
-    setNewColOptions("");
-    setNewColGroup("");
-    setNewColUnique(false);
-    setShowColumnForm(false);
-  };
-
-  const renameColumn = (index: number, nextName: string) => {
-    setTempColumns((current) => current.map((col, i) => (i === index ? { ...col, name: nextName.slice(0, 30) } : col)));
-  };
-
-  const updateTempColumn = (index: number, key: string, value: any) => {
-    setTempColumns((current) => current.map((col, i) => (i === index ? { ...col, [key]: value } : col)));
-  };
-
-  const deleteColumnLocal = async (columnName: string) => {
-    const confirmed = await showConfirm(`Are you sure you want to delete the column "${columnName}"? All data in this column will be lost.`, "Delete Column");
-    if (!confirmed) return;
-    setTempColumns((current) => current.filter((col) => col.name !== columnName));
-  };
-
-  const moveColumnUp = (index: number) => {
-    if (index === 0) return;
-    setTempColumns((current) => {
-      const next = [...current];
-      const temp = next[index];
-      next[index] = next[index - 1];
-      next[index - 1] = temp;
-      return next;
-    });
-  };
-
-  const moveColumnDown = (index: number) => {
-    if (index === tempColumns.length - 1) return;
-    setTempColumns((current) => {
-      const next = [...current];
-      const temp = next[index];
-      next[index] = next[index + 1];
-      next[index + 1] = temp;
-      return next;
-    });
-  };
-
-  const openEditColumns = () => {
-    setTempColumns(columns.map((col) => ({ ...col, _originalName: col.name })));
-    setShowEditColumns(true);
-    setShowColumnForm(false);
-    setShowRecordForm(false);
-  };
-
-  const saveColumnEdits = async (event?: FormEvent) => {
-    if (event) event.preventDefault();
-
-    const names = tempColumns.map(c => c.name.trim()).filter(Boolean);
-    if (names.length !== tempColumns.length) {
-      await showAlert("Column names cannot be empty.", "Invalid Configuration");
-      return;
-    }
-    
-    // Check duplicates separately for data columns and groups
-    const dataColNames = tempColumns.filter(c => c.type !== "group").map(c => c.name.trim());
-    const groupColNames = tempColumns.filter(c => c.type === "group").map(c => c.name.trim());
-    
-    const dataDuplicates = dataColNames.filter((name, index) => dataColNames.indexOf(name) !== index);
-    if (dataDuplicates.length > 0) {
-      await showAlert(`Duplicate data column name found: "${dataDuplicates[0]}". Data columns must have unique names so their data doesn't overlap.`, "Duplicate Name");
-      return;
-    }
-    
-    const groupDuplicates = groupColNames.filter((name, index) => groupColNames.indexOf(name) !== index);
-    if (groupDuplicates.length > 0) {
-      await showAlert(`Duplicate group name found: "${groupDuplicates[0]}". Groups must have unique names.`, "Duplicate Name");
-      return;
-    }
-
-    let nextRows = [...rows];
-
-    tempColumns.forEach((col) => {
-      const colName = col.name.trim();
-      if (!columns.some(c => c.name === colName)) {
-        nextRows = nextRows.map((row) => ({ ...row, [colName]: "" }));
-      }
-    });
-
-    tempColumns.forEach((col) => {
-      if (col._originalName && col.name.trim() !== col._originalName) {
-        const oldKey = col._originalName;
-        const newKey = col.name.trim();
-        nextRows = nextRows.map((row) => {
-          const updated = { ...row, [newKey]: row[oldKey] || "" };
-          delete updated[oldKey];
-          return updated;
-        });
-      }
-    });
-
-    const remainingOriginalNames = new Set(tempColumns.map(c => c._originalName).filter(Boolean));
-    columns.forEach((oldCol) => {
-      if (!remainingOriginalNames.has(oldCol.name)) {
-        nextRows = nextRows.map((row) => {
-          const updated = { ...row };
-          delete updated[oldCol.name];
-          return updated;
-        });
-      }
-    });
-
-    const nextColumns: ColumnDef[] = tempColumns.map(({ _originalName, ...col }) => col);
-
-    setColumns(nextColumns);
-    setRows(nextRows);
-    setShowEditColumns(false);
-    await persistPage(nextColumns, nextRows);
-  };
-
-  const startResizeColumn = (event: React.MouseEvent, columnIndex: number) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = columns[columnIndex].width || 150;
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const newWidth = Math.max(80, startWidth + dx);
-      setColumns((current) =>
-        current.map((col, idx) => (idx === columnIndex ? { ...col, width: newWidth } : col))
-      );
-    };
-
-    const handleMouseUp = async (upEvent: MouseEvent) => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      
-      const dx = upEvent.clientX - startX;
-      if (dx === 0) return;
-
-      const finalWidth = Math.max(80, startWidth + dx);
-      const nextColumns = columns.map((col, idx) =>
-        idx === columnIndex ? { ...col, width: finalWidth } : col
-      );
-      setColumns(nextColumns);
-      await persistPage(nextColumns, rows, true);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  };
-
-  const startResizeRow = (event: React.MouseEvent, rowIndex: number) => {
-    event.preventDefault();
-    const startY = event.clientY;
-    const startHeight = parseInt(rows[rowIndex]._height || "60", 10);
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const dy = moveEvent.clientY - startY;
-      const newHeight = Math.max(40, startHeight + dy);
-      setRows((current) =>
-        current.map((row, idx) =>
-          idx === rowIndex ? { ...row, _height: String(newHeight) } : row
-        )
-      );
-    };
-
-    const handleMouseUp = async (upEvent: MouseEvent) => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-
-      const dy = upEvent.clientY - startY;
-      if (dy === 0) return;
-
-      const finalHeight = Math.max(40, startHeight + dy);
-      const nextRows = rows.map((row, idx) =>
-        idx === rowIndex ? { ...row, _height: String(finalHeight) } : row
-      );
-      setRows(nextRows);
-      await persistPage(columns, nextRows, true);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  };
-
-  /* ---------------------------------------------------------------- */
-  /*  Record CRUD (auto-saves)                                        */
-  /* ---------------------------------------------------------------- */
-
-  const addRow = () => {
-    if (columns.length === 0) return;
-    setRecordForm(Object.fromEntries(columns.filter(col => col.type !== "group").map((col) => [col.name, ""])));
-    setEditingRowIndex(null);
-    setShowRecordForm(true);
-    setValidationError("");
-  };
-
-  const editRow = (index: number) => {
-    if (columns.length === 0) return;
-    setRecordForm({ ...rows[index] });
-    setEditingRowIndex(index);
-    setShowRecordForm(true);
-    setValidationError("");
-  };
-
-  const saveRecord = async (event: FormEvent) => {
-    event.preventDefault();
-    const hasContent = Object.values(recordForm).some((value) => value.trim() !== "");
-    if (!hasContent) {
-      setValidationError("Please fill in at least one field.");
-      return;
-    }
-    setValidationError("");
-    
-    let nextRows: Record<string, string>[];
-    if (editingRowIndex !== null) {
-      nextRows = [...rows];
-      nextRows[editingRowIndex] = recordForm;
-    } else {
-      nextRows = [...rows, recordForm];
-      await notify("record_create", { project_id: Number(selectedProjectId) });
-    }
-    
-    setRows(nextRows);
-    setRecordForm({});
-    setEditingRowIndex(null);
-    setShowRecordForm(false);
-    await persistPage(columns, nextRows);
-  };
-
-  const cancelRecord = () => {
-    setRecordForm({});
-    setShowRecordForm(false);
-    setValidationError("");
-  };
-
-  const deleteRow = async (rowIndex: number) => {
-    const confirmed = await showConfirm("Are you sure you want to delete this record? This cannot be undone.", "Delete Record");
-    if (!confirmed) return;
-    const nextRows = rows.filter((_, index) => index !== rowIndex);
-    await notify("record_delete", { project_id: Number(selectedProjectId) });
-    setRows(nextRows);
-    await persistPage(columns, nextRows);
-  };
-
-  const saveCellValue = async (rowIndex: number, column: string, value: string) => {
-    if (!selectedPageId || isSaving) throw new Error("Sheet is busy.");
-    const nextRows = rows.map((row, index) => (index === rowIndex ? { ...row, [column]: value } : row));
-    setRows(nextRows);
-    setIsSaving(true);
-    try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
-      onToast?.("Cell saved.");
-      await refreshSummary();
-    } catch (error) {
-      setRows(rows);
-      onToast?.("Cell save failed. Please try again.");
-      throw error;
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  /* ---------------------------------------------------------------- */
-  /*  Email compose                                                    */
-  /* ---------------------------------------------------------------- */
-
-  const openCompose = async (row: Record<string, string>) => {
-    const config = selectedPage?.email_config;
-    const toCol = config?.toColumn || "Email" || "Professor email";
-    const subCol = config?.subjectColumn || "Email subject";
-    const bodyCol = config?.bodyColumn || "Email body";
-    const attachCols = columns.filter(c => c.type === "file").map(c => c.name);
-
-    const profiles = await api.get<RecordMap[]>("/local_profiles");
-    const provider = (profiles[0]?.preferred_email_provider || "gmail") as ComposeProvider;
-    
-    const to = row[toCol] || row["Professor email"] || "";
-    let subject = row[subCol] || "";
-    if (!subject && !config?.subjectColumn) {
-      subject = `Research inquiry for ${row["Name"] || row["Professor name"] || "Professor"}`;
-    }
-    const body = row[bodyCol] || "";
-
-    const url = composeEmailUrl(provider, to, subject, body);
-
-    if (selectedProjectId && row["Scheduled send time"]) {
-      const attachNames = attachCols.map(col => row[col]).filter(Boolean).map(val => val.split(' (')[0]).join(", ");
-      const title = `Scheduled email: ${row["Name"] || row["Professor name"] || to || "Unknown"}`;
-      const notifications = await listRecords<RecordMap>("notifications");
-      const duplicate = notifications.some((item) =>
-        String(item.project_id) === String(selectedProjectId) &&
-        item.title === title &&
-        item.due_at === row["Scheduled send time"] &&
-        item.notification_type === "scheduled-email" &&
-        !item.read_at
-      );
-      if (!duplicate) {
-        await notify("scheduled_email", {
-          project_id: Number(selectedProjectId),
-          sheetName: row["Name"] || row["Professor name"] || to || "Unknown",
-          dueAt: row["Scheduled send time"],
-          attachmentSummary: attachNames || "No attachments listed"
-        });
-      }
-    }
-
-    if (url.startsWith("mailto:")) {
-      window.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const openSheet = (sheet: RecordMap) => {
-    const page = pages.find((item) => String(item.sheet_id) === String(sheet.id));
-    setSelectedSheetId(String(sheet.id));
+  const openSheet = (sheetItem: RecordMap) => {
+    const page = pages.find((item) => String(item.sheet_id) === String(sheetItem.id));
+    setSelectedSheetId(String(sheetItem.id));
     setSelectedPageId(page ? String(page.id) : "");
-    setShowRecordForm(false);
-    setShowColumnForm(false);
+    sheet.setShowRecordForm(false);
+    sheet.setShowColumnForm(false);
     setMessage("");
   };
 
-  const getSheetPage = (sheet: RecordMap) => pages.find((page) => String(page.sheet_id) === String(sheet.id));
+  const getSheetPage = (sheetItem: RecordMap) => pages.find((page) => String(page.sheet_id) === String(sheetItem.id));
 
   /* ================================================================ */
   /*  Render: Project list (no project selected)                      */
@@ -1081,49 +625,6 @@ export function ProjectWorkspace({
   /* ================================================================ */
 
   if (selectedSheetId) {
-    type RenderColumn = 
-      | { type: 'data'; col: ColumnDef; originalIndex: number; groupName?: string }
-      | { type: 'group-control'; groupName: string; collapsed: boolean };
-
-    const renderColumns: RenderColumn[] = [];
-    const processedGroups = new Set<string>();
-
-    columns.forEach((col, index) => {
-      if (col.type === "group") {
-        const groupName = col.name;
-        processedGroups.add(groupName);
-        const isCollapsed = collapsedGroups[groupName] ?? true;
-        renderColumns.push({
-          type: 'group-control',
-          groupName,
-          collapsed: isCollapsed
-        });
-
-        if (!isCollapsed) {
-          columns.forEach((childCol, childIndex) => {
-            if (childCol.type !== "group" && childCol.group === groupName) {
-              renderColumns.push({
-                type: 'data',
-                col: childCol,
-                originalIndex: childIndex,
-                groupName
-              });
-            }
-          });
-        }
-      } else if (!col.group || !columns.some(c => c.type === "group" && c.name === col.group)) {
-        renderColumns.push({
-          type: 'data',
-          col,
-          originalIndex: index
-        });
-      }
-    });
-
-    const toggleGroup = (groupName: string) => {
-      setCollapsedGroups(prev => ({ ...prev, [groupName]: !(prev[groupName] ?? true) }));
-    };
-
     return (
       <div className="project-detail sheet-detail-view" style={fullScreenMode ? {
         width: '100vw',
@@ -1143,9 +644,8 @@ export function ProjectWorkspace({
               setSelectedProjectId("");
               setSelectedSheetId("");
               setSelectedPageId("");
-              setShowRecordForm(false);
-              setShowColumnForm(false);
-              setCollapsedGroups({});
+              sheet.setShowRecordForm(false);
+              sheet.setShowColumnForm(false);
             }}>
               <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
             </span>
@@ -1153,9 +653,8 @@ export function ProjectWorkspace({
             <span className="breadcrumb-item clickable" onClick={() => {
               setSelectedSheetId("");
               setSelectedPageId("");
-              setShowRecordForm(false);
-              setShowColumnForm(false);
-              setCollapsedGroups({});
+              sheet.setShowRecordForm(false);
+              sheet.setShowColumnForm(false);
             }}>
               {selectedProject?.name}
             </span>
@@ -1169,450 +668,229 @@ export function ProjectWorkspace({
 
         {selectedPage ? (
           <Section title={fullScreenMode ? "" : selectedPage.name} eyebrow={fullScreenMode ? "" : "Edit rows and columns"}>
-            <div className="sheet-toolbar" style={fullScreenMode ? { marginBottom: '12px', gap: '8px' } : {}}>
-              <button className="secondary" onClick={() => { addRow(); setShowColumnForm(false); setShowEditColumns(false); }} disabled={columns.length === 0} title={columns.length === 0 ? "Add columns first" : "Add a new record"} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-                <Plus size={14} /> Add Record
-              </button>
-              <button className="secondary" onClick={() => setIsEmailConfigOpen(true)} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-                <Mail size={14} /> Email Config
-              </button>
-              <button 
-                className="secondary" 
-                onClick={() => {
-                  const url = `/sheet/fullscreen?projectId=${selectedProjectId}&pageId=${selectedPageId}`;
-                  window.open(url, '_blank');
-                }}
-                title="Open sheet in full screen"
-                style={{ display: fullScreenMode ? 'none' : 'inline-flex' }}
-              >
-                <ExternalLink size={16} /> Full Screen
-              </button>
-              <button className="secondary btn-edit-columns" onClick={openEditColumns} disabled={showEditColumns} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-                <Settings size={14} /> Edit columns
-              </button>
-              {recordsPerSheetLimit > 0 && (() => {
-                const used = rows.length;
-                const max = recordsPerSheetLimit;
-                const pct = Math.min(100, Math.round((used / max) * 100));
-                const isNear = pct >= 80;
-                const isFull = pct >= 100;
-                return (
-                  <div className="sheet-toolbar-quota">
-                    <span className={`toolbar-quota-label${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}`}>
-                      {used} / {max} records
-                    </span>
-                    <div className="quota-bar quota-bar-slim" title={`${used} of ${max} records used`}>
-                      <div
-                        className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-            {columns.length === 0 ? (
+            <SheetToolbar
+              columns={sheet.columns}
+              rows={sheet.rows}
+              viewRows={sheet.viewRows}
+              recordsPerSheetLimit={recordsPerSheetLimit}
+              fullScreenMode={fullScreenMode}
+              selectedProjectId={selectedProjectId}
+              selectedPageId={selectedPageId}
+              showEditColumns={sheet.showEditColumns}
+              searchQuery={sheet.searchQuery}
+              onSearchChange={sheet.setSearchQuery}
+              onToggleColumnVisibility={sheet.toggleColumnVisibility}
+              onAddRow={() => { sheet.addRow(); sheet.setShowColumnForm(false); sheet.setShowEditColumns(false); }}
+              onOpenEditColumns={sheet.openEditColumns}
+              onOpenEmailConfig={() => sheet.setIsEmailConfigOpen(true)}
+              onAskAI={() => {
+                const sheetName = selectedSheet?.name || selectedPage?.name || "Sheet";
+                const projName = selectedProject?.name || "Project";
+                window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
+                  detail: { contextMessage: `I'm looking at sheet "${sheetName}" in project "${projName}". Can you help me analyze it?` }
+                }));
+              }}
+              onExportCsv={sheet.handleExportCsv}
+              onImportCsv={() => fileInputRef.current?.click()}
+              onOpenDateColors={() => setShowDateColorConfig(true)}
+              onSaveTemplate={() => {
+                const name = window.prompt("Enter a name for this custom template:");
+                if (name) {
+                  saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
+                  setCustomTemplates(getCustomTemplates());
+                  onToast?.("Template saved.");
+                }
+              }}
+              groupBy={sheet.groupBy}
+              onGroupByChange={sheet.setGroupBy}
+              savedViews={sheet.savedViews}
+              currentViewId={sheet.currentViewId}
+              onSaveView={sheet.handleSaveView}
+              onLoadView={sheet.handleLoadView}
+              onDeleteView={sheet.handleDeleteView}
+            />
+
+            <SelectionToolbar
+              selectedCount={sheet.selectedRows.size}
+              onClear={sheet.clearSelection}
+              onDelete={sheet.bulkDelete}
+              onDuplicate={sheet.bulkDuplicate}
+              onCopy={() => {
+                import("./sheet/sheetPaste").then(({ formatTSV }) => {
+                  const visibleCols = sheet.columns.filter(c => c.type !== 'group' && !c.hidden);
+                  const selectedData = Array.from(sheet.selectedRows).map(idx => sheet.rows[idx]);
+                  const tsv = formatTSV(selectedData, visibleCols);
+                  navigator.clipboard.writeText(tsv).then(() => {
+                    onToast?.("Copied to clipboard");
+                  }).catch(err => {
+                    console.error(err);
+                    onToast?.("Failed to copy");
+                  });
+                });
+              }}
+            />
+
+            {sheet.columns.length === 0 ? (
               <p className="empty">Add columns first to start tracking records.</p>
             ) : null}
 
-            {isEmailConfigOpen && (
+            {sheet.isEmailConfigOpen && (
               <EmailConfigModal
                 config={selectedPage?.email_config || null}
-                columns={columns}
-                onSave={saveEmailConfig}
-                onClose={() => setIsEmailConfigOpen(false)}
+                columns={sheet.columns}
+                onSave={sheet.saveEmailConfig}
+                onClose={() => sheet.setIsEmailConfigOpen(false)}
                 degreeType={selectedProject?.degree_type}
               />
             )}
 
-            {/* Column creation form */}
-            {showColumnForm ? (
-              <div className="modal-backdrop" style={{ zIndex: 1010 }} onClick={() => setShowColumnForm(false)}>
-                <form className="modal-panel column-form" onClick={(e) => e.stopPropagation()} onSubmit={addColumn} onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setShowColumnForm(false);
-                }
-              }}>
-                <div className="modal-header">
-                  <h2>{newColType === "group" ? "Add Group" : "Add Column"}</h2>
-                  <button className="icon-button" type="button" onClick={() => setShowColumnForm(false)} title="Close form">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="modal-content" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <label className="field">
-                    <span>{newColType === "group" ? "Group name" : "Column name"}</span>
-                    <input
-                      value={newColName}
-                      onChange={(event) => setNewColName(event.target.value)}
-                      placeholder={newColType === "group" ? "e.g. Email" : "e.g. University name"}
-                      required
-                      autoFocus
-                      maxLength={30}
-                    />
-                  </label>
-                  {newColType !== "group" && (
-                    <label className="field">
-                      <span>Type</span>
-                      <select value={newColType} onChange={(event) => setNewColType(event.target.value as ColumnType)}>
-                        {COLUMN_TYPES.map((ct) => (
-                          <option key={ct.value} value={ct.value}>{ct.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {newColType !== "group" && (
-                    <label className="field">
-                      <span>Group (Optional)</span>
-                      <select
-                        value={newColGroup}
-                        onChange={(event) => setNewColGroup(event.target.value)}
-                      >
-                        <option value="">No Group</option>
-                        {tempColumns.filter(c => c.type === "group").map(g => (
-                          <option key={g.name} value={g.name}>{g.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {newColType !== "group" && (
-                    <label className="field bool-field">
-                      <span>Unique combination check</span>
-                      <div
-                        className={`bool-toggle${newColUnique ? " active" : ""}`}
-                        role="switch"
-                        aria-checked={newColUnique}
-                        tabIndex={0}
-                        onClick={() => setNewColUnique(!newColUnique)}
-                        onKeyDown={(event) => {
-                          if (event.key === " " || event.key === "Enter") {
-                            event.preventDefault();
-                            setNewColUnique(!newColUnique);
-                          }
-                        }}
-                      >
-                        <span className="bool-toggle-track"><span className="bool-toggle-thumb" /></span>
-                        <span className="bool-toggle-label">{newColUnique ? "Yes" : "No"}</span>
-                      </div>
-                    </label>
-                  )}
-                  {newColType === "select" ? (
-                    <label className="field">
-                      <span>Options (comma-separated)</span>
-                      <input
-                        value={newColOptions}
-                        onChange={(event) => setNewColOptions(event.target.value)}
-                        placeholder="Option 1, Option 2, Option 3"
-                      />
-                    </label>
-                  ) : null}
-                  {newColType === "group" && (
-                    <div className="field">
-                      <span>Group color</span>
-                      <div className="color-picker-row">
-                        {GROUP_COLORS.map(color => (
-                          <button
-                            key={color}
-                            type="button"
-                            className={`color-swatch ${newColColor === color ? 'active' : ''}`}
-                            style={{ backgroundColor: color }}
-                            onClick={() => setNewColColor(color)}
-                            title={`Select color ${color}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="modal-actions" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
-                  <button className="primary" type="submit" disabled={isSaving}>
-                    <Plus size={16} /> {isSaving ? "Adding..." : newColType === "group" ? "Add group" : "Add column"}
-                  </button>
-                </div>
-              </form>
-              </div>
+            {sheet.showColumnForm ? (
+              <AddColumnModal
+                newColName={sheet.newColName} setNewColName={sheet.setNewColName}
+                newColType={sheet.newColType} setNewColType={sheet.setNewColType}
+                newColColor={sheet.newColColor} setNewColColor={sheet.setNewColColor}
+                newColOptions={sheet.newColOptions} setNewColOptions={sheet.setNewColOptions}
+                newColGroup={sheet.newColGroup} setNewColGroup={sheet.setNewColGroup}
+                newColUnique={sheet.newColUnique} setNewColUnique={sheet.setNewColUnique}
+                tempColumns={sheet.tempColumns}
+                isSaving={sheet.isSaving}
+                onSubmit={sheet.addColumn}
+                onClose={() => sheet.setShowColumnForm(false)}
+              />
             ) : null}
 
-            {/* Edit columns form */}
-            {showEditColumns ? (
-              <div className="modal-backdrop" onClick={() => setShowEditColumns(false)}>
-                <form className={`modal-panel column-form edit-columns-form${showColumnForm ? ' blurred' : ''}`} onClick={(e) => e.stopPropagation()} onSubmit={saveColumnEdits} onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setShowEditColumns(false);
-                }
-              }}>
-                <div className="modal-header">
-                  <h2>Edit columns</h2>
-                  <button className="icon-button" type="button" onClick={() => setShowEditColumns(false)} title="Close form">
-                    <X size={20} />
-                  </button>
-                </div>
-                <div className="modal-content edit-columns-list">
-                  {tempColumns.map((col, index) => {
-                    const groupColor = col.group ? tempColumns.find(c => c.type === "group" && c.name === col.group)?.color : undefined;
-                    return (
-                    <div key={index} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <div className="edit-column-item">
-                        <div className="drag-handle-reorder">
-                          <button className="icon-button" style={{ padding: "4px", width: "28px", minHeight: "28px" }} type="button" disabled={index === 0} onClick={() => moveColumnUp(index)} title="Move up">
-                            <ChevronUp size={16} />
-                          </button>
-                          <button className="icon-button" style={{ padding: "4px", width: "28px", minHeight: "28px" }} type="button" disabled={index === tempColumns.length - 1} onClick={() => moveColumnDown(index)} title="Move down">
-                            <ChevronDown size={16} />
-                          </button>
-                        </div>
-                        <input
-                          className="column-name-input"
-                          value={col.name}
-                          onChange={(e) => renameColumn(index, e.target.value)}
-                          placeholder="Column name"
-                          required
-                          maxLength={30}
-                        />
-                        {col.type !== "group" ? (
-                          <>
-                            <select
-                              className="column-group-select"
-                              value={col.group || ""}
-                              onChange={(e) => updateTempColumn(index, "group", e.target.value)}
-                              style={groupColor ? { 
-                                backgroundColor: `${groupColor}1A`, 
-                                borderColor: groupColor, 
-                                color: groupColor,
-                                fontWeight: 500
-                              } : {}}
-                            >
-                              <option value="">No Group</option>
-                              {tempColumns.filter(c => c.type === "group").map(g => (
-                                <option key={g.name} value={g.name}>{g.name}</option>
-                              ))}
-                            </select>
-                            <label className="column-unique-check" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={!!col.unique}
-                                onChange={(e) => updateTempColumn(index, "unique", e.target.checked)}
-                              />
-                              Include in unique check
-                            </label>
-                          </>
-                        ) : (
-                          <div className="color-picker-row" style={{ marginTop: 0, padding: "0 8px", gridColumn: "span 2" }}>
-                            {GROUP_COLORS.map(color => (
-                              <button
-                                key={color}
-                                type="button"
-                                className={`color-swatch ${col.color === color ? 'active' : ''}`}
-                                style={{ backgroundColor: color, width: '18px', height: '18px', borderRadius: '50%' }}
-                                onClick={() => updateTempColumn(index, "color", color)}
-                                title={`Select color ${color}`}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        <span className="column-type-badge">{col.type}</span>
-                        <button className="icon-button danger-hover" style={{ padding: "4px", width: "32px", minHeight: "32px" }} type="button" onClick={() => deleteColumnLocal(col.name)} title="Delete column">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      {col.type === "select" && (
-                        <SelectOptionsEditor 
-                          options={col.options || []}
-                          onChange={(opts) => updateTempColumn(index, "options", opts)}
-                        />
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-                <div className="modal-actions" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                  <button type="button" className="secondary" onClick={() => { setShowColumnForm(true); setNewColType("text"); }}>
-                    <Plus size={16} /> Column
-                  </button>
-                  <button type="button" className="secondary" onClick={() => { setShowColumnForm(true); setNewColType("group"); }}>
-                    <Plus size={16} /> Group
-                  </button>
-                  <button className="primary" style={{ marginLeft: "auto" }} type="submit">
-                    Done
-                  </button>
-                </div>
-              </form>
-              </div>
+            {sheet.showEditColumns ? (
+              <EditColumnsModal
+                tempColumns={sheet.tempColumns}
+                showColumnForm={sheet.showColumnForm}
+                isSaving={sheet.isSaving}
+                onRename={sheet.renameColumn}
+                onUpdateColumn={sheet.updateTempColumn}
+                onDeleteColumn={sheet.deleteColumnLocal}
+                onMoveUp={sheet.moveColumnUp}
+                onMoveDown={sheet.moveColumnDown}
+                onSave={sheet.saveColumnEdits}
+                onClose={() => sheet.setShowEditColumns(false)}
+                onAddColumn={() => { sheet.setShowColumnForm(true); sheet.setNewColType("text"); }}
+                onAddGroup={() => { sheet.setShowColumnForm(true); sheet.setNewColType("group"); }}
+              />
             ) : null}
 
-            {/* Record creation form */}
-            {showRecordForm ? (
-              <div className="modal-backdrop" onClick={cancelRecord}>
-                <form className="modal-panel record-form" onClick={(e) => e.stopPropagation()} onSubmit={saveRecord} onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    cancelRecord();
-                  }
-                }}>
-                <div className="modal-header">
-                  <h2>{editingRowIndex !== null ? "Edit Record" : "Add Record"}</h2>
-                  <button className="icon-button" type="button" onClick={cancelRecord} title="Close form">
-                    <X size={20} />
-                  </button>
-                </div>
-                {validationError ? <p className="validation-error" style={{ margin: "16px 24px 0" }}>{validationError}</p> : null}
-                <div className="modal-content record-form-fields" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {columns.filter(col => col.type !== "group").map((col) => (
-                    <TypedRecordField
-                      key={col.name}
-                      column={col}
-                      value={recordForm[col.name] || ""}
-                      files={files}
-                      onChange={(value) => setRecordForm((current) => ({ ...current, [col.name]: value }))}
-                      onFileUploaded={onFilesChanged || (async () => {})}
-                    />
-                  ))}
-                </div>
-                <div className="modal-actions" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
-                  <button className="primary full" type="submit" disabled={isSaving}>
-                    <Plus size={16} /> {isSaving ? "Saving..." : editingRowIndex !== null ? "Save changes" : "Add to sheet"}
-                  </button>
-                </div>
-              </form>
-              </div>
+            {sheet.showRecordForm ? (
+              <RecordFormModal
+                columns={sheet.columns}
+                recordForm={sheet.recordForm}
+                setRecordForm={sheet.setRecordForm}
+                editingRowIndex={sheet.editingRowIndex}
+                validationError={sheet.validationError}
+                isSaving={sheet.isSaving}
+                files={files}
+                onFilesChanged={onFilesChanged || (async () => {})}
+                onSave={sheet.saveRecord}
+                onCancel={sheet.cancelRecord}
+              />
             ) : null}
 
-            {/* Data table */}
-            <div className="sheet-scroll" style={fullScreenMode ? { fontSize: '11px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' } : {}}>
-              <table className="sheet-table grouped-table" style={fullScreenMode ? { fontSize: '11px' } : {}}>
-                <thead>
-                  <tr>
-                    <th className="row-index-header" style={{ width: "40px" }}></th>
-                    {renderColumns.map((rCol, cIndex) => {
-                      const groupDef = columns.find(c => c.type === 'group' && c.name === rCol.groupName);
-                      const groupColor = groupDef?.color || "#2f6d7a";
-                      
-                      if (rCol.type === 'group-control') {
-                        return (
-                          <th 
-                            key={`ctrl-${rCol.groupName}`} 
-                            className="group-control-cell"
-                            style={{ 
-                              width: groupDef?.width ? `${groupDef.width}px` : "130px", 
-                              cursor: "pointer",
-                              ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
-                            }}
-                            onClick={() => toggleGroup(rCol.groupName)}
-                          >
-                            <div className="column-head-text" style={{ fontWeight: 600, color: groupColor }}>
-                              {rCol.groupName} {rCol.collapsed ? "▶" : "▼"}
-                            </div>
-                          </th>
-                        );
-                      } else {
-                        return (
-                          <th 
-                            key={`col-${rCol.col.name}-${cIndex}`}
-                            className={rCol.groupName ? "group-child-cell" : ""}
-                            style={{ 
-                              width: rCol.col.width ? `${rCol.col.width}px` : "150px", 
-                              position: "relative",
-                              ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
-                            }}
-                          >
-                            {rCol.groupName && (
-                              <span className="group-parent-indicator" style={{ color: groupColor, borderColor: groupColor, opacity: 0.9 }}>
-                                {rCol.groupName}
-                              </span>
-                            )}
-                            <div className="column-head-text">{rCol.col.name}</div>
-                            <div 
-                              className="col-resize-handle"
-                              onMouseDown={(e) => startResizeColumn(e, rCol.originalIndex)}
-                            />
-                          </th>
-                        );
-                      }
-                    })}
-                    <th style={{ 
-                      width: "140px", 
-                      minWidth: "140px",
-                      ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px', width: '100px', minWidth: '100px' } : {})
-                    }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, rowIndex) => (
-                    <tr
-                      className={[rowClass(row), focusedRowIndex === rowIndex ? "row-focused" : ""].filter(Boolean).join(" ")}
-                      key={rowIndex}
-                      data-row-index={rowIndex}
-                    >
-                      <td className="row-header" style={{ position: "relative", height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'), ...(fullScreenMode ? { padding: '2px 4px' } : {}) }}>
-                        <span className="row-index">{rowIndex + 1}</span>
-                        <div 
-                          className="row-resize-handle"
-                          onMouseDown={(e) => startResizeRow(e, rowIndex)}
-                        />
-                      </td>
-                      {renderColumns.map((rCol, cIndex) => {
-                        if (rCol.type === 'group-control') {
-                          return (
-                            <td
-                              key={`ctrl-${rCol.groupName}`}
-                              className="group-control-cell"
-                              style={{
-                                height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                                ...(fullScreenMode ? { padding: '2px 4px' } : {})
-                              }}
-                            ></td>
-                          );
-                        } else {
-                          return (
-                            <td
-                              key={`col-${rCol.col.name}-${cIndex}`}
-                              className={rCol.groupName ? "group-child-cell" : ""}
-                              style={{
-                                height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                                ...(fullScreenMode ? { padding: '2px 4px' } : {})
-                              }}
-                            >
-                              <CellRenderer 
-                                column={rCol.col} 
-                                value={row[rCol.col.name] || ""} 
-                                files={files}
-                                onSave={(nextValue) => saveCellValue(rowIndex, rCol.col.name, nextValue)}
-                                onFileUploaded={onFilesChanged || (async () => {})}
-                              />
-                            </td>
-                          );
-                        }
-                      })}
-                      <td style={{
-                        height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'),
-                        width: "140px",
-                        minWidth: "140px",
-                        ...(fullScreenMode ? { padding: '2px 4px', width: '100px', minWidth: '100px' } : {})
-                      }}>
-                        <div className="row-actions">
-                          <button className="secondary" onClick={() => editRow(rowIndex)} title="Edit record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                            <Edit size={12} />
-                          </button>
-                          <button className="secondary" onClick={() => openCompose(row)} title="Open email composer" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                            <Mail size={12} />
-                          </button>
-                          <button className="secondary danger" onClick={() => deleteRow(rowIndex)} title="Delete record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SheetTable
+              columns={sheet.columns}
+              rows={sheet.rows}
+              viewRows={sheet.viewRows}
+              groupBy={sheet.groupBy}
+              files={files}
+              fullScreenMode={fullScreenMode}
+              collapsedGroups={sheet.collapsedGroups}
+              focusedRowIndex={focusedRowIndex}
+              sortState={sheet.sortState}
+              filters={sheet.filters}
+              onToggleGroup={sheet.toggleGroup}
+              onResizeColumn={sheet.startResizeColumn}
+              onResizeRow={sheet.startResizeRow}
+              onSaveCellValue={sheet.saveCellValue}
+              onEditRow={sheet.editRow}
+              onCompose={sheet.openCompose}
+              onDeleteRow={sheet.deleteRow}
+              onFilesChanged={onFilesChanged || (async () => {})}
+              onToggleSort={sheet.toggleSort}
+              onAddFilter={sheet.addFilter}
+              onRemoveFilter={sheet.removeFilter}
+              onClearFilters={sheet.clearFilters}
+              onReorderColumn={sheet.reorderColumn}
+              selectedRows={sheet.selectedRows}
+              onToggleRowSelection={sheet.toggleRowSelection}
+              onSelectAll={sheet.selectAll}
+              focusedCell={sheet.focusedCell}
+              onFocusedCellChange={sheet.setFocusedCell}
+              onUndo={sheet.handleUndo}
+              onRedo={sheet.handleRedo}
+              dateColorConfig={dateColorConfig}
+              onPeekRow={(idx) => setPeekRowIndex(idx)}
+            />
+            <SheetFooter 
+              columns={sheet.columns}
+              rows={sheet.rows}
+              viewRows={sheet.viewRows}
+              fullScreenMode={fullScreenMode}
+            />
+            
+            {showDateColorConfig && (
+              <DateColorConfigModal
+                config={dateColorConfig}
+                onSave={saveDateColorConfig}
+                onClose={() => setShowDateColorConfig(false)}
+              />
+            )}
+
+            {peekRowIndex !== null && sheet.rows[peekRowIndex] && (
+              <RowPeekPanel
+                row={sheet.rows[peekRowIndex]}
+                columns={sheet.columns}
+                files={files}
+                onClose={() => setPeekRowIndex(null)}
+                onEdit={() => {
+                  setPeekRowIndex(null);
+                  sheet.editRow(peekRowIndex);
+                }}
+              />
+            )}
           </Section>
         ) : (
           <Section title="Sheet" eyebrow="Loading">
             <p className="empty">Preparing this sheet.</p>
           </Section>
+        )}
+
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          accept=".csv" 
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setCsvImportFile(file);
+              e.target.value = '';
+            }
+          }} 
+        />
+
+        {csvImportFile && (
+          <CsvImportModal
+            file={csvImportFile}
+            existingColumns={sheet.columns}
+            recordsPerSheetLimit={recordsPerSheetLimit}
+            currentRowsCount={sheet.rows.length}
+            onClose={() => setCsvImportFile(null)}
+            onImport={async (newRows, newCols) => {
+              sheet.pushState({ columns: sheet.columns, rows: sheet.rows });
+              const nextCols = [...sheet.columns, ...newCols];
+              const nextRows = [...sheet.rows, ...newRows];
+              
+              sheet.setColumns(nextCols);
+              sheet.setRows(nextRows);
+              sheet.persistPage(nextCols, nextRows);
+              setCsvImportFile(null);
+            }}
+          />
         )}
       </div>
     );
@@ -1665,8 +943,41 @@ export function ProjectWorkspace({
                   <X size={20} />
                 </button>
               </div>
-              <div className="modal-content">
-                <Field label="Sheet name" name="sheet_name" value={sheetName} required onChange={(_, value) => setSheetName(value)} />
+              <div className="modal-content form-grid" style={{ gap: '16px' }}>
+                <Field label="Sheet name" name="sheet_name" value={sheetName} required onChange={(_, value) => {
+                  setSheetName(value);
+                  if (selectedTemplateId === "default") {
+                    const lower = value.toLowerCase();
+                    if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
+                      setSelectedTemplateId("prof_outreach");
+                    } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
+                      setSelectedTemplateId("univ_shortlist");
+                    } else if (lower.includes("scholarship") || lower.includes("funding")) {
+                      setSelectedTemplateId("scholarship_tracker");
+                    } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
+                      setSelectedTemplateId("doc_checklist");
+                    }
+                  }
+                }} />
+                <Field 
+                  label="Template" 
+                  name="template_id" 
+                  value={selectedTemplateId} 
+                  options={[
+                    { value: "default", label: "Default App Tracker" },
+                    { label: "--- Standard Templates ---", value: "", disabled: true },
+                    ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
+                    ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
+                    ...customTemplates.map(t => ({ value: t.id, label: t.name }))
+                  ]}
+                  onChange={(_, value) => setSelectedTemplateId(value)} 
+                />
+                {selectedTemplateId !== "default" && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '-8px 0 0 0' }}>
+                    {SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description || 
+                     customTemplates.find(t => t.id === selectedTemplateId)?.description}
+                  </p>
+                )}
               </div>
               <div className="modal-footer">
                 <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)}>Cancel</button>
@@ -1697,13 +1008,13 @@ export function ProjectWorkspace({
         ) : null}
 
         <div className="sheet-card-grid">
-          {sheets.map((sheet: RecordMap) => (
-             <article className="sheet-card" key={sheet.id}>
+          {sheets.map((sheetItem: RecordMap) => (
+             <article className="sheet-card" key={sheetItem.id}>
               <div className="sheet-card-header">
                 <div className="sheet-card-title-row">
-                  <strong>{sheet.name}</strong>
+                  <strong>{sheetItem.name}</strong>
                   {(() => {
-                    const used = (getSheetPage(sheet)?.rows || []).length;
+                    const used = (getSheetPage(sheetItem)?.rows || []).length;
                     const max = recordsPerSheetLimit;
                     const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
                     const isNear = pct >= 80;
@@ -1727,40 +1038,40 @@ export function ProjectWorkspace({
                   }
                 </div>
                 <span className="sheet-card-meta">
-                  Created {formatLongDate(sheet.created_at)}
+                  Created {formatLongDate(sheetItem.created_at)}
                 </span>
               </div>
               <div className="sheet-card-actions">
                 <div className="sheet-card-pins">
                   <button
-                    className={`pin-button${sheet.is_pinned ? " active" : ""}`}
+                    className={`pin-button${sheetItem.is_pinned ? " active" : ""}`}
                     type="button"
-                    onClick={() => updateSheetPin(sheet, { is_pinned: !sheet.is_pinned })}
-                    title={sheet.is_pinned ? "Unpin from this view" : "Pin to this view"}
+                    onClick={() => updateSheetPin(sheetItem, { is_pinned: !sheetItem.is_pinned })}
+                    title={sheetItem.is_pinned ? "Unpin from this view" : "Pin to this view"}
                   >
                     <Pin size={15} />
                   </button>
                   <button
-                    className={`pin-button dashboard-pin${sheet.pinned_to_dashboard ? " active" : ""}`}
+                    className={`pin-button dashboard-pin${sheetItem.pinned_to_dashboard ? " active" : ""}`}
                     type="button"
                     onClick={() => {
-                      updateSheetPin(sheet, { pinned_to_dashboard: !sheet.pinned_to_dashboard });
+                      updateSheetPin(sheetItem, { pinned_to_dashboard: !sheetItem.pinned_to_dashboard });
                     }}
-                    title={sheet.pinned_to_dashboard ? "Remove from dashboard" : "Add to dashboard"}
+                    title={sheetItem.pinned_to_dashboard ? "Remove from dashboard" : "Add to dashboard"}
                   >
                     <LayoutDashboard size={15} />
                   </button>
                 </div>
                 <div className="sheet-card-main-actions">
-                  <button className="primary" onClick={() => openSheet(sheet)}>Open</button>
+                  <button className="primary" onClick={() => openSheet(sheetItem)}>Open</button>
                   <button
                     className="secondary"
-                    onClick={() => startEditSheet(sheet)}
+                    onClick={() => startEditSheet(sheetItem)}
                     title="Edit sheet"
                   >
                     <Edit size={15} />
                   </button>
-                  <button className="secondary danger" onClick={() => deleteSheet(sheet.id)} title="Delete sheet">
+                  <button className="secondary danger" onClick={() => deleteSheet(sheetItem.id)} title="Delete sheet">
                     <Trash2 size={15} />
                   </button>
                 </div>

@@ -175,6 +175,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
   // Persist settings
   useEffect(() => {
+    const handleOpenAi = ((e: CustomEvent) => {
+      setOpen(true);
+      if (e.detail && e.detail.contextMessage) {
+        setInput(e.detail.contextMessage);
+        // We'll focus in the auto-scroll/auto-focus effect since open changes
+      }
+    }) as EventListener;
+    window.addEventListener("scholardocx:open-ai", handleOpenAi);
+    return () => window.removeEventListener("scholardocx:open-ai", handleOpenAi);
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("scholarDocX_webSearchCount", String(webSearchCount));
   }, [webSearchCount]);
 

@@ -1,6 +1,6 @@
 import { FormEvent } from "react";
 import { X, Save } from "lucide-react";
-import { ColumnDef } from "./ProjectWorkspace";
+import { ColumnDef } from "./sheet/sheetModel";
 
 export interface EmailConfig {
   toColumn?: string;

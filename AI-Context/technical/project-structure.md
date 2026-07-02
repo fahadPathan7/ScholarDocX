@@ -36,6 +36,13 @@ frontend/
       admin/
       advisor-atlas/
       news/
+      sheet/
+        sheetModel.ts
+        useSheetPage.ts
+        ColumnEditor.tsx
+        SheetToolbar.tsx
+        SheetTable.tsx
+        RecordFormModal.tsx
       AboutView.tsx
       AdminView.tsx
       CalendarMonthView.tsx

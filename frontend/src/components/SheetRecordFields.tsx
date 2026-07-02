@@ -3,7 +3,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Clipboard, Save, X } from "lucide-react";
 import { FilePickerField } from "./FilePickerField";
 import { API_BASE, RecordMap } from "../lib/api";
-import type { ColumnDef } from "./ProjectWorkspace";
+import type { ColumnDef, DateColorConfig } from "./sheet/sheetModel";
 
 const CELL_EDITOR_MIN_LINES = 3;
 const CELL_EDITOR_MAX_LINES = 10;
@@ -144,13 +144,19 @@ export function CellRenderer({
   value,
   files = [],
   onSave,
-  onFileUploaded
+  onFileUploaded,
+  isEditing,
+  onCloseEdit,
+  dateColorConfig
 }: {
   column: ColumnDef;
   value: string;
   files?: RecordMap[];
   onSave?: (value: string) => Promise<void> | void;
   onFileUploaded?: () => Promise<void>;
+  isEditing?: boolean;
+  onCloseEdit?: () => void;
+  dateColorConfig?: DateColorConfig;
 }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -164,6 +170,13 @@ export function CellRenderer({
   useEffect(() => {
     if (!viewerOpen) setDraft(value);
   }, [value, viewerOpen]);
+
+  useEffect(() => {
+    if (isEditing !== undefined) {
+      setViewerOpen(isEditing);
+      if (isEditing) setDraft(value);
+    }
+  }, [isEditing, value]);
 
   useLayoutEffect(() => {
     if (viewerOpen && editorRef.current) {
@@ -221,6 +234,7 @@ export function CellRenderer({
   };
   const closeViewer = () => {
     setViewerOpen(false);
+    if (onCloseEdit) onCloseEdit();
     setCopyLabel("Copy");
     setSaveError("");
   };
@@ -448,6 +462,45 @@ export function CellRenderer({
     );
   }
 
+  // Date Color logic
+  let dateColorBubble = null;
+  if (column.type === "date" && value && dateColorConfig) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(value);
+    
+    if (!isNaN(d.getTime())) {
+      const diffTime = d.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      let indicatorColor = "";
+      if (diffDays < 0) {
+        indicatorColor = "var(--text-tertiary)"; // Past
+      } else if (diffDays <= dateColorConfig.redDays) {
+        indicatorColor = "var(--danger)"; // Urgent
+      } else if (diffDays <= dateColorConfig.yellowDays) {
+        indicatorColor = "var(--warning)"; // Upcoming
+      } else {
+        indicatorColor = "var(--success)"; // Far future
+      }
+      
+      dateColorBubble = (
+        <span 
+          style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: indicatorColor,
+            marginRight: '6px',
+            flexShrink: 0
+          }} 
+          title={`${diffDays < 0 ? 'Past' : `In ${diffDays} day(s)`}`}
+        />
+      );
+    }
+  }
+
   return (
     <>
       <span
@@ -466,7 +519,10 @@ export function CellRenderer({
             </a>
           ) : (
             <>
-              {value}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {dateColorBubble}
+                {value}
+              </div>
               {isOverflowing && (
                 <span className="sheet-cell-overflow-indicator" aria-hidden="true">
                   <span></span>

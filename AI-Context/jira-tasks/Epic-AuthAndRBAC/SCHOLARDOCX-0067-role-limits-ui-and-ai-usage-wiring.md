@@ -1,6 +1,6 @@
 # SCHOLARDOCX-0067 — Role Limits UI Audit and AI Usage-Limit Wiring
 
-Status: In Progress
+Status: Done
 
 
 Owner: AI Agent
@@ -151,3 +151,8 @@ Line-count risk:
 - Browser verification was not run in this follow-up turn.
 
 
+
+## Final Extraction Verification Results
+- Extracted `LimitsTab` to `frontend/src/components/admin/RoleLimitsTab.tsx`.
+- Also extracted `SettingsTab`, `InvitesTab`, `InviteRequestsTab` to bring `AdminView.tsx` under the 1000-line limit (down from 2391 to 874 lines).
+- Build succeeds.

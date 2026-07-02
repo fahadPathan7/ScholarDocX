@@ -547,3 +547,168 @@
   font-size: 10px;
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  Phase 1: Grid Comfort Features                                     */
+/* ------------------------------------------------------------------ */
+
+.sheet-toolbar .search-input-wrapper input {
+  transition: all 0.2s ease;
+}
+
+.sheet-toolbar .search-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+}
+
+.sheet-toolbar-quota .toolbar-quota-label.quota-near {
+  color: var(--warning);
+}
+
+.sheet-toolbar-quota .toolbar-quota-label.quota-full {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Header sort and filter */
+.column-head-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.column-head-inner .column-head-text {
+  user-select: none;
+}
+
+.column-head-inner .column-head-text:hover {
+  color: var(--primary);
+}
+
+.column-filter-container .icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.column-filter-container .icon-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.column-filter-container .icon-button.active-filter {
+  background-color: rgba(var(--primary-rgb), 0.1);
+}
+
+/* Drag and Drop */
+.sheet-table th.dragging {
+  opacity: 0.5;
+  background-color: var(--bg-hover);
+}
+
+.sheet-table th.drag-over {
+  border-left: 2px solid var(--primary);
+}
+
+/* Row Hover Actions */
+.sheet-table-row .row-header .row-hover-actions {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  margin-left: 8px; /* space from the index number */
+}
+
+/* Show on row hover */
+.sheet-table-row:hover .row-header .row-hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.row-hover-actions .icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-hover-actions .icon-button:hover {
+  background-color: var(--bg-hover);
+  color: var(--text);
+}
+
+.row-hover-actions .icon-button.danger:hover {
+  background-color: rgba(var(--danger-rgb), 0.1);
+  color: var(--danger);
+}
+
+/* Phase 2: Focus & Selection Styles */
+
+.sheet-scroll:focus-visible {
+  outline: none; /* We manage focus per-cell */
+}
+
+.data-cell.cell-focused {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background-color: rgba(24, 59, 56, 0.05); /* very light primary */
+}
+
+.sheet-table-row.row-selected > td {
+  background-color: #f0f7f4; /* light green tint */
+}
+
+.row-checkbox {
+  margin-left: 8px;
+  cursor: pointer;
+}
+
+.selection-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(24, 59, 56, 0.1);
+}
+
+.selection-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.selection-count {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.selection-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}

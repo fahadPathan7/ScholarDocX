@@ -2,7 +2,7 @@
   --sheet-row-height: 34px;
   --sheet-cell-lines: 1;
   --sheet-cell-line-height: 1.3;
-  --sheet-index-width: 50px;
+  --sheet-index-width: 64px;
 }
 
 .sheet-scroll {
@@ -18,6 +18,8 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   line-height: var(--sheet-cell-line-height);
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
 }
 
 .sheet-table th,
@@ -207,7 +209,7 @@
 
 .sheet-table .group-control-cell,
 .sheet-table .group-child-cell {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .sheet-table th.group-control-cell {
@@ -681,8 +683,10 @@
 }
 
 .row-checkbox {
-  margin-left: 8px;
+  margin-left: 6px;
   cursor: pointer;
+  width: 13px;
+  height: 13px;
 }
 
 .selection-toolbar {
@@ -711,4 +715,124 @@
 .selection-toolbar-actions {
   display: flex;
   gap: 8px;
+}
+
+/* ================================================================== */
+/*  Header Row Polish — refined, modern column headers                 */
+/*  (this file loads last, so these win the cascade)                  */
+/* ================================================================== */
+
+/* Base header cell for regular (non-group) columns */
+.sheet-table thead th {
+  background: linear-gradient(180deg, #3f6259 0%, #34514a 55%, #2b443f 100%);
+  border-bottom: 1px solid rgba(12, 22, 20, 0.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: #eef4ee;
+  font-size: 11.5px;
+  font-weight: 700;
+  height: 42px;
+  letter-spacing: 0.18px;
+  padding: 7px 10px;
+  vertical-align: middle;
+  transition: background 140ms ease;
+}
+
+/* Subtle inter-column separators (keeps the inset-top highlight too) */
+.sheet-table thead th + th {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Hover lift on a header cell */
+.sheet-table thead th:hover {
+  background: linear-gradient(180deg, #476b62 0%, #385851 55%, #304c47 100%);
+}
+
+/* Corner / row-index header — slightly darker to anchor the left edge */
+.sheet-table th.row-index-header {
+  background: linear-gradient(180deg, #325049 0%, #29423d 100%) !important;
+  border-bottom: 1px solid rgba(12, 22, 20, 0.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #9fb8af !important;
+}
+
+/* Column-name text: crisp, bright, slightly tracked */
+.sheet-table thead .column-head-text {
+  color: #eef4ee;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+  opacity: 0.97;
+  transition: color 140ms ease;
+}
+
+.sheet-table thead .column-head-text:hover {
+  color: #ffffff;
+}
+
+/* Sort arrows read crisp against the dark surface */
+.sheet-table thead .column-head-text svg {
+  opacity: 1;
+}
+
+/* Filter button: quiet by default, bright on header hover */
+.sheet-table thead .column-filter-container .icon-button {
+  color: #cfe0d8;
+  opacity: 0.4;
+  transition: opacity 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.sheet-table thead th:hover .column-filter-container .icon-button {
+  opacity: 0.85;
+}
+
+.sheet-table thead .column-filter-container .icon-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  opacity: 1;
+}
+
+.sheet-table thead .column-filter-container .icon-button.active-filter {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  opacity: 1;
+}
+
+/* Group control header cells (collapsible group titles) */
+.sheet-table thead th.group-control-cell {
+  background: linear-gradient(180deg, #e2f0ec 0%, #d3e5e0 100%) !important;
+  border-bottom: 1px solid rgba(35, 58, 55, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  color: #163833 !important;
+}
+
+.sheet-table thead th.group-control-cell .column-head-text {
+  color: #1d4a44 !important;
+  font-weight: 760 !important;
+}
+
+/* Group child header cells */
+.sheet-table thead th.group-child-cell {
+  background: linear-gradient(180deg, #eef7f4 0%, #e2efeb 100%) !important;
+  border-bottom: 1px solid rgba(35, 58, 55, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+  color: #234a45 !important;
+}
+
+.sheet-table thead th.group-child-cell .column-head-text {
+  color: #234a45 !important;
+}
+
+/* Refined group-parent pill in child headers */
+.sheet-table thead .group-parent-indicator {
+  background: rgba(52, 127, 120, 0.14);
+  border: 1px solid rgba(52, 127, 120, 0.24);
+  border-radius: 999px;
+  color: #1f6b62;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 1.5;
+  padding: 1px 6px;
+  text-transform: uppercase;
 }

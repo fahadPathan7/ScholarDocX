@@ -415,6 +415,12 @@ main {
   color: var(--ui-ink-soft);
 }
 
+.secondary.active {
+  background: rgba(232, 244, 239, 0.6);
+  border-color: rgba(79, 128, 118, 0.32);
+  color: var(--ui-brand);
+}
+
 .secondary.danger,
 .icon-button.danger,
 .danger-hover:hover {

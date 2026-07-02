@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------ */
 
 import React, { useState, useRef, useEffect } from "react";
-import { Edit, Mail, Trash2, ArrowUp, ArrowDown, Filter, X, Copy, Eye } from "lucide-react";
+import { Edit, Mail, Trash2, ArrowUp, ArrowDown, Filter, X, Copy, Eye, ChevronRight, ChevronDown } from "lucide-react";
 import { CellRenderer, rowClass } from "../SheetRecordFields";
 import type { ColumnDef, ColumnType, DateColorConfig } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
@@ -278,13 +278,14 @@ export function SheetTable({
       <table className="sheet-table grouped-table" style={fullScreenMode ? { fontSize: '11px' } : {}}>
         <thead>
           <tr>
-            <th className="row-index-header" style={{ width: "40px" }}>
+            <th className="row-index-header" style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '0' }}>
               <input 
                 type="checkbox" 
+                className="row-checkbox"
                 title="Select all rows"
-                style={{ marginLeft: '12px' }}
                 checked={selectedRows.size === viewRows.length && viewRows.length > 0}
                 onChange={onSelectAll}
+                style={{ width: '13px', height: '13px', margin: 0, padding: 0 }}
               />
             </th>
             {renderColumns.map((rCol, cIndex) => {
@@ -303,8 +304,9 @@ export function SheetTable({
                     }}
                     onClick={() => onToggleGroup(rCol.groupName)}
                   >
-                    <div className="column-head-text" style={{ fontWeight: 600, color: groupColor }}>
-                      {rCol.groupName} {rCol.collapsed ? "▶" : "▼"}
+                    <div className="column-head-text" style={{ fontWeight: 600, color: groupColor, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '4px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.groupName}</span>
+                      {rCol.collapsed ? <ChevronRight size={14} style={{ opacity: 0.7, flexShrink: 0 }} /> : <ChevronDown size={14} style={{ opacity: 0.7, flexShrink: 0 }} />}
                     </div>
                   </th>
                 );
@@ -327,66 +329,82 @@ export function SheetTable({
                     style={{ 
                       width: rCol.col.width ? `${rCol.col.width}px` : "150px", 
                       position: "relative",
+                      zIndex: activeFilterMenu === rCol.col.name ? 100 : 1,
                       ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
                     }}
                   >
-                    {rCol.groupName && (
-                      <span className="group-parent-indicator" style={{ color: groupColor, borderColor: groupColor, opacity: 0.9 }}>
-                        {rCol.groupName}
-                      </span>
-                    )}
-                    
-                    <div className="column-head-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', width: '100%' }}>
-                      <div 
-                        className="column-head-text" 
-                        onClick={() => onToggleSort(rCol.col.name)}
-                        style={{ cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        {rCol.col.name}
-                        {sortDir === "asc" && <ArrowUp size={12} style={{ color: 'var(--primary)' }}/>}
-                        {sortDir === "desc" && <ArrowDown size={12} style={{ color: 'var(--primary)' }}/>}
-                      </div>
-                      
-                      <div className="column-filter-container" style={{ position: 'relative' }}>
-                        <button 
-                          className={`icon-button ${isFiltered ? 'active-filter' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); setActiveFilterMenu(activeFilterMenu === rCol.col.name ? null : rCol.col.name); }}
-                          style={{ padding: '2px', color: isFiltered ? 'var(--primary)' : 'var(--text-secondary)' }}
+                    <div className="column-head-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', width: '100%', height: '100%', minHeight: '38px', gap: '3px' }}>
+
+                      {rCol.groupName && (
+                        <span className="group-parent-indicator" style={{ color: groupColor, borderColor: groupColor, opacity: 0.9, alignSelf: 'flex-start' }}>
+                          {rCol.groupName}
+                        </span>
+                      )}
+
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '4px', minWidth: 0 }}>
+                        <div
+                          className="column-head-text"
+                          onClick={() => onToggleSort(rCol.col.name)}
+                          style={{ cursor: 'pointer', flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
                         >
-                          <Filter size={12} />
-                        </button>
-                        
-                        {activeFilterMenu === rCol.col.name && (
-                          <div 
-                            ref={filterMenuRef}
-                            className="filter-popup-menu" 
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.col.name}</span>
+                          {sortDir === "asc" && <ArrowUp size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
+                          {sortDir === "desc" && <ArrowDown size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
+                        </div>
+
+                        <div className="column-filter-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
+                          <button
+                            className={`icon-button ${isFiltered ? 'active-filter' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); setActiveFilterMenu(activeFilterMenu === rCol.col.name ? null : rCol.col.name); }}
                             style={{
-                              position: 'absolute',
-                              top: '100%',
-                              right: 0,
-                              marginTop: '4px',
-                              backgroundColor: 'var(--bg)',
-                              border: '1px solid var(--border)',
-                              borderRadius: '6px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                              padding: '12px',
-                              zIndex: 100,
-                              width: '240px',
+                              padding: '2px',
+                              color: isFiltered ? 'var(--primary)' : 'var(--text-secondary)',
+                              opacity: isFiltered ? 1 : 0.6,
                               display: 'flex',
-                              flexDirection: 'column',
-                              gap: '8px',
-                              cursor: 'default'
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}
-                            onClick={(e) => e.stopPropagation()}
                           >
-                            <FilterMenuContent 
-                              col={rCol.col} 
-                              currentFilter={filters.find(f => f.column === rCol.col.name)}
-                              onApply={(f) => { onAddFilter(f); setActiveFilterMenu(null); }}
-                              onClear={() => { onRemoveFilter(rCol.col.name); setActiveFilterMenu(null); }}
-                            />
-                          </div>
-                        )}
+                            <Filter size={14} />
+                          </button>
+
+                          {activeFilterMenu === rCol.col.name && (
+                            <div
+                              ref={filterMenuRef}
+                              className="filter-popup-menu"
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: cIndex < 3 ? 0 : 'auto',
+                                right: cIndex >= 3 ? 0 : 'auto',
+                                marginTop: '4px',
+                                backgroundColor: 'var(--ui-paper-strong)',
+                                border: '1px solid var(--ui-line)',
+                                color: 'var(--ui-ink)',
+                                textAlign: 'left',
+                                fontWeight: 'normal',
+                                borderRadius: '6px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                padding: '12px',
+                                zIndex: 100,
+                                width: '240px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                cursor: 'default'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <FilterMenuContent
+                                col={rCol.col}
+                                currentFilter={filters.find(f => f.column === rCol.col.name)}
+                                onApply={(f) => { onAddFilter(f); setActiveFilterMenu(null); }}
+                                onClear={() => { onRemoveFilter(rCol.col.name); setActiveFilterMenu(null); }}
+                                onClose={() => setActiveFilterMenu(null)}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -450,24 +468,39 @@ export function SheetTable({
                     className={`sheet-table-row ${rowClass(row)} ${isRowSelected ? "row-selected" : ""} ${focusedRowIndex === rowIndex ? "row-focused" : ""}`}
                     data-row-index={rowIndex}
                   >
-                    <td className="row-index-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'), ...(fullScreenMode ? { padding: '2px 4px' } : {}) }}>
-                      <span className="row-index-number">{rowIndex + 1}</span>
-                      <input 
-                        type="checkbox" 
-                        className="row-checkbox"
-                        checked={isRowSelected}
-                        onChange={(e) => onToggleRowSelection(rowIndex, (e.nativeEvent as any).shiftKey)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                    <td 
+                      className="row-header" 
+                      style={{ 
+                        height: row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)'), 
+                        textAlign: 'center', 
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        position: 'relative'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleRowSelection(rowIndex, (e.nativeEvent as any).shiftKey);
+                      }}
+                    >
+                      <span className="row-index-number" style={{ userSelect: 'none' }}>
+                        {isRowSelected ? (
+                          <input 
+                            type="checkbox" 
+                            checked={true}
+                            readOnly
+                            style={{ width: '13px', height: '13px', margin: 0, padding: 0, pointerEvents: 'none' }}
+                          />
+                        ) : (
+                          rowIndex + 1
+                        )}
+                      </span>
                       <div 
                         className="row-resize-handle"
-                        onMouseDown={(e) => onResizeRow(e, rowIndex)}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          onResizeRow(e, rowIndex);
+                        }}
                       />
-                      <div className="row-hover-actions">
-                        <button className="icon-button" onClick={() => onEditRow(rowIndex)} title="Edit"><Edit size={12}/></button>
-                        <button className="icon-button" onClick={() => onCompose(row)} title="Email"><Mail size={12}/></button>
-                        <button className="icon-button danger" onClick={() => onDeleteRow(rowIndex)} title="Delete"><Trash2 size={12}/></button>
-                      </div>
                     </td>
                     {renderColumns.map((rCol, cIndex) => {
                       if (rCol.type === 'group-control') {
@@ -549,12 +582,14 @@ function FilterMenuContent({
   col,
   currentFilter,
   onApply,
-  onClear
+  onClear,
+  onClose
 }: {
   col: ColumnDef;
   currentFilter?: ColumnFilter;
   onApply: (f: ColumnFilter) => void;
   onClear: () => void;
+  onClose: () => void;
 }) {
   const [textVal, setTextVal] = useState(currentFilter?.kind === 'text' ? currentFilter.contains : "");
   const [numMin, setNumMin] = useState(currentFilter?.kind === 'number' ? (currentFilter.min?.toString() || "") : "");
@@ -583,7 +618,12 @@ function FilterMenuContent({
 
   return (
     <>
-      <div style={{ fontSize: '13px', fontWeight: 600 }}>Filter {col.name}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600 }}>Filter {col.name}</div>
+        <button className="icon-button" onClick={onClose} style={{ padding: '2px', margin: '-4px' }} title="Close">
+          <X size={14} />
+        </button>
+      </div>
       
       {col.type === 'number' ? (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -623,9 +663,9 @@ function FilterMenuContent({
         />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-        <button className="text-button danger" onClick={onClear} style={{ fontSize: '12px' }}>Clear</button>
-        <button className="primary" onClick={handleApply} style={{ fontSize: '12px', padding: '4px 12px' }}>Apply</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+        <button className="text-button danger" onClick={onClear} style={{ fontSize: '12px', padding: '4px 8px' }}>Clear</button>
+        <button className="primary" onClick={handleApply} style={{ fontSize: '12px', padding: '0 14px', height: '28px', minHeight: '28px', borderRadius: '6px' }}>Apply</button>
       </div>
     </>
   );

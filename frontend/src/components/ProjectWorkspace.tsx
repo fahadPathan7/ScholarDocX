@@ -830,6 +830,7 @@ export function ProjectWorkspace({
               rows={sheet.rows}
               viewRows={sheet.viewRows}
               fullScreenMode={fullScreenMode}
+              recordsPerSheetLimit={recordsPerSheetLimit}
             />
             
             {showDateColorConfig && (

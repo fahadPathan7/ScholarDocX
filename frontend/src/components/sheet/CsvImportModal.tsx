@@ -125,13 +125,13 @@ export function CsvImportModal({
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content" style={{ width: '600px', maxWidth: '90vw' }}>
+      <div className="modal-panel" style={{ width: '600px', maxWidth: '90vw' }}>
         <div className="modal-header">
           <h2>Import CSV</h2>
           <button className="icon-button" onClick={onClose} disabled={importing}><X size={20} /></button>
         </div>
         
-        <div className="modal-body">
+        <div className="modal-content">
           {loading ? (
             <p>Parsing CSV file...</p>
           ) : error ? (

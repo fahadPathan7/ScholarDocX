@@ -6,12 +6,14 @@ export function SheetFooter({
   columns,
   rows,
   viewRows,
-  fullScreenMode
+  fullScreenMode,
+  recordsPerSheetLimit = 0
 }: {
   columns: ColumnDef[];
   rows: Record<string, string>[];
   viewRows: Record<string, string>[];
   fullScreenMode: boolean;
+  recordsPerSheetLimit?: number;
 }) {
   const metrics = useMemo<{
     countDisplay: string;
@@ -127,7 +129,7 @@ export function SheetFooter({
       )}
 
       {metrics.statusCol && Object.keys(metrics.statusCounts).length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: recordsPerSheetLimit > 0 ? '0' : 'auto' }}>
           <PieChart size={14} />
           <div style={{ display: 'flex', gap: '6px' }}>
             {Object.entries(metrics.statusCounts)
@@ -153,6 +155,28 @@ export function SheetFooter({
           </div>
         </div>
       )}
+
+      {recordsPerSheetLimit > 0 && (() => {
+        const used = rows.length;
+        const max = recordsPerSheetLimit;
+        const pct = Math.min(100, Math.round((used / max) * 100));
+        const isNear = pct >= 80;
+        const isFull = pct >= 100;
+        const isFiltering = viewRows.length !== rows.length;
+        return (
+          <div className="sheet-toolbar-quota" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+            <span className={`toolbar-quota-label${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}`} style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              {isFiltering ? `${viewRows.length} of ${used}` : `${used} / ${max}`} records
+            </span>
+            <div className="quota-bar quota-bar-slim" title={`${used} of ${max} records used`} style={{ width: '100%', height: '4px', backgroundColor: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
+              <div
+                className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}`}
+                style={{ width: `${pct}%`, height: '100%', backgroundColor: isFull ? 'var(--danger)' : isNear ? 'var(--warning)' : 'var(--primary)' }}
+              />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

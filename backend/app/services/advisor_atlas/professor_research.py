@@ -44,8 +44,10 @@ SOURCE_PRIORITY = {
     "profiles": 30,
     "research": 28,
     "publications": 32,
+    "scholar_metrics": 31,
     "funding": 31,
     "recruitment": 29,
+    "news_activity": 18,
     "official_profile": 36,
     "vision": 12,
 }
@@ -87,7 +89,7 @@ def professor_query_plan(
                 f'"{name}" "{institution}" {department} official faculty profile '
                 "biography CV education appointment"
             ),
-            "max_results": 7,
+            "max_results": 10,
         },
         {
             "kind": "profiles",
@@ -95,7 +97,7 @@ def professor_query_plan(
                 f'"{name}" "{institution}" personal website portfolio LinkedIn '
                 '"Google Scholar" ORCID Semantic Scholar ResearchGate'
             ),
-            "max_results": 8,
+            "max_results": 10,
         },
         {
             "kind": "research",
@@ -103,7 +105,7 @@ def professor_query_plan(
                 f'"{name}" "{institution}" research interests lab research group '
                 "projects collaborators graduate students"
             ),
-            "max_results": 8,
+            "max_results": 10,
         },
         {
             "kind": "publications",
@@ -111,7 +113,15 @@ def professor_query_plan(
                 f'"{name}" latest publications papers 2026 2025 2024 2023 '
                 "journal conference DOI"
             ),
-            "max_results": 10,
+            "max_results": 12,
+        },
+        {
+            "kind": "scholar_metrics",
+            "query": (
+                f'"{name}" "Google Scholar" OR DBLP OR OpenAlex OR '
+                '"Semantic Scholar" citations author profile h-index'
+            ),
+            "max_results": 8,
         },
         {
             "kind": "funding",
@@ -119,13 +129,21 @@ def professor_query_plan(
                 f'"{name}" "{institution}" grant award funding funded project '
                 "NSF NIH DOE sponsor principal investigator"
             ),
-            "max_results": 8,
+            "max_results": 10,
         },
         {
             "kind": "recruitment",
             "query": (
                 f'"{name}" "{institution}" accepting recruiting seeking PhD students '
                 "graduate assistant opening join lab application"
+            ),
+            "max_results": 10,
+        },
+        {
+            "kind": "news_activity",
+            "query": (
+                f'"{name}" "{institution}" news announcement award appointment '
+                "keynote seminar talk 2025 2026"
             ),
             "max_results": 8,
         },
@@ -549,7 +567,7 @@ def extract_verified_professor_facts(
             "summary": "Recent dated activity from the professor's public site." if recent_activity else "",
             "items": _unique(recent_activity)[:8],
         },
-        "publications": _dedupe_publications(publications)[:5],
+        "publications": _dedupe_publications(publications)[:8],
     }
 
 
@@ -784,8 +802,8 @@ def _publications_from_table(
         if publication_authorship_matches(publication, candidate_name):
             publications.append(publication)
     publications.sort(key=lambda item: item.get("publication_year") or 0, reverse=True)
-    for index, publication in enumerate(publications[:5]):
-        publication["reading_priority"] = 5 - index
+    for index, publication in enumerate(publications[:8]):
+        publication["reading_priority"] = max(1, 5 - index)
     return publications
 
 

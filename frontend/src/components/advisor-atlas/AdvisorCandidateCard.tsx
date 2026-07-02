@@ -4,6 +4,7 @@ import {
   CircleAlert,
   ExternalLink,
   GitCompareArrows,
+  Microscope,
   RefreshCw,
   ShieldCheck,
   Star,
@@ -66,11 +67,18 @@ export function AdvisorCandidateCard({
           </div>
           <p>{candidate.title || "Academic researcher"}</p>
           <small>{[candidate.department, candidate.institution].filter(Boolean).join(" · ")}</small>
-          {relation?.relation && (
-            <span className={`atlas-relation-pill ${relation.relation}`}>
-              {relation.relation} field
-            </span>
-          )}
+          <div className="atlas-candidate-pills">
+            {relation?.relation && (
+              <span className={`atlas-relation-pill ${relation.relation}`}>
+                {relation.relation} field
+              </span>
+            )}
+            {intelligence.research_depth === "deep" && (
+              <span className="atlas-depth-pill" title="This professor received the full multi-pass research pipeline">
+                <Microscope size={11} /> Deep research
+              </span>
+            )}
+          </div>
         </div>
         <button
           className="atlas-icon-button"

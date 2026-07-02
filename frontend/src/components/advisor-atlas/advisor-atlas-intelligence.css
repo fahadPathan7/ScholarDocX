@@ -419,6 +419,27 @@
   background: #eee9ff;
 }
 
+.atlas-candidate-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.atlas-depth-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 6px;
+  gap: 3px;
+  align-items: center;
+  color: #1f4f5a;
+  border-radius: 999px;
+  background: #ddedf2;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
 .atlas-match-bridge {
   margin: 10px 0;
   padding: 9px 10px;

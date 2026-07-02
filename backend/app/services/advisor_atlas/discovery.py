@@ -162,9 +162,9 @@ class DiscoveryResearcher:
                 self._relation_for_department(candidate.get("department"), mapped_units),
             )
 
-        for unit in mapped_units[:8]:
+        for unit in mapped_units[:10]:
             queries = unit_faculty_queries(run, unit["name"])
-            primary_results = await self.search(queries[0], 12)
+            primary_results = await self.search(queries[0], 14)
             self._tag_results(primary_results, unit, "faculty_directory_search")
             sources.extend(primary_results)
             candidates.extend(candidates_from_search(primary_results, run, unit))
@@ -172,7 +172,7 @@ class DiscoveryResearcher:
             directory_targets = select_directory_targets(
                 primary_results,
                 run.get("university_url"),
-                limit=3,
+                limit=4,
             )
             verified_for_unit = 0
             for target in directory_targets:
@@ -218,7 +218,7 @@ class DiscoveryResearcher:
                 sources.append(directory_source)
 
             if verified_for_unit + len(candidates_from_search(primary_results, run, unit)) < 2:
-                fallback_results = await self.search(queries[1], 10)
+                fallback_results = await self.search(queries[1], 12)
                 self._tag_results(fallback_results, unit, "faculty_profile_search")
                 sources.extend(fallback_results)
                 candidates.extend(candidates_from_search(fallback_results, run, unit))

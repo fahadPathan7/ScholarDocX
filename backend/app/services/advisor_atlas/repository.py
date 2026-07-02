@@ -308,7 +308,7 @@ class AdvisorAtlasRepository:
                     ),
                 )
 
-            for item in publications[:5]:
+            for item in publications[:8]:
                 db.execute(
                     """
                     INSERT INTO advisor_atlas_publications (
@@ -380,7 +380,7 @@ class AdvisorAtlasRepository:
                     SELECT * FROM advisor_atlas_evidence
                     WHERE candidate_id = ?
                     ORDER BY confidence DESC, retrieved_at DESC
-                    LIMIT 5
+                    LIMIT 8
                     """,
                     (candidate_id,),
                 ).fetchall()

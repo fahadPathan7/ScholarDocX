@@ -53,15 +53,23 @@ backend/app/services/ai_assistant/
   ceiling.
 - Individual-professor research uses a purpose-specific query plan instead of a
   single Tavily query. Identity, profiles, research/lab, publications,
-  funding/grants, and recruitment are searched independently and tagged before
-  deduplication.
+  scholarly-index metrics, funding/grants, recruitment, and recent
+  news/activity are searched independently and tagged before deduplication
+  (eight passes as of SCHOLARDOCX-0109).
 - High-value accessible results are crawled selectively, prioritizing official
   university pages, lab or personal sites, scholarly profiles, DOI/publisher
   pages, and authoritative grant sources. Search snippets remain secondary
   evidence.
 - Professor analysis may use multiple GLM calls: specialist extraction passes
-  for identity/research and activity/opportunity, followed by a schema-validated
-  synthesis. Missing keys still use deterministic local analysis.
+  for identity/research, publications, and funding/recruitment, followed by a
+  schema-validated synthesis. Missing keys still use deterministic local
+  analysis.
+- Deep research applies to both modes with no depth toggle. Discovery screens
+  every candidate (one targeted search plus analysis), then re-processes the
+  top ~15 candidates by fit through the full professor pipeline. Candidate
+  processing uses bounded asyncio concurrency; the crawler serializes requests
+  per host so polite per-domain delays hold under concurrency. Research usage
+  is tracked per candidate for accurate telemetry.
 - Research telemetry remains local operational metadata and is separate from
   product quota accounting. The role-limit key
   `advisor_atlas_searches_per_month` counts accepted new Advisor Atlas runs and
@@ -69,7 +77,7 @@ backend/app/services/ai_assistant/
   Tavily, crawl, or AI-call counts. General, Pro, and Max defaults are 3, 10,
   and 30 per calendar month.
 - Full internal evidence may be persisted, while the candidate API and dossier
-  UI expose only the top five diverse sources by authority and confidence.
+  UI expose only the top eight diverse sources by authority and confidence.
 - Advisor Atlas source normalization preserves identity-bearing query
   parameters such as the Google Scholar `user` ID. Generic Scholar search pages
   are not accepted as professor profiles.

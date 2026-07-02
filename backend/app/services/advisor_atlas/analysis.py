@@ -274,10 +274,10 @@ async def analyze_with_glm(
             "excerpt": candidate_excerpt(
                 item.get("content") or item.get("text") or "",
                 candidate["display_name"],
-                1800,
+                2600,
             ),
         }
-        for index, item in enumerate(sources[:18])
+        for index, item in enumerate(sources[:26])
     ]
     schema = {
         "candidate": {
@@ -415,7 +415,8 @@ async def analyze_professor_specialists(
     passes = [
         (
             "identity_research",
-            {"identity", "profiles", "research", "official_profile"},
+            "Advisor Atlas · Identity & Research",
+            {"identity", "profiles", "research", "official_profile", "news_activity"},
             (
                 "Extract verified identity/background, all professional or academic profile URLs, "
                 "research themes, methods, applications, lab identity, contact/application path, "
@@ -424,18 +425,30 @@ async def analyze_professor_specialists(
             ),
         ),
         (
-            "opportunity_publications",
-            {"publications", "funding", "recruitment", "research"},
+            "publications",
+            "Advisor Atlas · Publications",
+            {"publications", "scholar_metrics", "research", "official_profile"},
             (
-                "Extract the latest 3 to 5 actual scholarly publications, structured grants/funding, "
-                "lab members, explicit current recruitment, and evidence-based future opportunity "
-                "signals. Reject recruitment ads, faculty pages, and search pages as publications. "
+                "Extract the latest 5 to 8 actual scholarly publications with visible authorship "
+                "by this professor, plus any verifiable citation or scholarly-index evidence. "
+                "Reject recruitment ads, faculty pages, and search pages as publications. "
                 "Return JSON only and keep source URLs attached to every item."
+            ),
+        ),
+        (
+            "funding_recruitment",
+            "Advisor Atlas · Funding & Recruitment",
+            {"funding", "recruitment", "news_activity", "official_profile"},
+            (
+                "Extract structured grants/funding (funder, project, period, amount or status, "
+                "source), lab members, explicit current recruitment statements, and evidence-based "
+                "future opportunity signals with counter-signals. Funding alone never proves a "
+                "current opening. Return JSON only and keep source URLs attached to every item."
             ),
         ),
     ]
     results: dict[str, Any] = {}
-    for key, kinds, instruction in passes:
+    for key, request_label, kinds, instruction in passes:
         selected = [
             {
                 "title": item.get("title"),
@@ -444,12 +457,12 @@ async def analyze_professor_specialists(
                 "excerpt": candidate_excerpt(
                     item.get("content") or item.get("text") or "",
                     candidate["display_name"],
-                    2200,
+                    3000,
                 ),
             }
             for item in sources
             if item.get("source_kind") in kinds
-        ][:14]
+        ][:20]
         if not selected:
             continue
         system = (
@@ -465,11 +478,7 @@ async def analyze_professor_specialists(
             prompt,
             model=ai_service.settings.advisor_atlas_glm_model,
             override_system_prompt=system,
-            request_label=(
-                "Advisor Atlas · Identity & Research"
-                if key == "identity_research"
-                else "Advisor Atlas · Publications & Opportunity"
-            ),
+            request_label=request_label,
         )
         _record_ai_usage(usage, system, prompt, response.get("answer", ""))
         parsed = extract_json_object(response.get("answer", ""))

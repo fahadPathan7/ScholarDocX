@@ -152,6 +152,12 @@ class PublicCrawler:
         self.user_agent = user_agent
         self._robots: dict[str, RobotFileParser] = {}
         self._last_request: dict[str, float] = {}
+        self._host_locks: dict[str, asyncio.Lock] = {}
+
+    def _host_lock(self, host: str) -> asyncio.Lock:
+        # Serialize requests per host so the polite per-domain delay holds even
+        # when multiple candidates are researched concurrently.
+        return self._host_locks.setdefault(host, asyncio.Lock())
 
     async def _robots_allowed(self, url: str) -> bool:
         parsed = urlparse(url)
@@ -180,33 +186,34 @@ class PublicCrawler:
         if not await self._robots_allowed(safe_url):
             raise PermissionError("The source is disallowed by robots.txt.")
         host = urlparse(safe_url).netloc
-        loop = asyncio.get_running_loop()
-        last = self._last_request.get(host, 0.0)
-        delay = max(0.0, 0.45 - (loop.time() - last))
-        if delay:
-            await asyncio.sleep(delay)
-        self._last_request[host] = loop.time()
-
         headers = {
             "User-Agent": self.user_agent,
             "Accept": "text/html,application/xhtml+xml,text/plain;q=0.8",
         }
-        async with httpx.AsyncClient(timeout=18, follow_redirects=False, headers=headers) as client:
-            response = await client.get(safe_url)
-            redirects = 0
-            while response.is_redirect and redirects < 4:
-                target = urljoin(str(response.url), response.headers.get("location", ""))
-                safe_target = validate_public_url(target)
-                response = await client.get(safe_target)
-                redirects += 1
-            response.raise_for_status()
-            content_type = response.headers.get("content-type", "").lower()
-            if not any(kind in content_type for kind in ALLOWED_CONTENT_TYPES):
-                raise ValueError("Unsupported source content type.")
-            content = response.content[: MAX_PAGE_BYTES + 1]
-            if len(content) > MAX_PAGE_BYTES:
-                raise ValueError("Source page is too large to inspect safely.")
-            text = content.decode(response.encoding or "utf-8", errors="replace")
+        async with self._host_lock(host):
+            loop = asyncio.get_running_loop()
+            last = self._last_request.get(host, 0.0)
+            delay = max(0.0, 0.45 - (loop.time() - last))
+            if delay:
+                await asyncio.sleep(delay)
+            self._last_request[host] = loop.time()
+
+            async with httpx.AsyncClient(timeout=18, follow_redirects=False, headers=headers) as client:
+                response = await client.get(safe_url)
+                redirects = 0
+                while response.is_redirect and redirects < 4:
+                    target = urljoin(str(response.url), response.headers.get("location", ""))
+                    safe_target = validate_public_url(target)
+                    response = await client.get(safe_target)
+                    redirects += 1
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "").lower()
+                if not any(kind in content_type for kind in ALLOWED_CONTENT_TYPES):
+                    raise ValueError("Unsupported source content type.")
+                content = response.content[: MAX_PAGE_BYTES + 1]
+                if len(content) > MAX_PAGE_BYTES:
+                    raise ValueError("Source page is too large to inspect safely.")
+                text = content.decode(response.encoding or "utf-8", errors="replace")
 
         parser = PageParser()
         parser.feed(text)

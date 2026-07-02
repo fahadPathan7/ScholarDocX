@@ -50,6 +50,7 @@ export type AdvisorIntelligence = {
   contact?: Record<string, any>;
   collaborations?: Record<string, any>;
   recent_activity?: Record<string, any>;
+  research_depth?: "deep" | "screened" | string;
   research_metrics?: {
     tavily_searches?: number;
     pages_crawled?: number;

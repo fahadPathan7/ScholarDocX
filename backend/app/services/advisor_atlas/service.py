@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 import json
 import logging
@@ -15,14 +16,12 @@ from app.services.advisor_atlas.analysis import (
     FUNDING_SIGNAL,
     RECRUIT_OPEN,
     analyze_professor_specialists,
-    analyze_visual_source,
     analyze_with_glm,
     deterministic_analysis,
 )
 from app.services.advisor_atlas.crawler import (
     PublicCrawler,
     canonicalize_url,
-    is_visual_url,
 )
 from app.services.advisor_atlas.repository import AdvisorAtlasRepository
 from app.services.advisor_atlas.discovery import (
@@ -34,13 +33,17 @@ from app.services.advisor_atlas.professor_research import (
     discover_profile_links,
     extract_verified_professor_facts,
     is_scholarly_publication,
-    linked_professor_targets,
     publication_supported_by_sources,
-    professor_query_plan,
     select_candidate_email,
-    select_crawl_targets,
     select_evidence_sources,
     source_score,
+)
+from app.services.advisor_atlas.research_pipeline import (
+    crawl_linked_professor_pages,
+    crawl_ranked_sources,
+    gather_visual_evidence,
+    run_professor_search_passes,
+    select_deep_candidates,
 )
 from app.services.ai import AiService
 
@@ -55,8 +58,14 @@ STAGES = [
     "opportunities",
     "verification",
     "matching",
+    "deep_research",
     "actions",
 ]
+
+# Bounded concurrency for candidate processing. Screening is light (one search
+# plus analysis per candidate); deep research is heavy, so fewer run at once.
+SCREENING_CONCURRENCY = 4
+DEEP_CONCURRENCY = 2
 
 
 class AdvisorAtlasService:
@@ -65,11 +74,9 @@ class AdvisorAtlasService:
         self.repository = AdvisorAtlasRepository(settings.database_path)
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
-        self._research_usage: dict[str, Any] = {}
 
     async def run(self, run_id: int, user_id: int) -> None:
         run = self.repository.get_run(run_id, user_id, include_candidates=False)
-        self._start_research_usage()
         billing_session = None
         try:
             from app.db.connection import get_engine
@@ -88,7 +95,8 @@ class AdvisorAtlasService:
                 started_at=datetime.now().astimezone().isoformat(),
                 progress_json={"completed": 0, "total": None, "message": "Resolving the institution and search scope"},
             )
-            candidates, discovery_sources = await self._discover_candidates(run)
+            discovery_usage = self._new_usage()
+            candidates, discovery_sources = await self._discover_candidates(run, discovery_usage)
             if self.repository.is_cancelled(run_id):
                 return
             if not candidates:
@@ -109,20 +117,52 @@ class AdvisorAtlasService:
             )
 
             completed = 0
-            for candidate in candidates:
+            semaphore = asyncio.Semaphore(SCREENING_CONCURRENCY)
+
+            async def screen_one(candidate: dict[str, Any]) -> None:
+                nonlocal completed
+                async with semaphore:
+                    if self.repository.is_cancelled(run_id):
+                        return
+                    try:
+                        await self._process_candidate(
+                            run,
+                            user_id,
+                            candidate,
+                            discovery_sources,
+                            deep=run["mode"] == "professor",
+                        )
+                    except Exception:
+                        # One candidate must not sink a whole Discovery run; a
+                        # Professor run has exactly one candidate, so its
+                        # failure is the run's failure.
+                        if run["mode"] == "professor":
+                            raise
+                        logger.exception(
+                            "Candidate screening failed for %s",
+                            candidate.get("display_name"),
+                        )
+                    completed += 1
+                    self.repository.update_run(
+                        run_id,
+                        current_stage="matching",
+                        progress_json={
+                            "completed": completed,
+                            "total": len(candidates),
+                            "message": f"Completed {candidate['display_name']}",
+                        },
+                    )
+
+            await asyncio.gather(
+                *(asyncio.create_task(screen_one(candidate)) for candidate in candidates)
+            )
+            if self.repository.is_cancelled(run_id):
+                return
+
+            if run["mode"] != "professor":
+                await self._deep_research_discovery(run, run_id, user_id, discovery_sources)
                 if self.repository.is_cancelled(run_id):
                     return
-                await self._process_candidate(run, user_id, candidate, discovery_sources)
-                completed += 1
-                self.repository.update_run(
-                    run_id,
-                    current_stage="matching",
-                    progress_json={
-                        "completed": completed,
-                        "total": len(candidates),
-                        "message": f"Completed {candidate['display_name']}",
-                    },
-                )
 
             run_result = self.repository.get_run(run_id, user_id)
             action_center = build_discovery_action_center(
@@ -161,15 +201,72 @@ class AdvisorAtlasService:
                 billing_session.close()
 
     async def refresh_candidate(self, candidate_id: int, user_id: int) -> dict[str, Any]:
-        self._start_research_usage()
         candidate = self.repository.get_candidate(candidate_id, user_id)
         run = self.repository.get_run(candidate["run_id"], user_id, include_candidates=False)
-        await self._process_candidate(run, user_id, candidate, [])
+        # A refresh is an explicit, token-metered user action: always use the
+        # full deep pipeline regardless of the run mode.
+        await self._process_candidate(run, user_id, candidate, [], deep=True)
         return self.repository.get_candidate(candidate_id, user_id)
+
+    async def _deep_research_discovery(
+        self,
+        run: dict[str, Any],
+        run_id: int,
+        user_id: int,
+        discovery_sources: list[dict[str, Any]],
+    ) -> None:
+        stored = self.repository.get_run(run_id, user_id)
+        targets = select_deep_candidates(stored.get("candidates", []))
+        if not targets:
+            return
+        self.repository.update_run(
+            run_id,
+            current_stage="deep_research",
+            progress_json={
+                "completed": 0,
+                "total": len(targets),
+                "message": f"Deep researching the top {len(targets)} research-fit matches",
+            },
+        )
+        completed = 0
+        semaphore = asyncio.Semaphore(DEEP_CONCURRENCY)
+
+        async def deep_one(candidate: dict[str, Any]) -> None:
+            nonlocal completed
+            async with semaphore:
+                if self.repository.is_cancelled(run_id):
+                    return
+                try:
+                    # Keep the screening-phase discovery sources in play so a
+                    # deep pass whose searches come up empty can never produce
+                    # a weaker dossier than the screening pass did.
+                    await self._process_candidate(
+                        run, user_id, candidate, discovery_sources, deep=True
+                    )
+                except Exception:
+                    logger.exception(
+                        "Deep research failed for %s; the screened result is kept",
+                        candidate.get("display_name"),
+                    )
+                completed += 1
+                self.repository.update_run(
+                    run_id,
+                    current_stage="deep_research",
+                    progress_json={
+                        "completed": completed,
+                        "total": len(targets),
+                        "message": f"Deep researched {candidate['display_name']}",
+                    },
+                )
+
+        await asyncio.gather(
+            *(asyncio.create_task(deep_one(candidate)) for candidate in targets)
+        )
 
     async def _discover_candidates(
         self,
         run: dict[str, Any],
+        usage: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         candidates: list[dict[str, Any]] = []
         sources: list[dict[str, Any]] = []
@@ -195,7 +292,7 @@ class AdvisorAtlasService:
                         "source_kind": "official_profile",
                     }
                 )
-                self._research_usage["pages_crawled"] += 1
+                usage["pages_crawled"] = int(usage.get("pages_crawled", 0)) + 1
                 if run["mode"] != "professor":
                     candidates.extend(
                         self.crawler.faculty_candidates(
@@ -211,15 +308,19 @@ class AdvisorAtlasService:
             search_results = await self._tavily_search(
                 self._discovery_query(run),
                 max_results=12,
+                usage=usage,
             )
             for item in search_results:
                 item["source_kind"] = "identity"
             sources.extend(search_results)
         else:
+            async def discovery_search(query: str, max_results: int) -> list[dict[str, Any]]:
+                return await self._tavily_search(query, max_results, usage=usage)
+
             candidates, sources = await DiscoveryResearcher(
                 self.crawler,
-                self._tavily_search,
-                self._research_usage,
+                discovery_search,
+                usage,
             ).collect(run, candidates, sources)
             search_results = sources
 
@@ -251,9 +352,9 @@ class AdvisorAtlasService:
         user_id: int,
         candidate: dict[str, Any],
         discovery_sources: list[dict[str, Any]],
+        deep: bool = False,
     ) -> int:
-        if "started_at" not in self._research_usage:
-            self._start_research_usage()
+        usage = self._new_usage()
         candidate_sources = [
             item
             for item in discovery_sources
@@ -267,12 +368,12 @@ class AdvisorAtlasService:
                     {
                         "title": page["title"],
                         "url": page["url"],
-                        "content": page["text"][:9000],
+                        "content": page["text"][:12000],
                         "page": page,
                         "source_kind": "official_profile",
                     }
                 )
-                self._research_usage["pages_crawled"] += 1
+                usage["pages_crawled"] = int(usage.get("pages_crawled", 0)) + 1
                 candidate["email"] = candidate.get("email") or select_candidate_email(
                     candidate_sources,
                     candidate["display_name"],
@@ -280,25 +381,38 @@ class AdvisorAtlasService:
             except (httpx.HTTPError, PermissionError, ValueError) as exc:
                 logger.info("Candidate profile fetch skipped for %s: %s", candidate["display_name"], exc)
 
-        if run["mode"] == "professor":
+        if deep:
+            async def deep_search(query: str, max_results: int) -> list[dict[str, Any]]:
+                return await self._tavily_search(query, max_results, usage=usage)
+
             candidate_sources.extend(
-                await self._research_professor(candidate, run)
+                await run_professor_search_passes(deep_search, candidate, run)
             )
             candidate_sources = self._dedupe_sources(candidate_sources)
             candidate_sources.extend(
-                await self._crawl_research_sources(candidate_sources, candidate)
+                await crawl_ranked_sources(self.crawler, candidate_sources, candidate, usage)
             )
             candidate_sources = self._dedupe_sources(candidate_sources)
             candidate_sources.extend(
-                await self._crawl_linked_professor_pages(candidate_sources, candidate)
+                await crawl_linked_professor_pages(
+                    self.crawler, candidate_sources, candidate, usage
+                )
             )
         else:
             detail_query = self._candidate_query(candidate, run)
-            candidate_sources.extend(await self._tavily_search(detail_query, max_results=10))
+            candidate_sources.extend(
+                await self._tavily_search(detail_query, max_results=12, usage=usage)
+            )
 
         candidate_sources = self._dedupe_sources(candidate_sources)
         candidate_sources.extend(
-            await self._visual_evidence(candidate_sources, candidate["display_name"])
+            await gather_visual_evidence(
+                self.crawler,
+                self.ai_service,
+                candidate_sources,
+                candidate["display_name"],
+                usage,
+            )
         )
         candidate_sources = self._dedupe_sources(candidate_sources)
         if not candidate_sources:
@@ -322,9 +436,9 @@ class AdvisorAtlasService:
                 candidate,
                 candidate_sources,
                 profile,
-                self._research_usage,
+                usage,
             )
-            if run["mode"] == "professor"
+            if deep
             else {}
         )
         analysis = await analyze_with_glm(
@@ -333,7 +447,7 @@ class AdvisorAtlasService:
             candidate_sources,
             profile,
             specialist_context,
-            self._research_usage,
+            usage,
         )
         if not analysis:
             analysis = deterministic_analysis(candidate, candidate_sources, profile)
@@ -404,17 +518,18 @@ class AdvisorAtlasService:
             provided_forecast["confidence"] = min(p_conf, e_conf)
             provided_forecast.setdefault("likely_semesters", forecast["likely_semesters"])
             provided_forecast.setdefault("limitation", forecast["limitation"])
-        self._research_usage["sources_inspected"] = len(candidate_sources)
-        elapsed = max(0.0, time.perf_counter() - float(self._research_usage["started_at"]))
+        usage["sources_inspected"] = len(candidate_sources)
+        elapsed = max(0.0, time.perf_counter() - float(usage["started_at"]))
+        intelligence["research_depth"] = "deep" if deep else "screened"
         intelligence["research_metrics"] = {
-            "tavily_searches": int(self._research_usage.get("tavily_searches", 0)),
-            "pages_crawled": int(self._research_usage.get("pages_crawled", 0)),
-            "ai_calls": int(self._research_usage.get("ai_calls", 0)),
-            "estimated_input_tokens": int(self._research_usage.get("estimated_input_tokens", 0)),
-            "estimated_output_tokens": int(self._research_usage.get("estimated_output_tokens", 0)),
+            "tavily_searches": int(usage.get("tavily_searches", 0)),
+            "pages_crawled": int(usage.get("pages_crawled", 0)),
+            "ai_calls": int(usage.get("ai_calls", 0)),
+            "estimated_input_tokens": int(usage.get("estimated_input_tokens", 0)),
+            "estimated_output_tokens": int(usage.get("estimated_output_tokens", 0)),
             "estimated_total_tokens": (
-                int(self._research_usage.get("estimated_input_tokens", 0))
-                + int(self._research_usage.get("estimated_output_tokens", 0))
+                int(usage.get("estimated_input_tokens", 0))
+                + int(usage.get("estimated_output_tokens", 0))
             ),
             "sources_inspected": len(candidate_sources),
             "elapsed_seconds": round(elapsed, 1),
@@ -430,31 +545,6 @@ class AdvisorAtlasService:
             analysis.get("publications", []),
             analysis.get("dossier", {}),
         )
-
-    async def _visual_evidence(
-        self,
-        sources: list[dict[str, Any]],
-        candidate_name: str,
-    ) -> list[dict[str, Any]]:
-        if not self.settings.glm_api_key:
-            return []
-        enriched = []
-        for source in (item for item in sources if is_visual_url(item.get("url", ""))):
-            if len(enriched) == 2:
-                break
-            try:
-                visual = await self.crawler.inspect_visual(source["url"])
-                result = await analyze_visual_source(
-                    self.ai_service,
-                    visual,
-                    candidate_name,
-                    self._research_usage,
-                )
-                if result:
-                    enriched.append(result)
-            except (httpx.HTTPError, PermissionError, ValueError) as exc:
-                logger.info("Visual source skipped for %s: %s", candidate_name, exc)
-        return enriched
 
     def _validate_analysis(
         self,
@@ -531,7 +621,7 @@ class AdvisorAtlasService:
             )
 
         valid_publications = []
-        for item in analysis.get("publications", [])[:5]:
+        for item in analysis.get("publications", [])[:8]:
             title = str(item.get("title", "")).strip()
             source_url = item.get("source_url")
             if not title or not source_url:
@@ -624,9 +714,9 @@ class AdvisorAtlasService:
             deduped.values(),
             key=lambda item: item.get("publication_year") or 0,
             reverse=True,
-        )[:5]
+        )[:8]
         for index, publication in enumerate(publications):
-            publication["reading_priority"] = 5 - index
+            publication["reading_priority"] = max(1, 5 - index)
         analysis["publications"] = publications
         return analysis
 
@@ -638,7 +728,12 @@ class AdvisorAtlasService:
         except (TypeError, ValueError):
             return False
 
-    async def _tavily_search(self, query: str, max_results: int) -> list[dict[str, Any]]:
+    async def _tavily_search(
+        self,
+        query: str,
+        max_results: int,
+        usage: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         if not self.settings.tavily_api_key:
             return []
         payload = {
@@ -654,9 +749,8 @@ class AdvisorAtlasService:
         async with httpx.AsyncClient(timeout=35) as client:
             response = await client.post("https://api.tavily.com/search", json=payload)
             response.raise_for_status()
-        self._research_usage["tavily_searches"] = int(
-            self._research_usage.get("tavily_searches", 0)
-        ) + 1
+        if usage is not None:
+            usage["tavily_searches"] = int(usage.get("tavily_searches", 0)) + 1
         # Record this Tavily call as a non-billing counter (tokens_delta=0) so it
         # surfaces in the admin Tavily usage dashboard. Advisor Atlas uses the
         # web-search Tavily key but is NOT metered per search — cost stays 0.
@@ -702,7 +796,7 @@ class AdvisorAtlasService:
             sources,
             candidate["display_name"],
             candidate.get("institution"),
-            limit=12,
+            limit=16,
         )
         for item in selected:
             url = item.get("url")
@@ -733,136 +827,8 @@ class AdvisorAtlasService:
             )
         return evidence
 
-    async def _research_professor(
-        self,
-        candidate: dict[str, Any],
-        run: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        sources: list[dict[str, Any]] = []
-        for research_pass in professor_query_plan(candidate, run):
-            results = await self._tavily_search(
-                research_pass["query"],
-                max_results=int(research_pass["max_results"]),
-            )
-            for item in results:
-                item["source_kind"] = research_pass["kind"]
-            sources.extend(results)
-        return sources
-
-    async def _crawl_research_sources(
-        self,
-        sources: list[dict[str, Any]],
-        candidate: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        crawled: list[dict[str, Any]] = []
-        targets = select_crawl_targets(
-            sources,
-            candidate["display_name"],
-            candidate.get("institution"),
-            limit=10,
-        )
-        for source in targets:
-            try:
-                page = await self.crawler.fetch(source["url"])
-                crawled.append(
-                    {
-                        **source,
-                        "title": page["title"] or source.get("title"),
-                        "url": page["url"],
-                        "content": page["text"][:12000],
-                        "page": page,
-                        "source_origin": "crawl",
-                    }
-                )
-                self._research_usage["pages_crawled"] += 1
-                candidate["email"] = candidate.get("email") or select_candidate_email(
-                    [crawled[-1]],
-                    candidate["display_name"],
-                )
-            except (httpx.HTTPError, PermissionError, ValueError) as exc:
-                logger.info("Research source crawl skipped for %s: %s", candidate["display_name"], exc)
-        return crawled
-
-    async def _crawl_linked_professor_pages(
-        self,
-        sources: list[dict[str, Any]],
-        candidate: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        crawled: list[dict[str, Any]] = []
-        accumulated = list(sources)
-        profiles = discover_profile_links(accumulated, candidate["display_name"])
-        seed_urls = [
-            profiles.get("personal_url"),
-            profiles.get("lab_url"),
-        ]
-        existing_pages = {
-            canonicalize_url(item["url"])
-            for item in accumulated
-            if item.get("url") and isinstance(item.get("page"), dict)
-        }
-        for url in seed_urls:
-            if not url or canonicalize_url(url) in existing_pages:
-                continue
-            try:
-                page = await self.crawler.fetch(url)
-                source = {
-                    "title": page["title"],
-                    "url": page["url"],
-                    "content": page["text"][:12000],
-                    "page": page,
-                    "source_kind": "profiles",
-                    "source_origin": "linked_seed",
-                }
-                crawled.append(source)
-                accumulated.append(source)
-                existing_pages.add(canonicalize_url(page["url"]))
-                self._research_usage["pages_crawled"] += 1
-            except (httpx.HTTPError, PermissionError, ValueError) as exc:
-                logger.info(
-                    "Professor-owned seed page skipped for %s: %s",
-                    candidate["display_name"],
-                    exc,
-                )
-        for _ in range(2):
-            targets = linked_professor_targets(
-                accumulated,
-                candidate["display_name"],
-                limit=max(0, 8 - len(crawled)),
-            )
-            if not targets:
-                break
-            for target in targets:
-                try:
-                    page = await self.crawler.fetch(target["url"])
-                    source = {
-                        **target,
-                        "title": page["title"] or target.get("title"),
-                        "url": page["url"],
-                        "content": page["text"][:12000],
-                        "page": page,
-                        "source_origin": "linked_crawl",
-                    }
-                    crawled.append(source)
-                    accumulated.append(source)
-                    self._research_usage["pages_crawled"] += 1
-                except (httpx.HTTPError, PermissionError, ValueError) as exc:
-                    logger.info(
-                        "Linked professor page skipped for %s: %s",
-                        candidate["display_name"],
-                        exc,
-                    )
-                if len(crawled) == 8:
-                    break
-            if len(crawled) == 8:
-                break
-        candidate["email"] = candidate.get("email") or select_candidate_email(
-            accumulated,
-            candidate["display_name"],
-        )
-        return crawled
-
-    def _start_research_usage(self) -> None:
-        self._research_usage = {
+    def _new_usage(self) -> dict[str, Any]:
+        return {
             "started_at": time.perf_counter(),
             "tavily_searches": 0,
             "pages_crawled": 0,

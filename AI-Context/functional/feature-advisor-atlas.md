@@ -29,7 +29,7 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.5: Discover and deduplicate professors from public authoritative sources.
 - FR-9.6: Enrich profiles with research, projects, labs, students, publications,
   funding, contact instructions, and recruitment evidence.
-- FR-9.7: Show the latest four or five verifiable publications with source
+- FR-9.7: Show the latest verifiable publications (up to eight) with source
   attribution and fallbacks when Google Scholar cannot be used.
 - FR-9.8: Run separate identity, research, publication, lab, opportunity, fit,
   verification, and action passes for deep searches.
@@ -89,7 +89,9 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.32: Professor mode must use multiple purpose-specific public-web searches
   rather than relying on one broad query. Required passes cover identity and
   official pages, academic profiles, research and lab activity, latest
-  publications, grants and funding, and recruitment/application evidence.
+  publications, scholarly-index metrics (Google Scholar, DBLP, OpenAlex,
+  Semantic Scholar), grants and funding, recruitment/application evidence, and
+  recent news or announcements.
 - FR-9.33: Professor mode must selectively crawl high-value accessible results
   from those passes and preserve each source's research purpose. Social or
   aggregator snippets may support discovery but must not displace official,
@@ -103,13 +105,14 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   recruitment advertisements, search-result pages, or generic web pages.
 - FR-9.36: Decision snapshot and recruitment outlook must use decision-oriented
   presentation rather than raw nested key/value output.
-- FR-9.37: The visible evidence ledger must show only the three to five
-  strongest and most diverse sources. The complete internal source set may
-  still support analysis and verification.
+- FR-9.37: The visible evidence ledger must show only the strongest and most
+  diverse sources (up to eight). The complete internal source set may still
+  support analysis and verification.
 - FR-9.38: Completed Professor results must show local research telemetry:
   Tavily search count, AI-call count, estimated input/output token use, crawled
   page count, source count, and elapsed time. Token values must be labeled as
-  estimates unless returned directly by the provider.
+  estimates unless returned directly by the provider. Telemetry must reflect
+  only the research performed for that candidate, not run-wide totals.
 - FR-9.39: Professor identity fields must be owned by the searched professor.
   Shared department pages may support identity and affiliation, but email,
   profile links, education, positions, and research interests must be extracted
@@ -214,6 +217,16 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   available so a user who downgrades can still review prior results. The
   capability is shown as a boolean feature row in Choose Plan and is editable
   by administrators through Role Limits.
+- FR-9.59: Discovery runs are always deep, with no user-facing depth toggle.
+  After every discovered candidate receives a screening pass (one targeted
+  search plus analysis), the top ~15 candidates ranked by match score and
+  evidence confidence must receive the full Professor-grade research pipeline
+  (purpose-specific search passes, ranked and linked crawling, specialist AI
+  extraction, and final synthesis). Deep-researched candidates carry a visible
+  `Deep research` label (`intelligence.research_depth = "deep"`); screened-only
+  candidates carry `"screened"`. A single candidate's deep-research failure
+  must not fail the run, and cancellation must still stop the run between
+  candidates in both phases.
 
 ## Discovery Funnel
 

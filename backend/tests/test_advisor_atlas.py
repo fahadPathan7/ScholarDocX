@@ -459,10 +459,13 @@ def test_professor_research_uses_purpose_specific_query_plan():
         "profiles",
         "research",
         "publications",
+        "scholar_metrics",
         "funding",
         "recruitment",
+        "news_activity",
     ]
-    assert len({item["query"] for item in plan}) == 6
+    assert len({item["query"] for item in plan}) == 8
+    assert all(item["max_results"] >= 8 for item in plan)
 
 
 def test_google_scholar_identity_parameter_is_preserved():
@@ -865,7 +868,7 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
         },
     )
 
-    async def fake_discovery(_run):
+    async def fake_discovery(_run, _usage):
         return (
             [
                 {
@@ -884,7 +887,7 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
             ],
         )
 
-    async def no_extra_search(query, max_results):
+    async def no_extra_search(query, max_results, usage=None):
         return []
 
     monkeypatch.setattr(service, "_discover_candidates", fake_discovery)
@@ -908,7 +911,7 @@ async def test_professor_mode_does_not_admit_other_search_result_names(tmp_path,
     settings = make_settings(tmp_path)
     service = AdvisorAtlasService(settings)
 
-    async def fake_search(query, max_results):
+    async def fake_search(query, max_results, usage=None):
         return [
             {
                 "title": "Grace Hopper - Faculty Profile",
@@ -925,14 +928,15 @@ async def test_professor_mode_does_not_admit_other_search_result_names(tmp_path,
             "university_name": "Example University",
             "department": "Computer Science",
             "university_url": None,
-        }
+        },
+        service._new_usage(),
     )
 
     assert [candidate["display_name"] for candidate in candidates] == ["Ada Scholar"]
     assert len(sources) == 1
 
 
-def test_repository_caps_visible_evidence_at_five(tmp_path):
+def test_repository_caps_visible_evidence_at_eight(tmp_path):
     settings = make_settings(tmp_path)
     repository = AdvisorAtlasRepository(settings.database_path)
     run = repository.create_run(
@@ -960,9 +964,9 @@ def test_repository_caps_visible_evidence_at_five(tmp_path):
                 "claim_text": "Evidence.",
                 "confidence": 90 - index,
             }
-            for index in range(8)
+            for index in range(12)
         ],
         [],
         {},
     )
-    assert len(repository.get_candidate(candidate_id, 1)["evidence"]) == 5
+    assert len(repository.get_candidate(candidate_id, 1)["evidence"]) == 8

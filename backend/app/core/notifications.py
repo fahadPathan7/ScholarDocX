@@ -19,6 +19,7 @@ WORKSPACE_NOTIFICATION_DEFAULTS: dict[str, bool] = {
     "sticky_note_update": False,
     "sticky_note_delete": True,
     "scheduled_email": True,
+    "scholarship_deadline_approaching": True,
 }
 
 ADMIN_NOTIFICATION_DEFAULTS: dict[str, bool] = {

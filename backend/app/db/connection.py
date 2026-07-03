@@ -38,6 +38,8 @@ USER_SCOPED_TABLES = (
     "advisor_atlas_runs",
     "advisor_atlas_candidates",
     "saved_scholarship_queries",
+    "scholarship_opportunities",
+    "scholarship_deep_hunt_runs",
 )
 
 
@@ -335,6 +337,8 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         if "notification_settings" not in profile_columns:
             default_json = default_notification_settings_json().replace("'", "''")
             connection.execute(f"ALTER TABLE local_profiles ADD COLUMN notification_settings TEXT DEFAULT '{default_json}'")
+        if "hunt_profile_json" not in profile_columns:
+            connection.execute("ALTER TABLE local_profiles ADD COLUMN hunt_profile_json TEXT DEFAULT '{}'")
 
     notification_columns = {
         row["name"]
@@ -360,6 +364,29 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE advisor_atlas_candidates "
             "ADD COLUMN intelligence_json TEXT NOT NULL DEFAULT '{}'"
+        )
+
+    saved_query_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(saved_scholarship_queries)").fetchall()
+    }
+    if saved_query_columns and "seen_article_ids_json" not in saved_query_columns:
+        connection.execute(
+            "ALTER TABLE saved_scholarship_queries ADD COLUMN seen_article_ids_json TEXT NOT NULL DEFAULT '[]'"
+        )
+
+    scholarship_opportunity_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(scholarship_opportunities)").fetchall()
+    }
+    if scholarship_opportunity_columns and "last_deadline_notified_at" not in scholarship_opportunity_columns:
+        connection.execute(
+            "ALTER TABLE scholarship_opportunities ADD COLUMN last_deadline_notified_at TEXT"
+        )
+    if scholarship_opportunity_columns and "deep_hunt_run_id" not in scholarship_opportunity_columns:
+        connection.execute(
+            "ALTER TABLE scholarship_opportunities ADD COLUMN deep_hunt_run_id "
+            "INTEGER REFERENCES scholarship_deep_hunt_runs(id)"
         )
 
     # Set user_id in related tables where missing
@@ -490,6 +517,38 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         scholarship_hunt_permission_defaults,
     )
 
+    # Ensure Scholarship Analyze permission role limits exist for existing databases.
+    scholarship_analyze_permission_defaults = [
+        ("free_user", "can_use_scholarship_analyze", 0, "never"),
+        ("general_user", "can_use_scholarship_analyze", 0, "never"),
+        ("pro_user", "can_use_scholarship_analyze", 1, "never"),
+        ("max_user", "can_use_scholarship_analyze", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        scholarship_analyze_permission_defaults,
+    )
+
+    # Ensure Scholarship Deep Hunt permission role limits exist for existing
+    # databases. Plan-gated like Advisor Atlas (Pro/Max only) rather than a
+    # count-based quota (SCHOLARDOCX-0125).
+    scholarship_deep_hunt_permission_defaults = [
+        ("free_user", "can_use_scholarship_deep_hunt", 0, "never"),
+        ("general_user", "can_use_scholarship_deep_hunt", 0, "never"),
+        ("pro_user", "can_use_scholarship_deep_hunt", 1, "never"),
+        ("max_user", "can_use_scholarship_deep_hunt", 1, "never"),
+    ]
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period)
+        VALUES (?, ?, ?, ?)
+        """,
+        scholarship_deep_hunt_permission_defaults,
+    )
+
     # Ensure admin permission role limits exist for existing databases.
     admin_permission_defaults = [
         ("general_admin", "admin_view_dashboard", 1, "never"),
@@ -523,6 +582,8 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         ('free_user', 'can_use_agents', 0, 'never'),
         ('free_user', 'can_use_web_search', 0, 'never'),
         ('free_user', 'can_use_scholarship_hunt', 0, 'never'),
+        ('free_user', 'can_use_scholarship_analyze', 0, 'never'),
+        ('free_user', 'can_use_scholarship_deep_hunt', 0, 'never'),
         ('free_user', 'total_projects', 1, 'never'),
         ('free_user', 'total_sheets', 2, 'never'),
         ('free_user', 'total_records', 100, 'never'),
@@ -587,6 +648,8 @@ def migrate_database(connection: sqlite3.Connection) -> None:
         "can_use_agents", "can_use_web_search",
         "can_use_advisor_atlas",
         "can_use_scholarship_hunt",
+        "can_use_scholarship_analyze",
+        "can_use_scholarship_deep_hunt",
         "can_purchase_token_packs",
         "can_use_purchased_tokens",
         "total_projects", "total_sheets", "total_records",

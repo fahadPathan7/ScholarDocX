@@ -289,3 +289,44 @@ def test_failed_create_compensation_restores_quota(tmp_path):
         assert usage_count(session, user["id"], "total_projects") == 1
     finally:
         session.close()
+
+
+# ── permission-only check commits its own bookkeeping writes ───────────────
+# Found via SCHOLARDOCX-0125 (Deep Hunt) live verification: a brand-new
+# plan-gate feature has no `user_usage_stats` row yet for any given user, so
+# the first-ever `increment=0` permission check bootstraps one via INSERT.
+# That INSERT must be committed even though increment is 0 — otherwise it
+# sits open on the caller's session for the rest of the request and
+# deadlocks a background service's own raw sqlite3 connection writing to the
+# same file (e.g. AdvisorAtlasRepository/ScholarshipDeepHuntRepository).
+
+def test_permission_only_check_commits_bootstrap_row(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        # First-ever check of a feature this user has no usage row for yet,
+        # with increment=0 (a pure permission check, as every boolean plan
+        # gate — can_use_advisor_atlas, can_use_scholarship_analyze,
+        # can_use_scholarship_deep_hunt — performs).
+        check_and_increment_limit(user, "can_use_scholarship_deep_hunt", 0, session)
+
+        # The session must not be left holding an uncommitted write: a
+        # separate raw sqlite3 connection (short busy_timeout, no retries to
+        # wait out) must be able to write immediately without hitting
+        # "database is locked".
+        import sqlite3
+
+        other_connection = sqlite3.connect(settings.database_path, timeout=0.2)
+        try:
+            other_connection.execute(
+                "INSERT INTO scholarship_deep_hunt_runs (user_id, goal) VALUES (?, ?)",
+                (user["id"], "regression test goal"),
+            )
+            other_connection.commit()
+        finally:
+            other_connection.close()
+
+        assert usage_count(session, user["id"], "can_use_scholarship_deep_hunt") == 0
+    finally:
+        session.close()

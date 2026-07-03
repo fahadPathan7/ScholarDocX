@@ -176,6 +176,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
     { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
+    { key: "can_use_scholarship_deep_hunt", label: "Scholarship Deep Hunt", icon: Sparkles, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [

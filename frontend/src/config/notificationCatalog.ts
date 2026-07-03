@@ -12,7 +12,8 @@ export type NotificationSettingKey =
   | "sticky_note_create"
   | "sticky_note_update"
   | "sticky_note_delete"
-  | "scheduled_email";
+  | "scheduled_email"
+  | "scholarship_deadline_approaching";
 
 export type NotificationEventKey = NotificationSettingKey;
 
@@ -34,6 +35,7 @@ type NotificationTemplateVars = {
   dueAt?: string;
   attachmentSummary?: string;
   actionLabel?: string;
+  scholarshipName?: string;
 };
 
 type NotificationTemplateDef = {
@@ -153,6 +155,14 @@ export const notificationTemplates: Record<NotificationEventKey, NotificationTem
     render: (v) => ({
       title: `Scheduled email: ${v.sheetName || "Unknown"}`,
       body: `Attachment reminder: ${v.attachmentSummary || "No attachments listed"}`
+    })
+  },
+  scholarship_deadline_approaching: {
+    settingKey: "scholarship_deadline_approaching",
+    notification_type: "general",
+    render: (v) => ({
+      title: `Deadline approaching: ${v.scholarshipName || "Scholarship"}`,
+      body: v.dueAt ? `Due ${v.dueAt}. Check the Opportunity Library for details.` : "Check the Opportunity Library for details."
     })
   }
 };

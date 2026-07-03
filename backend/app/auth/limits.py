@@ -186,7 +186,13 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
             text("UPDATE user_usage_stats SET current_count = MAX(0, current_count + :inc) WHERE user_id = :uid AND feature = :feature"),
             {"inc": increment, "uid": user["id"], "feature": feature}
         )
-        session.commit()
+    # Always commit, even for a permission-only check (increment=0): the
+    # usage-row bootstrap INSERT and the reset UPDATE above are real writes
+    # that must not stay open on the caller's session for the rest of the
+    # request. Left open, they hold SQLite's write lock and deadlock against
+    # any other connection (e.g. a background service's own raw sqlite3
+    # connection) trying to write before this request finishes.
+    session.commit()
 
     return True
 

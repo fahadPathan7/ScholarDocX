@@ -112,6 +112,18 @@
 - FR-8.26: Preview uses no Tavily request but does consume one Scholarship Hunt quota unit; confirmation uses one Tavily request without spending a second unit.
 - FR-8.31: Repeated searches show a visible preparing/searching state before new results replace the previous result set.
 - FR-8.27: Hard destination/named-scholarship validation is combined with evidence-based relevance scoring for snippet-limited filters.
+- FR-8.24 (updated): the query-review dialog is opt-in via a default-off toggle instead of mandatory.
+- FR-8.32: A zero-cost curated scholarship Catalog sub-view.
+- FR-8.33: Catalog "Check current cycle" makes one Tavily search under the existing Hunt quota.
+- FR-8.34: "Analyze" produces a structured opportunity with per-field confidence; unsupported fields stay empty.
+- FR-8.35: Analyze is gated by `can_use_scholarship_analyze` plus the AI token economy; no separate count limit.
+- FR-8.36: A user-scoped Opportunity Library with a Found→Vetting→Applying→Submitted→Result status pipeline.
+- FR-8.37: "Add to tracker" creates/reuses a project's Scholarship Tracker sheet and appends a row.
+- FR-8.38: The Opportunity Library replaces bare bookmarks as the primary saved view; bookmarks migrate in additively.
+- FR-8.39: One local Hunt Profile (degree, destinations, field, intake, opt-in nationality) prefilled from a project.
+- FR-8.40: Local, provider-free fit score + why/why not chips on opportunities when a Hunt Profile is set.
+- FR-8.41: A saved query is a watchlist; re-running it diffs and badges results new since the last run.
+- FR-8.42: Deadline Radar surfaces tracked opportunities near their deadline and fires one deduped notification per day.
 
 ## FR-9: Advisor Atlas
 

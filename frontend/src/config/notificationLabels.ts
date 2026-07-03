@@ -67,6 +67,17 @@ export const workspaceNotificationCategories: NotificationCategory[] = [
     icon: "MessageCircle",
     settings: [{ key: "scheduled_email", label: "Scheduled Email Reminder" }],
   },
+  {
+    title: "Scholarship Hunt",
+    icon: "Compass",
+    settings: [
+      {
+        key: "scholarship_deadline_approaching",
+        label: "Deadline Approaching",
+        description: "A tracked scholarship opportunity's deadline is within the radar window.",
+      },
+    ],
+  },
 ];
 
 export const adminNotificationCategories: NotificationCategory[] = [
@@ -133,6 +144,7 @@ export const defaultNotificationSettings: Record<string, boolean> = {
   sticky_note_update: false,
   sticky_note_delete: true,
   scheduled_email: true,
+  scholarship_deadline_approaching: true,
   system: true,
   announcements: true,
   billing: true,

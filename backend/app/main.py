@@ -38,6 +38,10 @@ def create_app() -> FastAPI:
     app.include_router(advisor_atlas_router, prefix="/api")
     from app.api.ai_tokens import router as ai_tokens_router
     app.include_router(ai_tokens_router, prefix="/api")
+    from app.api.scholarship_opportunities import router as scholarship_opportunities_router
+    app.include_router(scholarship_opportunities_router, prefix="/api")
+    from app.api.scholarship_deep_hunt import router as scholarship_deep_hunt_router
+    app.include_router(scholarship_deep_hunt_router, prefix="/api")
     return app
 
 

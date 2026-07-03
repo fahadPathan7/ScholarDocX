@@ -85,10 +85,14 @@ export const SHEET_TEMPLATES: SheetTemplate[] = [
     description: "Manage funding opportunities and applications.",
     columns: [
       { name: "Scholarship Name", type: "text", width: 200 },
+      { name: "Sponsor", type: "text", width: 160 },
       { name: "Amount", type: "number", width: 100 },
+      { name: "Funding Coverage", type: "text", width: 160 },
       { name: "Deadline", type: "date", width: 120 },
       { name: "Status", type: "select", options: ["Found", "Writing Essay", "Applied", "Won", "Lost"], width: 120 },
-      { name: "Requirements", type: "text", width: 300 }
+      { name: "Eligible Countries", type: "text", width: 200 },
+      { name: "Requirements", type: "text", width: 300 },
+      { name: "Application URL", type: "url", width: 200 }
     ]
   },
   {

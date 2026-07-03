@@ -82,7 +82,54 @@ development.
 - confirmed `/news/search` requests accept both the exact preview shown to the
   user and the approved query, then persist both to user-scoped SQLite feedback
   storage before returning normalized results
-- `/news/bookmarks`
+- `/news/bookmarks` (superseded by the Opportunity Library UI; endpoints
+  remain and back the one-time additive migration into
+  `scholarship_opportunities`)
+- `/scholarship-catalog` returns the curated, code-shipped scholarship
+  catalog (Phase 0) with zero provider calls; each entry is flagged if
+  already present in the user's Opportunity Library
+- `/scholarship-catalog/{catalog_id}/check-cycle` makes one Tavily basic
+  search scoped to the catalog entry's canonical name and official domain,
+  billed through the existing `can_use_scholarship_hunt` gate (no new quota
+  key)
+- `/scholarship-opportunities/analyze` runs one structured AI extraction call
+  over a card's URL/title/snippet, gated by the `can_use_scholarship_analyze`
+  role limit plus the AI token economy, and upserts a
+  `scholarship_opportunities` row deduped by canonical name + normalized URL;
+  missing fields are never invented
+- `/scholarship-opportunities` (generic user-scoped CRUD: list/patch-status/
+  delete) is the Opportunity Library backing store; `GET` lazily migrates any
+  un-migrated `bookmarked_news` rows in before returning
+- "Add to tracker" has no dedicated backend endpoint — the frontend
+  orchestrates it over the existing `/project_sheets`, `/project_pages`, and
+  `/scholarship-opportunities/{id}` (PATCH) endpoints so sheet-template
+  knowledge stays frontend-only
+- `/local_profiles` (existing generic CRUD) also carries `hunt_profile_json`
+  (Phase 3: degree level, destinations, field of study, intake term,
+  opt-in nationality) — no new endpoint
+- `/scholarship-opportunities/{id}` (PATCH, existing) also accepts
+  `last_deadline_notified_at`, written by the client-side deadline-radar
+  scan to dedupe notifications — no new endpoint
+- `/news/saved-queries/{id}` (PATCH, new — Phase 4) updates
+  `seen_article_ids_json` and `last_used_at` on a saved query so re-running
+  it can diff and badge results "new since last run" (watchlist behavior)
+- `/scholarship-deep-hunt/runs` (Phase 5, SCHOLARDOCX-0125) creates and lists
+  user-scoped persisted Deep Hunt runs (one free-text funding goal plus
+  optional degree level/destinations/intake term). Creating a run is gated
+  by `can_use_scholarship_deep_hunt` (Pro/Max by default, mirroring Advisor
+  Atlas) plus an AI-token pre-flight check; the background run then does a
+  bounded search -> crawl -> extract loop reusing
+  `scholarship_extraction_service` (Phase 1) and
+  `advisor_atlas.crawler.PublicCrawler`, and persists accepted results into
+  `scholarship_opportunities` (`source: "deep_hunt"`, `deep_hunt_run_id` FK)
+  via the same upsert helper `/scholarship-opportunities/analyze` uses.
+- `/scholarship-deep-hunt/runs/{run_id}` returns run status/stage/progress
+  plus the opportunities the run has found so far, parsed the same way as
+  `/scholarship-opportunities`
+- `/scholarship-deep-hunt/runs/{run_id}/cancel` stops an active run
+- `/scholarship-deep-hunt/runs/{run_id}/resume` resumes a failed/cancelled
+  run (plan-gated, same as create)
+- `/scholarship-deep-hunt/runs/{run_id}` (DELETE) removes a run record
 - `/advisor-atlas/runs` creates and lists user-scoped persisted discovery runs
   and validates Professor-mode identity context: professor name, university
   name, official university/professor URL, department or research area, degree

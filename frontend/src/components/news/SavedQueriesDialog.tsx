@@ -5,7 +5,11 @@ import "./QueryReviewDialog.css";
 interface SavedQueriesDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onRunSavedQuery?: (queryString: string, filtersJson: string) => void;
+  onRunSavedQuery?: (
+    queryString: string,
+    filtersJson: string,
+    savedQuery?: { id: number; seen_article_ids_json?: string },
+  ) => void;
   isPreparingQuery?: boolean;
 }
 
@@ -120,7 +124,10 @@ export function SavedQueriesDialog({
                   }}
                   onClick={() => {
                     if (onRunSavedQuery && !isPreparingQuery) {
-                      onRunSavedQuery(sq.query_string, sq.filters_json);
+                      onRunSavedQuery(sq.query_string, sq.filters_json, {
+                        id: sq.id,
+                        seen_article_ids_json: sq.seen_article_ids_json,
+                      });
                       onClose();
                     }
                   }}

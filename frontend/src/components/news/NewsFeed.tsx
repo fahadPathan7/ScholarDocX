@@ -1,5 +1,7 @@
 import React from "react";
 import { NewsArticle } from "../../lib/newsApi";
+import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
+import { HuntProfile } from "../../lib/huntProfile";
 import { NewsCard } from "./NewsCard";
 import { Loader2 } from "lucide-react";
 
@@ -13,6 +15,12 @@ interface NewsFeedProps {
   hasFilters?: boolean;
   onLoadMore: () => void;
   onToggleBookmark: (article: NewsArticle) => void;
+  onAnalyze?: (article: NewsArticle) => void;
+  analyzingUrl?: string | null;
+  opportunitiesByUrl?: Record<string, ScholarshipOpportunity>;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
+  huntProfile?: HuntProfile | null;
+  newArticleIds?: Set<string>;
 }
 
 export function NewsFeed({
@@ -25,6 +33,12 @@ export function NewsFeed({
   hasFilters = true,
   onLoadMore,
   onToggleBookmark,
+  onAnalyze,
+  analyzingUrl,
+  opportunitiesByUrl,
+  onAddToTracker,
+  huntProfile,
+  newArticleIds,
 }: NewsFeedProps) {
   const isArticleBookmarked = (articleId: string) => {
     return bookmarks.some(b => b.article_id === articleId);
@@ -66,6 +80,12 @@ export function NewsFeed({
                 article={article}
                 isBookmarked={isBookmarked}
                 onToggleBookmark={onToggleBookmark}
+                onAnalyze={onAnalyze}
+                isAnalyzing={analyzingUrl === article.link}
+                analyzedOpportunity={opportunitiesByUrl?.[article.link]}
+                onAddToTracker={onAddToTracker}
+                huntProfile={huntProfile}
+                isNew={!!newArticleIds?.has(article.article_id)}
               />
             );
           })}

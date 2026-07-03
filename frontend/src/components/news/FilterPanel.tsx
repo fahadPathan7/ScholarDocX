@@ -8,7 +8,11 @@ interface FilterPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isPreparingQuery?: boolean;
-  onRunSavedQuery?: (queryString: string, filtersJson: string) => void;
+  onRunSavedQuery?: (
+    queryString: string,
+    filtersJson: string,
+    savedQuery?: { id: number; seen_article_ids_json?: string },
+  ) => void;
 }
 
 interface FilterSectionProps {

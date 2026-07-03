@@ -94,6 +94,7 @@ export interface SavedNewsQuery {
   query_string: string;
   filters_json: string;
   created_at: string;
+  seen_article_ids_json?: string;
 }
 
 export const getSavedQueries = async (): Promise<SavedNewsQuery[]> => {
@@ -110,4 +111,11 @@ export const saveQuery = async (name: string, query_string: string, filters_json
 
 export const deleteSavedQuery = async (id: number): Promise<any> => {
   return api.delete(`/news/saved-queries/${id}`);
+};
+
+// Watchlist diff (FR-8.41): persists the seen-article-ID set after a re-run
+// so the next run can badge genuinely new results. Uses the bespoke
+// saved-queries endpoint contract (raw body, not the generic {data} wrapper).
+export const updateSavedQuery = async (id: number, seen_article_ids_json: string): Promise<SavedNewsQuery> => {
+  return api.patch(`/news/saved-queries/${id}`, { seen_article_ids_json });
 };

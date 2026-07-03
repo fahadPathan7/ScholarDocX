@@ -39,6 +39,25 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
 - Advisor Atlas may send public page excerpts and user-entered research-profile
   fields to GLM after explicit search action. It must not send private
   documents, transcripts, email history, or application records.
+- Scholarship opportunity extraction ("Analyze") may send only the target
+  card's URL, title, and snippet/excerpt to GLM (or the OpenRouter Free
+  fallback on GLM failure). It must not send private documents, application
+  records, profile details, or other users' data. Extracted fields with no
+  support in the source text must be left empty; the extractor must never
+  invent a deadline, amount, or eligibility fact.
+- The Hunt Profile's optional nationality field (Phase 3) is local-only: it
+  is read only by the client-side fit-score function and must never appear
+  in a Tavily query, an "Analyze" extraction request, or any other
+  provider-bound payload. Fit scoring itself makes zero provider calls.
+- Deep Hunt runs (Phase 5, SCHOLARDOCX-0125) send only the run's goal text
+  and optional degree level/destinations/intake term to Tavily as query
+  terms, and only crawled-page text/title/URL to the extraction provider —
+  the same boundary "Analyze" already enforces. `scholarship_deep_hunt_runs`
+  is listed in `USER_SCOPED_TABLES` so runs and their results are isolated
+  per user like every other table in this section. Deep Hunt's crawler
+  reuses `advisor_atlas.crawler.PublicCrawler`, so it inherits the same
+  loopback/private-network/file/redirect rejection and robots/size/content
+  -type limits described below, without re-implementing them.
 - Advisor Atlas fetching must reject loopback, private-network, file, and unsafe
   redirect targets; limit content type and size; sanitize remote HTML; and
   respect robots and public access restrictions.

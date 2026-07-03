@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -36,6 +37,10 @@ class SavedQueryCreate(BaseModel):
     filters_json: str
 
 
+class SavedQueryUpdate(BaseModel):
+    seen_article_ids_json: str
+
+
 class ScholarshipSearchFilters(BaseModel):
     levels: Optional[List[str]] = None
     countries: Optional[List[str]] = None
@@ -62,6 +67,10 @@ class ConfirmedSearchRequest(BaseModel):
 
 def _filter_kwargs(filters: ScholarshipSearchFilters) -> Dict[str, Any]:
     return filters.model_dump(exclude_none=True)
+
+
+def _now_iso() -> str:
+    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _charge_scholarship_hunt(user: dict, store: Store) -> None:
@@ -284,6 +293,28 @@ async def add_saved_query(
         return store.create_record("saved_scholarship_queries", saved_query.model_dump())
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/news/saved-queries/{query_id}")
+async def update_saved_query(
+    query_id: int,
+    payload: SavedQueryUpdate,
+    user: dict = Depends(get_current_user),
+    store: Store = Depends(get_user_store),
+):
+    """Updates a watchlist's seen-article-IDs after a re-run diff (FR-8.41);
+    bumps last_used_at server-side so "run again" freshness isn't client-set."""
+    try:
+        return store.update_record(
+            "saved_scholarship_queries",
+            query_id,
+            {
+                "seen_article_ids_json": payload.seen_article_ids_json,
+                "last_used_at": _now_iso(),
+            },
+        )
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
 
 @router.delete("/news/saved-queries/{query_id}")
 async def delete_saved_query(

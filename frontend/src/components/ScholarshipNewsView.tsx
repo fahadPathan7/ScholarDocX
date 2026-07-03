@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Filter, Bookmark, ChevronRight } from "lucide-react";
+import { ChevronRight, UserCog } from "lucide-react";
 import { FilterPanel } from "./news/FilterPanel";
 import { NewsFeed } from "./news/NewsFeed";
 import { QueryReviewDialog } from "./news/QueryReviewDialog";
 import { CustomPromptDialog } from "./news/CustomPromptDialog";
+import { ScholarshipCatalog } from "./news/ScholarshipCatalog";
+import { OpportunityLibrary } from "./news/OpportunityLibrary";
+import { DeepHuntView } from "./news/DeepHuntView";
+import { AddToTrackerModal } from "./news/AddToTrackerModal";
+import { HuntProfileModal } from "./news/HuntProfileModal";
 import {
   addBookmark,
   getBookmarkedNews,
@@ -14,9 +19,14 @@ import {
   removeBookmark,
   searchNews,
   saveQuery,
+  updateSavedQuery,
 } from "../lib/newsApi";
+import { ScholarshipOpportunity, analyzeScholarshipOpportunity } from "../lib/scholarshipOpportunitiesApi";
+import { HuntProfile, getHuntProfile } from "../lib/huntProfile";
 import { useUsage } from "../contexts/UsageContext";
 import "./news/news.css";
+
+type ScholarshipHuntSubTab = "hunt" | "catalog" | "library" | "deep-hunt";
 
 interface ScholarshipNewsViewProps {
   onToast: (msg: string) => void;
@@ -26,7 +36,8 @@ interface ScholarshipNewsViewProps {
 type SearchFlowState = "idle" | "preparing" | "review" | "searching";
 
 export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNewsViewProps) {
-  const { refreshUsage } = useUsage();
+  const { refreshUsage, usageData } = useUsage();
+  const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_deep_hunt ?? 0) === 1;
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +72,49 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   } | null>(null);
   const [showCustomPromptDialog, setShowCustomPromptDialog] = useState(false);
 
+  const [subTab, setSubTab] = useState<ScholarshipHuntSubTab>("hunt");
+  const [reviewQueryBeforeSearch, setReviewQueryBeforeSearch] = useState(() => {
+    return localStorage.getItem("scholarshipHunt_reviewQueryBeforeSearch") === "true";
+  });
+  const [analyzingUrl, setAnalyzingUrl] = useState<string | null>(null);
+  const [opportunitiesByUrl, setOpportunitiesByUrl] = useState<Record<string, ScholarshipOpportunity>>({});
+  const [trackerModalOpportunity, setTrackerModalOpportunity] = useState<ScholarshipOpportunity | null>(null);
+  const [huntProfile, setHuntProfile] = useState<HuntProfile | null>(null);
+  const [isHuntProfileModalOpen, setIsHuntProfileModalOpen] = useState(false);
+  const [newArticleIds, setNewArticleIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    localStorage.setItem("scholarshipHunt_reviewQueryBeforeSearch", String(reviewQueryBeforeSearch));
+  }, [reviewQueryBeforeSearch]);
+
+  useEffect(() => {
+    getHuntProfile()
+      .then(({ profile }) => setHuntProfile(profile))
+      .catch(() => undefined);
+  }, []);
+
+  const handleAnalyze = async (article: NewsArticle) => {
+    setAnalyzingUrl(article.link);
+    try {
+      const opportunity = await analyzeScholarshipOpportunity({
+        source_url: article.link,
+        source_title: article.title,
+        source_snippet: article.description || "",
+      });
+      setOpportunitiesByUrl((prev) => ({ ...prev, [article.link]: opportunity }));
+      onToast("Analyzed. Structured details are ready below.");
+      await refreshUsage();
+    } catch (error) {
+      onToast("Could not analyze this page.");
+    } finally {
+      setAnalyzingUrl(null);
+    }
+  };
+
+  const handleAddToTracker = (opportunity: ScholarshipOpportunity) => {
+    setTrackerModalOpportunity(opportunity);
+  };
+
   const hasAnyFilter = (params: NewsSearchParams) => {
     return Object.values(params).some(val => Array.isArray(val) ? val.length > 0 : !!val);
   };
@@ -81,22 +135,22 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     previewFeedbackId: number,
     approvedQuery: string,
     append = false,
-  ) => {
-    if (showBookmarksOnly) return; // Don't fetch from API when viewing bookmarks
+  ): Promise<NewsArticle[]> => {
+    if (showBookmarksOnly) return []; // Don't fetch from API when viewing bookmarks
     if (!hasAnyFilter(currentFilters) && !approvedQuery) {
       setArticles([]);
       setSearchFlow("idle");
       setIsLoading(false);
-      return;
+      return [];
     }
-    
-    if (isLoadingRef.current) return;
-    
+
+    if (isLoadingRef.current) return [];
+
     setIsLoading(true);
     isLoadingRef.current = true;
     try {
       const response = await searchNews(currentFilters, previewFeedbackId, approvedQuery);
-      
+
       if (append) {
         setArticles(prev => [...prev, ...response.results]);
       } else {
@@ -107,8 +161,9 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
           searchedAt: new Date().toISOString(),
         });
       }
-      
+
       await refreshUsage();
+      return response.results || [];
     } catch (error: any) {
       console.error("News search error:", error);
       if (error.message?.includes("429") || error.message?.includes("Limit exceeded")) {
@@ -117,6 +172,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
         onToast("Failed to find scholarship opportunities.");
       }
       if (!append) setArticles([]);
+      return [];
     } finally {
       setIsLoading(false);
       setSearchFlow("idle");
@@ -164,16 +220,23 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     try {
       const preview = await previewNewsQuery(newFilters);
       setPendingFilters(newFilters);
-      setQueryPreview({
-        previewFeedbackId: preview.preview_feedback_id,
-        initialQuery: preview.initial_query,
-        maxLength: preview.max_length,
-        generationSource: preview.generation_source,
-        generationModel: preview.generation_model,
-        generationNotice: preview.generation_notice,
-      });
-      setSearchFlow("review");
       await refreshUsage();
+      if (reviewQueryBeforeSearch) {
+        setQueryPreview({
+          previewFeedbackId: preview.preview_feedback_id,
+          initialQuery: preview.initial_query,
+          maxLength: preview.max_length,
+          generationSource: preview.generation_source,
+          generationModel: preview.generation_model,
+          generationNotice: preview.generation_notice,
+        });
+        setSearchFlow("review");
+      } else {
+        setFilters(newFilters);
+        setShowBookmarksOnly(false);
+        setSearchFlow("searching");
+        await fetchNews(newFilters, preview.preview_feedback_id, preview.initial_query, false);
+      }
     } catch (error) {
       console.error("Failed to prepare Scholarship Hunt query:", error);
       if ((error as Error)?.message?.includes("429") || (error as Error)?.message?.includes("Limit exceeded")) {
@@ -194,17 +257,24 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
       const payload: NewsSearchParams = { custom_prompt: promptText };
       const preview = await previewNewsQuery(payload);
       setPendingFilters(payload);
-      setQueryPreview({
-        previewFeedbackId: preview.preview_feedback_id,
-        initialQuery: preview.initial_query,
-        maxLength: preview.max_length,
-        generationSource: preview.generation_source,
-        generationModel: preview.generation_model,
-        generationNotice: preview.generation_notice,
-      });
-      setSearchFlow("review");
       setShowCustomPromptDialog(false);
       await refreshUsage();
+      if (reviewQueryBeforeSearch) {
+        setQueryPreview({
+          previewFeedbackId: preview.preview_feedback_id,
+          initialQuery: preview.initial_query,
+          maxLength: preview.max_length,
+          generationSource: preview.generation_source,
+          generationModel: preview.generation_model,
+          generationNotice: preview.generation_notice,
+        });
+        setSearchFlow("review");
+      } else {
+        setFilters(payload);
+        setShowBookmarksOnly(false);
+        setSearchFlow("searching");
+        await fetchNews(payload, preview.preview_feedback_id, preview.initial_query, false);
+      }
     } catch (error) {
       console.error("Failed to prepare Scholarship Hunt custom query:", error);
       if ((error as Error)?.message?.includes("429") || (error as Error)?.message?.includes("Limit exceeded")) {
@@ -239,19 +309,42 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     await fetchNews(confirmedFilters, previewFeedbackId, approvedQuery, false);
   };
 
-  const handleRunSavedQuery = async (queryString: string, filtersJson: string) => {
+  const handleRunSavedQuery = async (
+    queryString: string,
+    filtersJson: string,
+    savedQuery?: { id: number; seen_article_ids_json?: string },
+  ) => {
     let parsedFilters = {};
     try {
       parsedFilters = JSON.parse(filtersJson);
     } catch(e) {}
-    
+
     setFilters(parsedFilters);
     setPendingFilters(parsedFilters);
     setShowBookmarksOnly(false);
     setSearchFlow("searching");
-    
+    setNewArticleIds(new Set());
+
     // Use 0 or null equivalent for preview feedback since it's pre-approved
-    await fetchNews(parsedFilters, 0, queryString, false);
+    const results = await fetchNews(parsedFilters, 0, queryString, false);
+
+    // Watchlist diff (FR-8.41): mark results not seen on the previous run,
+    // then persist the full current set as "seen" for next time.
+    if (savedQuery) {
+      try {
+        let previouslySeen: string[] = [];
+        try {
+          previouslySeen = JSON.parse(savedQuery.seen_article_ids_json || "[]");
+        } catch (e) {}
+        const seenSet = new Set(previouslySeen);
+        const currentIds = results.map((a) => a.article_id).filter(Boolean);
+        const freshIds = new Set(currentIds.filter((id) => !seenSet.has(id)));
+        setNewArticleIds(freshIds);
+        await updateSavedQuery(savedQuery.id, JSON.stringify(Array.from(new Set(currentIds))));
+      } catch (error) {
+        console.error("Failed to diff/update watchlist seen IDs:", error);
+      }
+    }
   };
 
   const handleToggleBookmark = async (article: NewsArticle) => {
@@ -346,90 +439,202 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   return (
     <div className="scholarship-news-view">
       <div className="news-toolbar">
-        <h1>{showBookmarksOnly ? "Saved Scholarships" : "Scholarship Hunt"}</h1>
-        <div className="news-toolbar-actions" style={{ alignItems: 'center' }}>
-
-          <button 
-            className={`button-secondary ${showBookmarksOnly ? 'active' : ''}`} 
-            onClick={toggleBookmarksView}
+        <h1>Scholarship Hunt</h1>
+        <div className="news-toolbar-actions" style={{ alignItems: 'center', gap: '14px' }}>
+          {subTab === "hunt" && (
+            <>
+              <label className="review-query-toggle" title="Show the editable query before every search">
+                <input
+                  type="checkbox"
+                  checked={reviewQueryBeforeSearch}
+                  onChange={(e) => setReviewQueryBeforeSearch(e.target.checked)}
+                />
+                Review query before search
+              </label>
+              <button
+                className={`button-secondary ${showBookmarksOnly ? 'active' : ''}`}
+                onClick={toggleBookmarksView}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span className="hidden sm:inline">{showBookmarksOnly ? "Feed" : "Saved"}</span>
+              </button>
+            </>
+          )}
+          <button
+            className="button-secondary"
+            onClick={() => setIsHuntProfileModalOpen(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Set your degree, destinations, field, and intake for local fit scoring"
           >
-            <Bookmark size={18} className={showBookmarksOnly ? "fill-current" : ""} />
-            <span className="hidden sm:inline">{showBookmarksOnly ? "Feed" : "Saved"}</span>
+            <UserCog size={16} />
+            <span className="hidden sm:inline">Hunt Profile</span>
           </button>
         </div>
       </div>
-      
-      <div className="news-layout">
-        {!showBookmarksOnly && !isFilterOpen && (
-          <button
-            className="filter-panel-expand-button"
-            onClick={() => setIsFilterOpen(true)}
-            aria-label="Expand query builder"
-            title="Expand query builder"
-          >
-            <ChevronRight size={20} />
-          </button>
-        )}
-        {!showBookmarksOnly && (
-          <FilterPanel 
-            isOpen={isFilterOpen} 
-            onClose={() => setIsFilterOpen(false)} 
-            onApplyFilters={handleApplyFilters}
-            isPreparingQuery={isPreparingQuery}
-            onRunSavedQuery={handleRunSavedQuery}
-          />
-        )}
-        
-        <main className="news-main">
-          {!showBookmarksOnly && searchStatus && (
-            <section className={`news-search-status news-search-status--${searchStatus.tone}`} aria-live="polite">
-              <p className="news-search-status-label">{searchStatus.label}</p>
-              {searchStatus.detail && (
-                <p className="news-search-status-detail">{searchStatus.detail}</p>
-              )}
-            </section>
-          )}
-          <NewsFeed 
-            articles={displayedArticles} 
-            bookmarks={bookmarks}
-            isLoading={isLoading} 
-            isRefreshing={isPreparingQuery || isLoading}
-            refreshMessage={isPreparingQuery
-              ? "Preparing a fresh Scholarship Hunt query..."
-              : "Running your approved Scholarship Hunt query..."}
-            hasMore={false}
-            hasFilters={showBookmarksOnly || hasFiltersSelected || !!latestSearch}
-            onLoadMore={() => undefined}
-            onToggleBookmark={handleToggleBookmark}
-          />
-        </main>
+
+      <div className="news-subnav" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={subTab === "hunt"}
+          className={`news-subnav-tab ${subTab === "hunt" ? "active" : ""}`}
+          onClick={() => setSubTab("hunt")}
+        >
+          Hunt
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={subTab === "catalog"}
+          className={`news-subnav-tab ${subTab === "catalog" ? "active" : ""}`}
+          onClick={() => setSubTab("catalog")}
+        >
+          Catalog
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={subTab === "library"}
+          className={`news-subnav-tab ${subTab === "library" ? "active" : ""}`}
+          onClick={() => setSubTab("library")}
+        >
+          Library
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={subTab === "deep-hunt"}
+          className={`news-subnav-tab ${subTab === "deep-hunt" ? "active" : ""}`}
+          onClick={() => setSubTab("deep-hunt")}
+        >
+          Deep Hunt
+        </button>
       </div>
-      {queryPreview && (
-        <QueryReviewDialog
-          initialQuery={queryPreview.initialQuery}
-          maxLength={queryPreview.maxLength}
-          generationSource={queryPreview.generationSource}
-          generationModel={queryPreview.generationModel}
-          generationNotice={queryPreview.generationNotice}
-          isSearching={isLoading}
-          onCancel={() => {
-            if (!isLoading) {
-              setQueryPreview(null);
-              setPendingFilters(null);
-              setSearchFlow("idle");
-            }
-          }}
-          onConfirm={handleConfirmQuery}
+
+      {subTab === "deep-hunt" && (
+        <DeepHuntView
+          onToast={onToast}
+          onAddToTracker={handleAddToTracker}
+          huntProfile={huntProfile}
+          canUseDeepHunt={canUseDeepHunt}
         />
       )}
-      {showCustomPromptDialog && (
-        <CustomPromptDialog
-          isRefining={isPreparingQuery}
-          onCancel={() => {
-            if (!isPreparingQuery) setShowCustomPromptDialog(false);
-          }}
-          onConfirm={handleRefineCustomPrompt}
+
+      {subTab === "catalog" && (
+        <ScholarshipCatalog
+          onToast={onToast}
+          onAddToTracker={handleAddToTracker}
+          onRefreshUsage={refreshUsage}
+          huntProfile={huntProfile}
+        />
+      )}
+
+      {subTab === "library" && (
+        <OpportunityLibrary
+          onToast={onToast}
+          onAddToTracker={handleAddToTracker}
+          refreshTrigger={refreshTrigger}
+          huntProfile={huntProfile}
+        />
+      )}
+
+      {subTab === "hunt" && (
+        <>
+          <div className="news-layout">
+            {!showBookmarksOnly && !isFilterOpen && (
+              <button
+                className="filter-panel-expand-button"
+                onClick={() => setIsFilterOpen(true)}
+                aria-label="Expand query builder"
+                title="Expand query builder"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
+            {!showBookmarksOnly && (
+              <FilterPanel
+                isOpen={isFilterOpen}
+                onClose={() => setIsFilterOpen(false)}
+                onApplyFilters={handleApplyFilters}
+                isPreparingQuery={isPreparingQuery}
+                onRunSavedQuery={handleRunSavedQuery}
+              />
+            )}
+
+            <main className="news-main">
+              {!showBookmarksOnly && searchStatus && (
+                <section className={`news-search-status news-search-status--${searchStatus.tone}`} aria-live="polite">
+                  <p className="news-search-status-label">{searchStatus.label}</p>
+                  {searchStatus.detail && (
+                    <p className="news-search-status-detail">{searchStatus.detail}</p>
+                  )}
+                </section>
+              )}
+              <NewsFeed
+                articles={displayedArticles}
+                bookmarks={bookmarks}
+                isLoading={isLoading}
+                isRefreshing={isPreparingQuery || isLoading}
+                refreshMessage={isPreparingQuery
+                  ? "Preparing a fresh Scholarship Hunt query..."
+                  : "Running your approved Scholarship Hunt query..."}
+                hasMore={false}
+                hasFilters={showBookmarksOnly || hasFiltersSelected || !!latestSearch}
+                onLoadMore={() => undefined}
+                onToggleBookmark={handleToggleBookmark}
+                onAnalyze={handleAnalyze}
+                analyzingUrl={analyzingUrl}
+                opportunitiesByUrl={opportunitiesByUrl}
+                onAddToTracker={handleAddToTracker}
+                huntProfile={huntProfile}
+                newArticleIds={newArticleIds}
+              />
+            </main>
+          </div>
+          {queryPreview && (
+            <QueryReviewDialog
+              initialQuery={queryPreview.initialQuery}
+              maxLength={queryPreview.maxLength}
+              generationSource={queryPreview.generationSource}
+              generationModel={queryPreview.generationModel}
+              generationNotice={queryPreview.generationNotice}
+              isSearching={isLoading}
+              onCancel={() => {
+                if (!isLoading) {
+                  setQueryPreview(null);
+                  setPendingFilters(null);
+                  setSearchFlow("idle");
+                }
+              }}
+              onConfirm={handleConfirmQuery}
+            />
+          )}
+          {showCustomPromptDialog && (
+            <CustomPromptDialog
+              isRefining={isPreparingQuery}
+              onCancel={() => {
+                if (!isPreparingQuery) setShowCustomPromptDialog(false);
+              }}
+              onConfirm={handleRefineCustomPrompt}
+            />
+          )}
+        </>
+      )}
+
+      {trackerModalOpportunity && (
+        <AddToTrackerModal
+          opportunity={trackerModalOpportunity}
+          onClose={() => setTrackerModalOpportunity(null)}
+          onDone={() => setTrackerModalOpportunity(null)}
+          onToast={onToast}
+        />
+      )}
+
+      {isHuntProfileModalOpen && (
+        <HuntProfileModal
+          onClose={() => setIsHuntProfileModalOpen(false)}
+          onSaved={(profile) => setHuntProfile(profile)}
+          onToast={onToast}
         />
       )}
     </div>

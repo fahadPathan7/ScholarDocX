@@ -137,6 +137,7 @@ class Users(Base):
     outreach_logs: Mapped[list['OutreachLogs']] = relationship('OutreachLogs', back_populates='user')
     reminders: Mapped[list['Reminders']] = relationship('Reminders', back_populates='user')
     saved_scholarship_queries: Mapped[list['SavedScholarshipQueries']] = relationship('SavedScholarshipQueries', back_populates='user')
+    scholarship_opportunities: Mapped[list['ScholarshipOpportunities']] = relationship('ScholarshipOpportunities', back_populates='user')
 
 
 class AiConversations(Base):
@@ -291,6 +292,7 @@ class LocalProfiles(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
     avatar: Mapped[Optional[str]] = mapped_column(Text)
     notification_settings: Mapped[Optional[str]] = mapped_column(Text, server_default=text('\'{"project_create": true, "project_delete": true, "project_pin": false, "sheet_create": true, "sheet_delete": true, "sheet_pin": false, "record_create": false, "record_delete": true, "whiteboard_create": false, "whiteboard_delete": true, "sticky_note_create": false, "sticky_note_update": false, "sticky_note_delete": true, "scheduled_email": true, "system": true, "announcements": true, "billing": true, "plans": true}\''))
+    hunt_profile_json: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'{}'"))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='local_profiles')
 
@@ -881,10 +883,67 @@ class SavedScholarshipQueries(Base):
     created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     last_used_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    seen_article_ids_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='saved_scholarship_queries')
+
+
+class ScholarshipOpportunities(Base):
+    __tablename__ = 'scholarship_opportunities'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'normalized_url'),
+    )
+
+    source: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'hunt'"))
+    canonical_name: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Found'"))
+    degree_levels_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    destinations_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    eligible_nationalities_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    funding_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    deadlines_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    requirements_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    field_confidence_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    sponsor: Mapped[Optional[str]] = mapped_column(Text)
+    application_url: Mapped[Optional[str]] = mapped_column(Text)
+    linked_sheet_id: Mapped[Optional[int]] = mapped_column(ForeignKey('project_sheets.id'))
+    linked_row_snapshot: Mapped[Optional[str]] = mapped_column(Text)
+    last_deadline_notified_at: Mapped[Optional[str]] = mapped_column(Text)
+    deep_hunt_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey('scholarship_deep_hunt_runs.id'))
+
+    user: Mapped[Optional['Users']] = relationship('Users', back_populates='scholarship_opportunities')
+
+
+class ScholarshipDeepHuntRuns(Base):
+    __tablename__ = "scholarship_deep_hunt_runs"
+    __table_args__ = (
+        Index("idx_scholarship_deep_hunt_runs_user_id", "user_id"),
+        Index("idx_scholarship_deep_hunt_runs_status", "status"),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    goal: Mapped[str] = mapped_column(Text, nullable=False)
+    degree_level: Mapped[Optional[str]] = mapped_column(Text)
+    destinations_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    intake_term: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
+    current_stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
+    progress_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    result_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    error_message: Mapped[Optional[str]] = mapped_column(Text)
+    started_at: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[Optional[str]] = mapped_column(Text)
+    cancelled_at: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
 class AiModels(Base):

@@ -292,6 +292,50 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   `daily_ai_chats` and `advisor_atlas_searches_per_month` rows.
 - `UsageIndicator.tsx` is dead code (never imported); left untouched.
 
+## Scholarship opportunity extraction billing (Epic-ScholarshipHunt)
+
+- `POST /scholarship-opportunities/analyze` (Phase 1 of the scholarship
+  pipeline) is gated by a new boolean role limit `can_use_scholarship_analyze`
+  (free/general = 0, pro/max = 1) checked via
+  `check_and_increment_limit(user, "can_use_scholarship_analyze", 0, session)`
+  — a permission check, not a count decrement, mirroring
+  `can_use_scholarship_hunt`.
+- The actual extraction call is metered like any other `AiService` call:
+  `ensure_can_spend` before, `charge(..., source="scholarship_analyze")`
+  after, via `AiService.set_billing()` — same funnel as Advisor Atlas.
+- No new count-based limit key (`scholarship_analyze_daily`, etc.) was added.
+  This follows the same direction as the Phase 5 teardown below: count limits
+  on AI-metered actions were removed in favor of a boolean plan gate + token
+  cost, and a new count key would work against that.
+- "Check current cycle" on a catalog entry reuses the existing
+  `can_use_scholarship_hunt` gate and flat-fee Tavily billing
+  (`_charge_scholarship_hunt` in `backend/app/api/news.py`) — no new quota
+  key.
+
+## Deep Hunt run billing (SCHOLARDOCX-0125, Phase 5)
+
+- `POST /scholarship-deep-hunt/runs` (and `/resume`) are gated by a new
+  boolean role limit `can_use_scholarship_deep_hunt` (free/general = 0,
+  pro/max = 1) — same `check_and_increment_limit(user,
+  "can_use_scholarship_deep_hunt", 0, session)` shape as
+  `can_use_advisor_atlas`, not `can_use_scholarship_analyze`'s flat-fee
+  cousin. This follows Advisor Atlas's model, not the plain Hunt tab's.
+- Each of a run's extraction calls (up to ~12 per run) goes through the same
+  `scholarship_extraction_service.extract()` → `AiService.chat()` path as
+  Phase 1's Analyze, so it is metered identically:
+  `ensure_can_spend` pre-flight in the API layer, then the background
+  service attaches billing via `AiService.set_billing(load_user_dict(...))`
+  before running, same as Advisor Atlas's background runs.
+- Tavily search calls inside a run (up to 3 passes) are **not** charged a
+  flat fee. They are recorded as zero-cost ledger rows via
+  `AiService.record_external_search(source="scholarship_deep_hunt_search")`,
+  mirroring Advisor Atlas's own search calls — cost stays 0, but the call
+  still surfaces in the admin Tavily usage dashboard.
+- No new count-based daily/monthly limit key was added for Deep Hunt, for
+  the same reason `can_use_scholarship_analyze` didn't get one: count limits
+  on AI-metered actions were removed project-wide in the Phase 5 teardown
+  above in favor of gate + token cost.
+
 ## Remaining phases
 
 - None — Phases 1–5 complete (metering, teardown, model pricing, packs +

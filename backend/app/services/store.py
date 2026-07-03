@@ -43,10 +43,11 @@ MODEL_MAP = {
     "bookmarked_news": models.BookmarkedNews,
     "scholarship_search_feedback": models.ScholarshipSearchFeedback,
     "saved_scholarship_queries": models.SavedScholarshipQueries,
+    "scholarship_opportunities": models.ScholarshipOpportunities,
 }
 
 TABLE_COLUMNS = {
-    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings"},
+    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings", "hunt_profile_json"},
     "projects": {"user_id", "name", "degree_type", "intake_term", "status", "description", "is_pinned", "pinned_to_dashboard"},
     "project_sheets": {"user_id", "project_id", "name", "is_pinned", "pinned_to_dashboard"},
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},
@@ -126,6 +127,27 @@ TABLE_COLUMNS = {
         "query_string",
         "filters_json",
         "last_used_at",
+        "seen_article_ids_json",
+    },
+    "scholarship_opportunities": {
+        "user_id",
+        "source",
+        "canonical_name",
+        "normalized_url",
+        "status",
+        "sponsor",
+        "degree_levels_json",
+        "destinations_json",
+        "eligible_nationalities_json",
+        "funding_json",
+        "deadlines_json",
+        "requirements_json",
+        "field_confidence_json",
+        "application_url",
+        "linked_sheet_id",
+        "linked_row_snapshot",
+        "last_deadline_notified_at",
+        "deep_hunt_run_id",
     },
 }
 
@@ -144,6 +166,7 @@ DEFAULT_SORT = {
     "whiteboards": "last_used_at DESC",
     "scholarship_search_feedback": "created_at DESC",
     "saved_scholarship_queries": "last_used_at DESC",
+    "scholarship_opportunities": "updated_at DESC",
 }
 
 def get_columns_for_degree(degree_type: str) -> list[dict]:

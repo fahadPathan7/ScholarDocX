@@ -106,6 +106,7 @@ export async function notify(
     dueAt?: string;
     attachmentSummary?: string;
     actionLabel?: string;
+    scholarshipName?: string;
   } = {}
 ): Promise<void> {
   try {

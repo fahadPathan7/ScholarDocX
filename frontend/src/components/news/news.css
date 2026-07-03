@@ -888,3 +888,409 @@
     transition: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Scholarship pipeline: sub-nav, catalog, opportunity cards, library */
+/* ------------------------------------------------------------------ */
+
+.review-query-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #65756d;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.news-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(47, 109, 122, 0.12);
+  padding-bottom: 2px;
+}
+
+.news-subnav-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #65756d;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 6px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.news-subnav-tab:hover {
+  color: #1f4f5a;
+}
+
+.news-subnav-tab.active {
+  color: #1f4f5a;
+  border-bottom-color: #38a37f;
+}
+
+.opportunity-card {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(47, 109, 122, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opportunity-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.opportunity-card-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #17201d;
+}
+
+.opportunity-sponsor {
+  font-size: 0.8rem;
+  color: #70827f;
+  white-space: nowrap;
+}
+
+.opportunity-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opportunity-deadline-chip,
+.opportunity-funding-badge,
+.scholarship-catalog-level-chip,
+.opportunity-in-library-badge,
+.opportunity-linked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.opportunity-deadline-chip {
+  background: rgba(47, 109, 122, 0.08);
+  color: #1f4f5a;
+  border-color: rgba(47, 109, 122, 0.15);
+}
+
+.opportunity-deadline-chip.tone-urgent {
+  background: rgba(196, 68, 68, 0.12);
+  color: #a13636;
+  border-color: rgba(196, 68, 68, 0.2);
+}
+
+.opportunity-deadline-chip.tone-warning {
+  background: rgba(217, 154, 61, 0.15);
+  color: #c98828;
+  border-color: rgba(217, 154, 61, 0.25);
+}
+
+.opportunity-deadline-chip.tone-watch {
+  background: rgba(217, 154, 61, 0.08);
+  color: #a3792c;
+  border-color: rgba(217, 154, 61, 0.15);
+}
+
+.opportunity-deadline-chip.tone-past {
+  background: rgba(101, 117, 109, 0.1);
+  color: #65756d;
+}
+
+.opportunity-funding-badge.coverage-full {
+  background: rgba(56, 163, 127, 0.12);
+  color: #2f7d74;
+  border-color: rgba(56, 163, 127, 0.2);
+}
+
+.opportunity-funding-badge.coverage-partial {
+  background: rgba(217, 154, 61, 0.1);
+  color: #c98828;
+  border-color: rgba(217, 154, 61, 0.2);
+}
+
+.scholarship-catalog-level-chip {
+  background: #f6f0e7;
+  color: #46534d;
+  border-color: #d8d0c4;
+}
+
+.opportunity-in-library-badge {
+  background: rgba(56, 163, 127, 0.12);
+  color: #2f7d74;
+}
+
+.opportunity-linked-badge {
+  background: rgba(31, 79, 90, 0.08);
+  color: #1f4f5a;
+  white-space: normal;
+}
+
+.opportunity-funding-notes,
+.opportunity-eligibility-summary,
+.opportunity-empty-note {
+  font-size: 0.85rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.opportunity-empty-note {
+  font-style: italic;
+  color: #70827f;
+}
+
+.opportunity-requirements {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.opportunity-add-to-tracker-btn {
+  align-self: flex-start;
+}
+
+.news-analyze-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Catalog */
+
+.scholarship-catalog-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.scholarship-catalog-hint {
+  color: #65756d;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.scholarship-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.scholarship-catalog-card {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 10px 26px rgba(23, 32, 29, 0.05);
+}
+
+.scholarship-catalog-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.scholarship-catalog-card-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #17201d;
+}
+
+.scholarship-catalog-sponsor {
+  font-size: 0.8rem;
+  color: #70827f;
+  margin: 0;
+}
+
+.scholarship-catalog-blurb {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.scholarship-catalog-cycle {
+  font-size: 0.8rem;
+  color: #70827f;
+  margin: 0;
+}
+
+.scholarship-catalog-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.scholarship-catalog-card-actions .button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scholarship-catalog-cycle-results {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(47, 109, 122, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scholarship-catalog-cycle-result a {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f4f5a;
+}
+
+/* Opportunity Library */
+
+.opportunity-library {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.opportunity-library-row {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 26px rgba(23, 32, 29, 0.05);
+}
+
+.opportunity-library-row .opportunity-card {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.opportunity-library-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(47, 109, 122, 0.1);
+  flex-wrap: wrap;
+}
+
+/* Phase 3: Hunt Profile fit score */
+
+.opportunity-fit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.opportunity-fit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.opportunity-fit-badge.fit-high {
+  background: rgba(56, 163, 127, 0.15);
+  color: #1e6657;
+  border-color: rgba(56, 163, 127, 0.25);
+}
+
+.opportunity-fit-badge.fit-medium {
+  background: rgba(217, 154, 61, 0.12);
+  color: #a3792c;
+  border-color: rgba(217, 154, 61, 0.22);
+}
+
+.opportunity-fit-badge.fit-low {
+  background: rgba(101, 117, 109, 0.1);
+  color: #65756d;
+}
+
+.opportunity-fit-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.opportunity-fit-chip.fit-chip-match {
+  background: rgba(56, 163, 127, 0.08);
+  color: #2f7d74;
+}
+
+.opportunity-fit-chip.fit-chip-mismatch {
+  background: rgba(196, 68, 68, 0.08);
+  color: #a13636;
+}
+
+/* Phase 4: watchlist "New" badge */
+
+.news-new-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #38a37f;
+  color: #ffffff;
+}
+
+/* Phase 4: deadline radar strip */
+
+.deadline-radar-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(47, 109, 122, 0.15);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f4f5a;
+}
+
+.deadline-radar-strip.tone-urgent {
+  border-color: rgba(196, 68, 68, 0.25);
+  background: rgba(196, 68, 68, 0.06);
+  color: #a13636;
+}
+
+.deadline-radar-strip.tone-warning {
+  border-color: rgba(217, 154, 61, 0.25);
+  background: rgba(217, 154, 61, 0.08);
+  color: #a3792c;
+}

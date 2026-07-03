@@ -175,6 +175,43 @@ Implications:
 - The project root directory is renamed to ScholarDocX as a final manual step.
 - backend/backend.log is intentionally left with its historical entries.
 
+## BD-010: Scholarship Hunt Evolves Into A Pipeline (Phases 0-2)
+
+Status: Accepted
+
+Decision:
+
+Scholarship Hunt is reframed from a search-results page into a pipeline
+(catalog → analyze → track), per
+`AI-Context/planbook/scholarship-hunt-pipeline.md`. First delivery covers
+Phases 0 (curated catalog), 1 (structured AI extraction/"Analyze"), and 2
+(add-to-tracker + Opportunity Library). Phases 3 (profile-aware fit scoring)
+and 4 (watchlists/deadline radar) are deferred; Phase 5 (Deep Hunt runs) is a
+stretch goal not scheduled.
+
+Rationale:
+
+Raw search links require the user to do all the eligibility/deadline work
+themselves and give the app no connection to the user's actual workflow.
+Routing structured opportunities into the existing sheet/calendar system
+reuses working infrastructure instead of building a parallel one.
+
+Implications:
+
+- The beta query-review dialog (FR-8.24) becomes an opt-in, default-off
+  toggle instead of a mandatory step, since the extraction step is now the
+  quality control surface.
+- Structured extraction uses the token-metered configured provider (GLM) via
+  the existing `AiService` billing funnel, with an OpenRouter Free fallback —
+  mirroring the existing Scholarship Hunt query-generation pattern rather
+  than introducing a new provider path.
+- A future Hunt Profile (Phase 3) may include a nationality field, but only
+  as opt-in and never sent to any provider unless the user explicitly enables
+  it — consistent with BD-001's local-first/privacy-first posture. Not
+  implemented in this delivery.
+- Bookmarks are migrated into the Opportunity Library additively; the
+  underlying `bookmarked_news` table and endpoints are not removed.
+
 ## Pending Decisions
 
 - Final desktop/local delivery model: browser app with local backend vs packaged desktop shell.

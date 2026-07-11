@@ -31,16 +31,29 @@ export function Field({
     <label className="field">
       <span>{label}</span>
       {options ? (
-        <select name={name} value={value} required={required} onChange={handleChange}>
-          <option value="">Select</option>
-          {options.map((opt) => {
-            const isObj = typeof opt !== "string";
-            const val = isObj ? opt.value : opt;
-            const lbl = isObj ? opt.label : opt;
-            const disabled = isObj ? opt.disabled : false;
-            return <option key={val} value={val} disabled={disabled}>{lbl}</option>;
-          })}
-        </select>
+        (() => {
+          let selectedValue = value;
+          const lowerVal = (value || "").toLowerCase();
+          for (const opt of options) {
+            const val = typeof opt !== "string" ? opt.value : opt;
+            if ((val || "").toLowerCase() === lowerVal) {
+              selectedValue = val;
+              break;
+            }
+          }
+          return (
+            <select name={name} value={selectedValue} required={required} onChange={handleChange}>
+              <option value="">Select</option>
+              {options.map((opt) => {
+                const isObj = typeof opt !== "string";
+                const val = isObj ? opt.value : opt;
+                const lbl = isObj ? opt.label : opt;
+                const disabled = isObj ? opt.disabled : false;
+                return <option key={val} value={val} disabled={disabled}>{lbl}</option>;
+              })}
+            </select>
+          );
+        })()
       ) : rows ? (
         <textarea
           name={name}

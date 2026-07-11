@@ -207,7 +207,7 @@ main {
 
 .main-head {
   background-color: #fcf9f2;
-  background-image: 
+  background-image:
     radial-gradient(circle at 10% 40%, rgba(56, 163, 127, 0.1), transparent 45%),
     radial-gradient(circle at 90% 20%, rgba(31, 79, 90, 0.08), transparent 45%),
     linear-gradient(rgba(31, 79, 90, 0.05) 1px, transparent 1px),

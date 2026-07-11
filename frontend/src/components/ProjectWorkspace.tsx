@@ -19,7 +19,8 @@ export { GROUP_COLORS } from "./sheet/sheetModel";
 import type { SheetPage } from "./sheet/sheetModel";
 import type { ProjectNavigationTarget } from "./sheet/sheetModel";
 import { useSheetPage } from "./sheet/useSheetPage";
-import { SheetToolbar } from "./sheet/SheetToolbar";
+import { SheetToolbar, SheetToolbarActions } from "./sheet/SheetToolbar";
+
 import { SheetFooter } from "./sheet/SheetFooter";
 import { AddColumnModal, EditColumnsModal } from "./sheet/ColumnEditor";
 import { SheetTable } from "./sheet/SheetTable";
@@ -310,10 +311,10 @@ export function ProjectWorkspace({
     event.preventDefault();
     if (!selectedProjectId) return;
     const cleanName = sheetName.trim() || "Application sheet";
-    
+
     // 1. Create the sheet (creates a page with default columns in backend)
     const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
-    
+
     // 2. If a template is selected, immediately patch the new page with template columns
     if (selectedTemplateId !== "default") {
       const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
@@ -344,7 +345,7 @@ export function ProjectWorkspace({
     const cleanName = editSheetName.trim() || "Application sheet";
     try {
       await api.patch(`/project_sheets/${editingSheet.id}`, { data: { name: cleanName } });
-      
+
       const pageToUpdate = pages.find((p) => String(p.sheet_id) === String(editingSheet.id));
       if (pageToUpdate) {
         await api.patch(`/project_pages/${pageToUpdate.id}`, { data: { name: cleanName } });
@@ -441,7 +442,7 @@ export function ProjectWorkspace({
   };
 
   const groupedProjects = projects.reduce<Record<string, RecordMap[]>>((acc, project) => {
-    const type = project.degree_type || "uncategorized";
+    const type = (project.degree_type || "uncategorized").toLowerCase();
     if (!acc[type]) acc[type] = [];
     acc[type].push(project);
     return acc;
@@ -456,7 +457,7 @@ export function ProjectWorkspace({
     };
     const valA = order[a.toLowerCase()] || 50;
     const valB = order[b.toLowerCase()] || 50;
-    
+
     if (valA !== valB) {
       return valA - valB;
     }
@@ -520,8 +521,8 @@ export function ProjectWorkspace({
           </div>
         ) : null}
 
-        <Section 
-          title="Projects" 
+        <Section
+          title="Projects"
           eyebrow={`${projects.length} total`}
           action={
             !showCreateProject ? (
@@ -535,8 +536,8 @@ export function ProjectWorkspace({
             {projectGroupKeys.map((degreeType) => (
               <div className="project-group" key={degreeType}>
                 <h3 className="project-group-title">
-                  {degreeType === "uncategorized" 
-                    ? "Other Programs" 
+                  {degreeType === "uncategorized"
+                    ? "Other Programs"
                     : `${formatDegreeType(degreeType)} Programs`}
                 </h3>
                 <div className="project-card-grid">
@@ -643,42 +644,67 @@ export function ProjectWorkspace({
         {!fullScreenMode && (
           <div className="detail-bar">
             <div className="breadcrumb-nav">
-            <span className="breadcrumb-item clickable" onClick={() => {
-              setSelectedProjectId("");
-              setSelectedSheetId("");
-              setSelectedPageId("");
-              sheet.setShowRecordForm(false);
-              sheet.setShowColumnForm(false);
-            }}>
-              <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
-            </span>
-            <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-item clickable" onClick={() => {
-              setSelectedSheetId("");
-              setSelectedPageId("");
-              sheet.setShowRecordForm(false);
-              sheet.setShowColumnForm(false);
-            }}>
-              {selectedProject?.name}
-            </span>
-            <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-item active">
-              {selectedSheet?.name || selectedPage?.name || "Sheet"}
-            </span>
+              <span className="breadcrumb-item clickable" onClick={() => {
+                setSelectedProjectId("");
+                setSelectedSheetId("");
+                setSelectedPageId("");
+                sheet.setShowRecordForm(false);
+                sheet.setShowColumnForm(false);
+              }}>
+                <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
+              </span>
+              <span className="breadcrumb-separator">/</span>
+              <span className="breadcrumb-item clickable" onClick={() => {
+                setSelectedSheetId("");
+                setSelectedPageId("");
+                sheet.setShowRecordForm(false);
+                sheet.setShowColumnForm(false);
+              }}>
+                {selectedProject?.name}
+              </span>
+              <span className="breadcrumb-separator">/</span>
+              <span className="breadcrumb-item active">
+                {selectedSheet?.name || selectedPage?.name || "Sheet"}
+              </span>
+            </div>
           </div>
-        </div>
         )}
 
         {selectedPage ? (
-          <Section title={fullScreenMode ? "" : selectedPage.name} eyebrow={fullScreenMode ? "" : "Edit rows and columns"}>
+          <Section
+            title={fullScreenMode ? "" : selectedPage.name}
+            eyebrow={fullScreenMode ? "" : "Edit rows and columns"}
+            action={!fullScreenMode ? (
+              <SheetToolbarActions
+                fullScreenMode={fullScreenMode}
+                selectedProjectId={selectedProjectId}
+                selectedPageId={selectedPageId}
+                onAskAI={() => {
+                  const sheetName = selectedSheet?.name || selectedPage?.name || "Sheet";
+                  const projName = selectedProject?.name || "Project";
+                  window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
+                    detail: { contextMessage: `I'm looking at sheet "${sheetName}" in project "${projName}". Can you help me analyze it?` }
+                  }));
+                }}
+                onExportCsv={sheet.handleExportCsv}
+                onImportCsv={() => fileInputRef.current?.click()}
+                onSaveTemplate={() => {
+                  const name = window.prompt("Enter a name for this custom template:");
+                  if (name) {
+                    saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
+                    setCustomTemplates(getCustomTemplates());
+                    onToast?.("Template saved.");
+                  }
+                }}
+              />
+            ) : undefined}
+          >
             <SheetToolbar
               columns={sheet.columns}
               rows={sheet.rows}
               viewRows={sheet.viewRows}
               recordsPerSheetLimit={recordsPerSheetLimit}
               fullScreenMode={fullScreenMode}
-              selectedProjectId={selectedProjectId}
-              selectedPageId={selectedPageId}
               showEditColumns={sheet.showEditColumns}
               searchQuery={sheet.searchQuery}
               onSearchChange={sheet.setSearchQuery}
@@ -686,24 +712,7 @@ export function ProjectWorkspace({
               onAddRow={() => { sheet.addRow(); sheet.setShowColumnForm(false); sheet.setShowEditColumns(false); }}
               onOpenEditColumns={sheet.openEditColumns}
               onOpenEmailConfig={() => sheet.setIsEmailConfigOpen(true)}
-              onAskAI={() => {
-                const sheetName = selectedSheet?.name || selectedPage?.name || "Sheet";
-                const projName = selectedProject?.name || "Project";
-                window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
-                  detail: { contextMessage: `I'm looking at sheet "${sheetName}" in project "${projName}". Can you help me analyze it?` }
-                }));
-              }}
-              onExportCsv={sheet.handleExportCsv}
-              onImportCsv={() => fileInputRef.current?.click()}
               onOpenDateColors={() => setShowDateColorConfig(true)}
-              onSaveTemplate={() => {
-                const name = window.prompt("Enter a name for this custom template:");
-                if (name) {
-                  saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
-                  setCustomTemplates(getCustomTemplates());
-                  onToast?.("Template saved.");
-                }
-              }}
               groupBy={sheet.groupBy}
               onGroupByChange={sheet.setGroupBy}
               savedViews={sheet.savedViews}
@@ -712,6 +721,7 @@ export function ProjectWorkspace({
               onLoadView={sheet.handleLoadView}
               onDeleteView={sheet.handleDeleteView}
             />
+
 
             <SelectionToolbar
               selectedCount={sheet.selectedRows.size}
@@ -790,7 +800,7 @@ export function ProjectWorkspace({
                 validationError={sheet.validationError}
                 isSaving={sheet.isSaving}
                 files={files}
-                onFilesChanged={onFilesChanged || (async () => {})}
+                onFilesChanged={onFilesChanged || (async () => { })}
                 onSave={sheet.saveRecord}
                 onCancel={sheet.cancelRecord}
               />
@@ -816,7 +826,7 @@ export function ProjectWorkspace({
               onEditRow={sheet.editRow}
               onCompose={sheet.openCompose}
               onDeleteRow={sheet.deleteRow}
-              onFilesChanged={onFilesChanged || (async () => {})}
+              onFilesChanged={onFilesChanged || (async () => { })}
               onToggleSort={sheet.toggleSort}
               onAddFilter={sheet.addFilter}
               onRemoveFilter={sheet.removeFilter}
@@ -833,14 +843,14 @@ export function ProjectWorkspace({
               dateColorConfig={dateColorConfig}
               onPeekRow={(idx) => setPeekRowIndex(idx)}
             />
-            <SheetFooter 
+            <SheetFooter
               columns={sheet.columns}
               rows={sheet.rows}
               viewRows={sheet.viewRows}
               fullScreenMode={fullScreenMode}
               recordsPerSheetLimit={recordsPerSheetLimit}
             />
-            
+
             {showDateColorConfig && (
               <DateColorConfigModal
                 config={dateColorConfig}
@@ -868,18 +878,18 @@ export function ProjectWorkspace({
           </Section>
         )}
 
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          accept=".csv" 
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".csv"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) {
               setCsvImportFile(file);
               e.target.value = '';
             }
-          }} 
+          }}
         />
 
         {csvImportFile && (
@@ -914,25 +924,25 @@ export function ProjectWorkspace({
       {!fullScreenMode && (
         <div className="detail-bar">
           <div className="breadcrumb-nav">
-          <span className="breadcrumb-item clickable" onClick={() => setSelectedProjectId("")}>
-            <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
-          </span>
-          <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-item active">
-            {selectedProject?.name}
-          </span>
+            <span className="breadcrumb-item clickable" onClick={() => setSelectedProjectId("")}>
+              <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
+            </span>
+            <span className="breadcrumb-separator">/</span>
+            <span className="breadcrumb-item active">
+              {selectedProject?.name}
+            </span>
+          </div>
         </div>
-      </div>
       )}
 
-        <ProjectDashboard
-          summary={summary}
-          onEventClick={(event) => {
-            setSelectedSheetId(String(event.sheet_id || ""));
-            setSelectedPageId(String(event.page_id || ""));
-            setFocusedRowIndex(typeof event.row_index === "number" ? event.row_index : Number(event.row_index));
-          }}
-        />
+      <ProjectDashboard
+        summary={summary}
+        onEventClick={(event) => {
+          setSelectedSheetId(String(event.sheet_id || ""));
+          setSelectedPageId(String(event.page_id || ""));
+          setFocusedRowIndex(typeof event.row_index === "number" ? event.row_index : Number(event.row_index));
+        }}
+      />
 
       <Section
         title="Sheets"
@@ -968,10 +978,10 @@ export function ProjectWorkspace({
                     }
                   }
                 }} />
-                <Field 
-                  label="Template" 
-                  name="template_id" 
-                  value={selectedTemplateId} 
+                <Field
+                  label="Template"
+                  name="template_id"
+                  value={selectedTemplateId}
                   options={[
                     { value: "default", label: "Default App Tracker" },
                     { label: "--- Standard Templates ---", value: "", disabled: true },
@@ -979,12 +989,12 @@ export function ProjectWorkspace({
                     ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
                     ...customTemplates.map(t => ({ value: t.id, label: t.name }))
                   ]}
-                  onChange={(_, value) => setSelectedTemplateId(value)} 
+                  onChange={(_, value) => setSelectedTemplateId(value)}
                 />
                 {selectedTemplateId !== "default" && (
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '-8px 0 0 0' }}>
-                    {SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description || 
-                     customTemplates.find(t => t.id === selectedTemplateId)?.description}
+                    {SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
+                      customTemplates.find(t => t.id === selectedTemplateId)?.description}
                   </p>
                 )}
               </div>
@@ -1018,7 +1028,7 @@ export function ProjectWorkspace({
 
         <div className="sheet-card-grid">
           {sheets.map((sheetItem: RecordMap) => (
-             <article className="sheet-card" key={sheetItem.id}>
+            <article className="sheet-card" key={sheetItem.id}>
               <div className="sheet-card-header">
                 <div className="sheet-card-title-row">
                   <strong>{sheetItem.name}</strong>

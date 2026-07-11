@@ -5,7 +5,7 @@ import {
   scholarshipDeepHuntApi,
 } from "../../lib/scholarshipDeepHuntApi";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
-import { HuntProfile } from "../../lib/huntProfile";
+import { HuntProfile, isHuntProfileComplete } from "../../lib/huntProfile";
 import { OpportunityCard } from "./OpportunityCard";
 import "./deep-hunt.css";
 
@@ -17,6 +17,7 @@ interface DeepHuntViewProps {
   onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   canUseDeepHunt: boolean;
+  onRequireHuntProfile: () => void;
 }
 
 function stageLabel(stage: string): string {
@@ -33,7 +34,7 @@ function stageLabel(stage: string): string {
   return labels[stage] || stage;
 }
 
-export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepHunt }: DeepHuntViewProps) {
+export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepHunt, onRequireHuntProfile }: DeepHuntViewProps) {
   const [runs, setRuns] = useState<DeepHuntRun[]>([]);
   const [activeRun, setActiveRun] = useState<DeepHuntRun | null>(null);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
@@ -98,6 +99,10 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
   };
 
   const handleCreate = async () => {
+    if (!isHuntProfileComplete(huntProfile)) {
+      onRequireHuntProfile();
+      return;
+    }
     if (!goal.trim()) {
       onToast("Enter a funding goal to start a Deep Hunt run.");
       return;

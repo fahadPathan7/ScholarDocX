@@ -70,7 +70,7 @@ ADMIN_REFUSAL_MESSAGE = (
 )
 
 ACTION_PLANNER_SYSTEM_PROMPT = (
-    "You are ScholarDocX's local workspace action planner. Convert user requests "
+    "You are ScholarDocX's workspace action planner. Convert user requests "
     "into precise JSON action plans. You are smart, concise, and thorough.\n\n"
     "CRITICAL RULES:\n"
     "1. Return ONLY valid JSON. No markdown, no explanations, no code blocks.\n"
@@ -494,7 +494,7 @@ class AiActionService:
 
         return {
             "status": "needs_confirmation",
-            "message": plan.get("message") or "Review these local ScholarDocX actions before I run them.",
+            "message": plan.get("message") or "Review these ScholarDocX actions before I run them.",
             "missing": [],
             "actions": normalized_actions,
             "summary": describe_actions(normalized_actions),

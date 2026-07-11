@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Clipboard, Save, X } from "lucide-react";
 import { FilePickerField } from "./FilePickerField";
 import { API_BASE, RecordMap } from "../lib/api";
+import { getToken } from "../lib/auth";
 import type { ColumnDef, DateColorConfig } from "./sheet/sheetModel";
 
 const CELL_EDITOR_MIN_LINES = 3;
@@ -480,7 +481,12 @@ export function CellRenderer({
                 return (
                   <span key={part}>
                     {fileRecord ? (
-                      <a href={`${API_BASE}/files/${fileRecord.id}/content`} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
+                      <a
+                        href={`${API_BASE}/files/${fileRecord.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         {fileName}
                       </a>
                     ) : (

@@ -22,7 +22,7 @@ import {
   updateSavedQuery,
 } from "../lib/newsApi";
 import { ScholarshipOpportunity, analyzeScholarshipOpportunity } from "../lib/scholarshipOpportunitiesApi";
-import { HuntProfile, getHuntProfile } from "../lib/huntProfile";
+import { HuntProfile, getHuntProfile, isHuntProfileComplete } from "../lib/huntProfile";
 import { useUsage } from "../contexts/UsageContext";
 import "./news/news.css";
 
@@ -200,6 +200,11 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   }, [refreshTrigger]);
 
   const handleApplyFilters = async (newFilters: any) => {
+    if (!isHuntProfileComplete(huntProfile)) {
+      setIsHuntProfileModalOpen(true);
+      return;
+    }
+
     if (newFilters.isCustomPrompt) {
       setShowCustomPromptDialog(true);
       return;
@@ -551,6 +556,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
           onAddToTracker={handleAddToTracker}
           huntProfile={huntProfile}
           canUseDeepHunt={canUseDeepHunt}
+          onRequireHuntProfile={() => setIsHuntProfileModalOpen(true)}
         />
       )}
 

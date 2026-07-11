@@ -24,9 +24,36 @@ import {
   Shield,
   Compass,
   Lock,
-  Map
+  Map,
+  Award,
+  BookOpen,
+  Briefcase,
+  Users,
+  Plus
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
+
+function getCategoryIcon(slug: string) {
+  const c = slug.toLowerCase();
+  if (c.includes("cv") || c.includes("resume")) {
+    return <FileText size={20} />;
+  } else if (c.includes("sop") || c.includes("statement")) {
+    return <PencilLine size={20} />;
+  } else if (c.includes("lor") || c.includes("recommendation")) {
+    return <Users size={20} />;
+  } else if (c.includes("proposal")) {
+    return <Briefcase size={20} />;
+  } else if (c.includes("transcript")) {
+    return <GraduationCap size={20} />;
+  } else if (c.includes("certif")) {
+    return <Award size={20} />;
+  } else if (c.includes("score")) {
+    return <BookOpen size={20} />;
+  } else if (c.includes("passport") || c.includes("id")) {
+    return <Shield size={20} />;
+  }
+  return <FileText size={20} />;
+}
 import { FloatingAssistant } from "./components/FloatingAssistant";
 import { FloatingNotifications } from "./components/FloatingNotifications";
 
@@ -447,14 +474,16 @@ export function App() {
         </div>
 
         <div className="main-content">
-          {activeTab === "dashboard" ? (
+          <div className={`tab-container ${activeTab === "dashboard" ? "" : "hidden-tab"}`}>
             <DashboardView
               dashboard={dashboard}
               notificationCount={notifications.filter((item) => !item.read_at).length}
               onCalendarEventClick={navigateToCalendarEvent}
               onProjectClick={navigateToProject}
             />
-          ) : activeTab === "projects" ? (
+          </div>
+
+          <div className={`tab-container ${activeTab === "projects" ? "" : "hidden-tab"}`}>
             <ProjectWorkspace
               refreshTrigger={refreshTrigger}
               files={files}
@@ -463,7 +492,9 @@ export function App() {
               navigationTarget={projectNavigationTarget}
               onToast={showToast}
             />
-          ) : activeTab === "documents" ? (
+          </div>
+
+          <div className={`tab-container ${activeTab === "documents" ? "" : "hidden-tab"}`}>
             <DocumentView
               refreshTrigger={refreshTrigger}
               categories={documentCategories}
@@ -473,34 +504,52 @@ export function App() {
               showAlert={showAlert}
               showConfirm={showConfirm}
             />
-          ) : activeTab === "sticky" ? (
+          </div>
+
+          <div className={`tab-container ${activeTab === "sticky" ? "" : "hidden-tab"}`}>
             <StickyNotesView refreshTrigger={refreshTrigger} onToast={showToast} />
-          ) : activeTab === "whiteboard" ? (
+          </div>
+
+          <div className={`tab-container ${activeTab === "whiteboard" ? "" : "hidden-tab"}`}>
             <WhiteboardView refreshTrigger={refreshTrigger} onToast={showToast} />
-          ) : activeTab === "atlas" && canUseAdvisorAtlas ? (
-            <AdvisorAtlasView refreshTrigger={refreshTrigger} onToast={showToast} />
-          ) : activeTab === "news" && canUseScholarshipHunt ? (
-            <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
-          ) : activeTab === "profile" ? (
-            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
-          ) : activeTab === "about" ? (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-              <AboutView />
+          </div>
+
+          {canUseAdvisorAtlas && (
+            <div className={`tab-container ${activeTab === "atlas" ? "" : "hidden-tab"}`}>
+              <AdvisorAtlasView refreshTrigger={refreshTrigger} onToast={showToast} />
             </div>
-          ) : activeTab === "plans" ? (
+          )}
+
+          {canUseScholarshipHunt && (
+            <div className={`tab-container ${activeTab === "news" ? "" : "hidden-tab"}`}>
+              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
+            </div>
+          )}
+
+          <div className={`tab-container ${activeTab === "profile" ? "" : "hidden-tab"}`}>
+            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
+          </div>
+
+          <div className={`tab-container ${activeTab === "about" ? "" : "hidden-tab"}`} style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <AboutView />
+          </div>
+
+          {activeTab === "plans" && (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
               <PlanComparisonView onBack={() => setActiveTab("profile")} refreshTrigger={refreshTrigger} />
             </div>
-          ) : activeTab === "buy-credits" ? (
+          )}
+
+          {activeTab === "buy-credits" && (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
               <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} refreshTrigger={refreshTrigger} />
             </div>
-          ) : activeTab === "admin" && currentIsAdmin ? (
+          )}
+
+          {activeTab === "admin" && currentIsAdmin && (
             <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>
               <AdminView refreshTrigger={refreshTrigger} />
             </div>
-          ) : (
-            <DashboardView dashboard={dashboard} notificationCount={notifications.filter((item) => !item.read_at).length} onCalendarEventClick={() => { }} onProjectClick={() => { }} />
           )}
         </div>
       </main>
@@ -718,7 +767,11 @@ function DashboardView({
         <List
           items={pinnedDocs}
           empty="Pin docs to dashboard."
-          onClick={(item) => window.open(`${API_BASE}/files/${item.id}/content`, "_blank", "noopener,noreferrer")}
+          onClick={(item) => {
+            const token = getToken();
+            const url = `${API_BASE}/files/${item.id}/content${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+            window.open(url, "_blank", "noopener,noreferrer");
+          }}
           render={(item) => (
             <>
               <FileText size={16} />
@@ -895,6 +948,7 @@ function DocumentView(props: {
 }) {
   const [editingFile, setEditingFile] = useState<RecordMap | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [defaultCategorySlug, setDefaultCategorySlug] = useState("");
   const [selectedDocCategory, setSelectedDocCategory] = useState<string | null>(null);
   const [selectedUploadFileName, setSelectedUploadFileName] = useState("");
   const [categoryEditor, setCategoryEditor] = useState<{ mode: "create" | "rename"; category?: RecordMap } | null>(null);
@@ -902,9 +956,15 @@ function DocumentView(props: {
   const [editFileForm, setEditFileForm] = useState({ display_name: "", file_type: "", notes: "" });
   const [pinningFileKey, setPinningFileKey] = useState<string | null>(null);
 
+  const openUploadModalForCategory = (categorySlug: string) => {
+    setDefaultCategorySlug(categorySlug);
+    setIsUploadOpen(true);
+  };
+
   const closeUploadModal = () => {
     setIsUploadOpen(false);
     setSelectedUploadFileName("");
+    setDefaultCategorySlug("");
   };
 
   const uploadFile = async (event: FormEvent<HTMLFormElement>) => {
@@ -1077,7 +1137,14 @@ function DocumentView(props: {
     <div key={file.id} className="doc-file-row">
       <FileText size={15} className="doc-file-icon" />
       <div className="doc-file-info">
-        <a href={`${API_BASE}/files/${file.id}/content`} target="_blank" rel="noreferrer" className="doc-file-name">{file.display_name}</a>
+        <a
+          href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
+          target="_blank"
+          rel="noreferrer"
+          className="doc-file-name"
+        >
+          {file.display_name}
+        </a>
         <span className="doc-file-path">{formatUploadedTime(file.created_at)}</span>
         {file.notes ? <p className="doc-file-notes">{file.notes}</p> : null}
       </div>
@@ -1142,7 +1209,11 @@ function DocumentView(props: {
             <div className="modal-content doc-upload-content">
               <label className="field full">
                 <span>Category</span>
-                <select name="category">
+                <select
+                  name="category"
+                  value={defaultCategorySlug || (categoryOptions[0]?.slug || "")}
+                  onChange={(e) => setDefaultCategorySlug(e.target.value)}
+                >
                   {categoryOptions.map((item) => <option key={item.slug} value={item.slug}>{item.display_name}</option>)}
                 </select>
               </label>
@@ -1183,17 +1254,14 @@ function DocumentView(props: {
       <div className="doc-list-sections">
         <div className="doc-action-row">
           <button className="secondary" type="button" onClick={() => openCategoryEditor("create")}>
-            New category
-          </button>
-          <button className="primary" type="button" onClick={() => setIsUploadOpen(true)}>
-            <Upload size={16} /> Upload Document
+            <Plus size={16} /> New category
           </button>
         </div>
         {categoryEntries.length ? (
           <div className="doc-category-grid">
             {categoryEntries.map(({ category, slug, title, files: catFiles }) => (
               <article
-                className="doc-category-card"
+                className={`doc-category-card doc-category-${slug}`}
                 key={slug}
                 role="button"
                 tabIndex={0}
@@ -1205,35 +1273,59 @@ function DocumentView(props: {
                   }
                 }}
               >
-                <span className="doc-category-card-actions">
-                  <button
-                    className="icon-button compact"
-                    type="button"
-                    title="Rename category"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (category.id) openCategoryEditor("rename", category);
-                    }}
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    className="icon-button compact danger"
-                    type="button"
-                    title="Delete category"
-                    onClick={(event) => deleteCategory(event, category, catFiles.length)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </span>
-                <span className="doc-category-card-count">
-                  {catFiles.length} document{catFiles.length === 1 ? "" : "s"}
-                </span>
-                <strong>{title}</strong>
-                <span className="doc-category-card-meta">
-                  {catFiles.length ? `Latest ${formatUploadedTime(catFiles[0]?.created_at)}` : "No documents yet"}
-                </span>
-                <span className="doc-category-card-action">Open files</span>
+                <div className="doc-category-card-header">
+                  <div className="doc-category-icon-wrapper">
+                    {getCategoryIcon(slug)}
+                  </div>
+                  <div className="doc-category-card-title-group">
+                    <strong>{title}</strong>
+                    {catFiles.length ? (
+                      <span className="doc-category-card-meta">
+                        Latest {formatUploadedTime(catFiles[0]?.created_at)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="doc-category-card-actions">
+                    <button
+                      className="icon-button compact"
+                      type="button"
+                      title="Rename category"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (category.id) openCategoryEditor("rename", category);
+                      }}
+                    >
+                      <Edit size={14} />
+                    </button>
+                    <button
+                      className="icon-button compact danger"
+                      type="button"
+                      title="Delete category"
+                      onClick={(event) => deleteCategory(event, category, catFiles.length)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </span>
+                </div>
+
+                <div className="doc-category-card-footer">
+                  <span className="doc-category-card-count">
+                    {catFiles.length} file{catFiles.length === 1 ? "" : "s"}
+                  </span>
+                  <div className="doc-category-card-footer-actions">
+                    <button
+                      className="card-action-link"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openUploadModalForCategory(slug);
+                      }}
+                    >
+                      <Upload size={12} /> Upload
+                    </button>
+                    <span className="doc-category-card-action">Open &rarr;</span>
+                  </div>
+                </div>
               </article>
             ))}
           </div>

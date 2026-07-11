@@ -9,6 +9,7 @@ gate" stance is superseded):
 - `get_current_user` validates the token, loads the user from the DB, enforces
   `is_active`, and checks `token_version` (revocation). Authorization roles are
   taken from the DB row, not the token payload.
+- `get_current_user` also supports extracting JWT tokens via a `token` query parameter when the `Authorization` header is not present (e.g. for browser file download/preview tabs).
 - Role guards: `require_admin`, `require_super_admin`, `require_role`. The
   admin router is protected router-wide (`get_current_user` + `require_admin`)
   plus a second fine-grained layer via `require_feature` /

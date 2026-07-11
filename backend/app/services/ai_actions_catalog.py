@@ -156,7 +156,7 @@ def execution_message(results: list[dict[str, Any]]) -> str:
 
         # Standard WRITE / Basic READ messages
         if not lines:
-            lines.append("Done. I updated your local ScholarDocX workspace:")
+            lines.append("Done. I updated your ScholarDocX workspace:")
 
         if result.get("line"):
             # Record-domain writes carry a preformatted summary line.

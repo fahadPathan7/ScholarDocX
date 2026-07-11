@@ -429,23 +429,29 @@ def migrate_database(connection: sqlite3.Connection) -> None:
                 )
 
 
-    static_categories = [
-        row["file_type"]
-        for row in connection.execute(
-            """
-            SELECT DISTINCT file_type
-            FROM static_files
-            WHERE file_type IS NOT NULL AND TRIM(file_type) != ''
-            """
-        ).fetchall()
-    ]
-    for slug in static_categories:
+    super_admin = connection.execute(
+        "SELECT id FROM users WHERE roles LIKE '%super_admin%' ORDER BY id ASC LIMIT 1"
+    ).fetchone()
+    fallback_uid = super_admin["id"] if super_admin else 1
+
+    static_categories = connection.execute(
+        """
+        SELECT DISTINCT COALESCE(user_id, ?) as user_id, file_type
+        FROM static_files
+        WHERE file_type IS NOT NULL AND TRIM(file_type) != ''
+        """,
+        (fallback_uid,)
+    ).fetchall()
+
+    for row in static_categories:
+        uid = row["user_id"]
+        slug = row["file_type"]
         connection.execute(
             """
-            INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order)
-            VALUES (?, ?, ?)
+            INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id)
+            VALUES (?, ?, ?, ?)
             """,
-            (slug, category_display_name(slug.replace("-", " ")).title(), 100),
+            (slug, category_display_name(slug.replace("-", " ")).title(), 100, uid),
         )
 
     # Ensure web-search permission role limits exist.

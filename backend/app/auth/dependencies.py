@@ -1,5 +1,5 @@
 import json
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.auth.jwt import decode_token, verify_token_version
@@ -8,7 +8,7 @@ from app.core.config import Settings, get_settings
 from app.api.dependencies import get_store
 from app.services.store import Store
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def get_jwt_secret(connection) -> str:
     """Return the per-install JWT signing secret.
@@ -31,11 +31,24 @@ def get_jwt_secret(connection) -> str:
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    token: str = Query(None),
     store: Store = Depends(get_store)
 ):
-    token = credentials.credentials
+    token_str = None
+    if credentials:
+        token_str = credentials.credentials
+    elif token:
+        token_str = token
+
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        payload = decode_token(token, get_jwt_secret(store.connection))
+        payload = decode_token(token_str, get_jwt_secret(store.connection))
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

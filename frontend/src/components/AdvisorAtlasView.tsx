@@ -191,7 +191,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const confirmSave = (candidate: AdvisorCandidateDetail) =>
     showConfirm(
-      "This creates or updates a professor record in your local ScholarDocX workspace using the verified dossier fields.",
+      "This creates or updates a professor record in your personal ScholarDocX workspace using the verified dossier fields.",
       `Save ${candidate.display_name}?`,
       "success",
     );

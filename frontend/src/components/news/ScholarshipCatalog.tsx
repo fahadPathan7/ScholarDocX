@@ -138,13 +138,13 @@ export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, hu
                 href={entry.portal_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="button-secondary"
+                className="catalog-btn-outline"
               >
                 Official page <ExternalLink size={14} />
               </a>
               <button
                 type="button"
-                className="button-secondary"
+                className="catalog-btn-solid"
                 onClick={() => handleCheckCycle(entry)}
                 disabled={checkingId === entry.id}
               >
@@ -153,7 +153,7 @@ export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, hu
                 ) : (
                   <CalendarSearch size={14} />
                 )}
-                Check current cycle
+                Check cycle
               </button>
             </div>
 

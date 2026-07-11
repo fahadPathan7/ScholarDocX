@@ -8,6 +8,9 @@ export interface HuntProfile {
   intake_term: string;
   nationality_opt_in: boolean;
   nationality: string | null;
+  funding_requirement?: string;
+  english_proficiency?: string;
+  current_gpa?: string;
 }
 
 export const EMPTY_HUNT_PROFILE: HuntProfile = {
@@ -17,6 +20,9 @@ export const EMPTY_HUNT_PROFILE: HuntProfile = {
   intake_term: "",
   nationality_opt_in: false,
   nationality: null,
+  funding_requirement: "Any",
+  english_proficiency: "Not set",
+  current_gpa: "",
 };
 
 function parseHuntProfile(raw: unknown): HuntProfile {
@@ -35,6 +41,16 @@ export function isHuntProfileEmpty(profile: HuntProfile): boolean {
     profile.destinations.length === 0 &&
     !profile.field_of_study &&
     !profile.intake_term
+  );
+}
+
+export function isHuntProfileComplete(profile: HuntProfile | null | undefined): boolean {
+  if (!profile) return false;
+  return Boolean(
+    profile.degree_level &&
+    profile.destinations.length > 0 &&
+    profile.field_of_study &&
+    profile.intake_term
   );
 }
 

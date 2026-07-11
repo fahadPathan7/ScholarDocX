@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Target } from "lucide-react";
 import { listRecords, RecordMap } from "../../lib/api";
 import { HuntProfile, getHuntProfile, saveHuntProfile } from "../../lib/huntProfile";
 
@@ -76,7 +76,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
   if (isLoading || !profile) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
           <div className="modal-content">Loading...</div>
         </div>
       </div>
@@ -85,83 +85,123 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Hunt Profile</h2>
+          <h2 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Target size={24} color="#1f4f5a" /> Hunt Profile
+          </h2>
           <button className="icon-button" type="button" onClick={onClose} title="Close">
             <X size={20} />
           </button>
         </div>
         <div className="modal-content">
-          <p>
-            Used only to compute a local fit score on opportunities. Nothing here is ever sent to
-            an AI or search provider.
-          </p>
-          <label className="field">
-            <span>Degree level</span>
-            <select
-              value={profile.degree_level}
-              onChange={(e) => setProfile({ ...profile, degree_level: e.target.value })}
-            >
-              <option value="">Not set</option>
-              {DEGREE_LEVELS.map((lv) => (
-                <option key={lv} value={lv}>
-                  {lv}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Target destinations (comma-separated)</span>
-            <input
-              type="text"
-              value={destinationsInput}
-              onChange={(e) => setDestinationsInput(e.target.value)}
-              placeholder="Germany, Netherlands"
-            />
-          </label>
-          <label className="field">
-            <span>Field of study</span>
-            <input
-              type="text"
-              value={profile.field_of_study}
-              onChange={(e) => setProfile({ ...profile, field_of_study: e.target.value })}
-              placeholder="Computer Science"
-            />
-          </label>
-          <label className="field">
-            <span>Intake term</span>
-            <input
-              type="text"
-              value={profile.intake_term}
-              onChange={(e) => setProfile({ ...profile, intake_term: e.target.value })}
-              placeholder="Fall 2027"
-            />
-          </label>
-          <label className="checkbox-label" style={{ marginTop: "8px" }}>
-            <input
-              type="checkbox"
-              checked={profile.nationality_opt_in}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  nationality_opt_in: e.target.checked,
-                  nationality: e.target.checked ? profile.nationality : null,
-                })
-              }
-            />
-            Include my nationality (local-only, never sent to a provider)
-          </label>
-          {profile.nationality_opt_in && (
+          <div className="hunt-profile-grid">
             <label className="field">
-              <span>Nationality</span>
+              <span>Degree level</span>
+              <select
+                value={profile.degree_level}
+                onChange={(e) => setProfile({ ...profile, degree_level: e.target.value })}
+              >
+                <option value="">Not set</option>
+                {DEGREE_LEVELS.map((lv) => (
+                  <option key={lv} value={lv}>
+                    {lv}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Intake term</span>
               <input
                 type="text"
-                value={profile.nationality || ""}
-                onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}
+                value={profile.intake_term}
+                onChange={(e) => setProfile({ ...profile, intake_term: e.target.value })}
+                placeholder="Fall 2027"
               />
             </label>
-          )}
+            <label className="field full-width">
+              <span>Target destinations (comma-separated)</span>
+              <input
+                type="text"
+                value={destinationsInput}
+                onChange={(e) => setDestinationsInput(e.target.value)}
+                placeholder="Germany, Netherlands"
+              />
+            </label>
+            <label className="field full-width">
+              <span>Field of study</span>
+              <input
+                type="text"
+                value={profile.field_of_study}
+                onChange={(e) => setProfile({ ...profile, field_of_study: e.target.value })}
+                placeholder="Computer Science"
+              />
+            </label>
+            
+            <label className="field">
+              <span>Funding requirement</span>
+              <select
+                value={profile.funding_requirement || "Any"}
+                onChange={(e) => setProfile({ ...profile, funding_requirement: e.target.value })}
+              >
+                <option value="Any">Any</option>
+                <option value="Full Funding Required">Full Funding Required</option>
+                <option value="Partial Funding Acceptable">Partial Funding Acceptable</option>
+                <option value="Self-funded">Self-funded</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>English proficiency</span>
+              <select
+                value={profile.english_proficiency || "Not set"}
+                onChange={(e) => setProfile({ ...profile, english_proficiency: e.target.value })}
+              >
+                <option value="Not set">Not set</option>
+                <option value="Native">Native</option>
+                <option value="IELTS 7.0+">IELTS 7.0+</option>
+                <option value="IELTS 6.5+">IELTS 6.5+</option>
+                <option value="TOEFL 100+">TOEFL 100+</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            
+            <label className="field">
+              <span>Current GPA (optional)</span>
+              <input
+                type="text"
+                value={profile.current_gpa || ""}
+                onChange={(e) => setProfile({ ...profile, current_gpa: e.target.value })}
+                placeholder="e.g. 3.8/4.0"
+              />
+            </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label className="checkbox-label" style={{ marginTop: "24px" }}>
+                <input
+                  type="checkbox"
+                  checked={profile.nationality_opt_in}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      nationality_opt_in: e.target.checked,
+                      nationality: e.target.checked ? profile.nationality : null,
+                    })
+                  }
+                />
+                Include my nationality
+              </label>
+            </div>
+
+            {profile.nationality_opt_in && (
+              <label className="field full-width">
+                <span>Nationality</span>
+                <input
+                  type="text"
+                  value={profile.nationality || ""}
+                  onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}
+                />
+              </label>
+            )}
+          </div>
         </div>
         <div className="modal-footer">
           <button className="secondary" type="button" onClick={onClose} disabled={isSaving}>

@@ -545,22 +545,24 @@ export function ProjectWorkspace({
                       <div className="project-card-header">
                         <div className="project-card-title-row">
                           <strong>{project.name}</strong>
-                          {projectSheetCounts[String(project.id)] !== undefined && (() => {
-                            const used = projectSheetCounts[String(project.id)];
+                          {(() => {
+                            const count = projectSheetCounts[String(project.id)];
+                            const used = count !== undefined ? count : 0;
+                            const isLoading = count === undefined;
                             const max = sheetsPerProjectLimit;
                             const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
                             const isNear = pct >= 80;
                             const isFull = pct >= 100;
                             return (
-                              <div className="project-quota-wrap">
-                                <span className={`project-sheet-count${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}`}>
-                                  {max > 0 ? `${used} / ${max}` : used}
+                              <div className={`project-quota-wrap${isLoading ? " loading" : ""}`}>
+                                <span className={`project-sheet-count${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}${isLoading ? ' quota-loading' : ''}`}>
+                                  {isLoading ? '...' : max > 0 ? `${used} / ${max}` : used}
                                 </span>
                                 {max > 0 && (
-                                  <div className="quota-bar" title={`${used} of ${max} sheets used`}>
+                                  <div className="quota-bar" title={isLoading ? "Loading..." : `${used} of ${max} sheets used`}>
                                     <div
-                                      className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}`}
-                                      style={{ width: `${pct}%` }}
+                                      className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}${isLoading ? ' loading' : ''}`}
+                                      style={{ width: isLoading ? '30%' : `${pct}%` }}
                                     />
                                   </div>
                                 )}

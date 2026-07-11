@@ -2,21 +2,31 @@
    than growing news.css further, which is already past the file-size grace
    limit (see CODE_RULES.md). */
 
+/* Owns its scroll — .scholarship-news-view has overflow: hidden, so without
+   flex/min-height:0 + overflow-y:auto the launcher + run list + detail panel
+   clip when they exceed the viewport. */
 .deep-hunt-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+  padding: 24px 28px 56px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 109, 122, 0.25) transparent;
 }
 
 .deep-hunt-locked {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 16px 18px;
-  border-radius: 12px;
+  padding: 18px 20px;
+  border-radius: 14px;
   border: 1px solid rgba(217, 154, 61, 0.25);
-  background: rgba(217, 154, 61, 0.08);
+  background: linear-gradient(135deg, rgba(217, 154, 61, 0.1), rgba(255, 255, 255, 0.7));
   color: #a3792c;
+  box-shadow: 0 8px 22px rgba(217, 154, 61, 0.08);
 }
 
 .deep-hunt-locked strong {
@@ -29,36 +39,59 @@
   margin: 0;
   font-size: 0.88rem;
   color: #70827f;
+  line-height: 1.5;
 }
 
 .deep-hunt-launcher {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 10px 26px rgba(23, 32, 29, 0.05);
+  gap: 12px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(248, 251, 249, 0.7));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 12px 32px rgba(23, 32, 29, 0.06);
 }
 
 .deep-hunt-launcher-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 0.95rem;
   color: #1f4f5a;
+  letter-spacing: -0.01em;
+}
+
+.deep-hunt-launcher-header svg {
+  color: #38a37f;
 }
 
 .deep-hunt-goal-input {
   width: 100%;
   resize: vertical;
-  min-height: 48px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border-radius: 12px;
   border: 1px solid rgba(47, 109, 122, 0.2);
+  background: rgba(255, 255, 255, 0.7);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #17201d;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.deep-hunt-goal-input::placeholder {
+  color: #9aa8a2;
+}
+
+.deep-hunt-goal-input:focus {
+  outline: none;
+  border-color: #38a37f;
+  box-shadow: 0 0 0 3px rgba(56, 163, 127, 0.16);
 }
 
 .deep-hunt-launcher-facets {
@@ -68,63 +101,100 @@
 }
 
 .deep-hunt-launcher-facets input {
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid rgba(47, 109, 122, 0.2);
-  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.86rem;
+  color: #17201d;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.deep-hunt-launcher-facets input::placeholder {
+  color: #9aa8a2;
+}
+
+.deep-hunt-launcher-facets input:focus {
+  outline: none;
+  border-color: #38a37f;
+  box-shadow: 0 0 0 3px rgba(56, 163, 127, 0.16);
 }
 
 .deep-hunt-launcher .button-primary {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #38a37f, #2c8a6a);
+  border: 1px solid #38a37f;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(56, 163, 127, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deep-hunt-launcher .button-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(56, 163, 127, 0.32);
+}
+
+.deep-hunt-launcher .button-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .deep-hunt-body {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 1fr;
-  gap: 16px;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 18px;
   align-items: start;
 }
 
 .deep-hunt-run-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .deep-hunt-run-row {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.6);
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.8);
   cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .deep-hunt-run-row:hover {
-  border-color: rgba(47, 109, 122, 0.3);
+  border-color: rgba(47, 109, 122, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(23, 32, 29, 0.06);
 }
 
 .deep-hunt-run-row.active {
   border-color: #2f6d7a;
-  box-shadow: 0 0 0 1px rgba(47, 109, 122, 0.25);
+  box-shadow: 0 0 0 2px rgba(47, 109, 122, 0.22), 0 8px 20px rgba(23, 32, 29, 0.06);
 }
 
 .deep-hunt-run-row-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .deep-hunt-run-goal {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 700;
   color: #17201d;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,19 +210,36 @@
 
 .deep-hunt-run-row .icon-button {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
+  border-radius: 7px;
+  color: #9a6b62;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.deep-hunt-run-row:hover .icon-button {
+  opacity: 1;
+}
+
+.deep-hunt-run-row .icon-button:hover {
+  color: #ffffff;
+  background: #c44343;
 }
 
 .deep-hunt-status-badge {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: rgba(101, 117, 109, 0.12);
   color: #65756d;
+  flex-shrink: 0;
 }
 
 .deep-hunt-status-badge.status-running,
@@ -161,8 +248,13 @@
   color: #1f4f5a;
 }
 
+.deep-hunt-status-badge.status-running {
+  background: rgba(56, 163, 127, 0.14);
+  color: #1e6657;
+}
+
 .deep-hunt-status-badge.status-completed {
-  background: rgba(56, 163, 127, 0.15);
+  background: rgba(56, 163, 127, 0.16);
   color: #1e6657;
 }
 
@@ -172,15 +264,43 @@
   color: #a13636;
 }
 
+/* Empty state when no run is selected yet — fills the detail column so the
+   layout doesn't collapse to a single narrow rail. */
+.deep-hunt-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  padding: 40px 24px;
+  text-align: center;
+  border-radius: 18px;
+  border: 1px dashed rgba(47, 109, 122, 0.22);
+  background: rgba(255, 255, 255, 0.5);
+  color: #65756d;
+}
+
+.deep-hunt-detail-empty p {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.deep-hunt-detail-empty svg {
+  color: #9aa8a2;
+}
+
 .deep-hunt-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 10px 26px rgba(23, 32, 29, 0.05);
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 12px 32px rgba(23, 32, 29, 0.06);
 }
 
 .deep-hunt-detail-header {
@@ -192,22 +312,28 @@
 
 .deep-hunt-detail-header h4 {
   margin: 0 0 4px 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #17201d;
+  line-height: 1.35;
 }
 
 .deep-hunt-stage {
   font-size: 0.78rem;
   color: #70827f;
+  font-weight: 600;
 }
 
 .deep-hunt-progress {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(47, 109, 122, 0.08);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(47, 109, 122, 0.1), rgba(56, 163, 127, 0.06));
   color: #1f4f5a;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .deep-hunt-progress .button-secondary {
@@ -218,18 +344,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: rgba(196, 68, 68, 0.08);
+  border: 1px solid rgba(196, 68, 68, 0.16);
   color: #a13636;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
 }
 
 .deep-hunt-error .button-secondary {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .deep-hunt-results {
@@ -238,10 +365,22 @@
   gap: 12px;
 }
 
+.deep-hunt-results > .news-empty-subtext {
+  padding: 16px;
+  text-align: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
 @media (max-width: 860px) {
+  .deep-hunt-view {
+    padding: 16px 16px 40px;
+  }
+
   .deep-hunt-body {
     grid-template-columns: 1fr;
   }
+
   .deep-hunt-launcher-facets {
     grid-template-columns: 1fr;
   }

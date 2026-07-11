@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronRight, UserCog } from "lucide-react";
+import { ChevronRight, Compass, Info, Layers, Library, Search, UserCog } from "lucide-react";
 import { FilterPanel } from "./news/FilterPanel";
 import { NewsFeed } from "./news/NewsFeed";
 import { QueryReviewDialog } from "./news/QueryReviewDialog";
@@ -440,9 +440,9 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     <div className="scholarship-news-view">
       <div className="news-toolbar">
         <h1>Scholarship Hunt</h1>
-        <div className="news-toolbar-actions" style={{ alignItems: 'center', gap: '14px' }}>
+        <div className="news-toolbar-actions">
           {subTab === "hunt" && (
-            <>
+            <div className="news-toolbar-group">
               <label className="review-query-toggle" title="Show the editable query before every search">
                 <input
                   type="checkbox"
@@ -454,16 +454,14 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
               <button
                 className={`button-secondary ${showBookmarksOnly ? 'active' : ''}`}
                 onClick={toggleBookmarksView}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <span className="hidden sm:inline">{showBookmarksOnly ? "Feed" : "Saved"}</span>
               </button>
-            </>
+            </div>
           )}
           <button
-            className="button-secondary"
+            className="button-secondary news-toolbar-profile-btn"
             onClick={() => setIsHuntProfileModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             title="Set your degree, destinations, field, and intake for local fit scoring"
           >
             <UserCog size={16} />
@@ -473,42 +471,78 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
       </div>
 
       <div className="news-subnav" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={subTab === "hunt"}
-          className={`news-subnav-tab ${subTab === "hunt" ? "active" : ""}`}
-          onClick={() => setSubTab("hunt")}
-        >
-          Hunt
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={subTab === "catalog"}
-          className={`news-subnav-tab ${subTab === "catalog" ? "active" : ""}`}
-          onClick={() => setSubTab("catalog")}
-        >
-          Catalog
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={subTab === "library"}
-          className={`news-subnav-tab ${subTab === "library" ? "active" : ""}`}
-          onClick={() => setSubTab("library")}
-        >
-          Library
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={subTab === "deep-hunt"}
-          className={`news-subnav-tab ${subTab === "deep-hunt" ? "active" : ""}`}
-          onClick={() => setSubTab("deep-hunt")}
-        >
-          Deep Hunt
-        </button>
+        <div className="news-subnav-tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === "hunt"}
+            className={`news-subnav-tab ${subTab === "hunt" ? "active" : ""}`}
+            onClick={() => setSubTab("hunt")}
+          >
+            <Search size={15} />
+            <span>Hunt</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === "deep-hunt"}
+            className={`news-subnav-tab ${subTab === "deep-hunt" ? "active" : ""}`}
+            onClick={() => setSubTab("deep-hunt")}
+          >
+            <Library size={15} />
+            <span>Deep Hunt</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === "catalog"}
+            className={`news-subnav-tab ${subTab === "catalog" ? "active" : ""}`}
+            onClick={() => setSubTab("catalog")}
+          >
+            <Compass size={15} />
+            <span>Catalog</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === "library"}
+            className={`news-subnav-tab ${subTab === "library" ? "active" : ""}`}
+            onClick={() => setSubTab("library")}
+          >
+            <Layers size={15} />
+            <span>Library</span>
+          </button>
+        </div>
+        <div className="news-subnav-info">
+          <button
+            type="button"
+            className="news-subnav-info-trigger"
+            aria-label="What does each tab do?"
+          >
+            <Info size={16} />
+          </button>
+          <div className="news-subnav-info-popover" role="tooltip">
+            <p className="news-subnav-info-title">Scholarship Hunt tabs</p>
+            <dl className="news-subnav-info-list">
+              <div>
+                <dt><Search size={13} /> Hunt</dt>
+                <dd>Run a live news + web search from your filters and analyze each result into a structured opportunity. Uses Scholarship Hunt credits.</dd>
+              </div>
+              <div>
+                <dt><Library size={13} /> Deep Hunt</dt>
+                <dd>Hands one funding goal to an agent that runs multiple search passes, crawls pages, and extracts evidence-backed opportunities. Access depends on your role limits.</dd>
+              </div>
+              <div>
+                <dt><Compass size={13} /> Catalog</dt>
+                <dd>Browse a curated list of well-known scholarships for free. Pay one credit per program to check its current application cycle.</dd>
+              </div>
+              <div>
+                <dt><Layers size={13} /> Library</dt>
+                <dd>Your saved, structured opportunities. Track status, see fit scores, and watch approaching deadlines.</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
       </div>
 
       {subTab === "deep-hunt" && (

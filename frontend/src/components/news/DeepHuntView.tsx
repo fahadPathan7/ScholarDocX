@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2, Lock, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { Loader2, Lock, RefreshCw, Search, Sparkles, Trash2, X } from "lucide-react";
 import {
   DeepHuntRun,
   scholarshipDeepHuntApi,
@@ -162,11 +162,12 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
         <div className="deep-hunt-locked">
           <Lock size={18} />
           <div>
-            <strong>Deep Hunt is available on the Pro and Max plans.</strong>
+            <strong>Your account doesn&rsquo;t have access to Deep Hunt.</strong>
             <p>
-              Upgrade to run multi-pass scholarship research that searches, crawls, and extracts several
-              evidence-backed opportunities for one funding goal. Ask an admin to upgrade your plan, or
-              open Profile &rarr; Plans.
+              Deep Hunt runs multi-pass scholarship research that searches, crawls, and extracts several
+              evidence-backed opportunities for one funding goal. Access is controlled by your
+              workspace&rsquo;s role limits &mdash; ask an admin to enable it, or check your options in
+              Profile &rarr; Plans.
             </p>
           </div>
         </div>
@@ -324,6 +325,13 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {!activeRun && !isLoadingRuns && runs.length > 0 && (
+          <div className="deep-hunt-detail-empty">
+            <Search size={28} />
+            <p>Select a run to inspect its results.</p>
           </div>
         )}
       </div>

@@ -29,14 +29,13 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
       try {
         const { profileId: id, profile: loaded } = await getHuntProfile();
         let next = loaded;
-        if (!loaded.degree_level && !loaded.intake_term) {
+        if (!loaded.degree_level) {
           const projects = await listRecords<RecordMap>("projects");
           const first = projects[0];
           if (first) {
             next = {
               ...loaded,
               degree_level: PROJECT_DEGREE_TYPE_TO_LEVEL[first.degree_type] || loaded.degree_level,
-              intake_term: first.intake_term || loaded.intake_term,
             };
           }
         }

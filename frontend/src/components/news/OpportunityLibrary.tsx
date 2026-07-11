@@ -172,6 +172,7 @@ export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, hu
           <div className="opportunity-library-controls">
             <select
               value={opportunity.status}
+              data-status={opportunity.status}
               onChange={(e) => handleStatusChange(opportunity, e.target.value as ScholarshipOpportunity["status"])}
             >
               {STATUS_OPTIONS.map((status) => (

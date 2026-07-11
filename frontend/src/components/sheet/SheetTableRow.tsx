@@ -190,27 +190,6 @@ export const SheetTableRow = React.memo(function SheetTableRow({
           </td>
         );
       })}
-      <td style={{
-        height: cellHeight,
-        width: "140px",
-        minWidth: "140px",
-        ...(fullScreenMode ? { padding: '2px 4px', width: '100px', minWidth: '100px' } : {})
-      }}>
-        <div className="row-actions static-actions">
-          <button className="secondary" onClick={() => cb.onPeekRow(rowIndex)} title="Peek record details" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-            <Eye size={12} />
-          </button>
-          <button className="secondary" onClick={() => cb.onEditRow(rowIndex)} title="Edit record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-            <Edit size={12} />
-          </button>
-          <button className="secondary" onClick={() => cb.onCompose(row)} title="Open email composer" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-            <Mail size={12} />
-          </button>
-          <button className="secondary danger" onClick={() => cb.onDeleteRow(rowIndex)} title="Delete record" style={fullScreenMode ? { padding: '4px 6px' } : {}}>
-            <Trash2 size={12} />
-          </button>
-        </div>
-      </td>
     </tr>
   );
 });

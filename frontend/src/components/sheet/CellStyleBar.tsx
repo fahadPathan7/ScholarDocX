@@ -62,7 +62,13 @@ export function CellStyleBar({
       // clicks into a color input or dropdown inside the bar.
       onMouseDown={(e) => {
         const target = e.target as HTMLElement;
-        if (target.closest("[data-keep-editor-open]")) e.preventDefault();
+        if (target.closest("[data-keep-editor-open]")) {
+          // Allow native color inputs and their custom labels to focus/trigger naturally
+          const isColorInput = target.tagName.toLowerCase() === "input" && (target as HTMLInputElement).type === "color";
+          const isColorLabel = target.closest(".csb-custom-color");
+          if (isColorInput || isColorLabel) return;
+          e.preventDefault();
+        }
       }}
     >
       <div className="csb-group" data-keep-editor-open>
@@ -86,7 +92,7 @@ export function CellStyleBar({
         <ColorButton
           title="Text color"
           active={!!style.color}
-          icon={<Baseline size={13} />}
+          icon={<Baseline size={14} />}
           swatch={style.color}
           swatches={COLOR_SWATCHES}
           value={style.color || "#212529"}
@@ -95,7 +101,7 @@ export function CellStyleBar({
         <ColorButton
           title="Cell background"
           active={!!style.bg}
-          icon={<PaintBucket size={13} />}
+          icon={<PaintBucket size={14} />}
           swatch={style.bg}
           swatches={BG_SWATCHES}
           value={style.bg || "#ffffff"}
@@ -238,11 +244,23 @@ function ColorButton({ title, active, icon, swatch, swatches, value, onPick, cle
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((v) => !v)}
       >
-        {icon}
-        {swatch ? <span className="csb-color-dot" style={{ background: swatch }} /> : null}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative", width: "16px", height: "18px" }}>
+          {icon}
+          <span
+            className="csb-color-underline"
+            style={{
+              background: swatch || "transparent",
+              width: "14px",
+              height: "3px",
+              marginTop: "1.5px",
+              borderRadius: "1px",
+              border: swatch ? "none" : "1px dashed rgba(35, 58, 55, 0.3)"
+            }}
+          />
+        </div>
       </button>
       {open ? (
-        <div className="csb-popover" data-keep-editor-open>
+        <div className="csb-popover" data-keep-editor-open onMouseDown={(e) => e.stopPropagation()}>
           <div className="csb-swatches">
             {swatches.map((c) => (
               <button
@@ -256,12 +274,11 @@ function ColorButton({ title, active, icon, swatch, swatches, value, onPick, cle
               />
             ))}
           </div>
-          <label className="csb-custom-color" data-keep-editor-open>
+          <label className="csb-custom-color" data-keep-editor-open onMouseDown={(e) => e.stopPropagation()}>
             <span>Custom</span>
             <input
               type="color"
               value={value}
-              onMouseDown={(e) => e.stopPropagation()}
               onChange={(e) => {
                 const c = e.target.value;
                 onPick(c === clearValue ? "" : c);

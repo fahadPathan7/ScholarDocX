@@ -4,9 +4,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Sparkles, Info } from "lucide-react";
-import type { ColumnDef } from "./sheetModel";
+import type { ColumnDef, CellStyle } from "./sheetModel";
 import type { SheetView } from "./sheetFilters";
 import { useDialog } from "../DialogProvider";
+import { CellStyleBar } from "./CellStyleBar";
+import type { RecordMap } from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
 /*  SheetToolbarActions — right-side actions placed in the section     */
@@ -21,6 +23,14 @@ export function SheetToolbarActions({
   onExportCsv,
   onImportCsv,
   onSaveTemplate,
+  focusedCell,
+  selectedRows,
+  rows,
+  columns,
+  onCellStyle,
+  onClearCellFormatting,
+  bulkRowCellStyle,
+  bulkClearRowFormatting,
 }: {
   fullScreenMode: boolean;
   selectedProjectId: string;
@@ -29,6 +39,14 @@ export function SheetToolbarActions({
   onExportCsv: () => void;
   onImportCsv: () => void;
   onSaveTemplate: () => void;
+  focusedCell: { rowIndex: number; colName: string } | null;
+  selectedRows: Set<number>;
+  rows: RecordMap[];
+  columns: ColumnDef[];
+  onCellStyle: (rowIndex: number, column: string, patch: CellStyle) => void;
+  onClearCellFormatting: (rowIndex: number, column: string) => void;
+  bulkRowCellStyle: (rowIndices: number[], patch: CellStyle) => void;
+  bulkClearRowFormatting: (rowIndices: number[]) => void;
 }) {
   const [showDataMenu, setShowDataMenu] = useState(false);
   const dataMenuRef = useRef<HTMLDivElement>(null);
@@ -47,6 +65,49 @@ export function SheetToolbarActions({
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {focusedCell && (
+        (() => {
+          const hasSelection = selectedRows.size > 0;
+          const targetRows = hasSelection
+            ? [...selectedRows].sort((a, b) => a - b)
+            : [focusedCell.rowIndex];
+          const colName = focusedCell.colName;
+
+          const firstRow = rows[targetRows[0]];
+          const displayStyle = firstRow
+            ? JSON.parse(firstRow._cellStyles || "{}")[colName] || {}
+            : {};
+
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
+              <CellStyleBar
+                style={displayStyle}
+                onChange={(patch) => {
+                  if (hasSelection) {
+                    bulkRowCellStyle(targetRows, patch);
+                  } else {
+                    onCellStyle(focusedCell.rowIndex, colName, patch);
+                  }
+                }}
+                onClear={() => {
+                  if (hasSelection) {
+                    bulkClearRowFormatting(targetRows);
+                  } else {
+                    onClearCellFormatting(focusedCell.rowIndex, colName);
+                  }
+                }}
+                compact
+              />
+              {hasSelection && (
+                <span className="format-rail-scope" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
+                  Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          );
+        })()
+      )}
+
       {/* Import / Export */}
       <div className="data-menu-container" ref={dataMenuRef} style={{ position: 'relative' }}>
         <button
@@ -295,17 +356,17 @@ export function SheetToolbar({
           <Settings size={14} /> Edit columns
         </button>
 
-        {/* 5. Group */}
+        {/* 5. Categorize */}
         <div className="group-menu-container" ref={groupMenuRef} style={{ position: 'relative' }}>
           <button
             className={`secondary ${groupBy ? 'active' : ''}`}
             onClick={() => setShowGroupMenu(!showGroupMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
-            title="Group rows"
+            title="Categorize rows"
           >
             <Rows3 size={14} />
             <span style={{ marginLeft: '4px' }}>
-              {groupBy ? `Grouped by ${groupBy}` : 'Group'}
+              {groupBy ? `Categorized by ${groupBy}` : 'Categorize'}
             </span>
           </button>
           {showGroupMenu && (
@@ -317,7 +378,7 @@ export function SheetToolbar({
               overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px'
             }}>
               <div style={{ fontSize: '12px', fontWeight: 600, padding: '4px 8px', color: 'var(--text-secondary)' }}>
-                Group by column
+                Categorize by column
               </div>
               <label className="group-item" style={{
                 display: 'flex', alignItems: 'center', gap: '8px',

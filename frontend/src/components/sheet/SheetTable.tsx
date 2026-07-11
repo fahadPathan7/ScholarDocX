@@ -577,11 +577,6 @@ export function SheetTable({
                 );
               }
             })}
-            <th style={{
-              width: "140px",
-              minWidth: "140px",
-              ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px', width: '100px', minWidth: '100px' } : {})
-            }}>Actions</th>
           </tr>
         </thead>
         <tbody>

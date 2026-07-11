@@ -13,15 +13,14 @@ import { useUsage } from "../contexts/UsageContext";
 
 /* Re-export shared types so external consumers don't break */
 export type { ColumnType, ColumnDef, ProjectNavigationTarget } from "./sheet/sheetModel";
-export { GROUP_COLORS } from "./sheet/sheetModel";
+export { GROUP_COLORS, SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
 
 /* Sheet sub-components */
-import type { SheetPage } from "./sheet/sheetModel";
-import type { ProjectNavigationTarget } from "./sheet/sheetModel";
+import { SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
+import type { SheetPage, ProjectNavigationTarget, DateColorConfig } from "./sheet/sheetModel";
 import { useSheetPage } from "./sheet/useSheetPage";
 import { SheetToolbar, SheetToolbarActions } from "./sheet/SheetToolbar";
 import { CellStyleBar } from "./sheet/CellStyleBar";
-
 import { SheetFooter } from "./sheet/SheetFooter";
 import { AddColumnModal, EditColumnsModal } from "./sheet/ColumnEditor";
 import { SheetTable } from "./sheet/SheetTable";
@@ -30,11 +29,8 @@ import { RowPeekPanel } from "./sheet/RowPeekPanel";
 import { SelectionToolbar } from "./sheet/SelectionToolbar";
 import { CsvImportModal } from "./sheet/CsvImportModal";
 import { DateColorConfigModal } from "./sheet/DateColorConfigModal";
-import { DateColorConfig, SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
 
-/* ------------------------------------------------------------------ */
-/*  Main workspace component                                          */
-/* ------------------------------------------------------------------ */
+// Main workspace component
 
 export function ProjectWorkspace({
   files,
@@ -94,28 +90,24 @@ export function ProjectWorkspace({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [csvImportFile, setCsvImportFile] = useState<File | null>(null);
 
-  /* Date Colors Config */
   const [showDateColorConfig, setShowDateColorConfig] = useState(false);
   const [peekRowIndex, setPeekRowIndex] = useState<number | null>(null);
   const [dateColorConfig, setDateColorConfig] = useState<DateColorConfig>(() => {
     try {
       const stored = localStorage.getItem(`scholardock_date_colors_${selectedProjectId}`);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      // ignore
+      return stored ? JSON.parse(stored) : { redDays: 3, yellowDays: 7 };
+    } catch {
+      return { redDays: 3, yellowDays: 7 };
     }
-    return { redDays: 3, yellowDays: 7 };
   });
 
   useEffect(() => {
-    if (selectedProjectId) {
-      try {
-        const stored = localStorage.getItem(`scholardock_date_colors_${selectedProjectId}`);
-        if (stored) setDateColorConfig(JSON.parse(stored));
-        else setDateColorConfig({ redDays: 3, yellowDays: 7 });
-      } catch (e) {
-        setDateColorConfig({ redDays: 3, yellowDays: 7 });
-      }
+    if (!selectedProjectId) return;
+    try {
+      const stored = localStorage.getItem(`scholardock_date_colors_${selectedProjectId}`);
+      setDateColorConfig(stored ? JSON.parse(stored) : { redDays: 3, yellowDays: 7 });
+    } catch {
+      setDateColorConfig({ redDays: 3, yellowDays: 7 });
     }
   }, [selectedProjectId]);
 
@@ -127,9 +119,7 @@ export function ProjectWorkspace({
     setShowDateColorConfig(false);
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Sheet page hook (all column/row state, CRUD, modals)             */
-  /* ---------------------------------------------------------------- */
+  // Sheet page hook (all column/row state, CRUD, modals)
 
   const refreshSummary = async (projectId = selectedProjectId) => {
     if (!projectId) return;
@@ -697,6 +687,14 @@ export function ProjectWorkspace({
                     onToast?.("Template saved.");
                   }
                 }}
+                focusedCell={sheet.focusedCell}
+                selectedRows={sheet.selectedRows}
+                rows={sheet.rows}
+                columns={sheet.columns}
+                onCellStyle={sheet.saveCellStyle}
+                onClearCellFormatting={sheet.clearCellFormatting}
+                bulkRowCellStyle={sheet.bulkRowCellStyle}
+                bulkClearRowFormatting={sheet.bulkClearRowFormatting}
               />
             ) : undefined}
           >
@@ -722,48 +720,6 @@ export function ProjectWorkspace({
               onLoadView={sheet.handleLoadView}
               onDeleteView={sheet.handleDeleteView}
             />
-            {sheet.focusedCell ? (() => {
-              const hasSelection = sheet.selectedRows.size > 0;
-              // Targets: all selected rows, or just the focused row.
-              const targetRows = hasSelection
-                ? [...sheet.selectedRows].sort((a, b) => a - b)
-                : [sheet.focusedCell.rowIndex];
-              const colName = sheet.focusedCell.colName;
-
-              // Use the first target's style as the display state in the bar.
-              const firstRow = sheet.rows[targetRows[0]];
-              const displayStyle = firstRow
-                ? JSON.parse(firstRow._cellStyles || "{}")[colName] || {}
-                : {};
-
-              return (
-                <div className="sheet-format-rail">
-                  <CellStyleBar
-                    style={displayStyle}
-                    onChange={(patch) => {
-                      if (hasSelection) {
-                        sheet.bulkRowCellStyle(targetRows, patch);
-                      } else {
-                        sheet.saveCellStyle(sheet.focusedCell!.rowIndex, colName, patch);
-                      }
-                    }}
-                    onClear={() => {
-                      if (hasSelection) {
-                        sheet.bulkClearRowFormatting(targetRows);
-                      } else {
-                        sheet.clearCellFormatting(sheet.focusedCell!.rowIndex, colName);
-                      }
-                    }}
-                  />
-                  {hasSelection ? (
-                    <span className="format-rail-scope">
-                      Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })() : null}
-
 
             <SelectionToolbar
               selectedCount={sheet.selectedRows.size}
@@ -782,6 +738,18 @@ export function ProjectWorkspace({
                     onToast?.("Failed to copy");
                   });
                 });
+              }}
+              onPeek={() => {
+                const idx = Array.from(sheet.selectedRows)[0];
+                if (idx !== undefined) setPeekRowIndex(idx);
+              }}
+              onEdit={() => {
+                const idx = Array.from(sheet.selectedRows)[0];
+                if (idx !== undefined) sheet.editRow(idx);
+              }}
+              onEmail={() => {
+                const idx = Array.from(sheet.selectedRows)[0];
+                if (idx !== undefined && sheet.rows[idx]) sheet.openCompose(sheet.rows[idx]);
               }}
             />
 

@@ -26,7 +26,10 @@ interactive, and polished without becoming decorative marketing UI.
   section bodies, sheet tables, chat/message bodies, and notification lists.
 - Sheet tables should behave like spreadsheet work areas: the row-number/index
   column stays frozen on the left during horizontal scroll, and grouped column
-  headers must keep high text contrast against their background.
+  headers must keep high text contrast against their background. There is no repetitive
+  Actions column on the sheet; instead, row controls (View Details, Edit, and Email) are
+  contextually shown in the selection toolbar only when exactly 1 row is selected. When
+  multiple rows are selected, only bulk actions (Copy, Duplicate, Delete) are visible.
 - Sheet rows should default to a stable, scan-friendly preview height. Long
   text, long words, emails, and URLs should be clipped or wrapped within their
   own cells and never force automatic row expansion or bleed into adjacent
@@ -49,12 +52,16 @@ interactive, and polished without becoming decorative marketing UI.
   record form and single-cell editing.
 - Cell text and cell formatting (bold/italic/underline/strikethrough, text
   color, cell background, row background, alignment, font size presets, and a
-  small curated system-font list) is applied through a compact in-cell format
-  bar that appears above the inline editor while a cell is being edited, with
-  parity in the full-cell viewer. The bar must not distort row height — it
-  floats above the editor. File cells never show the format bar. Formatting
+  small curated system-font list) is applied through a compact formatting bar
+  (`CellStyleBar`) rendered directly inside the section header actions
+  (`SheetToolbarActions`), positioned to the left of the 'Import / Export' button
+  when a cell is focused, with parity in the full-cell viewer. The bar must not
+  distort row height. File cells never show the format bar. Formatting
   persists per cell in the row's `_cellStyles` reserved key and per row in
-  `_rowStyle`; it is never sent to CSV exports.
+  `_rowStyle`; it is never sent to CSV exports. Custom color inputs and swatches
+  do not lose editor focus when clicked. Text and background color buttons feature
+  colored horizontal underlines beneath their icons to represent the current state,
+  defaulting to transparent dashed lines when no custom color is set.
 - Horizontal overflow areas should feel pannable: users can hold the primary
   mouse button and drag left/right on the scroll surface to move sideways,
   without hijacking interactions on buttons, links, inputs, selects, textareas,

@@ -116,13 +116,8 @@
   position: relative;
 }
 
-.csb-color-dot {
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 2px;
-  display: inline-block;
-  height: 7px;
-  margin-left: 2px;
-  width: 11px;
+.csb-color-underline {
+  transition: background-color 150ms ease;
 }
 
 /* ---- Dropdowns (font size / font family) --------------------------- */
@@ -144,43 +139,61 @@
 /* ---- Popover (shared by color + dropdown) -------------------------- */
 
 .csb-popover {
-  background: #ffffff;
-  border: 1px solid #d7d2c8;
-  border-radius: 6px;
-  box-shadow: 0 8px 22px rgba(23, 32, 29, 0.18);
-  padding: 6px;
+  background: var(--ui-paper);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow);
+  padding: 8px;
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   z-index: 20;
-  min-width: 140px;
+  min-width: 152px;
+  transform-origin: top left;
+  animation: csbPopoverFadeIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes csbPopoverFadeIn {
+  from {
+    transform: scale(0.95) translateY(-4px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 .csb-popover .csb-menu {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .csb-menu-item {
   background: transparent;
   border: none;
-  border-radius: 4px;
-  color: var(--ui-ink, #233a37);
+  border-radius: 5px;
+  color: var(--ui-ink-soft);
   cursor: pointer;
-  font: inherit;
-  padding: 5px 8px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 6px 10px;
   text-align: left;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .csb-menu-item:hover {
-  background: #f2f7f5;
+  background: var(--ui-mint);
+  color: var(--ui-primary);
 }
 
 .csb-menu-item.active {
-  background: #e3eef0;
-  color: #1f4f5a;
-  font-weight: 600;
+  background: var(--ui-primary);
+  color: var(--ui-paper-strong);
+  font-weight: 500;
 }
 
 /* ---- Swatch grid --------------------------------------------------- */
@@ -188,44 +201,67 @@
 .csb-swatches {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 3px;
-  margin-bottom: 6px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .csb-swatch {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 3px;
+  border: 1px solid var(--ui-line);
+  border-radius: 4px;
   cursor: pointer;
   height: 16px;
   padding: 0;
   width: 16px;
+  transition: transform 120ms ease, border-color 120ms ease;
 }
 
 .csb-swatch:hover {
-  border-color: #2f6d7a;
-  transform: scale(1.12);
+  border-color: var(--ui-primary);
+  transform: scale(1.18);
 }
 
 /* ---- Custom color picker row --------------------------------------- */
 
 .csb-custom-color {
   align-items: center;
-  border-top: 1px solid rgba(35, 58, 55, 0.13);
+  border-top: 1px solid var(--ui-line);
   display: flex;
-  font-size: 11px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
   gap: 6px;
   justify-content: space-between;
-  padding-top: 6px;
-  color: #65756d;
+  padding-top: 8px;
+  color: var(--ui-muted);
 }
 
 .csb-custom-color input[type="color"] {
-  border: 1px solid #d7d2c8;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 4px;
   cursor: pointer;
-  height: 22px;
+  height: 20px;
   padding: 0;
   width: 34px;
+  background: transparent;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.03);
+}
+
+.csb-custom-color input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.csb-custom-color input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.csb-custom-color input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 
 /* ---- Row color popover -------------------------------------------- */

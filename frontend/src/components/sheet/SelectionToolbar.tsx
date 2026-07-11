@@ -1,5 +1,5 @@
 import React from "react";
-import { Copy as CopyIcon, Files, Trash2, X } from "lucide-react";
+import { Copy as CopyIcon, Files, Trash2, X, Eye, Edit, Mail } from "lucide-react";
 
 interface SelectionToolbarProps {
   selectedCount: number;
@@ -7,6 +7,9 @@ interface SelectionToolbarProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onCopy: () => void;
+  onPeek?: () => void;
+  onEdit?: () => void;
+  onEmail?: () => void;
 }
 
 export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
@@ -14,7 +17,10 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   onClear,
   onDelete,
   onDuplicate,
-  onCopy
+  onCopy,
+  onPeek,
+  onEdit,
+  onEmail
 }) => {
   if (selectedCount === 0) return null;
 
@@ -30,6 +36,19 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
         </button>
       </div>
       <div className="selection-toolbar-actions" style={{ position: "relative" }}>
+        {selectedCount === 1 && (
+          <>
+            <button className="sel-action-btn" onClick={onPeek} title="Peek details">
+              <Eye size={13} /> View Details
+            </button>
+            <button className="sel-action-btn" onClick={onEdit} title="Edit row">
+              <Edit size={13} /> Edit
+            </button>
+            <button className="sel-action-btn" onClick={onEmail} title="Compose email">
+              <Mail size={13} /> Email
+            </button>
+          </>
+        )}
         <button className="sel-action-btn" onClick={onCopy}>
           <CopyIcon size={13} /> Copy
         </button>

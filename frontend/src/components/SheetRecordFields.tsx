@@ -248,18 +248,8 @@ export function CellRenderer({
 
     const checkOverflow = () => {
       if (!content) return;
-
-      const parentCell = content.closest('td');
-      if (!parentCell) {
-        setIsOverflowing(false);
-        return;
-      }
-
-      const cellHeight = parentCell.clientHeight;
-      const contentHeight = content.scrollHeight;
-
-      // Show dots if content height > cell height (content is cut off)
-      setIsOverflowing(contentHeight > cellHeight + 2);
+      // Show dots if content scroll height > visible client height (content is cut off)
+      setIsOverflowing(content.scrollHeight > content.clientHeight + 5);
     };
 
     // Initial check with delay for rendering

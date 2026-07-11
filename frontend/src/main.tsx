@@ -7,6 +7,7 @@ import "./visual-refresh.css";
 import "./documents-refresh.css";
 import "./about-refresh.css";
 import "./sheet-table-polish.css";
+import "./cell-formatting.css";
 import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";

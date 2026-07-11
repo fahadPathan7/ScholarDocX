@@ -338,6 +338,22 @@ Likely `project_pages` fields:
 - created_at
 - updated_at
 
+`rows_json` is a JSON array of `Record<string, string>` row objects. Besides
+the user-visible column values, rows carry reserved `_`-prefixed metadata
+keys that ride along on each row and round-trip through CSV/paste/undo/AI
+without leaking into exports (CSV/paste iterate over `columns` only; AI row
+updates use `.update()` which preserves them):
+
+- `_height`: per-row resize height in px (string).
+- `_cellStyles`: `JSON.stringify({ "<colName>": CellStyle })` — per-cell
+  formatting (bold/italic/underline/strike, text color, cell bg, alignment,
+  font size, font family). See `sheetModel.ts` `CellStyle`.
+- `_rowStyle`: `JSON.stringify({ bg })` — per-row background color.
+
+New reserved keys should follow the same `_`-prefix + JSON-string convention
+to avoid a schema migration and to stay compatible with the existing
+data paths.
+
 Likely `notifications` fields:
 
 - id

@@ -47,6 +47,14 @@ interactive, and polished without becoming decorative marketing UI.
 - File cells in the full-cell editor should reuse the existing local document
   picker/upload component so attachment selection stays consistent across the
   record form and single-cell editing.
+- Cell text and cell formatting (bold/italic/underline/strikethrough, text
+  color, cell background, row background, alignment, font size presets, and a
+  small curated system-font list) is applied through a compact in-cell format
+  bar that appears above the inline editor while a cell is being edited, with
+  parity in the full-cell viewer. The bar must not distort row height — it
+  floats above the editor. File cells never show the format bar. Formatting
+  persists per cell in the row's `_cellStyles` reserved key and per row in
+  `_rowStyle`; it is never sent to CSV exports.
 - Horizontal overflow areas should feel pannable: users can hold the primary
   mouse button and drag left/right on the scroll surface to move sideways,
   without hijacking interactions on buttons, links, inputs, selects, textareas,

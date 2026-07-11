@@ -236,6 +236,34 @@ Rows should be visually highlighted by date proximity. MVP default thresholds:
 
 Future customization should allow users to edit thresholds and colors per project.
 
+## Cell Formatting (SCHOLARDOCX-0119)
+
+Users can apply spreadsheet-grade formatting to individual cells and rows so
+they can emphasize and organize data the way they would in Google Sheets or
+Excel. Formatting is applied via a compact in-cell format bar that appears
+above the inline editor while a cell is being edited, with the same bar
+available in the full-cell viewer for long-text editing.
+
+Supported formatting (per cell):
+
+- Text style: bold, italic, underline, strikethrough.
+- Text color (swatch palette + custom color picker).
+- Cell background color (swatch palette + custom color picker).
+- Alignment: left / center / right.
+- Font size presets: Small / Normal / Large / Heading.
+- Font family: Sans / Serif / Mono (curated system fonts only — no web fonts,
+  to stay local-first and offline-safe).
+
+Supported formatting (per row):
+
+- Row background color (swatch palette + custom color picker), applied to all
+  cells in the row. A cell-level background overrides the row background.
+
+Formatting persists with the row data (reserved `_cellStyles` / `_rowStyle`
+JSON keys) and survives across sessions, reloads, and AI edits. It never
+leaks into CSV exports or clipboard copy/paste. A "Clear formatting" action
+resets a cell to default. File cells do not show the format bar.
+
 ## Email Compose Limitation
 
 Browser links can open Gmail or Outlook compose screens with recipient, subject, and body prefilled.

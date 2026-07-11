@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Clipboard, Save, X } from "lucide-react";
 import { FilePickerField } from "./FilePickerField";
 import { API_BASE, RecordMap } from "../lib/api";
 import { getToken } from "../lib/auth";
-import type { ColumnDef, DateColorConfig } from "./sheet/sheetModel";
+import type { ColumnDef, DateColorConfig, CellStyle } from "./sheet/sheetModel";
+import { textStyleToCss, cellBoxToCss } from "./sheet/sheetModel";
+import { CellStyleBar } from "./sheet/CellStyleBar";
 
 const CELL_EDITOR_MIN_LINES = 3;
 const CELL_EDITOR_MAX_LINES = 10;
@@ -172,6 +175,13 @@ export function TypedRecordField({
   }
 }
 
+/** Map cell textAlign to a flex justify-content (flex containers ignore text-align). */
+function flexAlign(align: CellStyle["align"]): "flex-start" | "center" | "flex-end" {
+  if (align === "center") return "center";
+  if (align === "right") return "flex-end";
+  return "flex-start";
+}
+
 export function CellRenderer({
   column,
   value,
@@ -181,7 +191,10 @@ export function CellRenderer({
   isEditing,
   onCloseEdit,
   dateColorConfig,
-  openOnClick = true
+  openOnClick = true,
+  cellStyle = {},
+  onCellStyle,
+  onCellClearFormatting,
 }: {
   column: ColumnDef;
   value: string;
@@ -193,6 +206,12 @@ export function CellRenderer({
   dateColorConfig?: DateColorConfig;
   /** When false, single click does not open the modal viewer (grid focuses instead). */
   openOnClick?: boolean;
+  /** Per-cell text formatting (bold/italic/color/…). Applied to the inner span. */
+  cellStyle?: CellStyle;
+  /** Apply a partial cell style (full-cell viewer format bar). */
+  onCellStyle?: (patch: CellStyle) => void;
+  /** Clear all cell formatting (full-cell viewer format bar). */
+  onCellClearFormatting?: () => void;
 }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -321,6 +340,8 @@ export function CellRenderer({
   };
 
   const renderEditor = () => {
+    // The editor is a plain input — do NOT apply cell formatting here.
+    // Formatting shows on the grid cell and in the read-only Peek panel.
     if (column.type === "number") {
       return (
         <input
@@ -575,6 +596,13 @@ export function CellRenderer({
       <span
         ref={contentRef}
         className="sheet-cell-preview sheet-cell-trigger"
+        style={{
+          ...textStyleToCss(cellStyle),
+          ...cellBoxToCss(cellStyle),
+          // Force block display when formatted — .sheet-cell-preview uses
+          // display:-webkit-box which ignores textAlign and mis-renders bg.
+          ...(Object.keys(cellStyle).length > 0 ? { display: 'block', WebkitLineClamp: 'unset', WebkitBoxOrient: 'unset' } : {}),
+        }}
         {...interactiveProps}
       >
         {value ? (
@@ -586,7 +614,7 @@ export function CellRenderer({
             pillContent
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: flexAlign(cellStyle.align), width: '100%' }}>
                 {dateColorBubble}
                 {value}
               </div>
@@ -603,7 +631,7 @@ export function CellRenderer({
           <span className="empty-cell">-</span>
         )}
       </span>
-      {viewerOpen ? viewer : null}
+      {viewerOpen ? createPortal(viewer, document.body) : null}
     </>
   );
 }

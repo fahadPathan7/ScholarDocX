@@ -20,6 +20,7 @@ import type { SheetPage } from "./sheet/sheetModel";
 import type { ProjectNavigationTarget } from "./sheet/sheetModel";
 import { useSheetPage } from "./sheet/useSheetPage";
 import { SheetToolbar, SheetToolbarActions } from "./sheet/SheetToolbar";
+import { CellStyleBar } from "./sheet/CellStyleBar";
 
 import { SheetFooter } from "./sheet/SheetFooter";
 import { AddColumnModal, EditColumnsModal } from "./sheet/ColumnEditor";
@@ -630,7 +631,7 @@ export function ProjectWorkspace({
 
   if (selectedSheetId) {
     return (
-      <div className="project-detail sheet-detail-view" style={fullScreenMode ? {
+      <div className="project-detail sheet-detail-view" id="sheet-work-surface" style={fullScreenMode ? {
         width: '100vw',
         height: '100vh',
         margin: 0,
@@ -721,15 +722,54 @@ export function ProjectWorkspace({
               onLoadView={sheet.handleLoadView}
               onDeleteView={sheet.handleDeleteView}
             />
+            {sheet.focusedCell ? (() => {
+              const hasSelection = sheet.selectedRows.size > 0;
+              // Targets: all selected rows, or just the focused row.
+              const targetRows = hasSelection
+                ? [...sheet.selectedRows].sort((a, b) => a - b)
+                : [sheet.focusedCell.rowIndex];
+              const colName = sheet.focusedCell.colName;
+
+              // Use the first target's style as the display state in the bar.
+              const firstRow = sheet.rows[targetRows[0]];
+              const displayStyle = firstRow
+                ? JSON.parse(firstRow._cellStyles || "{}")[colName] || {}
+                : {};
+
+              return (
+                <div className="sheet-format-rail">
+                  <CellStyleBar
+                    style={displayStyle}
+                    onChange={(patch) => {
+                      if (hasSelection) {
+                        sheet.bulkRowCellStyle(targetRows, patch);
+                      } else {
+                        sheet.saveCellStyle(sheet.focusedCell!.rowIndex, colName, patch);
+                      }
+                    }}
+                    onClear={() => {
+                      if (hasSelection) {
+                        sheet.bulkClearRowFormatting(targetRows);
+                      } else {
+                        sheet.clearCellFormatting(sheet.focusedCell!.rowIndex, colName);
+                      }
+                    }}
+                  />
+                  {hasSelection ? (
+                    <span className="format-rail-scope">
+                      Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })() : null}
 
 
             <SelectionToolbar
               selectedCount={sheet.selectedRows.size}
-              columns={sheet.columns}
               onClear={sheet.clearSelection}
               onDelete={sheet.bulkDelete}
               onDuplicate={sheet.bulkDuplicate}
-              onSetValue={sheet.bulkSetValue}
               onCopy={() => {
                 import("./sheet/sheetPaste").then(({ formatTSV }) => {
                   const visibleCols = sheet.columns.filter(c => c.type !== 'group' && !c.hidden);
@@ -842,6 +882,9 @@ export function ProjectWorkspace({
               onQuickAddRow={sheet.quickAddRow}
               dateColorConfig={dateColorConfig}
               onPeekRow={(idx) => setPeekRowIndex(idx)}
+              onCellStyle={sheet.saveCellStyle}
+              onCellClearFormatting={sheet.clearCellFormatting}
+              onRowStyle={sheet.saveRowStyle}
             />
             <SheetFooter
               columns={sheet.columns}

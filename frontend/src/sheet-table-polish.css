@@ -508,6 +508,12 @@
   font-size: 13px;
 }
 
+/* Positioning context for in-surface modals (peek panel, etc.) so their
+   backdrop blurs only the work surface, never the TopBar or Sidebar. */
+#sheet-work-surface {
+  position: relative;
+}
+
 .sheet-detail-view .modal-panel h2 {
   font-size: 16px;
 }
@@ -693,28 +699,101 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--primary);
-  border-radius: 8px;
-  padding: 8px 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 12px rgba(24, 59, 56, 0.1);
+  background: linear-gradient(180deg, #eef7f3, #e8f2ed);
+  border: 1px solid rgba(47, 109, 122, 0.25);
+  border-radius: 10px;
+  padding: 7px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 3px 10px rgba(24, 59, 56, 0.08);
 }
 
 .selection-toolbar-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
-.selection-count {
+/* Numeric badge for selected count */
+.selection-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #2f6d7a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.selection-count-label {
+  font-size: 13px;
   font-weight: 600;
-  color: var(--primary);
+  color: #1f4f5a;
+}
+
+.selection-deselect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  color: #65756d;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.selection-deselect-btn:hover {
+  background: rgba(47, 109, 122, 0.08);
+  color: #2f6d7a;
 }
 
 .selection-toolbar-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+}
+
+/* Action buttons — compact pill style */
+.sel-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  border: 1px solid rgba(35, 58, 55, 0.14);
+  border-radius: 6px;
+  color: #37514c;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 130ms ease;
+}
+
+.sel-action-btn:hover {
+  background: #f2f7f5;
+  border-color: rgba(47, 109, 122, 0.3);
+  color: #1f4f5a;
+}
+
+.sel-action-btn:active {
+  transform: translateY(1px);
+}
+
+.sel-action-btn.sel-danger {
+  color: #b24f4f;
+}
+
+.sel-action-btn.sel-danger:hover {
+  background: #fbeeee;
+  border-color: rgba(178, 79, 79, 0.3);
+  color: #8a3a3a;
 }
 
 /* ================================================================== */
@@ -1027,4 +1106,43 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.sel-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(35, 58, 55, 0.14);
+  border-radius: 6px;
+  color: #65756d;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 130ms ease;
+}
+
+.sel-cancel-btn:hover {
+  background: #f2f7f5;
+  color: #37514c;
+}
+
+.sel-apply-btn {
+  background: #2f6d7a;
+  border: 1px solid #2f6d7a;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 130ms ease;
+}
+
+.sel-apply-btn:hover:not(:disabled) {
+  background: #285d68;
+}
+
+.sel-apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

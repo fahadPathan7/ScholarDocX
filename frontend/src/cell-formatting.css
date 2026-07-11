@@ -1,0 +1,297 @@
+/* ------------------------------------------------------------------ */
+/*  Cell formatting UI — in-cell format bar, color popovers, row color */
+/*                                                                     */
+/*  Shares the sheet palette: teal accent (#2f6d7a), warm whites,      */
+/*  subtle #d7d2c8 borders, muted #65756d text. Kept in a dedicated     */
+/*  file so the already-large sheet-table-polish.css stays manageable.  */
+/* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  Cell formatting UI — format toolbar, color popovers                */
+/* ------------------------------------------------------------------ */
+
+/* Persistent format toolbar above the sheet grid (MS Word ribbon style) */
+.sheet-format-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-bottom: 1px solid rgba(35, 58, 55, 0.10);
+  background: var(--bg-primary, #fffefb);
+}
+
+.sheet-format-rail .cell-style-bar {
+  position: static;
+  box-shadow: none;
+  border: 1px solid transparent;
+  background: transparent;
+  flex-wrap: nowrap;
+}
+
+.format-rail-scope {
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f6d7a;
+  white-space: nowrap;
+  padding: 3px 8px;
+  background: rgba(47, 109, 122, 0.08);
+  border-radius: 4px;
+}
+
+/* ---- Format bar ---------------------------------------------------- */
+
+.cell-style-bar {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7d2c8;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(23, 32, 29, 0.16);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px 4px;
+  position: relative;
+  z-index: 10;
+}
+
+.cell-style-bar--compact {
+  flex-wrap: nowrap;
+  padding: 2px 3px;
+}
+
+.csb-group {
+  align-items: center;
+  display: flex;
+  gap: 1px;
+}
+
+.csb-divider {
+  background: rgba(35, 58, 55, 0.13);
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Format toggle buttons */
+.csb-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #65756d;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 12px;
+  gap: 3px;
+  justify-content: center;
+  min-width: 24px;
+  padding: 3px 5px;
+}
+
+.csb-btn:hover {
+  background: #f2f7f5;
+  color: #1f4f5a;
+}
+
+.csb-btn.active {
+  background: #e3eef0;
+  color: #1f4f5a;
+  border-color: #b3cdd1;
+}
+
+.csb-clear {
+  color: #b24f4f;
+}
+
+.csb-clear:hover {
+  background: #fbeeee;
+  color: #8a3a3a;
+}
+
+/* ---- Color button (icon + active swatch) --------------------------- */
+
+.csb-color-btn {
+  position: relative;
+}
+
+.csb-color-dot {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  display: inline-block;
+  height: 7px;
+  margin-left: 2px;
+  width: 11px;
+}
+
+/* ---- Dropdowns (font size / font family) --------------------------- */
+
+.csb-dropdown {
+  position: relative;
+}
+
+.csb-dropdown-btn {
+  font-size: 11px;
+  gap: 2px;
+  padding: 3px 4px;
+}
+
+.csb-dropdown-label {
+  font-size: 11px;
+}
+
+/* ---- Popover (shared by color + dropdown) -------------------------- */
+
+.csb-popover {
+  background: #ffffff;
+  border: 1px solid #d7d2c8;
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(23, 32, 29, 0.18);
+  padding: 6px;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 140px;
+}
+
+.csb-popover .csb-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.csb-menu-item {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--ui-ink, #233a37);
+  cursor: pointer;
+  font: inherit;
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.csb-menu-item:hover {
+  background: #f2f7f5;
+}
+
+.csb-menu-item.active {
+  background: #e3eef0;
+  color: #1f4f5a;
+  font-weight: 600;
+}
+
+/* ---- Swatch grid --------------------------------------------------- */
+
+.csb-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.csb-swatch {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  cursor: pointer;
+  height: 16px;
+  padding: 0;
+  width: 16px;
+}
+
+.csb-swatch:hover {
+  border-color: #2f6d7a;
+  transform: scale(1.12);
+}
+
+/* ---- Custom color picker row --------------------------------------- */
+
+.csb-custom-color {
+  align-items: center;
+  border-top: 1px solid rgba(35, 58, 55, 0.13);
+  display: flex;
+  font-size: 11px;
+  gap: 6px;
+  justify-content: space-between;
+  padding-top: 6px;
+  color: #65756d;
+}
+
+.csb-custom-color input[type="color"] {
+  border: 1px solid #d7d2c8;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 22px;
+  padding: 0;
+  width: 34px;
+}
+
+/* ---- Row color popover -------------------------------------------- */
+
+.row-color-wrap {
+  position: relative;
+}
+
+.row-color-trigger.has-color {
+  border-color: #2f6d7a;
+}
+
+.row-color-popover {
+  background: #ffffff;
+  border: 1px solid #d7d2c8;
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(23, 32, 29, 0.18);
+  padding: 6px;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 150px;
+}
+
+.row-color-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.row-color-swatch {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  cursor: pointer;
+  height: 22px;
+  padding: 0;
+  width: 100%;
+}
+
+.row-color-swatch:hover {
+  border-color: #2f6d7a;
+}
+
+.row-color-swatch.selected {
+  border-color: #2f6d7a;
+  box-shadow: 0 0 0 2px rgba(47, 109, 122, 0.3);
+}
+
+.row-color-custom {
+  align-items: center;
+  border-top: 1px solid rgba(35, 58, 55, 0.13);
+  display: flex;
+  font-size: 11px;
+  gap: 6px;
+  justify-content: space-between;
+  padding-top: 6px;
+  color: #65756d;
+}
+
+.row-color-custom input[type="color"] {
+  border: 1px solid #d7d2c8;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 22px;
+  padding: 0;
+  width: 34px;
+}

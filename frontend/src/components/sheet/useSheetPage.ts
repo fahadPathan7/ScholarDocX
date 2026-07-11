@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------ */
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ColumnDef, ColumnType, migrateColumns, SheetPage } from "./sheetModel";
+import { ColumnDef, ColumnType, migrateColumns, SheetPage, CellStyle, RowStyle, applyCellStyle, applyRowStyle, clearCellStyle } from "./sheetModel";
 import { api, listRecords, RecordMap, notify } from "../../lib/api";
 import { composeEmailUrl, ComposeProvider } from "../../lib/email";
 import { useDialog } from "../DialogProvider";
@@ -632,6 +632,195 @@ export function useSheetPage({
     }
   };
 
+  /**
+   * Apply a partial CellStyle to a cell (toggle bold, set color, etc.).
+   * Stores the style in the row's `_cellStyles` reserved key and persists.
+   */
+  const saveCellStyle = async (rowIndex: number, column: string, patch: CellStyle) => {
+    if (!selectedPageId || !rows[rowIndex]) throw new Error("Sheet is busy.");
+
+    const nextRows = rows.map((row, index) =>
+      index === rowIndex ? applyCellStyle(row, column, patch) : row,
+    );
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Style change failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Clear all formatting for a cell. */
+  const clearCellFormatting = async (rowIndex: number, column: string) => {
+    if (!selectedPageId || !rows[rowIndex]) throw new Error("Sheet is busy.");
+
+    const nextRows = rows.map((row, index) =>
+      index === rowIndex ? clearCellStyle(row, column) : row,
+    );
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Clear formatting failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Apply a partial CellStyle to the same column across multiple rows at once. */
+  const bulkCellStyle = async (rowIndices: number[], column: string, patch: CellStyle) => {
+    if (!selectedPageId) throw new Error("Sheet is busy.");
+    const targetSet = new Set(rowIndices);
+    const nextRows = rows.map((row, index) =>
+      targetSet.has(index) ? applyCellStyle(row, column, patch) : row,
+    );
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Style change failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Apply a partial CellStyle to ALL columns across multiple rows at once. */
+  const bulkRowCellStyle = async (rowIndices: number[], patch: CellStyle) => {
+    if (!selectedPageId) throw new Error("Sheet is busy.");
+    const targetSet = new Set(rowIndices);
+    const colNames = columns.filter(c => c.type !== "group").map(c => c.name);
+    const nextRows = rows.map((row, index) => {
+      if (!targetSet.has(index)) return row;
+      let r = row;
+      for (const cn of colNames) r = applyCellStyle(r, cn, patch);
+      return r;
+    });
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Style change failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Clear all formatting for a column across multiple rows at once. */
+  const bulkClearCellFormatting = async (rowIndices: number[], column: string) => {
+    if (!selectedPageId) throw new Error("Sheet is busy.");
+    const targetSet = new Set(rowIndices);
+    const nextRows = rows.map((row, index) =>
+      targetSet.has(index) ? clearCellStyle(row, column) : row,
+    );
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Clear formatting failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Clear all formatting across ALL columns in multiple rows at once. */
+  const bulkClearRowFormatting = async (rowIndices: number[]) => {
+    if (!selectedPageId) throw new Error("Sheet is busy.");
+    const targetSet = new Set(rowIndices);
+    const colNames = columns.filter(c => c.type !== "group").map(c => c.name);
+    const nextRows = rows.map((row, index) => {
+      if (!targetSet.has(index)) return row;
+      let r = row;
+      for (const cn of colNames) r = clearCellStyle(r, cn);
+      return r;
+    });
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Clear formatting failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Apply a partial RowStyle to a row (row background).
+   * Stored in the row's `_rowStyle` reserved key.
+   */
+  const saveRowStyle = async (rowIndex: number, patch: RowStyle) => {
+    if (!selectedPageId || !rows[rowIndex]) throw new Error("Sheet is busy.");
+
+    const nextRows = rows.map((row, index) =>
+      index === rowIndex ? applyRowStyle(row, patch) : row,
+    );
+    setRows(nextRows);
+    setIsSaving(true);
+    lastSyncedRef.current = contentSignature(columns, nextRows);
+    try {
+      await api.patch(`/project_pages/${selectedPageId}`, {
+        data: { columns_json: columns, rows_json: nextRows }
+      });
+      record({ columns, rows: nextRows });
+    } catch (error) {
+      setRows(rows);
+      lastSyncedRef.current = contentSignature(columns, rows);
+      onToast?.("Row style change failed. Please try again.");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   /* ---------------------------------------------------------------- */
   /*  Email compose                                                    */
   /* ---------------------------------------------------------------- */
@@ -961,6 +1150,15 @@ export function useSheetPage({
     deleteRow,
     saveCellValue,
     quickAddRow,
+
+    // Cell / row formatting
+    saveCellStyle,
+    clearCellFormatting,
+    bulkCellStyle,
+    bulkClearCellFormatting,
+    bulkRowCellStyle,
+    bulkClearRowFormatting,
+    saveRowStyle,
 
     // Persistence
     saveEmailConfig,

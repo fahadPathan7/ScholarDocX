@@ -10,7 +10,14 @@ import { Edit, Mail, Trash2, Eye, Maximize2 } from "lucide-react";
 import { CellRenderer, rowClass } from "../SheetRecordFields";
 import { InlineCellEditor, CommitDirection } from "./InlineCellEditor";
 import { cellMatchesSearch } from "./sheetFilters";
-import type { ColumnDef, DateColorConfig } from "./sheetModel";
+import {
+  type ColumnDef,
+  type DateColorConfig,
+  type CellStyle,
+  parseCellStyles,
+  parseRowStyle,
+  cellBoxToCss,
+} from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
 import type { RenderColumn } from "./SheetTable";
 
@@ -29,6 +36,9 @@ export type RowCallbacks = {
   onCompose: (row: Record<string, string>) => void;
   onDeleteRow: (rowIndex: number) => void;
   onPeekRow: (rowIndex: number) => void;
+  onCellStyle: (rowIndex: number, colName: string, patch: CellStyle) => void;
+  onCellClearFormatting: (rowIndex: number, colName: string) => void;
+  onRowStyle: (rowIndex: number, patch: { bg?: string }) => void;
 };
 
 export const SheetTableRow = React.memo(function SheetTableRow({
@@ -65,11 +75,13 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   const cb = callbacks;
   const cellHeight = row._height ? `${row._height}px` : (fullScreenMode ? '28px' : 'var(--sheet-row-height)');
   const compactCell = fullScreenMode ? { padding: '2px 4px' } : {};
+  const rowStyleBg = parseRowStyle(row).bg;
 
   return (
     <tr
       className={`sheet-table-row ${rowClass(row)} ${isSelected ? "row-selected" : ""} ${isNavFocused ? "row-focused" : ""}`}
       data-row-index={rowIndex}
+      style={rowStyleBg ? { backgroundColor: rowStyleBg } : undefined}
     >
       <td
         className="row-header"
@@ -121,6 +133,8 @@ export const SheetTableRow = React.memo(function SheetTableRow({
         const isFocused = focusedColName === col.name;
         const isEditing = editingColName === col.name;
         const matchesSearch = searchQuery ? cellMatchesSearch(value, searchQuery) : false;
+        const cellStyle = parseCellStyles(row)[col.name] || {};
+        const cellBoxStyle = cellBoxToCss(cellStyle);
 
         return (
           <td
@@ -131,7 +145,12 @@ export const SheetTableRow = React.memo(function SheetTableRow({
               if (col.type === 'file') cb.onOpenModal(rowIndex, col.name);
               else cb.onStartEdit(rowIndex, col.name);
             }}
-            style={{ height: cellHeight, ...compactCell }}
+            style={{
+              height: cellHeight,
+              ...compactCell,
+              ...cellBoxStyle,
+              ...(isEditing && col.type !== 'file' ? { overflow: 'visible' } : {}),
+            }}
           >
             {isEditing && col.type !== 'file' ? (
               <InlineCellEditor
@@ -153,6 +172,9 @@ export const SheetTableRow = React.memo(function SheetTableRow({
                   onCloseEdit={cb.onCloseModal}
                   dateColorConfig={dateColorConfig}
                   openOnClick={col.type === 'file'}
+                  cellStyle={cellStyle}
+                  onCellStyle={col.type === 'file' ? undefined : (patch) => cb.onCellStyle(rowIndex, col.name, patch)}
+                  onCellClearFormatting={col.type === 'file' ? undefined : () => cb.onCellClearFormatting(rowIndex, col.name)}
                 />
                 {isFocused && col.type !== 'file' ? (
                   <button

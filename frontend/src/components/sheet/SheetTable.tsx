@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { ArrowUp, ArrowDown, Filter, X, Plus } from "lucide-react";
-import type { ColumnDef, DateColorConfig } from "./sheetModel";
+import type { ColumnDef, DateColorConfig, CellStyle } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
 import { SortState, ColumnFilter, filterSummary } from "./sheetFilters";
 import { FilterMenuContent } from "./FilterMenu";
@@ -104,6 +104,9 @@ export function SheetTable({
   groupBy,
   dateColorConfig,
   onPeekRow,
+  onCellStyle,
+  onCellClearFormatting,
+  onRowStyle,
 }: {
   columns: ColumnDef[];
   rows: Record<string, string>[];
@@ -140,6 +143,9 @@ export function SheetTable({
   groupBy?: string | null;
   dateColorConfig?: DateColorConfig;
   onPeekRow?: (rowIndex: number) => void;
+  onCellStyle?: (rowIndex: number, colName: string, patch: CellStyle) => Promise<void>;
+  onCellClearFormatting?: (rowIndex: number, colName: string) => Promise<void>;
+  onRowStyle?: (rowIndex: number, patch: { bg?: string }) => Promise<void>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -296,7 +302,10 @@ export function SheetTable({
     onCompose,
     onDeleteRow,
     onPeekRow: (rowIndex) => onPeekRow?.(rowIndex),
-  }), [onToggleRowSelection, onResizeRow, onFocusedCellChange, commitEdit, cancelEdit, onSaveCellValue, onFilesChanged, onEditRow, onCompose, onDeleteRow, onPeekRow]);
+    onCellStyle: (rowIndex, colName, patch) => { onCellStyle?.(rowIndex, colName, patch).catch(() => {}); },
+    onCellClearFormatting: (rowIndex, colName) => { onCellClearFormatting?.(rowIndex, colName).catch(() => {}); },
+    onRowStyle: (rowIndex, patch) => { onRowStyle?.(rowIndex, patch).catch(() => {}); },
+  }), [onToggleRowSelection, onResizeRow, onFocusedCellChange, commitEdit, cancelEdit, onSaveCellValue, onFilesChanged, onEditRow, onCompose, onDeleteRow, onPeekRow, onCellStyle, onCellClearFormatting, onRowStyle]);
 
   /* -------------------- keyboard flow -------------------- */
 

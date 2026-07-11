@@ -1,12 +1,12 @@
 # ScholarDocX
 
-ScholarDocX is a local-first, privacy-first higher education application management portal.
+ScholarDocX is a secure personal workspace, privacy-first higher education application management portal.
 
 It is designed for students and researchers applying to Bachelor's, Master's, and PhD programs who need one private workspace for applications, deadlines, documents, outreach, and AI-assisted academic research.
 
 ## Current Status
 
-The project has a local-first MVP implementation.
+The project has a secure personal workspace MVP implementation.
 
 Created so far:
 
@@ -63,7 +63,7 @@ ScholarDocX should help users manage:
 
 ## Product Principles
 
-- Local-first data ownership
+- Secure personal workspace data ownership
 - Privacy-first defaults
 - No required remote backend
 - Zero required infrastructure cost
@@ -76,7 +76,7 @@ ScholarDocX should help users manage:
 - Frontend: React/Vite/TypeScript with Tailwind CSS
 - Backend: Python FastAPI
 - Database: SQLite
-- Storage: local file system
+- Storage: secure file system
 - AI integrations: GLM-5.1, GLM vision, Google AI Studio Gemini API, and Tavily
   API
 
@@ -149,9 +149,9 @@ Before implementing a new feature or modifying an existing feature:
 
 ## Important Rules
 
-- Do not require remote signup/signin for the local-first MVP.
+- Do not require remote signup/signin for the secure personal workspace MVP.
 - Google OAuth 2.0 / OpenID Connect may be added later as an optional identity provider.
-- Gmail/Outlook compose links can prefill to, subject, and body, but cannot automatically attach local files without Gmail API or Microsoft Graph integration.
+- Gmail/Outlook compose links can prefill to, subject, and body, but cannot automatically attach secure files without Gmail API or Microsoft Graph integration.
 - Records and outreach live inside project sheets, not separate navigation areas.
 - Documents are uploaded and linked; ScholarDocX does not author SOPs or proposals internally.
 - Do not commit secrets or real API keys.

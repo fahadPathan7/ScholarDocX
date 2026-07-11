@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────
 # ScholarDocX – Development Makefile
-# Local-first, privacy-first higher education app portal
+# Secure personal workspace, privacy-first higher education app portal
 # ──────────────────────────────────────────────────────────
 
 SHELL        := /bin/zsh

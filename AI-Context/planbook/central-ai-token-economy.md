@@ -483,7 +483,7 @@ surface). This planbook entry is the design source.
 
 ## 18. Out of Scope (v1)
 
-- Real payment integration (local-first; request/approve only).
+- Real payment integration (secure personal workspace; request/approve only).
 - Token rollover (confirmed: no rollover).
 - Rollover/expiry of purchased tokens (confirmed: never expire).
 - Negative-balance/overage billing (confirmed: hard stop).

@@ -23,7 +23,7 @@ Links:
 - Make the upload document modal visually cleaner and more organized.
 - Use a styled file picker surface that shows the selected file name.
 - Keep category, file, notes, and submit behavior intact.
-- Preserve local-first file upload behavior.
+- Preserve secure personal workspace file upload behavior.
 
 ## Verification Plan
 

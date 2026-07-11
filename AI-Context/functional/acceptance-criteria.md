@@ -21,7 +21,7 @@ Use this file for high-level acceptance criteria. Detailed task-specific criteri
 
 - User can create a rich-text document.
 - User can create a version for a specific application.
-- User can add a static file to local storage.
+- User can add a static file to secure storage.
 - User can link documents and static files to an application.
 
 ## Email And Outreach
@@ -44,7 +44,7 @@ Use this file for high-level acceptance criteria. Detailed task-specific criteri
 - Local MVP workflows remain usable without remote signin.
 - Optional Google signin can create or link a local profile.
 - Google signin uses minimal scopes unless a specific Google API feature requires more.
-- Disconnecting Google identity does not delete local application data.
+- Disconnecting Google identity does not delete secure application data.
 
 ## Forgot Password
 

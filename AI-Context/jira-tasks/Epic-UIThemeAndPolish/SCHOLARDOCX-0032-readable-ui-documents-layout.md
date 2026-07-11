@@ -32,7 +32,7 @@ Links:
 - Adjust colors and label treatments so important text is easier to understand.
 - Keep the Documents upload panel content-height instead of stretched.
 - Give the uploaded documents pane an internal vertical scroller when needed.
-- Preserve the existing local-first/no-CDN constraint.
+- Preserve the existing secure personal workspace/no-CDN constraint.
 - Avoid broad additions to the oversized legacy stylesheet.
 
 ## Verification Plan

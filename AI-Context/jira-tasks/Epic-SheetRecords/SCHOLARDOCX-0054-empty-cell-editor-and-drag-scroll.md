@@ -12,7 +12,7 @@ Created: 2026-05-28
 
 Make every sheet cell, including empty cells, open the inline cell editor. The
 editor should respect column type, including date/time inputs, boolean/select
-controls, and local file attachment upload/selection. Also make horizontally
+controls, and secure file attachment upload/selection. Also make horizontally
 scrollable work areas support mouse left-click hold-and-drag scrolling.
 
 ## Functional Context
@@ -35,7 +35,7 @@ Links:
 - Number, boolean, and select columns use type-aware controls.
 - File columns use the existing local document picker/upload flow in the cell
   panel so users can attach or replace a file from the same dialog.
-- File upload refreshes the available local file list before saving the cell.
+- File upload refreshes the available secure file list before saving the cell.
 - Horizontally scrollable surfaces support left-click hold-and-drag horizontal
   scrolling while preserving normal clicks on buttons, inputs, links, and text
   editing controls.

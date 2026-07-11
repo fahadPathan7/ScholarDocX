@@ -136,7 +136,7 @@ export function QueryReviewDialog({
                   ? "User-refined query"
                   : generationSource === "openrouter"
                     ? "AI-generated from your filters"
-                    : "Generated from the safe local template"}
+                    : "Generated from the secure personal template"}
               </span>
               {wasEdited && (
                 <button type="button" onClick={resetQuery} disabled={isSearching}>

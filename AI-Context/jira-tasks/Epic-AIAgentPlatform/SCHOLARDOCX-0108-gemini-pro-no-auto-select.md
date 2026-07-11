@@ -153,7 +153,7 @@ Chat memory audit:
 - Rolling summary trigger at 4+ messages: Correct.
 - Failed summary protection via FAILED_SUMMARY_MODES: Correct.
 - Context labels [Conversation Summary So Far] / [Last Turn]: Correct.
-- localStorage session storage: Correct (local-first).
+- localStorage session storage: Correct (secure personal workspace).
 - History limit of 5 sessions: Correct.
 
 Follow-ups:

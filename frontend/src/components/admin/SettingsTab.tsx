@@ -180,7 +180,7 @@ export function SettingsTab() {
                   <div className="relative flex-1">
                     <input
                       type={showJwt ? "text" : "password"}
-                      defaultValue={settings["jwt_secret_key"] || "scholar-docx-local-first-secret-key-do-not-use-in-cloud"}
+                      defaultValue={settings["jwt_secret_key"] || "scholar-docx-secure personal workspace-secret-key-do-not-use-in-cloud"}
                       id="modal-input-jwt_secret_key"
                       className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                     />

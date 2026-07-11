@@ -70,7 +70,7 @@ Technical notes:
   telemetry is accurate per candidate and safe under concurrency.
 - Bounded concurrency (semaphore) for candidate processing; the crawler gains a
   per-host lock so polite per-domain delays hold under concurrency.
-- Local-first, backend-only providers, robots/SSRF safeguards all unchanged.
+- Secure personal workspace, backend-only providers, robots/SSRF safeguards all unchanged.
 
 ## Scope
 

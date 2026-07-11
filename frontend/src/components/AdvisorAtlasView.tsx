@@ -275,7 +275,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
           )}
           <div className="atlas-history-note">
             <Compass size={16} />
-            <span>Results stay local.</span>
+            <span>Results stay secure.</span>
           </div>
         </aside>
 

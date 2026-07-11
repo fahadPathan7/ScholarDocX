@@ -73,7 +73,7 @@ interactive, and polished without becoming decorative marketing UI.
 - To achieve a full-surface blur without leaving empty margin space, use a Portal (like `AdminPortal`) to render the modal backdrop into a full-width/height `relative` root container (e.g., `<div id="view-root" className="w-full min-h-full flex flex-col relative">`). Do NOT use `position: fixed` or `.modal-backdrop` if it bleeds over the sidebar, and do NOT constrain the blur inside `max-w` containers or `animate-in` blocks.
 - The view's own headers (like "Admin Dashboard") SHOULD be blurred when a modal is open. Only the global app TopBar remains unblurred.
 - All new modal creations must keep appropriate space from the edges (e.g., use `items-start justify-center pt-24` or `items-center p-4 sm:p-8` depending on layout).
-- Avoid external font/CDN dependencies to preserve local-first expectations.
+- Avoid external font/CDN dependencies to preserve secure personal workspace expectations.
 - Prefer additive override styles in focused CSS files rather than expanding
   oversized global CSS.
 

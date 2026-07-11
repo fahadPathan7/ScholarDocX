@@ -6,7 +6,7 @@ This file is the root instruction file for AI agents working in this repository.
 
 ## Mission
 
-ScholarDocX is a local-first, privacy-first higher education application management portal. It helps applicants manage universities, programs, professors, deadlines, documents, outreach emails, and AI-assisted academic research from one local workspace.
+ScholarDocX is a secure personal workspace, privacy-first higher education application management portal. It helps applicants manage universities, programs, professors, deadlines, documents, outreach emails, and AI-assisted academic research from one local workspace.
 
 ## Mandatory AI-DLC Workflow
 
@@ -45,9 +45,9 @@ Use this order when resolving conflicts:
 
 ## Non-Negotiable Product Constraints
 
-- Local-first: user data stays on the user's machine.
+- Secure personal workspace: user data stays on the user's machine.
 - Privacy-first: no remote backend for user application data.
-- Zero infrastructure cost: use local SQLite and local file storage.
+- Zero infrastructure cost: use local SQLite and secure file storage.
 - AI integrations are optional external API calls controlled by local API keys.
 - The app must remain maintainable by AI coding assistants as it grows.
 

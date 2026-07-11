@@ -69,7 +69,7 @@ Links:
 ## Verification
 
 - Passed `npm run build`.
-- Browser verified on the live local app: opened a sheet cell, edited its value
+- Browser verified on the live secure app: opened a sheet cell, edited its value
   in the viewer, saved, confirmed the table preview changed, reopened the cell,
   reverted the temporary value, and confirmed the original cell value was
   restored.

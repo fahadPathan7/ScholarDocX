@@ -1131,7 +1131,7 @@ function DocumentView(props: {
                   <Upload size={18} />
                 </span>
                 <div>
-                  <p className="eyebrow">Local file</p>
+                  <p className="eyebrow">Workspace file</p>
                   <h2>Upload Document</h2>
                 </div>
               </div>

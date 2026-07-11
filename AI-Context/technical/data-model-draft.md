@@ -151,7 +151,7 @@ Likely fields:
 
 Purpose:
 
-Track uploaded or registered local files.
+Track uploaded or registered secure files.
 
 Likely fields:
 

@@ -8,7 +8,7 @@ Proposed future feature. Not part of the initial MVP unless the user explicitly 
 
 ## Goal
 
-Allow optional identity through local profile and/or Google signin without compromising local-first data ownership.
+Allow optional identity through local profile and/or Google signin without compromising secure personal workspace data ownership.
 
 ## FR-6: Authentication And Identity
 
@@ -17,7 +17,7 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.3: Google signin may be added as an optional authentication provider.
 - FR-6.4: Google signin must not be required for local data access unless a later business decision changes the product.
 - FR-6.5: Google OAuth scopes must be minimal and purpose-specific.
-- FR-6.6: User must be able to disconnect Google identity without deleting local application data.
+- FR-6.6: User must be able to disconnect Google identity without deleting secure application data.
 - FR-6.7: Authenticated users should be able to explicitly log out from the Profile view.
 - FR-6.8: Admin role limit/permission settings should support reset-to-default per role.
 - FR-6.9: Users with only admin roles and no user-tier role should see user-tier
@@ -56,7 +56,7 @@ Allow optional identity through local profile and/or Google signin without compr
 3. User completes Google consent.
 4. Backend validates the returned identity token or authorization code flow result.
 5. App creates or links a local profile record.
-6. Local app data remains stored locally.
+6. Secure app data remains stored locally.
 
 ## Recommended MVP Behavior
 
@@ -70,7 +70,7 @@ Authentication can wait until it enables a concrete workflow such as:
 
 ## Acceptance Criteria For Future Auth Task
 
-- Local app remains usable without Google signin.
+- Secure app remains usable without Google signin.
 - Signin requests only `openid`, `email`, and `profile` unless a Google API feature requires more.
 - Tokens are never exposed in frontend logs.
 - Disconnecting Google keeps local data.

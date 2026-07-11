@@ -20,7 +20,7 @@ Links:
 
 Business value:
 - Improves AI-agent consistency and maintainability as ScholarDocX grows.
-- Reduces repeated context loading and helps preserve the local-first, privacy-first product direction.
+- Reduces repeated context loading and helps preserve the secure personal workspace, privacy-first product direction.
 
 ## Functional Context
 Links:

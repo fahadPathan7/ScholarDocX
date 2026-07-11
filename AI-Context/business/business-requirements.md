@@ -1,6 +1,6 @@
 # Business Requirements
 
-## BR-001: Local-First Privacy
+## BR-001: Secure Personal Workspace Privacy
 
 All private application data must remain on the user's local machine by default.
 

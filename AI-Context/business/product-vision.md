@@ -19,7 +19,7 @@ ScholarDocX reduces the cognitive load of higher education applications without 
 
 ## Product Principles
 
-- Local-first data ownership.
+- Secure personal workspace data ownership.
 - Privacy over convenience.
 - Structured application planning over scattered spreadsheets.
 - Integrated document and outreach workflows.

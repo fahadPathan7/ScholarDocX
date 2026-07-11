@@ -24,7 +24,7 @@ Links:
 - Document pin action should not call a missing endpoint.
 - Document dashboard-pin action should persist to `static_files`.
 - Dashboard pinned document cards should use uploaded-file fields.
-- Pinned dashboard documents should open the local file content.
+- Pinned dashboard documents should open the secure file content.
 
 ## Verification Plan
 
@@ -39,7 +39,7 @@ Links:
   route.
 - Updated dashboard pinned document rendering to use uploaded-file metadata:
   `display_name`, `file_type`, and `created_at`.
-- Dashboard pinned documents now open the stored local file content endpoint.
+- Dashboard pinned documents now open the stored secure file content endpoint.
 - Added focused backend coverage for dashboard-pinned uploaded files.
 
 ## Changed Files

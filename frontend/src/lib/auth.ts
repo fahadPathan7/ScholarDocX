@@ -8,7 +8,7 @@ const SAVED_PASSWORD_KEY = "scholar_docx_saved_password";
 // ---------------------------------------------------------------------------
 // Credential save / load helpers
 // Uses base64 obfuscation so the password isn't stored in plain text.
-// This is intentional for a local-first, zero-backend app – the browser's
+// This is intentional for a secure personal workspace, zero-backend app – the browser's
 // localStorage is only accessible to the same origin.
 // ---------------------------------------------------------------------------
 

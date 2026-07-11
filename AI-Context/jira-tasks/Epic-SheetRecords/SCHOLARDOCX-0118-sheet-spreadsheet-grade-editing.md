@@ -71,7 +71,7 @@ performance cliffs.
 
 ## Non-goals
 
-Row virtualization/windowing (content-visibility covers local-first scale),
+Row virtualization/windowing (content-visibility covers secure personal workspace scale),
 formula columns, cross-sheet references, realtime multi-user (planbook
 non-goals unchanged).
 
@@ -165,7 +165,7 @@ Backend (pre-existing bug found during runtime verification):
 ### Decisions
 
 - No row virtualization: `content-visibility: auto` + memoized rows covers
-  local-first scale (≤ a few hundred rows) without breaking grouped headers
+  secure personal workspace scale (≤ a few hundred rows) without breaking grouped headers
   or sticky columns.
 - View loads/switches are not undo steps and don't persist hidden flags by
   themselves (next persist carries them).
@@ -189,7 +189,7 @@ Backend (pre-existing bug found during runtime verification):
   multi-cell range selection (planbook non-goal).
 - Undo/redo of column deletes restores data via full-snapshot persist —
   intended, but agent-side edits between undo steps are overwritten
-  (single-user local app, acceptable).
+  (single-user secure app, acceptable).
 - Root repo still carries `extract.py`, `split.py`, `fix_imports.py`,
   `fix_portal.py`, `extracted.json` from the Phase-0 split commit — look
   like leftover one-off scripts; flagged for the user to delete.

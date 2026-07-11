@@ -85,7 +85,7 @@ Out of scope:
 - Assistant recognizes supported workspace action requests.
 - Missing information returns a clear follow-up question.
 - Proposed actions render in chat with Confirm and Cancel controls.
-- Confirm executes only supported local actions.
+- Confirm executes only supported workspace actions.
 - About page explains supported AI action powers and safeguards.
 - Tests cover missing-info planning and confirmed execution.
 

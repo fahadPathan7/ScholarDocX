@@ -1,6 +1,6 @@
 ---
 name: scholardocx-context-review
-description: Use for reviewing ScholarDocX AI-Context, Jira tasks, root rules, and handoff notes for correctness, drift, duplication, missing acceptance criteria, incomplete decisions, and conflicts with the local-first product constraints.
+description: Use for reviewing ScholarDocX AI-Context, Jira tasks, root rules, and handoff notes for correctness, drift, duplication, missing acceptance criteria, incomplete decisions, and conflicts with the secure personal workspace product constraints.
 ---
 
 # ScholarDocX Context Review
@@ -14,7 +14,7 @@ description: Use for reviewing ScholarDocX AI-Context, Jira tasks, root rules, a
 
 ## Findings To Prioritize
 
-- Conflicts with local-first, privacy-first, or zero-infrastructure constraints.
+- Conflicts with secure personal workspace, privacy-first, or zero-infrastructure constraints.
 - Missing or stale Jira task status.
 - Feature behavior described in code but absent from context.
 - Context that promises behavior not implemented.

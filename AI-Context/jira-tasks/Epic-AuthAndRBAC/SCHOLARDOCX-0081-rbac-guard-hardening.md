@@ -51,7 +51,7 @@ Technical notes:
 - Removed the committed constant `jwt_secret_key` from `SEED_SQL`.
   `initialize_database()` now generates a per-install random secret
   (`secrets.token_hex(32)`) via `_ensure_jwt_secret()` and rotates any value
-  still using the compromised `scholar-docx-local-first...` placeholder.
+  still using the compromised `scholar-docx-secure personal workspace...` placeholder.
 - Added `get_jwt_secret()` in `app/auth/dependencies.py`; `get_current_user`
   and `login` use it instead of falling back to the constant. A missing or
   compromised secret now raises HTTP 500 (it is always provisioned at startup).

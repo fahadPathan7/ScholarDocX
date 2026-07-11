@@ -213,7 +213,7 @@ Routing and synthesis prompts should be separate:
 
 ## Chat Memory Flow
 
-1. Frontend keeps full chat sessions in browser local storage.
+1. Frontend keeps full chat sessions in browser secure storage.
 2. After a completed session has at least four messages, frontend asks
    `/ai/summarize` for a rolling summary.
 3. `/ai/summarize` uses a compact memory-specific prompt and fast configured

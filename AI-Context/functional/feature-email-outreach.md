@@ -47,7 +47,7 @@ SMTP should not be assumed for MVP unless a Jira task explicitly includes it.
 
 Important limitation:
 
-Ordinary Gmail/Outlook compose URLs cannot automatically attach local files. The MVP can show attachment paths for the user to attach manually.
+Ordinary Gmail/Outlook compose URLs cannot automatically attach secure files. The MVP can show attachment paths for the user to attach manually.
 
 ## Outreach Log
 

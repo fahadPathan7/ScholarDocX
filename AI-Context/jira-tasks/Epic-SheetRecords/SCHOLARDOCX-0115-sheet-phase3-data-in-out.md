@@ -70,7 +70,7 @@ Implement Phase 3 of the Sheet Experience Upgrade: Data In and Out.
 ## Implementation Notes
 - `sheetCsv.ts`: Implemented regex-based parser that handles quoted commas and newlines properly without heavy dependencies.
 - `CsvImportModal.tsx`: Added mapping UI allowing skipping, mapping to existing, or auto-creating new text columns.
-- `sheetModel.ts`: Added predefined `SHEET_TEMPLATES` and local storage utilities for custom templates.
+- `sheetModel.ts`: Added predefined `SHEET_TEMPLATES` and secure storage utilities for custom templates.
 - `ProjectWorkspace.tsx`: Wired up `handleExportCsv` and `CsvImportModal`, updating the sheet creation flow to apply templates via a 2-step API process (create, then patch).
 - Completed 2026-07-02. All TypeScript checks pass.
 

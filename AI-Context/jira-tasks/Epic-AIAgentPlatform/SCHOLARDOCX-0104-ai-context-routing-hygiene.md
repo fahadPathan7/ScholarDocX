@@ -21,7 +21,7 @@ Links:
 Business value:
 
 - Reduces AI-agent confusion and prevents context drift from causing incorrect edits.
-- Keeps the local-first product easier to maintain across Codex, Claude, and other AI coding agents.
+- Keeps the secure personal workspace product easier to maintain across Codex, Claude, and other AI coding agents.
 
 ## Functional Context
 

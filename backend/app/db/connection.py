@@ -104,7 +104,7 @@ def initialize_database(database_path: Path) -> None:
 
 # A previously-shipped, committed placeholder secret. Any install still using it
 # (or a value derived from it) must be treated as publicly known and rotated.
-COMPROMISED_JWT_SECRET_PREFIX = "scholar-docx-local-first"
+COMPROMISED_JWT_SECRET_PREFIX = "scholar-docx-secure personal workspace"
 
 
 def _ensure_jwt_secret(connection: sqlite3.Connection) -> None:

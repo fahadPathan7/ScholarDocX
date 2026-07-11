@@ -13,7 +13,7 @@ Completed: 2026-05-29
 ## Summary
 
 Add Google AI Studio Gemini API as an optional chat/summarization provider
-alongside GLM. Keep the implementation free-tier-conscious and local-first.
+alongside GLM. Keep the implementation free-tier-conscious and secure personal workspace.
 
 ## Business Context
 

@@ -5,7 +5,7 @@
 - The initial user is comfortable running a local development-style app.
 - The app can start as single-user.
 - SQLite is sufficient for expected personal-scale data.
-- Local file system storage is acceptable for documents and uploads.
+- Secure file system storage is acceptable for documents and uploads.
 - GLM and Tavily are the intended initial AI/search providers.
 - Users may still create some files externally, such as CVs in Overleaf or Europass.
 

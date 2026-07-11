@@ -1,4 +1,4 @@
-# SCHOLARDOCX-0013: Local-First MVP Completion
+# SCHOLARDOCX-0013: Secure Personal Workspace MVP Completion
 
 Status: Done
 
@@ -22,7 +22,7 @@ Links:
 
 Business value:
 
-Turns the context foundation into a usable local-first application portal.
+Turns the context foundation into a usable secure personal workspace application portal.
 
 ## Functional Context
 

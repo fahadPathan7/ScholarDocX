@@ -519,7 +519,7 @@ export function AdvisorDossierDrawer({
             <div>
             <span className="atlas-eyebrow">Advisor dossier</span>
             <h2>{candidate?.display_name || "Loading dossier"}</h2>
-              <p>{candidate ? identityLine || "Individual professor intelligence profile" : "Reading local evidence..."}</p>
+              <p>{candidate ? identityLine || "Individual professor intelligence profile" : "Reading secure evidence..."}</p>
               {sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer">Verified source <ArrowUpRight size={13} /></a>}
             </div>
           </div>

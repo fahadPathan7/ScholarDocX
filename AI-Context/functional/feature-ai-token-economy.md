@@ -22,7 +22,7 @@ the older count-based chat/run limits. Role-based can/can't-use permissions stay
   so it stays accurate even if the plan or allowance changes mid-period.
 - Users can **request** an Extra Token pack (Small / Medium / Large). An admin
   approves the request; on approval the purchased tokens are added. Payment is
-  settled outside the app (local-first; no payment backend).
+  settled outside the app (secure personal workspace; no payment backend).
 - **Token-pack purchasing is a premium-tier privilege.** Whether a plan can buy
   packs is controlled per role by `can_purchase_token_packs` (admin-configurable
   in the role-limits editor). Defaults: `pro_user` and `max_user` can purchase;

@@ -36,8 +36,8 @@ const featureCards = [
   {
     icon: Database,
     tone: "storage",
-    title: "Local Storage",
-    copy: "Fast, local, and always yours."
+    title: "Secure Workspace",
+    copy: "Fast, secure, and always yours."
   },
   {
     icon: ShieldCheck,
@@ -122,7 +122,7 @@ export function AboutView() {
               <GraduationCap size={30} />
             </div>
             <div>
-              <p className="eyebrow">Local-first application workspace</p>
+              <p className="eyebrow">Secure personal workspace application workspace</p>
               <h2>ScholarDocX</h2>
             </div>
           </div>
@@ -327,7 +327,7 @@ export function AboutView() {
       </div>
 
 
-      <p className="about-footer">ScholarDocX · Local-first · Privacy-first · Built for academic planning</p>
+      <p className="about-footer">ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning</p>
 
       {showModelsModal && (
         <div className="modal-backdrop models-modal-backdrop" onClick={() => setShowModelsModal(false)}>

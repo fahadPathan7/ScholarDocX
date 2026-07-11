@@ -1,8 +1,8 @@
-# Local Storage And Data
+# Secure Storage And Data
 
 ## Storage Principle
 
-SQLite stores structured metadata. Local files store binary and rich media artifacts.
+SQLite stores structured metadata. Secure files store binary and rich media artifacts.
 
 ## Workspace
 

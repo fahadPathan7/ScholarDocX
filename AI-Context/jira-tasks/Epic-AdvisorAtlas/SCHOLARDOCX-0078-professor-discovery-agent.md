@@ -73,7 +73,7 @@ Business value:
   recruitment context.
 - Gives students a prioritized reading, verification, preparation, monitoring,
   and contact-preparation plan.
-- Extends ScholarDocX's local-first application workflow without adding remote
+- Extends ScholarDocX's secure personal workspace application workflow without adding remote
   persistence.
 
 ## Functional Context
@@ -1348,7 +1348,7 @@ Verification:
 - Real Max-user Advisor Atlas top header displayed
   `Monthly limit · 0 of 30 used`.
 - The search footer no longer duplicates quota information and remains focused
-  on required-input readiness, local storage, and the primary action.
+  on required-input readiness, secure storage, and the primary action.
 - At the narrow responsive breakpoint, the header actions moved to their own
   row, the quota indicator remained fully readable, and there was no horizontal
   overflow.

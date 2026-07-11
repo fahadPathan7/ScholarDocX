@@ -50,7 +50,7 @@ In scope:
 
 Out of scope:
 
-- Push/email delivery outside the local app notification list.
+- Push/email delivery outside the secure app notification list.
 - Editing existing historical notifications after creation.
 - Rich-text notification bodies.
 

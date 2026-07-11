@@ -903,7 +903,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                         paddingTop: "10px"
                       }}
                     >
-                      <small>Local actions to confirm:</small>
+                      <small>Workspace actions to confirm:</small>
                       <ul>
                         {(message.actionPlan.summary || []).map((item, idx) => (
                           <li key={idx}>{item}</li>

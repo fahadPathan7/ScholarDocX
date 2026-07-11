@@ -10,7 +10,7 @@ Created: 2026-05-27
 
 ## Summary
 
-Choose the final local app stack and create the initial frontend/backend scaffold.
+Choose the final secure app stack and create the initial frontend/backend scaffold.
 
 Do not execute this task until the user explicitly asks to start coding or scaffolding.
 
@@ -23,7 +23,7 @@ Links:
 
 Business value:
 
-Creates the technical foundation for a local-first, zero-infrastructure application portal.
+Creates the technical foundation for a secure personal workspace, zero-infrastructure application portal.
 
 ## Functional Context
 

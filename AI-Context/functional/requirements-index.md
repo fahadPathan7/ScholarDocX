@@ -46,7 +46,7 @@
 - FR-6.3: Google signin may be added as an optional provider.
 - FR-6.4: Google signin must not be required for local data access unless a later business decision changes the product.
 - FR-6.5: OAuth scopes must be minimal and purpose-specific.
-- FR-6.6: Disconnecting Google identity must not delete local application data.
+- FR-6.6: Disconnecting Google identity must not delete secure application data.
 - FR-6.7: Authenticated users should be able to explicitly log out from the Profile view.
 - FR-6.8: Admin role limit/permission settings should support reset-to-default per role.
 - FR-6.9: Users with only admin roles and no user-tier role should see user-tier usage limits as zero in usage summaries.

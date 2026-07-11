@@ -24,7 +24,7 @@ Links:
 
 Business value:
 
-- AI support should feel useful without compromising ScholarDocX's local-first
+- AI support should feel useful without compromising ScholarDocX's secure personal workspace
   privacy posture or misleading users about provider/search failures.
 
 ## Functional Context

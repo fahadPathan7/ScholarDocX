@@ -21,7 +21,7 @@ Links:
 
 Business value:
 
-Preserves local-first product direction while allowing optional future identity integrations.
+Preserves secure personal workspace product direction while allowing optional future identity integrations.
 
 ## Functional Context
 

@@ -63,7 +63,7 @@ the category name and document count. It should not show individual files or
 category scrollbars in the main view. Clicking a category opens a modal where
 that category's files are listed and can scroll independently. File actions in
 that modal should support local pinning, dashboard pinning, editing, deletion,
-and opening the stored local file. Pin and dashboard-pin actions should provide
+and opening the stored secure file. Pin and dashboard-pin actions should provide
 visible state changes and friendly feedback after they complete.
 
 The upload document modal should use a polished, purpose-built layout with a
@@ -74,7 +74,7 @@ primary visual control.
 Document categories are user-manageable. Users can create, rename, and delete
 categories from the Documents view. Renaming a category updates the category on
 existing documents. Deleting a category deletes the category and all associated
-document records and local files. The workspace supports a maximum of 16
+document records and secure files. The workspace supports a maximum of 16
 document categories, and the category overview should show at most 4 category
 cards per row.
 

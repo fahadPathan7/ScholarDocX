@@ -12,7 +12,7 @@ These skills are project guidance artifacts, not product runtime code. Use them 
 - [scholardocx-context-review](scholardocx-context-review/SKILL.md): context quality review.
 
 - [scholardocx-ai-integrations](scholardocx-ai-integrations/SKILL.md): optional AI/search provider work.
-- [scholardocx-security-privacy](scholardocx-security-privacy/SKILL.md): local-first security and privacy work.
+- [scholardocx-security-privacy](scholardocx-security-privacy/SKILL.md): secure personal workspace security and privacy work.
 - [scholardocx-handoff](scholardocx-handoff/SKILL.md): completion notes and agent handoff.
 
 ## Selection Rule

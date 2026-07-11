@@ -13,7 +13,7 @@ Implement Phase 4 of the Sheet Experience Upgrade: Views and Insight.
 - [x] Users can configure the "warning" and "danger" date color thresholds for a project, stored locally.
 
 ## Implementation Notes
-- Views and date color preferences will be stored in `localStorage` to avoid backend schema migrations, aligning with the local-first philosophy for UI personalization.
+- Views and date color preferences will be stored in `localStorage` to avoid backend schema migrations, aligning with the secure personal workspace philosophy for UI personalization.
 - Grouping will be implemented during `SheetTable` rendering by tracking the previous row's value.
 
 ## Completion Notes

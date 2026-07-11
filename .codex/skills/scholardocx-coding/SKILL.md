@@ -1,6 +1,6 @@
 ---
 name: scholardocx-coding
-description: Use for ScholarDocX product code changes in the React/Vite frontend, FastAPI backend, SQLite data layer, local file workspace, services, schemas, and API boundaries. Applies when implementing features, fixing bugs, refactoring source files, or changing runtime behavior.
+description: Use for ScholarDocX product code changes in the React/Vite frontend, FastAPI backend, SQLite data layer, secure file workspace, services, schemas, and API boundaries. Applies when implementing features, fixing bugs, refactoring source files, or changing runtime behavior.
 ---
 
 # ScholarDocX Coding
@@ -18,7 +18,7 @@ wc -l path/to/file
 
 ## Implementation Rules
 
-- Preserve local-first behavior: SQLite and local files for user data.
+- Preserve secure personal workspace behavior: SQLite and secure files for user data.
 - Keep external AI/search calls behind backend services.
 - Do not add telemetry, analytics, cloud persistence, remote databases, or required paid infrastructure.
 - Use existing project patterns before adding abstractions.

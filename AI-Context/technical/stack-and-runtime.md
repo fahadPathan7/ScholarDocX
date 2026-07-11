@@ -5,7 +5,7 @@
 - Frontend: Next.js or React/Vite with Tailwind CSS.
 - Backend: Python FastAPI.
 - Database: SQLite.
-- Storage: local file system.
+- Storage: secure file system.
 - AI providers: GLM AI API and Tavily API.
 
 ## Current Stack Decision Status

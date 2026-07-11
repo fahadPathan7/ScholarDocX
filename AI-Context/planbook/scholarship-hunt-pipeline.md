@@ -112,7 +112,7 @@ Per result card (from hunt or catalog): **"Analyze"** action.
 
 - Saved hunts become **watchlists**: "Run again" re-executes (normal quota)
   and diffs against seen article IDs → "New since last run" badges.
-  Local-first: manual or on-tab-open trigger; no server cron.
+  Secure personal workspace: manual or on-tab-open trigger; no server cron.
 - **Deadline radar**: dashboard widget + notification events for tracked
   opportunities approaching deadline — mostly surfacing what the sheet
   pipeline already produces once Phase 2 lands.
@@ -181,4 +181,4 @@ quality.
 
 - No automated application submission, no scraping behind logins/CAPTCHAs
   (FR-9.20 ethics carry over), no server-side scheduled crawling, no shared/
-  community catalog sync (would violate local-first posture).
+  community catalog sync (would violate secure personal workspace posture).

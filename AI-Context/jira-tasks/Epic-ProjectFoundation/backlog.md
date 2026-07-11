@@ -133,7 +133,7 @@ Status: Draft
 
 Goal:
 
-Implement optional Google OAuth 2.0 / OpenID Connect signin while preserving local-first data access.
+Implement optional Google OAuth 2.0 / OpenID Connect signin while preserving secure personal workspace data access.
 
 Relevant requirements:
 

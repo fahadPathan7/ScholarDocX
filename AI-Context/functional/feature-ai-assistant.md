@@ -52,7 +52,7 @@ must fail open to search instead of silently skipping Tavily.
 
 The assistant uses rolling local memory:
 
-- Frontend stores the full session in browser local storage only.
+- Frontend stores the full session in browser secure storage only.
 - After at least four messages in a session, frontend may request a compact
   rolling summary from `/ai/summarize`.
 - Frontend sends the rolling summary plus the last completed turn with the next

@@ -2,7 +2,7 @@
 
 Record product-level decisions here. Technical implementation details belong in technical decision files.
 
-## BD-001: Product Is Local-First
+## BD-001: Product Is Secure Personal Workspace
 
 Status: Accepted
 
@@ -12,13 +12,13 @@ ScholarDocX will store user application data locally by default.
 
 Rationale:
 
-Applicants handle sensitive academic, identity, and career documents. Local-first storage protects privacy and removes hosting cost.
+Applicants handle sensitive academic, identity, and career documents. Secure personal workspace storage protects privacy and removes hosting cost.
 
 Implications:
 
 - No remote backend database for core data.
 - SQLite is preferred for structured local data.
-- Local file system is preferred for media and documents.
+- Secure file system is preferred for media and documents.
 - AI integrations must be explicit external calls, not silent uploads.
 
 ## BD-002: Target Users Are Individual Applicants
@@ -35,7 +35,7 @@ The original problem is personal application complexity, not institutional admis
 
 Implications:
 
-- Single-user local app is the default.
+- Single-user secure app is the default.
 - Collaboration, team accounts, and admin dashboards are out of scope unless later approved.
 
 ## BD-003: AI Is Assistance, Not Authority
@@ -70,7 +70,7 @@ The project goal includes zero infrastructure cost.
 
 Implications:
 
-- Local app architecture is preferred.
+- Secure app architecture is preferred.
 - External APIs must be optional and user-configured.
 - Do not introduce managed storage, auth, or analytics by default.
 
@@ -98,15 +98,15 @@ Status: Proposed
 
 Decision:
 
-ScholarDocX should not require signup or signin for the local-first MVP. Google OAuth 2.0 / OpenID Connect can be added later as an optional identity provider.
+ScholarDocX should not require signup or signin for the secure personal workspace MVP. Google OAuth 2.0 / OpenID Connect can be added later as an optional identity provider.
 
 Rationale:
 
-The product's core value is private local application management. Mandatory external signin adds friction and changes privacy expectations before it is necessary.
+The product's core value is private secure application management. Mandatory external signin adds friction and changes privacy expectations before it is necessary.
 
 Implications:
 
-- Local app data must remain accessible without Google signin.
+- Secure app data must remain accessible without Google signin.
 - Google signin should request minimal scopes.
 - Google identity should not imply remote data storage.
 - Future Google integrations must update business, functional, and technical context first.
@@ -121,14 +121,14 @@ Use React/Vite/TypeScript/Tailwind for the frontend and FastAPI/SQLite for the b
 
 Rationale:
 
-This keeps the local app simple to run, keeps frontend and backend boundaries clear, and matches the local-first requirement without adding framework server complexity.
+This keeps the secure app simple to run, keeps frontend and backend boundaries clear, and matches the secure personal workspace requirement without adding framework server complexity.
 
 Implications:
 
 - Frontend runs on localhost during development.
 - Backend owns SQLite, file storage, and AI provider calls.
 - SQLite is accessed through the backend.
-- The first MVP uses a browser-based local app rather than a packaged desktop app.
+- The first MVP uses a browser-based secure app rather than a packaged desktop app.
 
 ## BD-008: Optional Multi-Provider AI
 
@@ -142,7 +142,7 @@ research provider.
 
 Rationale:
 
-Provider redundancy helps the local-first assistant stay usable when one API is
+Provider redundancy helps the secure personal workspace assistant stay usable when one API is
 rate-limited or unavailable. Google AI Studio can be used with a free-tier API
 key for development and light local use.
 
@@ -207,7 +207,7 @@ Implications:
   than introducing a new provider path.
 - A future Hunt Profile (Phase 3) may include a nationality field, but only
   as opt-in and never sent to any provider unless the user explicitly enables
-  it — consistent with BD-001's local-first/privacy-first posture. Not
+  it — consistent with BD-001's secure personal workspace/privacy-first posture. Not
   implemented in this delivery.
 - Bookmarks are migrated into the Opportunity Library additively; the
   underlying `bookmarked_news` table and endpoints are not removed.

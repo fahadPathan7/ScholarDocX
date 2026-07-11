@@ -25,7 +25,7 @@ Links:
 - The frontend should not hard-code an API host that can mismatch the page host.
 - Local development CORS should support loopback and private local origins used
   by the Vite dev server.
-- Preserve local-first behavior.
+- Preserve secure personal workspace behavior.
 
 ## Verification Plan
 

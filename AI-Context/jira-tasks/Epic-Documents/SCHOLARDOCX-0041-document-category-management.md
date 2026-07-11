@@ -12,7 +12,7 @@ Created: 2026-05-28
 
 Add document category management to the Documents view. Users should be able to
 create, rename, and delete document categories. Deleting a category also deletes
-the associated document records and local files.
+the associated document records and secure files.
 
 ## Functional Context
 
@@ -25,8 +25,8 @@ Links:
 - Show category management controls in the Documents UI.
 - Create categories and make them available in upload/edit category selectors.
 - Rename categories and update existing documents in that category.
-- Delete categories and delete associated document records and local files.
-- Keep path handling local-first and path-safe.
+- Delete categories and delete associated document records and secure files.
+- Keep path handling secure personal workspace and path-safe.
 
 ## Verification Plan
 
@@ -41,7 +41,7 @@ Links:
 - Changed media path handling to normalize category names into safe local
   directory slugs instead of rejecting all non-default categories.
 - Renaming a category updates existing `static_files.file_type` values.
-- Deleting a category deletes associated `static_files` records, local files,
+- Deleting a category deletes associated `static_files` records, secure files,
   and the category folder.
 - Updated the Documents UI with New category, rename, and delete controls.
 - Updated upload/edit category selectors and the sheet file picker upload

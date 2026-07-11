@@ -14,7 +14,7 @@ user_dict = dict(user)
 user_dict["roles"] = roles
 
 from app.auth.jwt import create_token, decode_token
-token = create_token(user_dict, "scholar-docx-local-first-secret-key-do-not-use-in-cloud", 30)
+token = create_token(user_dict, "scholar-docx-secure personal workspace-secret-key-do-not-use-in-cloud", 30)
 
-payload = decode_token(token, "scholar-docx-local-first-secret-key-do-not-use-in-cloud")
+payload = decode_token(token, "scholar-docx-secure personal workspace-secret-key-do-not-use-in-cloud")
 print("Payload roles:", payload.get("roles"))

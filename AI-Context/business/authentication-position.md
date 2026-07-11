@@ -2,11 +2,11 @@
 
 ## Current Recommendation
 
-ScholarDocX should not require signup or signin for the local-first MVP.
+ScholarDocX should not require signup or signin for the secure personal workspace MVP.
 
 Reason:
 
-The core product is a personal local application manager. Mandatory authentication would add friction and introduce an external dependency before it creates clear user value.
+The core product is a personal secure application manager. Mandatory authentication would add friction and introduce an external dependency before it creates clear user value.
 
 ## Can Google OAuth 2.0 Be Used?
 
@@ -27,7 +27,7 @@ For later versions:
 
 ## Privacy Implication
 
-Google sign-in means identity data and consent flow depend on an external provider. This does not automatically violate local-first storage, but it changes the privacy posture.
+Google sign-in means identity data and consent flow depend on an external provider. This does not automatically violate secure personal workspace storage, but it changes the privacy posture.
 
 If added:
 
@@ -42,5 +42,5 @@ Status: Proposed
 
 Decision:
 
-Google OAuth may be added later as an optional identity layer, but it is not required for the local-first MVP.
+Google OAuth may be added later as an optional identity layer, but it is not required for the secure personal workspace MVP.
 

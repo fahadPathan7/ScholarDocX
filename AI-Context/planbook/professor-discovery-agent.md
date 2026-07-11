@@ -129,7 +129,7 @@ It must:
 
 These are operational safety controls, not plan or subscription usage limits.
 
-### 3.5 Local-first storage
+### 3.5 Secure personal workspace storage
 
 Search configuration, crawl state, normalized professor profiles, evidence,
 match results, shortlists, and user notes remain in local SQLite.

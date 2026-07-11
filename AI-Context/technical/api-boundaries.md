@@ -24,7 +24,7 @@ development.
 - Initialize workspace.
 - Validate environment variables.
 - Read and write SQLite data.
-- Manage file uploads and local storage.
+- Manage file uploads and secure storage.
 - Validate paths and file types.
 - Call GLM and Tavily APIs.
 - Provide API responses optimized for UI workflows.

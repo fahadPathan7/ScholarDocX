@@ -129,7 +129,7 @@ def test_jwt_secret_is_not_the_committed_constant():
         conn.close()
     assert row is not None
     assert row["value"]
-    assert not str(row["value"]).startswith("scholar-docx-local-first")
+    assert not str(row["value"]).startswith("scholar-docx-secure personal workspace")
 
 
 def test_forged_token_with_committed_constant_is_rejected():
@@ -149,7 +149,7 @@ def test_forged_token_with_committed_constant_is_rejected():
             "is_active": 1,
             "token_version": 1,
         },
-        "scholar-docx-local-first-secret-key-do-not-use-in-cloud",
+        "scholar-docx-secure personal workspace-secret-key-do-not-use-in-cloud",
         30,
     )
     response = client.get(

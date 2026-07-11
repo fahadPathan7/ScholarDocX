@@ -28,7 +28,7 @@ Links:
 Business value:
 
 - The assistant becomes a full local workspace operator, increasing the value
-  of agent-enabled plans while keeping the local-first, privacy-first posture.
+  of agent-enabled plans while keeping the secure personal workspace, privacy-first posture.
 - Permission parity removes a quota-bypass loophole where the agent could
   create records past plan limits that manual UI flows would block.
 

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-ScholarDocX should be built as a local-first application with a frontend UI, local backend API, SQLite database, and local media workspace.
+ScholarDocX should be built as a secure personal workspace application with a frontend UI, local backend API, SQLite database, and local media workspace.
 
 ## Initial Architecture
 
@@ -31,7 +31,7 @@ GLM AI API and Tavily API
 - Frontend handles UI state, forms, views, and user interactions.
 - Backend owns persistence, workspace initialization, file operations, AI provider calls, and validation.
 - SQLite stores structured metadata.
-- Local file system stores uploaded or generated binary files.
+- Secure file system stores uploaded or generated binary files.
 - External APIs are called only by backend integration services.
 
 ## Architectural Priorities
@@ -45,7 +45,7 @@ GLM AI API and Tavily API
 ## Avoid
 
 - Direct AI API calls from the frontend.
-- Browser access to arbitrary local file paths.
+- Browser access to arbitrary secure file paths.
 - Large all-in-one route files.
 - Large all-in-one UI pages.
 - Remote database assumptions.

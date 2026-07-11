@@ -1,6 +1,6 @@
 # Success Metrics
 
-ScholarDocX succeeds if it replaces scattered tools with one private local application workflow.
+ScholarDocX succeeds if it replaces scattered tools with one private secure application workflow.
 
 ## Product Success Metrics
 

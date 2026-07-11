@@ -30,7 +30,7 @@ Links:
 - Make the About page full-width within the workspace.
 - Fill the empty right-side space with meaningful product visuals or motion.
 - Keep the page calm and consistent with the eye-soothing theme.
-- Explain local storage, privacy, AI, documents, and outreach clearly.
+- Explain secure storage, privacy, AI, documents, and outreach clearly.
 - Use focused CSS instead of expanding the oversized legacy stylesheet.
 
 ## Verification Plan

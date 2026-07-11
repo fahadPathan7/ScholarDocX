@@ -72,7 +72,7 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
 - JWT signing keys are the root of all role guards. The secret must never be a
   committed constant. `initialize_database()` provisions a per-install random
   secret (`secrets.token_hex(32)`) and rotates any value still set to the
-  historical `scholar-docx-local-first...` placeholder. Read sites
+  historical `scholar-docx-secure personal workspace...` placeholder. Read sites
   (`get_jwt_secret`) must raise rather than fall back to a default if the
   secret is missing or compromised. Never reintroduce a hardcoded secret or a
   silent fallback.

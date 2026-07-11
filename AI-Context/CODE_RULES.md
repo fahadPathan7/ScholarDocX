@@ -4,9 +4,9 @@ These are repository-wide coding rules for ScholarDocX.
 
 ## Architecture Rules
 
-- Keep the product local-first.
-- Use SQLite for structured application data unless context is updated and the user approves a different local database.
-- Use the local file system for uploaded and generated files.
+- Keep the product secure personal workspace.
+- Use SQLite for structured application data unless context is updated and the user approves a different secure database.
+- Use the secure file system for uploaded and generated files.
 - Keep AI providers behind backend service boundaries. UI code should not call GLM or Tavily directly.
 - Treat external AI/search APIs as optional integrations that require user-provided API keys.
 - Do not add remote persistence, telemetry, analytics, or cloud sync without explicit context updates and user approval.
@@ -82,7 +82,7 @@ For every new feature or feature modification:
 - Never print API keys in logs.
 - Store only file paths and metadata in SQLite; store file bytes in local media folders unless a later decision changes this.
 - Validate uploaded file types and paths.
-- Prevent path traversal when reading or writing local files.
+- Prevent path traversal when reading or writing secure files.
 - Keep professor, university, essay, transcript, and outreach data private by default.
 - **Role-Based Access Control (RBAC)**: Every new feature, API endpoint, and UI view MUST have explicit roles defined and implemented.
 - Do not create endpoints without appropriate authorization decorators/checks (e.g., admin, pro, user).

@@ -2,7 +2,7 @@
 
 ## Current Technical Position
 
-The local-first MVP ships with a full JWT auth model (the earlier "no auth
+The secure personal workspace MVP ships with a full JWT auth model (the earlier "no auth
 gate" stance is superseded):
 
 - Registration is invite-gated; login returns a signed JWT.

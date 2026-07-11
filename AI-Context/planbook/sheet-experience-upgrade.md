@@ -24,13 +24,13 @@ undo, and data in/out.
   through `PATCH /project_pages/{id}`, which enforces `records_per_sheet` and
   `total_records` (SCHOLARDOCX-0111). Any bulk paste/import path must reuse
   that route so limits keep holding.
-- Sorting/filtering/search can be pure client-side view state at local-first
+- Sorting/filtering/search can be pure client-side view state at secure personal workspace
   scale (≤ a few hundred rows/sheet by plan limits). No backend changes needed
   for Phase 1–2 except optional persisted column metadata.
 - Column-level persistence has a home already: `ColumnDef` in `columns_json`
   (width is stored there today; `hidden` fits the same pattern with the
   existing `migrateColumns` defaulting). Saved views store in browser
-  localStorage first (local-first, per user, zero schema change).
+  localStorage first (secure personal workspace, per user, zero schema change).
 
 ## Phase 0 — Mandatory foundation (no behavior change)
 

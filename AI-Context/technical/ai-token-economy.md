@@ -294,6 +294,14 @@ count-limit UI left by the backend teardown so nothing shows stale data:
 
 ## Scholarship opportunity extraction billing (Epic-ScholarshipHunt)
 
+> **Consolidated in SCHOLARDOCX-0136:** `can_use_scholarship_analyze` and
+> `can_use_scholarship_deep_hunt` no longer exist as separate limits. The
+> single `can_use_scholarship_hunt` permission now gates the entire
+> scholarship suite (search, catalog cycle-check, Analyze, and Deep Hunt).
+> The notes below describe the original per-feature gating for history; the
+> enforcement helpers in `scholarship_opportunities.py` and
+> `scholarship_deep_hunt.py` now check `can_use_scholarship_hunt`.
+
 - `POST /scholarship-opportunities/analyze` (Phase 1 of the scholarship
   pipeline) is gated by a new boolean role limit `can_use_scholarship_analyze`
   (free/general = 0, pro/max = 1) checked via

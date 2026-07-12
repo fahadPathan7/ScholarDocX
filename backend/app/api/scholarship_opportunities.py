@@ -34,18 +34,18 @@ def _require_scholarship_analyze(user: dict, store: Store) -> None:
     try:
         check_and_increment_limit(
             user,
-            "can_use_scholarship_analyze",
+            "can_use_scholarship_hunt",
             increment=0,
             session=store.db,
         )
     except UsageLimitExceeded:
-        # Which plans include Analyze is admin-configurable, so derive the
-        # message from role_limits instead of hardcoding plan names.
-        phrase = feature_plan_phrase("can_use_scholarship_analyze", store.db)
+        # Which plans include Scholarship Hunt is admin-configurable, so derive
+        # the message from role_limits instead of hardcoding plan names.
+        phrase = feature_plan_phrase("can_use_scholarship_hunt", store.db)
         raise HTTPException(
             status_code=403,
             detail=(
-                f"Analyze is available on {phrase}. "
+                f"Scholarship Hunt is available on {phrase}. "
                 "Upgrade to extract structured scholarship details."
             ),
         )

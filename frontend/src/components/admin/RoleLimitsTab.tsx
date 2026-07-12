@@ -210,10 +210,9 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "Scholarship Hunt",
       features: [
-        { key: "can_use_scholarship_hunt", label: "Can Use Scholarship Hunt", description: "Controls whether users can access the automated scholarship finding suite." },
+        { key: "can_use_scholarship_hunt", label: "Can Use Scholarship Hunt", description: "Controls whether users can access the automated scholarship finding suite, including search, catalog cycle checks, opportunity analysis, and deep hunt." },
         { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
-        { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." },
-        { key: "can_use_scholarship_deep_hunt", label: "Can Use Scholarship Deep Hunt", description: "Controls whether users can run Deep Hunt: a multi-pass search + crawl + extract research run for one funding goal (Phase 5). Default ON for Pro and Max, OFF for Free and General. Gated by this plan check plus AI-token metering per extraction call, not a separate search count." }
+        { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
       ]
     },
     {

@@ -478,35 +478,9 @@ main {
   padding: 0 8px 10px;
 }
 
-.dashboard-clock .section-body,
 .dashboard-calendar .section-body,
 .dashboard-upcoming .section-body {
   overflow: hidden;
-}
-
-.dashboard-clock .section-body {
-  overflow: visible;
-}
-
-.digital-clock {
-  border-radius: 13px;
-  min-height: 0;
-  padding: 12px;
-}
-
-.clock-time {
-  font-size: clamp(30px, 3.1vw, 43px);
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.clock-digit.seconds {
-  font-size: 0.58em;
-}
-
-.clock-date {
-  font-size: 11px;
-  letter-spacing: 0.05em;
 }
 
 .section-head {
@@ -1596,6 +1570,102 @@ main {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Premium plan-tier badge + separated admin roles in profile hero */
+.profile-role-tags-split {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.profile-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.profile-plan-badge.tier-free_user {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.32), rgba(100, 116, 139, 0.2));
+}
+
+.profile-plan-badge.tier-general_user {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.34), rgba(14, 165, 233, 0.2));
+}
+
+.profile-plan-badge.tier-pro_user.premium,
+.profile-plan-badge.tier-max_user.premium {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.34), rgba(245, 158, 11, 0.24));
+  border-color: rgba(253, 224, 71, 0.5);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.28);
+}
+
+.profile-plan-badge.premium svg {
+  color: #fde047;
+}
+
+.profile-admin-roles {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.role-tag-admin-icon {
+  color: #fbbf24;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.role-tag.role-tag-admin {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.28) 0%, rgba(225, 29, 72, 0.16) 100%);
+  border: 1px solid rgba(251, 113, 133, 0.4) !important;
+  color: #ffe4e6 !important;
+  text-transform: none !important;
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.12) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.25s ease !important;
+  cursor: default;
+}
+
+.role-tag.role-tag-admin:hover {
+  transform: translateY(-1px);
+  border-color: rgba(251, 113, 133, 0.65) !important;
+  box-shadow: 0 6px 16px rgba(244, 63, 94, 0.22) !important;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.36) 0%, rgba(225, 29, 72, 0.24) 100%);
+}
+
+.role-tag.role-tag-admin.admin-general_admin {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(217, 119, 6, 0.16) 100%);
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  color: #fef3c7 !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12) !important;
+}
+
+.role-tag.role-tag-admin.admin-general_admin:hover {
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.22) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.36) 0%, rgba(217, 119, 6, 0.24) 100%);
+}
+
 /* Glass Panels for System Cards */
 .profile-system-card.glass-panel {
   background: var(--glass-bg);
@@ -1834,6 +1904,13 @@ main {
   .profile-hero.glass-panel {
     align-items: flex-start;
     padding: 18px;
+    flex-wrap: wrap;
+  }
+
+  .profile-hero.glass-panel .profile-admin-roles {
+    margin-left: 0;
+    margin-top: 10px;
+    width: 100%;
   }
 
   .profile-actions-stack .profile-secondary-button,

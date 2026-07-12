@@ -571,81 +571,6 @@ export function App() {
   );
 }
 
-function DigitalClock() {
-  const [time, setTime] = useState(new Date());
-  const [location, setLocation] = useState("");
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-
-    fetch("https://get.geojs.io/v1/ip/geo.json")
-      .then(res => res.json())
-      .then(data => {
-        if (data.city && data.country) {
-          setLocation(`${data.city}, ${data.country}`);
-        }
-      })
-      .catch(() => {
-        try {
-          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          if (tz) {
-            const parts = tz.split('/');
-            const city = parts[parts.length - 1].replace(/_/g, ' ');
-            setLocation(city);
-          }
-        } catch (e) {
-          // ignore
-        }
-      });
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const hours = time.getHours() % 12 || 12;
-  const minutes = time.getMinutes().toString().padStart(2, '0');
-  const seconds = time.getSeconds().toString().padStart(2, '0');
-  const ampm = time.getHours() >= 12 ? 'PM' : 'AM';
-
-  const tzParts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'long' }).formatToParts(time);
-  const tzName = tzParts.find(p => p.type === 'timeZoneName')?.value || '';
-  const o = -time.getTimezoneOffset();
-  const h = Math.floor(Math.abs(o) / 60);
-  const m = Math.abs(o) % 60;
-  const offset = `UTC${o >= 0 ? '+' : '-'}${h}${m > 0 ? ':' + m.toString().padStart(2, '0') : ''}`;
-
-  return (
-    <Section title="Local Time" eyebrow="Dashboard" className="dashboard-clock">
-      <div className="digital-clock-container">
-        <div className="digital-clock">
-          <div className="clock-time">
-            <span className="clock-digit">{hours}</span>
-            <span className="clock-colon">:</span>
-            <span className="clock-digit">{minutes}</span>
-            <div className="clock-sec-ampm">
-              <span className="clock-digit seconds">{seconds}</span>
-              <span className="clock-ampm">{ampm}</span>
-            </div>
-          </div>
-          <div>
-            <div className="clock-divider" />
-            <div className="clock-bottom">
-              <div className="clock-date">
-                {time.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-              {location && (
-                <div className="clock-location">
-                  <div className="clock-dot" />
-                  {location}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
 function DashboardView({
   dashboard,
   notificationCount,
@@ -674,9 +599,6 @@ function DashboardView({
 
   return (
     <div className="page-grid dashboard-grid">
-      <DigitalClock />
-
-
       <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
         <div className="metric-grid">
           {cards.map(([label, value]) => (
@@ -688,12 +610,12 @@ function DashboardView({
         </div>
       </Section>
 
-      <Section title="Project Calendar" eyebrow="All projects" className="dashboard-calendar">
+      <Section title="Project Calendar" eyebrow="Upcoming row dates" className="dashboard-calendar">
         <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
           <CalendarDays size={22} />
           <div>
-            <strong>{dashboard.calendar_items?.length ?? 0}</strong>
-            <span>row date{(dashboard.calendar_items?.length ?? 0) === 1 ? "" : "s"}</span>
+            <strong>{futureCalendarCount(dashboard.calendar_items || [])}</strong>
+            <span>upcoming row date{futureCalendarCount(dashboard.calendar_items || []) === 1 ? "" : "s"}</span>
           </div>
           <small>
             {nextCalendarEvent
@@ -746,6 +668,29 @@ function DashboardView({
         />
       </Section>
 
+      <Section title="Next 10 Days" eyebrow="Upcoming row dates" className="dashboard-upcoming">
+        {nextEvents.length ? (
+          <div className="upcoming-event-list">
+            {nextEvents.map((event, index) => (
+              <button
+                className="upcoming-event"
+                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
+                type="button"
+                onClick={() => onCalendarEventClick(event)}
+              >
+                <span>{formatShortDate(event.date_key || event.date)}</span>
+                <div>
+                  <strong>{event.title || "Untitled row"}</strong>
+                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty">No row dates in the next 10 days.</p>
+        )}
+      </Section>
+
       <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
         <List
           items={pinnedSheets}
@@ -782,29 +727,6 @@ function DashboardView({
             </>
           )}
         />
-      </Section>
-
-      <Section title="Next 10 Days" eyebrow="Upcoming row dates" className="dashboard-upcoming">
-        {nextEvents.length ? (
-          <div className="upcoming-event-list">
-            {nextEvents.map((event, index) => (
-              <button
-                className="upcoming-event"
-                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
-                type="button"
-                onClick={() => onCalendarEventClick(event)}
-              >
-                <span>{formatShortDate(event.date_key || event.date)}</span>
-                <div>
-                  <strong>{event.title || "Untitled row"}</strong>
-                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="empty">No row dates in the next 10 days.</p>
-        )}
       </Section>
     </div>
   );

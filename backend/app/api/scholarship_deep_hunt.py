@@ -1,8 +1,8 @@
 """Deep Hunt runs API (Phase 5 of the Scholarship Hunt pipeline, SCHOLARDOCX-0125).
 
 Mirrors `app/api/advisor_atlas.py`'s run lifecycle shape (create/list/get/
-cancel/resume/delete via `BackgroundTasks`), plan-gated the same way
-(`can_use_scholarship_deep_hunt`, Pro/Max by default).
+cancel/resume/delete via `BackgroundTasks`), plan-gated by the single
+`can_use_scholarship_hunt` permission (Pro/Max by default).
 """
 
 from __future__ import annotations
@@ -65,20 +65,20 @@ def _service(settings: Settings = Depends(get_settings)) -> ScholarshipDeepHuntS
 
 
 def _require_scholarship_deep_hunt_access(user: dict, session) -> None:
-    """Gate Deep Hunt behind the `can_use_scholarship_deep_hunt` role limit.
+    """Gate Deep Hunt behind the `can_use_scholarship_hunt` role limit.
 
-    Pro and Max are enabled by default; Free and General are not. Applies
-    only to work-creating actions so a downgraded user can still read
-    existing runs and their results.
+    Scholarship Hunt (Pro/Max by default; Free/General off) is the single
+    permission for the whole scholarship suite. Applies only to work-creating
+    actions so a downgraded user can still read existing runs and results.
     """
     try:
-        check_and_increment_limit(user, "can_use_scholarship_deep_hunt", 0, session)
+        check_and_increment_limit(user, "can_use_scholarship_hunt", 0, session)
     except UsageLimitExceeded:
-        phrase = feature_plan_phrase("can_use_scholarship_deep_hunt", session)
+        phrase = feature_plan_phrase("can_use_scholarship_hunt", session)
         raise HTTPException(
             status_code=403,
             detail=(
-                f"Deep Hunt is available on {phrase}. "
+                f"Scholarship Hunt is available on {phrase}. "
                 "Upgrade to run multi-pass scholarship research."
             ),
         )

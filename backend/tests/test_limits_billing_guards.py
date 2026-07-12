@@ -307,9 +307,8 @@ def test_permission_only_check_commits_bootstrap_row(tmp_path):
     try:
         # First-ever check of a feature this user has no usage row for yet,
         # with increment=0 (a pure permission check, as every boolean plan
-        # gate — can_use_advisor_atlas, can_use_scholarship_analyze,
-        # can_use_scholarship_deep_hunt — performs).
-        check_and_increment_limit(user, "can_use_scholarship_deep_hunt", 0, session)
+        # gate — can_use_advisor_atlas, can_use_scholarship_hunt — performs).
+        check_and_increment_limit(user, "can_use_scholarship_hunt", 0, session)
 
         # The session must not be left holding an uncommitted write: a
         # separate raw sqlite3 connection (short busy_timeout, no retries to
@@ -327,6 +326,6 @@ def test_permission_only_check_commits_bootstrap_row(tmp_path):
         finally:
             other_connection.close()
 
-        assert usage_count(session, user["id"], "can_use_scholarship_deep_hunt") == 0
+        assert usage_count(session, user["id"], "can_use_scholarship_hunt") == 0
     finally:
         session.close()

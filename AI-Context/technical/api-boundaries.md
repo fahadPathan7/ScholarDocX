@@ -93,7 +93,7 @@ development.
   billed through the existing `can_use_scholarship_hunt` gate (no new quota
   key)
 - `/scholarship-opportunities/analyze` runs one structured AI extraction call
-  over a card's URL/title/snippet, gated by the `can_use_scholarship_analyze`
+  over a card's URL/title/snippet, gated by the `can_use_scholarship_hunt`
   role limit plus the AI token economy, and upserts a
   `scholarship_opportunities` row deduped by canonical name + normalized URL;
   missing fields are never invented
@@ -116,7 +116,7 @@ development.
 - `/scholarship-deep-hunt/runs` (Phase 5, SCHOLARDOCX-0125) creates and lists
   user-scoped persisted Deep Hunt runs (one free-text funding goal plus
   optional degree level/destinations/intake term). Creating a run is gated
-  by `can_use_scholarship_deep_hunt` (Pro/Max by default, mirroring Advisor
+  by `can_use_scholarship_hunt` (Pro/Max by default, mirroring Advisor
   Atlas) plus an AI-token pre-flight check; the background run then does a
   bounded search -> crawl -> extract loop reusing
   `scholarship_extraction_service` (Phase 1) and

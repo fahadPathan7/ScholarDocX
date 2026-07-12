@@ -37,7 +37,8 @@ type SearchFlowState = "idle" | "preparing" | "review" | "searching";
 
 export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNewsViewProps) {
   const { refreshUsage, usageData } = useUsage();
-  const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_deep_hunt ?? 0) === 1;
+  // Deep Hunt now shares the single Scholarship Hunt permission (SCHOLARDOCX-0136).
+  const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_hunt ?? 0) === 1;
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -535,7 +536,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
               </div>
               <div>
                 <dt><Library size={13} /> Deep Hunt</dt>
-                <dd>Hands one funding goal to an agent that runs multiple search passes, crawls pages, and extracts evidence-backed opportunities. Access depends on your role limits.</dd>
+                <dd>Hands one funding goal to an agent that runs multiple search passes, crawls pages, and extracts evidence-backed opportunities. Gated by your Scholarship Hunt plan access.</dd>
               </div>
               <div>
                 <dt><Compass size={13} /> Catalog</dt>

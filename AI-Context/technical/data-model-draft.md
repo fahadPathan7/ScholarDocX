@@ -188,17 +188,20 @@ files. Renaming a category updates existing `static_files.file_type` values.
 
 Purpose:
 
-Track lightweight local notes and checklists.
+Track lightweight local notes, checklists, and sketches.
 
 Likely fields:
 
 - id
+- user_id (ownership scoping; nullable for legacy rows)
 - title
-- body
-- color
-- is_bold
+- body (plain text, or JSON `{type:"sketch",paths}` / `{type:"mixed",text,paths}`)
+- color (sun / mint / sky / rose / lilac / sand)
 - is_checklist
-- checklist_json
+- checklist_json (JSON array of `{id,text,done}`)
+- font (caveat / sans / serif / mono)
+- font_size (small / medium / large)
+- is_pinned (sort-first flag)
 - created_at
 - updated_at
 

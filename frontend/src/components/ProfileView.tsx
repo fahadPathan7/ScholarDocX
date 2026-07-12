@@ -6,7 +6,7 @@ import {
   notificationPreferenceTabs,
   normalizeNotificationSettings
 } from "../config/notificationLabels";
-import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles } from "lucide-react";
+import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown } from "lucide-react";
 import { AiTokenWidget } from "./AiTokenWidget";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
@@ -45,6 +45,29 @@ const TIMEZONE_OPTIONS = [
   { value: "America/Los_Angeles", label: "GMT-08:00 - America/Los_Angeles" },
   { value: "UTC", label: "GMT+00:00 - UTC" }
 ];
+
+// Plan tiers ordered lowest → highest. A role ending in `_admin` is an admin
+// privilege, not a plan tier; everything else is treated as a plan role.
+const PLAN_TIERS = ["free_user", "general_user", "pro_user", "max_user"] as const;
+const PLAN_LABELS: Record<string, string> = {
+  free_user: "Free",
+  general_user: "General",
+  pro_user: "Pro",
+  max_user: "Max",
+};
+
+function classifyRoles(roles: string[] | undefined | null) {
+  const list = roles || [];
+  const adminRoles = list.filter((r) => r.endsWith("_admin"));
+  const planRoles = list.filter((r) => PLAN_TIERS.includes(r as typeof PLAN_TIERS[number]));
+  // Highest plan tier present (max > pro > general > free)
+  const planTier = PLAN_TIERS.reduce<string | null>(
+    (best, tier) => (planRoles.includes(tier) ? tier : best),
+    null
+  );
+  const prettify = (r: string) => r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { adminRoles, planRoles, planTier, prettify };
+}
 
 import { FormEvent, useEffect, useState } from "react";
 
@@ -283,6 +306,11 @@ export function ProfileView({
     return parts.length > 2 ? "…/" + parts.slice(-2).join("/") : full;
   };
 
+  const { adminRoles, planTier, prettify } = classifyRoles(user?.roles);
+  const tierKey = planTier || "free_user";
+  const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
+  const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
+
   return (
     <div className="profile-page">
       {user?.is_active === false && (
@@ -315,15 +343,24 @@ export function ProfileView({
             <h2>{saved.display_name || "Your Profile"}</h2>
             <span>{saved.email || user?.email || "No email set"}</span>
             {user?.roles && user.roles.length > 0 && (
-              <div className="flex gap-2 mt-2 profile-role-tags">
-                {user.roles.map(role => (
-                  <span key={role} className="role-tag">
-                    {role.replace(/_/g, ' ')}
-                  </span>
-                ))}
+              <div className="profile-role-tags profile-role-tags-split">
+                <div className={`profile-plan-badge tier-${tierKey}${isTopTier ? " premium" : ""}`}>
+                  {isTopTier ? <Crown size={13} /> : <Sparkles size={13} />}
+                  <span>{tierLabel}</span>
+                </div>
               </div>
             )}
           </div>
+          {user?.roles && user.roles.length > 0 && adminRoles.length > 0 && (
+            <div className="profile-admin-roles">
+              {adminRoles.map((role) => (
+                <span key={role} className={`role-tag role-tag-admin admin-${role}`}>
+                  <ShieldCheck size={12} className="role-tag-admin-icon" />
+                  {prettify(role)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

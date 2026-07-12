@@ -157,7 +157,6 @@ def test_sticky_notes_are_persisted_and_counted(tmp_path):
                 "title": "Professor follow-up",
                 "body": "Send a warmer second email.",
                 "color": "mint",
-                "is_bold": True,
                 "is_checklist": False,
                 "checklist_json": "[]",
             },

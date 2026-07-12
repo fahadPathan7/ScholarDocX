@@ -363,7 +363,6 @@ class StickyNotes(Base):
 
     title: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
     color: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'sun'"))
-    is_bold: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     is_checklist: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     checklist_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     font: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'caveat'"))

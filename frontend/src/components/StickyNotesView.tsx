@@ -271,7 +271,6 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       title,
       body: finalBody,
       color: draft.color,
-      is_bold: false,
       is_checklist: draft.is_checklist,
       checklist_json: JSON.stringify(draft.checklist),
       font: draft.font,

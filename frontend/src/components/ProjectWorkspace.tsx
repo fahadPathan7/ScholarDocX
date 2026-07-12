@@ -663,9 +663,9 @@ export function ProjectWorkspace({
 
         {selectedPage ? (
           <Section
-            title={fullScreenMode ? "" : selectedPage.name}
-            eyebrow={fullScreenMode ? "" : "Edit rows and columns"}
-            action={!fullScreenMode ? (
+            title={selectedPage.name}
+            eyebrow="Edit rows and columns"
+            action={(
               <SheetToolbarActions
                 fullScreenMode={fullScreenMode}
                 selectedProjectId={selectedProjectId}
@@ -696,7 +696,7 @@ export function ProjectWorkspace({
                 bulkRowCellStyle={sheet.bulkRowCellStyle}
                 bulkClearRowFormatting={sheet.bulkClearRowFormatting}
               />
-            ) : undefined}
+            )}
           >
             <SheetToolbar
               columns={sheet.columns}
@@ -705,6 +705,8 @@ export function ProjectWorkspace({
               recordsPerSheetLimit={recordsPerSheetLimit}
               fullScreenMode={fullScreenMode}
               showEditColumns={sheet.showEditColumns}
+              isEmailConfigOpen={sheet.isEmailConfigOpen}
+              showDateColorConfig={showDateColorConfig}
               searchQuery={sheet.searchQuery}
               onSearchChange={sheet.setSearchQuery}
               onToggleColumnVisibility={sheet.toggleColumnVisibility}

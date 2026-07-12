@@ -52,16 +52,21 @@ interactive, and polished without becoming decorative marketing UI.
   record form and single-cell editing.
 - Cell text and cell formatting (bold/italic/underline/strikethrough, text
   color, cell background, row background, alignment, font size presets, and a
-  small curated system-font list) is applied through a compact formatting bar
+  curated system-font list of 15 fonts: System Sans, Arial, Helvetica, Verdana,
+  Trebuchet MS, Calibri, Optima, Century Gothic, Georgia, Palatino, Garamond, Bookman, Goudy Old Style, Times New Roman, and Monospace) is applied through a compact formatting bar
   (`CellStyleBar`) rendered directly inside the section header actions
   (`SheetToolbarActions`), positioned to the left of the 'Import / Export' button
-  when a cell is focused, with parity in the full-cell viewer. The bar must not
-  distort row height. File cells never show the format bar. Formatting
+  when a cell is focused, with parity in the full-cell viewer and full screen mode. The "Applying to X selected rows"
+  scope selection indicator is positioned to the left of the formatting bar (`CellStyleBar`).
+  The bar must not distort row height. File cells never show the format bar. Formatting
   persists per cell in the row's `_cellStyles` reserved key and per row in
   `_rowStyle`; it is never sent to CSV exports. Custom color inputs and swatches
   do not lose editor focus when clicked. Text and background color buttons feature
   colored horizontal underlines beneath their icons to represent the current state,
   defaulting to transparent dashed lines when no custom color is set.
+- Sheet toolbar action buttons (Columns, Edit columns, Categorize, Date Colors, Email Config, Views)
+  render with the active/selected status class (`.secondary.active`) whenever their popovers, modals,
+  or views are currently active or open.
 - Horizontal overflow areas should feel pannable: users can hold the primary
   mouse button and drag left/right on the scroll surface to move sideways,
   without hijacking interactions on buttons, links, inputs, selects, textareas,
@@ -70,6 +75,7 @@ interactive, and polished without becoming decorative marketing UI.
   canvas. Muted teal can remain the primary action color, but pair it with
   restrained blue and warm accent states so the interface does not read as a
   single green wash.
+- Dropdown menus (such as Columns and Categorize list selectors) use a compact row spacing layout (0.125px gap, 0.2px 8px padding, 0px margin inputs, 1.2 line height) to maintain dense and clean scannability.
 - Dashboard typography should be compact: headings and metric numbers should
   support scanning without visually shouting.
 - Admin dashboard panels should feel like a dense operational console: compact

@@ -174,8 +174,8 @@ function matchesFilter(value: string, filter: ColumnFilter): boolean {
       const d = new Date(trimmed);
       if (isNaN(d.getTime())) return true;
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const nowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+      const diffDays = Math.ceil((d.getTime() - nowUTC.getTime()) / (1000 * 60 * 60 * 24));
       switch (filter.preset) {
         case "overdue": return diffDays < 0;
         case "next3": return diffDays >= 0 && diffDays <= 3;

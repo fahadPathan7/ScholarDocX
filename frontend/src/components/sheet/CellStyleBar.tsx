@@ -31,10 +31,22 @@ const SIZE_LABELS: Record<NonNullable<CellStyle["fontSize"]>, string> = {
   xl: "Heading",
 };
 
-const FONT_LABELS: Record<NonNullable<CellStyle["fontFamily"]>, string> = {
-  sans: "Sans",
-  serif: "Serif",
-  mono: "Mono",
+const FONT_LABELS: Record<string, string> = {
+  sans: "System",
+  arial: "Arial",
+  helvetica: "Helvetica",
+  verdana: "Verdana",
+  trebuchet: "Trebuchet MS",
+  calibri: "Calibri",
+  optima: "Optima",
+  century: "Century Gothic",
+  serif: "Georgia",
+  palatino: "Palatino",
+  garamond: "Garamond",
+  bookman: "Bookman",
+  goudy: "Goudy Old Style",
+  times: "Times New Roman",
+  mono: "Monospace",
 };
 
 export function CellStyleBar({
@@ -151,20 +163,20 @@ export function CellStyleBar({
 
         <DropdownButton
           title="Font family"
-          label={style.fontFamily ? FONT_LABELS[style.fontFamily] : "Font"}
+          label={style.fontFamily ? (FONT_LABELS[style.fontFamily] || style.fontFamily) : "Font"}
           active={!!style.fontFamily}
-          icon={<span style={{ fontFamily: "serif", fontSize: "12px", fontWeight: 600 }}>Aa</span>}
+          icon={<span style={{ fontFamily: "serif", fontSize: "12px", fontWeight: 600, display: "inline-flex", alignItems: "center", lineHeight: 1 }}>Aa</span>}
         >
           {(close) => (
             <div className="csb-menu">
-              {(Object.keys(FONT_FAMILIES) as NonNullable<CellStyle["fontFamily"]>[]).map((key) => (
+              {(Object.keys(FONT_FAMILIES) as string[]).map((key) => (
                 <button
                   key={key}
                   className={`csb-menu-item${style.fontFamily === key ? " active" : ""}`}
                   style={{ fontFamily: FONT_FAMILIES[key] }}
                   onClick={() => { onChange({ fontFamily: style.fontFamily === key ? undefined : key }); close(); }}
                 >
-                  {FONT_LABELS[key]}
+                  {FONT_LABELS[key] || key}
                 </button>
               ))}
             </div>

@@ -55,7 +55,7 @@ export type CellStyle = {
   bg?: string;
   align?: "left" | "center" | "right";
   fontSize?: "sm" | "md" | "lg" | "xl";
-  fontFamily?: "sans" | "serif" | "mono";
+  fontFamily?: string;
 };
 
 /** Per-row style. Cell-level bg wins over row bg when both are set. */
@@ -81,9 +81,21 @@ export const ROW_BG_COLORS = [
  * Curated system font stacks. No web fonts — keeps the app local-first
  * and offline-safe, and avoids layout shift from font loading.
  */
-export const FONT_FAMILIES: Record<NonNullable<CellStyle["fontFamily"]>, string> = {
+export const FONT_FAMILIES: Record<string, string> = {
   sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  arial: 'Arial, sans-serif',
+  helvetica: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  verdana: 'Verdana, Geneva, sans-serif',
+  trebuchet: '"Trebuchet MS", sans-serif',
+  calibri: 'Calibri, Candara, sans-serif',
+  optima: 'Optima, Segoe, "Segoe UI", Candara, sans-serif',
+  century: '"Century Gothic", CenturyGothic, AppleGothic, sans-serif',
   serif: 'Georgia, "Times New Roman", serif',
+  palatino: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif',
+  garamond: 'Garamond, "EB Garamond", serif',
+  bookman: '"Bookman Old Style", Georgia, serif',
+  goudy: '"Goudy Old Style", Georgia, serif',
+  times: '"Times New Roman", Times, serif',
   mono: '"SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
 };
 

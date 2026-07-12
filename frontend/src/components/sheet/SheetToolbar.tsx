@@ -80,6 +80,11 @@ export function SheetToolbarActions({
 
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
+              {hasSelection && (
+                <span className="format-rail-scope" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
+                  Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
+                </span>
+              )}
               <CellStyleBar
                 style={displayStyle}
                 onChange={(patch) => {
@@ -98,11 +103,6 @@ export function SheetToolbarActions({
                 }}
                 compact
               />
-              {hasSelection && (
-                <span className="format-rail-scope" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
-                  Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
-                </span>
-              )}
             </div>
           );
         })()
@@ -184,6 +184,8 @@ export function SheetToolbar({
   onOpenEditColumns,
   onOpenEmailConfig,
   onOpenDateColors,
+  isEmailConfigOpen,
+  showDateColorConfig,
   groupBy,
   onGroupByChange,
   savedViews,
@@ -198,6 +200,8 @@ export function SheetToolbar({
   recordsPerSheetLimit: number;
   fullScreenMode: boolean;
   showEditColumns: boolean;
+  isEmailConfigOpen?: boolean;
+  showDateColorConfig?: boolean;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onToggleColumnVisibility: (columnName: string) => void;
@@ -299,7 +303,7 @@ export function SheetToolbar({
         {/* 3. Columns Menu */}
         <div className="columns-menu-container" ref={columnsMenuRef} style={{ position: 'relative' }}>
           <button
-            className="secondary"
+            className={`secondary ${showColumnsMenu ? 'active' : ''}`}
             onClick={() => setShowColumnsMenu(!showColumnsMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
             title="Hide/show columns"
@@ -316,32 +320,34 @@ export function SheetToolbar({
               border: '1px solid var(--ui-line)',
               borderRadius: '6px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '8px',
+              padding: '6px 8px',
               zIndex: 100,
               width: '220px',
               maxHeight: '300px',
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px'
+              gap: '0.125px'
             }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, padding: '4px 8px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
                 Visible columns
               </div>
               {columns.filter(c => c.type !== "group").map(col => (
                 <label key={col.name} className="column-visibility-item" style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 8px',
+                  gap: '6px',
+                  padding: '0.2px 8px',
                   cursor: 'pointer',
                   borderRadius: '4px',
-                  fontSize: '13px'
+                  fontSize: '12px',
+                  lineHeight: '1.2'
                 }}>
                   <input
                     type="checkbox"
                     checked={!col.hidden}
                     onChange={() => onToggleColumnVisibility(col.name)}
+                    style={{ margin: 0 }}
                   />
                   {col.name}
                   {col.hidden && <EyeOff size={12} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />}
@@ -359,7 +365,7 @@ export function SheetToolbar({
         {/* 5. Categorize */}
         <div className="group-menu-container" ref={groupMenuRef} style={{ position: 'relative' }}>
           <button
-            className={`secondary ${groupBy ? 'active' : ''}`}
+            className={`secondary ${groupBy || showGroupMenu ? 'active' : ''}`}
             onClick={() => setShowGroupMenu(!showGroupMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
             title="Categorize rows"
@@ -374,35 +380,39 @@ export function SheetToolbar({
               position: 'absolute', top: '100%', right: 0, marginTop: '4px',
               backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
               borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '8px', zIndex: 100, width: '220px', maxHeight: '300px',
-              overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px'
+              padding: '6px 8px', zIndex: 100, width: '220px', maxHeight: '300px',
+              overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.125px'
             }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, padding: '4px 8px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
                 Categorize by column
               </div>
               <label className="group-item" style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '6px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
+                lineHeight: '1.2'
               }}>
                 <input
                   type="radio"
                   name="group_by"
                   checked={groupBy === null}
                   onChange={() => { onGroupByChange(null); setShowGroupMenu(false); }}
+                  style={{ margin: 0 }}
                 />
                 <span style={{ color: 'var(--text-secondary)' }}>None (Flat list)</span>
               </label>
 
               {columns.filter(c => c.type === 'select' || c.type === 'bool').map(col => (
                 <label key={col.name} className="group-item" style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '6px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
+                  lineHeight: '1.2'
                 }}>
                   <input
                     type="radio"
                     name="group_by"
                     checked={groupBy === col.name}
                     onChange={() => { onGroupByChange(col.name); setShowGroupMenu(false); }}
+                    style={{ margin: 0 }}
                   />
                   {col.name}
                 </label>
@@ -412,19 +422,19 @@ export function SheetToolbar({
         </div>
 
         {/* 6. Date Colors */}
-        <button className="secondary" onClick={onOpenDateColors} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
+        <button className={`secondary ${showDateColorConfig ? 'active' : ''}`} onClick={onOpenDateColors} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
           <Calendar size={14} /> Date Colors
         </button>
 
         {/* 7. Email Config */}
-        <button className="secondary" onClick={onOpenEmailConfig} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
+        <button className={`secondary ${isEmailConfigOpen ? 'active' : ''}`} onClick={onOpenEmailConfig} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
           <Mail size={14} /> Email Config
         </button>
 
         {/* Views Menu */}
         <div className="views-menu-container" ref={viewsMenuRef} style={{ position: 'relative' }}>
           <button
-            className="secondary"
+            className={`secondary ${showViewsMenu || currentViewId ? 'active' : ''}`}
             onClick={() => setShowViewsMenu(!showViewsMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
             title="Saved Views"

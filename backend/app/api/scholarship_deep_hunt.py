@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.auth.dependencies import get_current_user, get_user_store
 from app.auth.limits import check_and_increment_limit, feature_plan_phrase, UsageLimitExceeded
+from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.config import Settings, get_settings
 from app.services import ai_tokens
 from app.services.scholarship_deep_hunt import ScholarshipDeepHuntService
@@ -103,6 +104,8 @@ async def create_run(
     store: Store = Depends(get_user_store),
     settings: Settings = Depends(get_settings),
 ):
+    # Rate limit first: 5 runs per user per 10 minutes, before any plan/token work.
+    rate_limiter.check_and_record("scholarship_deep_hunt_run", user_identity(user))
     # Plan-gated (Pro/Max) before any token spend, same as Advisor Atlas.
     _require_scholarship_deep_hunt_access(user, store.db)
     ai_tokens.ensure_can_spend(user, store.db)

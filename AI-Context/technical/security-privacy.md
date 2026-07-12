@@ -93,6 +93,51 @@ ScholarDocX is privacy-first. Private academic data should remain local unless t
   timing/enumeration oracle.
 - Do not require remote signin for local-only MVP workflows.
 
+## Rate Limiting (SCHOLARDOCX-0137)
+
+- All IP/user request-rate limits live in one place: the `RATE_LIMIT_RULES`
+  registry in `backend/app/auth/rate_limit.py`, enforced through the shared
+  `rate_limiter` singleton. Do not re-implement inline `defaultdict(list)`
+  buckets — add a rule to the registry and call `check_and_record` (counts
+  every hit), or `check` + `record` (for check-first / count-on-failure flows
+  like login).
+- Three enforcement patterns exist:
+  - `check_and_record(key, identity)` — count every request (register,
+    contact-admin, all AI/hunt/atlas/news/upload endpoints).
+  - `check(key, identity)` then `record(key, identity)` only on a bad outcome
+    — login and password-change (records only on failed credentials, so legit
+    uses never consume the budget).
+  - `check_and_record` swallowed into a generic 200 — forgot-password (never
+    raises 429; preserves the anti-enumeration invariant above).
+- Identity: unauthenticated endpoints (`/auth/login`, `/auth/register`,
+  `/auth/invite-request`, `/auth/forgot-password`, `/auth/contact-admin`) key
+  on client IP via `client_ip_from_request`; all authenticated expensive
+  endpoints key on user id via `user_identity(user)` (more accurate for a
+  local multi-user install).
+- Rate limits sit **before** plan-tier quota checks (token budget,
+  `can_use_scholarship_hunt`, etc.) so they fast-fail before any spend.
+- Coverage (19 rules total): every AI-billing endpoint (`/ai/chat`,
+  `/ai/research`, `/ai/summarize`, `/ai/actions/plan`, `/ai/actions/execute`),
+  every search/extraction endpoint (deep-hunt run, advisor-atlas run +
+  candidate refresh, news search + query-preview, scholarship analyze +
+  catalog check-cycle), file upload, and the five auth endpoints. Deliberately
+  NOT rate-limited: pure `GET` reads (cheap DB queries), cheap user-scoped DB
+  writes (bookmarks, saved-queries, generic CRUD, outreach log, template
+  render), `/auth/plans/request` (already has a one-pending-per-user guard),
+  and all `/admin/*` routes (already admin-auth + permission gated).
+- The registry is the single source of truth for the admin Info tab:
+  `GET /admin/info/rate-limits` returns `rate_limiter.catalog()`, gated by the
+  `admin_view_info` permission (default ON for both admin roles).
+- Buckets are in-memory and per-process with a `threading.Lock`; they reset on
+  restart and are not shared across workers. This is acceptable for the
+  local-first single-process deployment.
+- Known limitation: `client_ip_from_request` reads `request.client.host`
+  directly; there is no `X-Forwarded-For` handling yet (relevant only if the
+  app is ever served behind a reverse proxy — tracked as a follow-up).
+- Latent bug fixed by SCHOLARDOCX-0137: `/auth/register` previously pruned and
+  checked its bucket but never recorded into it, so the 5/5min limit could not
+  trigger. Switching to `check_and_record` fixed this.
+
 ## Role Limits And Billing Guards (SCHOLARDOCX-0111)
 
 - Plan expiry is enforced at auth time: `get_current_user` strips expired

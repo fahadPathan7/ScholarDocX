@@ -295,6 +295,12 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       ]
     },
     {
+      name: "Info",
+      features: [
+        { key: "admin_view_info", label: "Can View Info", description: "Allows viewing the Info tab, which lists all active request rate limits enforced across the application. Read-only." }
+      ]
+    },
+    {
       name: "Settings",
       features: [
         { key: "admin_manage_settings", label: "Can Manage App Settings", description: "Allows editing global application settings." }

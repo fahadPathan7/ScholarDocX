@@ -101,6 +101,7 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('general_admin', 'admin_manage_notification_texts', 1, 'never'),
   ('general_admin', 'admin_send_notifications', 1, 'never'),
   ('general_admin', 'admin_manage_settings', 0, 'never'),
+  ('general_admin', 'admin_view_info', 1, 'never'),
 
   ('super_admin', 'admin_create_user', 1, 'never'),
   ('super_admin', 'admin_assign_user_roles', 1, 'never'),
@@ -113,7 +114,8 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_view_audit_logs', 1, 'never'),
   ('super_admin', 'admin_manage_requests', 1, 'never'),
   ('super_admin', 'admin_manage_suspension_appeals', 1, 'never'),
-  ('super_admin', 'admin_manage_settings', 1, 'never');
+  ('super_admin', 'admin_manage_settings', 1, 'never'),
+  ('super_admin', 'admin_view_info', 1, 'never');
 
 INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
   ('free_user', 'ai_tokens_per_month', 0, 'monthly'),

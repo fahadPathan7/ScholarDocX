@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 
 from app.api.admin import resolve_password_reset_request, PasswordResetResolvePayload
-from app.api.auth import ForgotPasswordPayload, forgot_password, _password_reset_attempts
+from app.api.auth import ForgotPasswordPayload, forgot_password
 from app.auth.limits import invalidate_limits_cache
+from app.auth.rate_limit import rate_limiter
 from app.auth.password import verify_password
 from app.db.connection import initialize_database
 from app.services.admin import AdminService
@@ -48,9 +49,9 @@ class FakeRequest:
 
 
 def reset_rate_limiter():
-    # The IP rate limiter is a module-level dict shared across tests; clear it
-    # so each test starts with a fresh per-IP budget.
-    _password_reset_attempts.clear()
+    # The rate limiter is a module-level singleton shared across tests; clear
+    # all buckets so each test starts with a fresh per-IP budget.
+    rate_limiter.reset()
 
 
 def count_requests(connection, user_id=None):

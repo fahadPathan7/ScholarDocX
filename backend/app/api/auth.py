@@ -1,15 +1,18 @@
 import re
 import json
-import time
 from typing import Any, Optional, Literal
 from datetime import datetime, timedelta
-from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 
 from app.auth.jwt import create_token
 from app.auth.password import hash_password, validate_password_strength, verify_password
+from app.auth.rate_limit import (
+    client_ip_from_request,
+    rate_limiter,
+    user_identity,
+)
 from app.core.config import Settings, get_settings
 from app.db.connection import connect, initialize_database
 from app.services.store import Store
@@ -19,21 +22,12 @@ from app.auth.limits import feature_plan_phrase, get_primary_user_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Rate limit dictionaries: ip -> list of timestamps
-_login_attempts = defaultdict(list)
-_register_attempts = defaultdict(list)
-_invite_request_attempts = defaultdict(list)
-_password_reset_attempts = defaultdict(list)
+# All rate-limit thresholds/windows now live in the central registry
+# ``RATE_LIMIT_RULES`` in ``app/auth/rate_limit.py`` and are enforced through
+# the shared ``rate_limiter`` singleton. The four auth endpoints below are
+# addressed by their rule keys: ``auth_login``, ``auth_register``,
+# ``auth_invite_request``, ``auth_forgot_password``.
 
-MAX_LOGIN_ATTEMPTS = 5
-LOGIN_RATE_LIMIT_WINDOW = 300 # 5 minutes
-
-MAX_REGISTER_ATTEMPTS = 5
-REGISTER_RATE_LIMIT_WINDOW = 300 # 5 minutes
-
-INVITE_REQUEST_RATE_LIMIT_WINDOW = 1800 # 30 minutes
-
-PASSWORD_RESET_RATE_LIMIT_WINDOW = 3600 # 1 hour
 # Generic response returned for every forgot-password attempt so the endpoint
 # cannot be used to enumerate which emails are registered.
 PASSWORD_RESET_GENERIC_MESSAGE = (
@@ -81,12 +75,11 @@ class ForgotPasswordPayload(BaseModel):
 
 @router.post("/register")
 def register(payload: RegisterPayload, request: Request, store: Store = Depends(get_store)):
-    # Rate limiting
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    _register_attempts[client_ip] = [ts for ts in _register_attempts[client_ip] if now - ts < REGISTER_RATE_LIMIT_WINDOW]
-    if len(_register_attempts[client_ip]) >= MAX_REGISTER_ATTEMPTS:
-        raise HTTPException(status_code=429, detail="Too many registration attempts. Please try again later.")
+    # Rate limiting — counts every attempt (previously this checked the bucket
+    # but never recorded into it, so the limit could never trigger; now fixed
+    # via the shared check_and_record helper).
+    client_ip = client_ip_from_request(request)
+    rate_limiter.check_and_record("auth_register", client_ip)
 
     # Validate password
     if not validate_password_strength(payload.password):
@@ -171,19 +164,17 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
 
 @router.post("/login")
 def login(payload: LoginPayload, request: Request, store: Store = Depends(get_store)):
-    # Rate limiting
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    _login_attempts[client_ip] = [ts for ts in _login_attempts[client_ip] if now - ts < LOGIN_RATE_LIMIT_WINDOW]
-    if len(_login_attempts[client_ip]) >= MAX_LOGIN_ATTEMPTS:
-        raise HTTPException(status_code=429, detail="Too many login attempts. Please try again later.")
-        
+    # Rate limiting — check first; only record on a *failed* credential check,
+    # so successful logins do not consume the budget.
+    client_ip = client_ip_from_request(request)
+    rate_limiter.check("auth_login", client_ip)
+
     user = store.legacy_connection.execute(
         "SELECT * FROM users WHERE email = ?", (payload.email,)
     ).fetchone()
-    
+
     if not user or not verify_password(payload.password, user["password_hash"]):
-        _login_attempts[client_ip].append(now)
+        rate_limiter.record("auth_login", client_ip)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
         
     if not user["is_active"]:
@@ -232,11 +223,18 @@ def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.post("/me/password")
 def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    # Rate limit against current-password brute-force: check first, record only
+    # on a failed credential check (mirrors /auth/login). A legit password
+    # change never consumes the budget.
+    identity = user_identity(current_user)
+    rate_limiter.check("auth_password_change", identity)
+
     user = store.legacy_connection.execute(
         "SELECT * FROM users WHERE id = ?", (current_user["id"],)
     ).fetchone()
-    
+
     if not user or not verify_password(payload.current_password, user["password_hash"]):
+        rate_limiter.record("auth_password_change", identity)
         raise HTTPException(status_code=400, detail="Incorrect current password.")
         
     if not validate_password_strength(payload.new_password):
@@ -343,12 +341,11 @@ def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict 
 
 @router.post("/invite-request")
 def request_invite(payload: InviteRequestPayload, request: Request, store: Store = Depends(get_store)):
-    # Rate limiting: 1 per IP per 30 minutes
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    _invite_request_attempts[client_ip] = [ts for ts in _invite_request_attempts[client_ip] if now - ts < INVITE_REQUEST_RATE_LIMIT_WINDOW]
-    if len(_invite_request_attempts[client_ip]) >= 1:
-        raise HTTPException(status_code=429, detail="You can only request one invite code every 30 minutes. Please try again later.")
+    # Rate limiting: 1 per IP per 30 minutes. Check first; only record once the
+    # request is actually accepted (validation failures below do not consume
+    # the budget).
+    client_ip = client_ip_from_request(request)
+    rate_limiter.check("auth_invite_request", client_ip)
 
     # Check if email is already registered
     existing_user = store.legacy_connection.execute(
@@ -367,7 +364,7 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
         else:
             raise HTTPException(status_code=400, detail="An invite request for this email has already been approved. Please check your email for the invite code.")
         
-    _invite_request_attempts[client_ip].append(now)
+    rate_limiter.record("auth_invite_request", client_ip)
 
     store.legacy_connection.execute(
         """
@@ -382,8 +379,10 @@ def request_invite(payload: InviteRequestPayload, request: Request, store: Store
 
 @router.post("/contact-admin")
 def contact_admin(payload: ContactAdminPayload, request: Request, store: Store = Depends(get_store)):
-    client_ip = request.client.host if request.client else "unknown"
-    
+    # Rate limiting: 3 messages per IP per 30 minutes (anti-spam).
+    client_ip = client_ip_from_request(request)
+    rate_limiter.check_and_record("auth_contact_admin", client_ip)
+
     # Check if there is already a pending appeal
     existing = store.legacy_connection.execute(
         "SELECT id FROM suspension_appeals WHERE email = ? AND status = 'Pending'",
@@ -410,18 +409,18 @@ def forgot_password(payload: ForgotPasswordPayload, request: Request, store: Sto
     # every branch so it cannot be used to enumerate registered emails. Rate
     # limits and the "one pending request per user" rule are enforced silently
     # by simply not creating a row.
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
+    client_ip = client_ip_from_request(request)
 
     # Per-IP limit: one request per hour. The budget is consumed before the
-    # email lookup so the limit cannot act as a timing/enumeration oracle.
-    _password_reset_attempts[client_ip] = [
-        ts for ts in _password_reset_attempts[client_ip]
-        if now - ts < PASSWORD_RESET_RATE_LIMIT_WINDOW
-    ]
-    if len(_password_reset_attempts[client_ip]) >= 1:
-        return _password_reset_generic_response()
-    _password_reset_attempts[client_ip].append(now)
+    # email lookup so the limit cannot act as a timing/enumeration oracle. We
+    # deliberately do NOT raise 429 here — returning the generic 200 keeps the
+    # endpoint indistinguishable across all branches.
+    try:
+        rate_limiter.check_and_record("auth_forgot_password", client_ip)
+    except HTTPException as exc:  # pragma: no cover - defensive
+        if exc.status_code == 429:
+            return _password_reset_generic_response()
+        raise
 
     # Look up the account. Unknown emails get the same generic response.
     user = store.legacy_connection.execute(

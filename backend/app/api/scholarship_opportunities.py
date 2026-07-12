@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user, get_user_store
 from app.auth.limits import check_and_increment_limit, feature_plan_phrase, UsageLimitExceeded
+from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.config import get_settings
 from app.services import ai_tokens
 from app.services.ai import AiService
@@ -76,6 +77,7 @@ async def check_scholarship_cycle(
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
 ):
+    rate_limiter.check_and_record("scholarship_catalog_check_cycle", user_identity(user))
     entry = get_catalog_entry(catalog_id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Unknown catalog entry.")
@@ -148,6 +150,7 @@ async def analyze_scholarship_opportunity(
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
 ) -> Dict[str, Any]:
+    rate_limiter.check_and_record("scholarship_analyze", user_identity(user))
     _require_scholarship_analyze(user, store)
     settings = get_settings()
     verify_model_permission(None, user, store.db, settings)

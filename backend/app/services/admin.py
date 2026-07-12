@@ -113,6 +113,7 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_manage_token_requests', 1, 'never'),
         ('admin_manage_password_resets', 1, 'never'),
         ('admin_send_notifications', 1, 'never'),
+        ('admin_view_info', 1, 'never'),
     ],
     'super_admin': [
         ('admin_view_dashboard', 1, 'never'),
@@ -129,6 +130,7 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_manage_token_requests', 1, 'never'),
         ('admin_manage_password_resets', 1, 'never'),
         ('admin_send_notifications', 1, 'never'),
+        ('admin_view_info', 1, 'never'),
     ],
     'free_user': [
         ('ai_messages_per_session', 0, 'per_session'),

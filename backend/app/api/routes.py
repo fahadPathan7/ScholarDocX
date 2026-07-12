@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.categories import normalize_media_category
 from app.core.config import Settings, get_settings
 from app.core.workspace import ensure_workspace, save_upload, workspace_status
@@ -349,6 +350,7 @@ def upload_file(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
+    rate_limiter.check_and_record("files_upload", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
     file_size = file.size or 0
     check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.db)
@@ -442,11 +444,12 @@ def get_ai_models(store: Store = Depends(get_user_store)) -> list[dict]:
 
 @router.post("/ai/chat")
 async def ai_chat(
-    payload: AiPayload, 
+    payload: AiPayload,
     settings: Settings = Depends(get_settings),
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
+    rate_limiter.check_and_record("ai_chat", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
     verify_model_permission(payload.model, current_user, store.db, settings)
     
@@ -472,11 +475,12 @@ async def ai_chat(
 
 @router.post("/ai/research")
 async def ai_research(
-    payload: AiPayload, 
+    payload: AiPayload,
     settings: Settings = Depends(get_settings),
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
+    rate_limiter.check_and_record("ai_research", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
     verify_model_permission(payload.model, current_user, store.db, settings)
     if payload.background_model:
@@ -518,6 +522,7 @@ async def ai_summarize(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
+    rate_limiter.check_and_record("ai_summarize", user_identity(current_user))
     verify_model_permission(payload.model, current_user, store.db, settings)
     return await AiService(settings, user=current_user, session=store.db).summarize_memory(payload.text, payload.model)
 
@@ -529,6 +534,7 @@ async def ai_action_plan(
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
 ) -> dict:
+    rate_limiter.check_and_record("ai_action_plan", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
     verify_model_permission(payload.model, current_user, store.db, settings)
     check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
@@ -551,6 +557,7 @@ async def ai_action_plan(
 
 @router.post("/ai/actions/execute")
 def ai_action_execute(payload: AiActionExecutePayload, store: Store = Depends(get_user_store), settings: Settings = Depends(get_settings), current_user: dict = Depends(get_current_user)) -> dict:
+    rate_limiter.check_and_record("ai_action_execute", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit
     check_and_increment_limit(current_user, "can_use_agents", 0, store.db)
     try:

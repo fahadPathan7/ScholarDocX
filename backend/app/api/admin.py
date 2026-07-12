@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 from app.auth.dependencies import get_current_user, require_admin, require_super_admin
 from app.auth.password import hash_password, validate_password_strength
 from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
+from app.auth.rate_limit import rate_limiter
 from app.services.admin import AdminService
 from app.api.dependencies import get_store
 from app.services.store import Store
@@ -106,6 +107,19 @@ def validate_roles_assignment(requested_roles: List[str], can_manage_admin_roles
 @router.get("/dashboard")
 def get_dashboard(admin_service: AdminService = Depends(get_admin_service)):
     return admin_service.get_dashboard_stats()
+
+@router.get("/info/rate-limits")
+def get_rate_limit_info(
+    current_user: dict = Depends(get_current_user),
+    admin_service: AdminService = Depends(get_admin_service),
+):
+    """Return the catalog of all active request rate limits (read-only).
+
+    Gated by the ``admin_view_info`` permission so an admin who does not have
+    it cannot read the policy. Used by the admin Info tab.
+    """
+    require_feature("admin_view_info", current_user, admin_service.db)
+    return rate_limiter.catalog()
 
 @router.get("/users")
 def list_users(admin_service: AdminService = Depends(get_admin_service)):

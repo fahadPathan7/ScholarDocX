@@ -18,6 +18,7 @@ const FEATURE_LABELS: Record<string, string> = {
   total_sticky_notes: "sticky notes",
   total_whiteboards: "whiteboards",
   admin_manage_token_requests: "manage credit purchase requests",
+  admin_view_info: "view the Info tab",
 };
 
 function toFeatureLabel(feature?: string) {

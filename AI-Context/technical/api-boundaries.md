@@ -172,3 +172,14 @@ development.
 - `/admin/password-reset-requests/{id}/resolve` lets an admin set a new password
   (bumps `token_version`, marks the request `Completed`) or dismiss it (marks
   `Dismissed` without changing the password)
+- `/admin/info/rate-limits` (GET) is read-only and returns the catalog of all
+  active request rate limits (`rule_key`, `label`, `method`, `path`,
+  `max_requests`, `window_seconds`, `window_label`, `scope`). Gated by the
+  `admin_view_info` permission (default ON for both `general_admin` and
+  `super_admin`). The data comes from the `RATE_LIMIT_RULES` registry in
+  `backend/app/auth/rate_limit.py` — see `security-privacy.md` § Rate Limiting
+  (SCHOLARDOCX-0137) for the enforcement patterns and the full list of
+  throttled endpoints (the four `/auth/*` limits plus contact-admin, AI
+  chat/research/summarize, scholarship deep-hunt and advisor-atlas run starts,
+  and news search/query-preview).
+

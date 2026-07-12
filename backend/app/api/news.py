@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user, get_user_store
+from app.auth.rate_limit import rate_limiter, user_identity
 from app.api.dependencies import get_store
 from app.services.store import Store
 from app.services.news_feedback import (
@@ -94,6 +95,7 @@ async def preview_news_query(
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
+    rate_limiter.check_and_record("news_query_preview", user_identity(user))
     if not news_service.api_key:
         raise HTTPException(
             status_code=500,
@@ -139,6 +141,7 @@ async def search_news_confirmed(
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
+    rate_limiter.check_and_record("news_search", user_identity(user))
     if not payload.query_approved:
         raise HTTPException(
             status_code=422,

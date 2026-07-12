@@ -55,6 +55,7 @@ import { ModelPricingTab } from "./admin/ModelPricingTab";
 import { TokenPacksTab } from "./admin/TokenPacksTab";
 import { TokenPurchaseRequestsTab } from "./admin/TokenPurchaseRequestsTab";
 import { PasswordResetRequestsTab } from "./admin/PasswordResetRequestsTab";
+import { InfoTab } from "./admin/InfoTab";
 import { buildNotification, notificationTemplates } from "../config/notificationCatalog";
 import { emitUiError } from "../lib/uiError";
 import { useDialog } from "./DialogProvider";
@@ -680,6 +681,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
     admin_manage_token_requests: true,
     admin_manage_password_resets: true,
     admin_manage_suspension_appeals: true,
+    admin_view_info: true,
   });
 
   const [activeRequestSubtab, setActiveRequestSubtab] = useState("plan_requests");
@@ -749,6 +751,10 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
 
   if (adminPermissions["admin_view_audit_logs"]) {
     tabs.push({ id: "audit", label: "Audit Logs", icon: FileClock });
+  }
+
+  if (adminPermissions["admin_view_info"]) {
+    tabs.push({ id: "info", label: "Info", icon: Info });
   }
 
   return (
@@ -867,6 +873,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
         {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab />}
         {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}
         {activeTab === "audit" && adminPermissions["admin_view_audit_logs"] && <AuditLogsTab />}
+        {activeTab === "info" && adminPermissions["admin_view_info"] && <InfoTab />}
         {activeTab === "settings" && adminPermissions["admin_manage_settings"] && <SettingsTab />}
       </div>
     </div>

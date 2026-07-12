@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user
 from app.auth.limits import check_and_increment_limit, feature_plan_phrase, UsageLimitExceeded
+from app.auth.rate_limit import rate_limiter, user_identity
 from app.services import ai_tokens
 from app.core.config import Settings, get_settings
 from app.services.advisor_atlas import AdvisorAtlasService
@@ -154,6 +155,8 @@ async def create_run(
     store: Store = Depends(get_store),
     settings: Settings = Depends(get_settings),
 ):
+    # Rate limit first: 5 runs per user per 10 minutes, before any plan/token work.
+    rate_limiter.check_and_record("advisor_atlas_run", user_identity(user))
     # Advisor Atlas is a plan-gated feature (Pro/Max). Check before any token
     # spend so ineligible plans get a clear upgrade message.
     _require_advisor_atlas_access(user, store.db)
@@ -290,6 +293,8 @@ async def refresh_candidate(
     service: AdvisorAtlasService = Depends(_service),
     store: Store = Depends(get_store),
 ):
+    # Rate limit first: 5 refreshes per user per 10 minutes, before any work.
+    rate_limiter.check_and_record("advisor_atlas_candidate_refresh", user_identity(user))
     try:
         service.repository.get_candidate(candidate_id, int(user["id"]))
         # Plan gate (Pro/Max) before any token spend on the refresh.

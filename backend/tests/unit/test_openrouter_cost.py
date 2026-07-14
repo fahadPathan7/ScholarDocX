@@ -1,9 +1,11 @@
 from app.services import ai_tokens
 from app.db.connection import connect
 
+from tests.helpers import get_balance, make_settings, make_user
+
+
 def test_openrouter_charge(tmp_path, monkeypatch):
-    # We can import test helpers directly since we are in tests/
-    from test_ai_tokens import make_settings, make_user, get_balance
+    # Shared helpers live in tests/helpers.py so they resolve from any subfolder.
     
     settings = make_settings(tmp_path)
     user = make_user(settings, ["pro_user"])

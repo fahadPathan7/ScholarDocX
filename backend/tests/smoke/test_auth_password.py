@@ -8,6 +8,7 @@ from app.auth.password import (
 )
 
 
+@pytest.mark.smoke
 def test_hash_and_verify_password():
     password = "MySecurePassword123!"
     hashed = hash_password(password)
@@ -24,6 +25,7 @@ def test_generate_random_password():
     assert validate_password_strength(password) is True
 
 
+@pytest.mark.smoke
 def test_validate_password_strength():
     assert validate_password_strength("StrongPass1!") is True
     assert validate_password_strength("weakpass") is False

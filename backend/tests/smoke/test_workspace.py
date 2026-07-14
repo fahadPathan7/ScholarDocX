@@ -1,7 +1,10 @@
+import pytest
+
 from app.core.config import Settings
 from app.core.workspace import ensure_workspace, safe_media_path
 
 
+@pytest.mark.smoke
 def test_ensure_workspace_creates_expected_folders(tmp_path):
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
@@ -15,6 +18,7 @@ def test_ensure_workspace_creates_expected_folders(tmp_path):
     assert status["media_categories"]
 
 
+@pytest.mark.smoke
 def test_safe_media_path_keeps_file_inside_workspace(tmp_path):
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
@@ -28,6 +32,7 @@ def test_safe_media_path_keeps_file_inside_workspace(tmp_path):
     assert destination.name.endswith("secret.pdf")
 
 
+@pytest.mark.smoke
 def test_safe_media_path_allows_sanitized_custom_category(tmp_path):
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"

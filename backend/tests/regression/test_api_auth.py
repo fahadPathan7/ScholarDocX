@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,17 +10,48 @@ from app.core.config import get_settings
 client = TestClient(app)
 settings = get_settings()
 
+
+def _delete_user_safely(conn, email):
+    """Delete a user and the child rows registration creates for it.
+
+    The register endpoint inserts rows into local_profiles, user_usage_stats,
+    document_categories and sets registered_with_invite_id. Several of those
+    FKs are ON DELETE NO ACTION, so a bare ``DELETE FROM users`` raises a
+    foreign-key error when those children exist — which happens on a fresh
+    workspace (e.g. CI) once any test has registered the user. Clearing the
+    dependents first lets the user be removed cleanly so registration tests can
+    re-create it from scratch each run.
+    """
+    row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if not row:
+        return
+    uid = row["id"]
+    conn.execute("UPDATE users SET registered_with_invite_id = NULL WHERE id = ?", (uid,))
+    for child in ("local_profiles", "user_usage_stats", "document_categories"):
+        conn.execute(f"DELETE FROM {child} WHERE user_id = ?", (uid,))
+    conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+
+
 @pytest.fixture(autouse=True)
 def setup_db():
     conn = connect(settings.database_path)
+    _delete_user_safely(conn, "test_user@example.com")
+    # Several tests register throwaway users through TEST_INVITE (e.g.
+    # valid_token_user@example.com). Those users keep registered_with_invite_id
+    # pointing at the invite row, and that FK is ON DELETE NO ACTION, so the
+    # INSERT OR REPLACE below (which deletes the old invite row) would fail.
+    # Detach every user still tied to TEST_INVITE before replacing it.
+    conn.execute(
+        "UPDATE users SET registered_with_invite_id = NULL "
+        "WHERE registered_with_invite_id IN (SELECT id FROM invite_codes WHERE code = 'TEST_INVITE')"
+    )
     # Seed admin user
     conn.execute("INSERT OR IGNORE INTO users (id, email, password_hash, display_name, roles, is_active) VALUES (1, 'admin@localhost', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Applicant', '[\"super_admin\", \"max_user\"]', 1)")
     conn.execute("INSERT OR REPLACE INTO invite_codes (code, max_uses, used_count, created_by) VALUES ('TEST_INVITE', 1, 0, 1)")
-    # Clear test users
-    conn.execute("DELETE FROM users WHERE email = 'test_user@example.com'")
     conn.commit()
     conn.close()
 
+@pytest.mark.regression
 def test_register_success():
     response = client.post(
         "/api/auth/register",
@@ -58,6 +91,7 @@ def test_register_weak_password():
     )
     assert response.status_code == 400
 
+@pytest.mark.regression
 def test_login_success():
     # Register first
     client.post(
@@ -118,6 +152,7 @@ def _register_and_login(email: str, invite_code: str) -> str:
     return response.json()["token"]
 
 
+@pytest.mark.regression
 def test_jwt_secret_is_not_the_committed_constant():
     """The signing secret must be a per-install random value, not the committed placeholder."""
     conn = connect(settings.database_path)
@@ -132,6 +167,7 @@ def test_jwt_secret_is_not_the_committed_constant():
     assert not str(row["value"]).startswith("scholar-docx-secure personal workspace")
 
 
+@pytest.mark.regression
 def test_forged_token_with_committed_constant_is_rejected():
     """A JWT signed with the publicly-known committed secret must NOT authenticate.
 
@@ -168,6 +204,7 @@ def test_valid_login_token_still_authenticates():
     assert response.json()["email"] == "valid_token_user@example.com"
 
 
+@pytest.mark.regression
 def test_news_bookmarks_are_scoped_per_user():
     """User B must never see user A's bookmarks (IDOR regression)."""
     conn = connect(settings.database_path)
@@ -181,10 +218,8 @@ def test_news_bookmarks_are_scoped_per_user():
             "VALUES ('INVITE_IDOR_B', 5, 0, 1)"
         )
         conn.execute("DELETE FROM bookmarked_news WHERE article_id = 'ART-IDOR-A'")
-        conn.execute(
-            "DELETE FROM users WHERE email IN "
-            "('idor.a@example.com', 'idor.b@example.com')"
-        )
+        _delete_user_safely(conn, "idor.a@example.com")
+        _delete_user_safely(conn, "idor.b@example.com")
         conn.commit()
     finally:
         conn.close()

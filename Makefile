@@ -99,13 +99,37 @@ run: ## Start backend + frontend concurrently (Ctrl-C stops both)
 # ──────────────────────────────────────────────────────────
 
 .PHONY: test
-test: test-backend ## Run all tests (backend)
+test: test-backend test-frontend ## Run all tests (backend + frontend)
 
 .PHONY: test-backend
 test-backend: ## Run backend pytest suite
 	@echo "🧪 Running backend tests..."
 	@cd $(BACKEND_DIR) && $(realpath $(PYTEST)) -v
 	@echo "✅ Backend tests complete."
+
+.PHONY: test-frontend
+test-frontend: ## Run frontend vitest suite
+	@echo "🧪 Running frontend tests..."
+	@cd $(FRONTEND_DIR) && npm test
+	@echo "✅ Frontend tests complete."
+
+.PHONY: smoke
+smoke: ## Fast core-path subset (workspace, persistence, path safety, auth basics)
+	@echo "🧪 Running smoke tests (backend @pytest.mark.smoke)..."
+	@cd $(BACKEND_DIR) && $(realpath $(PYTEST)) -m smoke -v
+	@echo "✅ Smoke tests complete."
+
+.PHONY: regression
+regression: ## Run all regression-guarded tests (@pytest.mark.regression)
+	@echo "🧪 Running regression tests (backend @pytest.mark.regression)..."
+	@cd $(BACKEND_DIR) && $(realpath $(PYTEST)) -m regression -v
+	@echo "✅ Regression tests complete."
+
+.PHONY: test-fast
+test-fast: ## Run backend tests except slow ones (-m "not slow")
+	@echo "🧪 Running backend tests (excluding slow)..."
+	@cd $(BACKEND_DIR) && $(realpath $(PYTEST)) -m "not slow" -v
+	@echo "✅ Fast tests complete."
 
 .PHONY: test-frontend-build
 test-frontend-build: ## Verify frontend TypeScript compilation and build
@@ -117,8 +141,16 @@ test-frontend-build: ## Verify frontend TypeScript compilation and build
 # Quality / Lint
 # ──────────────────────────────────────────────────────────
 
+# Full regression gate: both test suites + frontend build. This is the same
+# command the CI workflow (.github/workflows/ci.yml) runs, so a green `make
+# check` locally means CI will be green too.
 .PHONY: check
-check: test-backend test-frontend-build ## Run all tests + build check
+check: test-backend test-frontend test-frontend-build ## Regression gate: both suites + build (matches CI)
+
+# Alias for `check` — documents the exact command CI runs, in case you want to
+# reproduce a CI run locally without remembering the target name.
+.PHONY: ci
+ci: check ## Run the same regression gate as CI
 
 # ──────────────────────────────────────────────────────────
 # Clean

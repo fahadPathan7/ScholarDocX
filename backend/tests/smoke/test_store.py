@@ -1,4 +1,6 @@
 import json
+import pytest
+
 from app.db.connection import connect, initialize_database
 from app.services.store import Store, render_text
 
@@ -14,6 +16,7 @@ def make_store(tmp_path):
     return Store(session), session.connection().connection.dbapi_connection
 
 
+@pytest.mark.smoke
 def test_seeded_degree_workspaces(tmp_path):
     store, connection = make_store(tmp_path)
     try:
@@ -23,6 +26,7 @@ def test_seeded_degree_workspaces(tmp_path):
         store.db.close()
 
 
+@pytest.mark.smoke
 def test_create_application_and_dashboard_summary(tmp_path):
     store, connection = make_store(tmp_path)
     try:

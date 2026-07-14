@@ -10,49 +10,16 @@ from app.db.connection import connect, get_db, initialize_database
 from app.services import ai_tokens
 from app.services.ai import AiService
 
-
-def make_settings(tmp_path: Path) -> Settings:
-    settings = Settings()
-    settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
-    initialize_database(settings.database_path)
-    return settings
-
-
-def make_user(settings: Settings, roles: list, email: str = None) -> dict:
-    with connect(settings.database_path) as db:
-        cur = db.execute(
-            "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
-            "VALUES (?, 'x', 'Test', ?, 1, 0)",
-            (email or f"{roles[0]}-{roles[-1]}@test.local", json.dumps(roles)),
-        )
-        db.commit()
-        uid = cur.lastrowid
-    return {"id": uid, "roles": roles}
-
-
-def set_model_price(settings: Settings, model_id: str, input_price: float, output_price: float):
-    with connect(settings.database_path) as db:
-        db.execute(
-            "UPDATE ai_models SET input_price_per_1m = ?, output_price_per_1m = ? WHERE model_id = ?",
-            (input_price, output_price, model_id),
-        )
-        db.commit()
-
-
-def get_balance(settings: Settings, uid: int) -> dict:
-    with connect(settings.database_path) as db:
-        return dict(db.execute(
-            "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
-        ).fetchone())
-
-
-def ledger_rows(settings: Settings, uid: int) -> list:
-    with connect(settings.database_path) as db:
-        return [dict(r) for r in db.execute(
-            "SELECT * FROM ai_token_ledger WHERE user_id = ? ORDER BY id", (uid,)
-        ).fetchall()]
+# Shared helpers (make_settings, make_user, set_model_price, get_balance,
+# ledger_rows) live in tests/helpers.py so any test in any subfolder can use
+# them without a cross-file bare import.
+from tests.helpers import (
+    get_balance,
+    ledger_rows,
+    make_settings,
+    make_user,
+    set_model_price,
+)
 
 
 # ── Seeded defaults ──────────────────────────────────────────────────────────

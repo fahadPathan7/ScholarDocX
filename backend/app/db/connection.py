@@ -50,10 +50,14 @@ def get_engine(database_url: str) -> Engine:
     """Return the singleton SQLAlchemy engine for the Postgres URL.
 
     The engine is created once and reused for the life of the process. The pool
-    is sized to stay under Supabase's session-mode limit of 15: pool_size=5 with
-    max_overflow=3 gives 8 max connections, leaving headroom for the repositories'
-    legacy_session connections and ad-hoc queries. ``pool_pre_ping`` keeps
-    connections healthy across Supabase's idle timeouts.
+    is sized to stay under Supabase's limits: pool_size=5 with max_overflow=3
+    gives 8 max connections. ``pool_pre_ping`` keeps connections healthy across
+    Supabase's idle timeouts.
+
+    ``statement_cache_size=0`` disables psycopg3 prepared statements — required
+    because Supabase's transaction-mode pooler (port 6543) routes each query to
+    a different backend connection, so a prepared statement created on one
+    connection is absent on the next (InvalidSqlStatementName).
     """
     resolved = _resolve_database_url(database_url)
     if resolved not in _engine_cache:
@@ -63,6 +67,7 @@ def get_engine(database_url: str) -> Engine:
             pool_size=5,
             max_overflow=3,
             pool_timeout=30,
+            connect_args={"prepare_threshold": None},
         )
     return _engine_cache[resolved]
 

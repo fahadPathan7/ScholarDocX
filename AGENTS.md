@@ -45,10 +45,13 @@ Use this order when resolving conflicts:
 
 ## Non-Negotiable Product Constraints
 
-- Secure personal workspace: user data stays on the user's machine.
-- Privacy-first: no remote backend for user application data.
-- Zero infrastructure cost: use local SQLite and secure file storage.
-- AI integrations are optional external API calls controlled by local API keys.
+- Cloud-deployed (SCHOLARDOCX-0139): the app runs on Render (free tier),
+  database on Supabase Postgres, file storage on Supabase Storage. The original
+  local-first / SQLite / local-file constraints were superseded by this
+  deployment decision.
+- Zero infrastructure cost: Render free + Supabase free tier.
+- AI integrations are optional external API calls controlled by server-side keys.
+- External AI/search calls remain explicit user actions behind backend services.
 - The app must remain maintainable by AI coding assistants as it grows.
 
 ## File Size And Modularity Rule

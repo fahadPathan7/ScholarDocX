@@ -2,7 +2,11 @@
 
 ## Privacy Baseline
 
-ScholarDocX is privacy-first. Private academic data should remain local unless the user explicitly invokes an external AI/search action.
+ScholarDocX stores private academic data in Supabase (PostgreSQL + Storage) and
+serves it via the Render-hosted backend. The local-first origin (SCHOLARDOCX-0139)
+was superseded by a cloud deployment decision: structured data lives in Supabase
+Postgres and uploaded files live in Supabase Storage. External AI/search calls
+remain explicit user actions behind backend services.
 
 ## Sensitive Data Types
 

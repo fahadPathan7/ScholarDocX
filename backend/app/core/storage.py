@@ -1,10 +1,10 @@
 """Supabase Storage client for persistent file uploads.
 
 SCHOLARDOCX-0139: user-uploaded files (CVs, transcripts, certificates) must
-survive serverless/host restarts. Local-disk storage loses files on Render free
-(sleeps wipe the ephemeral disk) and Vercel (no filesystem at all). This module
-uploads/downloads/deletes files in a Supabase Storage bucket via the REST API,
-using httpx (already a dependency) — no extra SDK required.
+survive host restarts. Local-disk storage loses files on Render free (sleeps
+wipe the ephemeral disk). This module uploads/downloads/deletes files in a
+Supabase Storage bucket via the REST API, using httpx (already a dependency) —
+no extra SDK required.
 
 The object key is the same ``relative_path`` value the static_files table already
 stores (e.g. ``media/cv/abc123-resume.pdf``), so the schema needs no change.

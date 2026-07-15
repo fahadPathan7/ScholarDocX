@@ -4,8 +4,8 @@
 
 - Frontend: Next.js or React/Vite with Tailwind CSS.
 - Backend: Python FastAPI.
-- Database: SQLite.
-- Storage: secure file system.
+- Database: SQLite (original; migrated to PostgreSQL in SCHOLARDOCX-0139).
+- Storage: secure file system (original; migrated to Supabase Storage in SCHOLARDOCX-0139).
 - AI providers: GLM AI API and Tavily API.
 
 ## Current Stack Decision Status
@@ -25,6 +25,12 @@ Database:
 - PostgreSQL via SQLAlchemy 2.0 + psycopg3 driver (`psycopg[binary]`).
 - Hosted Supabase for development/production; a Postgres service container in CI for tests.
 - SQLite support was fully removed in SCHOLARDOCX-0139 (single-dialect codebase).
+
+File storage:
+
+- Supabase Storage (`media` bucket). User uploads (CVs, transcripts, documents)
+  persist across host restarts via the Storage REST API. See
+  `backend/app/core/storage.py`.
 
 Backend dependency manager:
 
@@ -46,20 +52,63 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
   translates SQLite-style `?` params → named params and emulates
   `cursor.lastrowid` via `RETURNING id`. This keeps ~80 call sites unchanged.
 
+## Deployment Architecture (SCHOLARDOCX-0139)
+
+The app is cloud-deployed on Render (free tier). Both services run on Render;
+the database and file storage are on Supabase.
+
+```text
+Frontend  →  Render Static Site    https://scholardocx.onrender.com
+             (Vite build, serves dist/)
+Backend   →  Render Web Service    https://scholardocx-api.onrender.com
+             (FastAPI + uvicorn, long-running process)
+Database  →  Supabase Postgres     (Session pooler, IPv4)
+Storage   →  Supabase Storage      (media bucket)
+```
+
+- `render.yaml` at the repo root defines both services.
+- The backend is a long-running process (not serverless) so Deep Hunt and
+  Advisor Atlas async crawls are not killed by a function timeout.
+- Render free tier sleeps after ~15 min idle; wakes on first request (~30s).
+- Backend health check: `GET /docs`.
+
+## File Storage Connection (SCHOLARDOCX-0139)
+
+```text
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_...
+SUPABASE_BUCKET=media
+```
+
+- `app/core/storage.py` uploads/downloads/deletes via the Supabase Storage REST
+  API using `httpx` (no SDK dependency).
+- The new-format `sb_secret_` key requires the `apikey` header in addition to
+  `Authorization` for the Storage API (legacy JWTs worked with Authorization
+  alone).
+- Object keys are bucket-relative (the leading `media/` in
+  `static_files.relative_path` is stripped before the Storage call).
+
 Frontend package manager:
 
 - `npm`.
 
 ## Runtime Expectations
 
-The app is expected to run locally. A likely development setup is:
+The app runs both locally (development) and on Render (production).
+
+Local development:
 
 - Frontend dev server on `http://localhost:5173`.
 - FastAPI backend on `http://localhost:8000`.
-- SQLite database stored under the workspace directory.
-- Media files stored under the workspace directory.
+- Database: Supabase Postgres via `DATABASE_URL` in `.env`.
+- Media: Supabase Storage (same bucket for dev and prod).
+- The workspace now only holds ephemeral/runtime files (logs, temp). Structured
+  data is in Postgres; uploaded files are in Supabase Storage.
 
 ## Local Workspace Path
+
+The workspace now only holds ephemeral/runtime files. Structured data is in
+Postgres; uploaded files are in Supabase Storage.
 
 Default workspace:
 
@@ -72,6 +121,8 @@ Override with:
 ```text
 SCHOLARDOCX_WORKSPACE=/absolute/path/to/workspace
 ```
+
+On Render, set `SCHOLARDOCX_WORKSPACE=/tmp/scholardocx-workspace`.
 
 ## Development Run Commands
 

@@ -44,7 +44,12 @@ workspace/media/
 - Reminders
 - AI conversations and saved research notes
 
-## File System Should Store
+## Supabase Storage Should Store (SCHOLARDOCX-0139)
+
+User-uploaded files persist in the Supabase `media` bucket (object key =
+`<category>/<uuid>-<filename>`). The `static_files.relative_path` column stores
+`media/<category>/<uuid>-<filename>` for compatibility; the leading `media/` is
+stripped before the Storage REST call. See `app/core/storage.py`.
 
 - CV PDFs
 - Transcripts
@@ -55,10 +60,9 @@ workspace/media/
 
 ## Path Rules
 
-- Store relative paths from the workspace root where possible.
-- Resolve paths through a backend storage service.
-- Do not trust user-provided paths directly.
-- Prevent `..` traversal.
+- File object keys are bucket-relative and sanitized via `normalize_media_category`.
+- Upload/download/delete route through `app.core.storage` (Supabase REST + httpx).
+- Do not trust user-provided filenames directly — `uuid4().hex` prefix prevents collisions and path injection.
 - Normalize user-managed media category names into safe directory slugs.
 - Validate file types where a workflow requires it.
 
@@ -74,4 +78,6 @@ SCHOLARDOCX_WORKSPACE=/absolute/path/to/workspace
 
 ## Backup Consideration
 
-Because all data is local, future work should consider export and backup tools. This is not part of the initial source requirements but is a likely user need.
+Data lives in Supabase (Postgres + Storage). Supabase performs automated backups
+on paid plans; the free tier does not. Future work should consider scheduled
+`pg_dump` exports or enabling Supabase PITR. This is a likely user need.

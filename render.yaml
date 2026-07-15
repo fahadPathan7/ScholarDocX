@@ -5,8 +5,8 @@
 #
 # Services:
 #   1. Backend (FastAPI):  Web Service running uvicorn. Long-running process,
-#      so Deep Hunt / Advisor Atlas async crawls are NOT killed (unlike Vercel's
-#      10s serverless timeout). Free Starter sleeps after 15 min idle.
+#      so Deep Hunt / Advisor Atlas async crawls are NOT killed by a function
+#      timeout. Free Starter sleeps after 15 min idle.
 #   2. Frontend (Vite/React): Static Site. Render builds it and serves dist/.
 #      The build injects VITE_API_BASE_URL pointing at the backend.
 #

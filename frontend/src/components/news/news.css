@@ -169,7 +169,7 @@
 }
 
 .filter-content {
-  padding: 8px 12px 20px;
+  padding: 8px 12px 32px;
   flex: 1;
   min-height: 0;
   display: flex;

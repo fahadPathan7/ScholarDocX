@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException
@@ -25,9 +26,8 @@ def should_reset(last_reset_at: str, reset_period: str) -> bool:
         return False
         
     last_reset_str = last_reset_at.replace("Z", "+00:00").split("+")[0]
-    try:
-        last_reset_utc_naive = datetime.fromisoformat(last_reset_str)
-    except ValueError:
+    last_reset_utc_naive = safe_parse_datetime(last_reset_str)
+    if not last_reset_utc_naive:
         return False
         
     last_reset_utc = last_reset_utc_naive.replace(tzinfo=timezone.utc)
@@ -116,12 +116,13 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
 
     if plan_started_at:
         try:
-            start_dt = datetime.fromisoformat(plan_started_at.replace("Z", "+00:00").split("+")[0])
-            if start_dt.date() > now.date():
-                raise UsageLimitExceeded(
-                    "Your plan has not started yet. Access will be available from "
-                    + start_dt.strftime("%d %b %Y") + "."
-                )
+            start_dt = safe_parse_datetime(plan_started_at)
+            if start_dt is not None:
+                if start_dt.date() > now.date():
+                    raise UsageLimitExceeded(
+                        "Your plan has not started yet. Access will be available from "
+                        + start_dt.strftime("%d %b %Y") + "."
+                    )
         except (ValueError, AttributeError):
             pass
     # ────────────────────────────────────────────────────────────────────────

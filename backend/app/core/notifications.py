@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 from typing import Any
 
@@ -46,7 +47,7 @@ def normalize_notification_settings(raw: Any) -> dict[str, bool]:
     normalized = {**DEFAULT_NOTIFICATION_SETTINGS}
     if isinstance(raw, str):
         try:
-            raw = json.loads(raw)
+            raw = safe_json_loads(raw, default={})
         except json.JSONDecodeError:
             raw = None
     if isinstance(raw, dict):

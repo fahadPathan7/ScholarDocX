@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import re
 import json
 from collections import defaultdict
@@ -97,7 +98,8 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid invite code.")
         
-    if invite["expires_at"] and datetime.fromisoformat(invite["expires_at"]) < datetime.utcnow():
+    expires_dt = safe_parse_datetime(invite["expires_at"])
+    if expires_dt and expires_dt < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invite code has expired.")
         
     if invite["max_uses"] != 0 and invite["used_count"] >= invite["max_uses"]:
@@ -181,7 +183,7 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     if not user["is_active"]:
         raise HTTPException(status_code=403, detail="user_suspended")
 
-    roles = json.loads(user["roles"])
+    roles = safe_json_loads(user["roles"], default=[])
     
     # Update last login
     store.legacy_connection.execute(

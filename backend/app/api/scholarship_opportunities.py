@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 from typing import Any, Dict, List, Optional
 
@@ -264,7 +265,7 @@ def _with_parsed_fields(record: Dict[str, Any]) -> Dict[str, Any]:
     for key, default in _JSON_FIELD_DEFAULTS.items():
         raw = result.get(key)
         try:
-            result[key[: -len("_json")]] = json.loads(raw) if raw else default
+            result[key[: -len("_json")]] = safe_json_loads(raw, default=default)
         except (TypeError, ValueError):
             result[key[: -len("_json")]] = default
     return result

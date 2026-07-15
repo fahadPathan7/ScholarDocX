@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import date, datetime, timedelta
 import json
 from pathlib import Path
@@ -802,13 +803,13 @@ class Store:
 
     def _decode_page(self, row: Any) -> dict:
         data = dict(row)
-        columns = json.loads(data.get("columns_json") or "[]")
+        columns = safe_json_loads(data.get("columns_json"), default=[])
         # Auto-migrate old string[] columns to {name, type}[] format
         if columns and isinstance(columns[0], str):
             columns = [{"name": col, "type": "text"} for col in columns]
         data["columns"] = columns
-        data["rows"] = json.loads(data.get("rows_json") or "[]")
-        data["email_config"] = json.loads(data.get("email_config_json") or "null")
+        data["rows"] = safe_json_loads(data.get("rows_json"), default=[])
+        data["email_config"] = safe_json_loads(data.get("email_config_json"), default=None)
         return data
 
     def _calendar_items(self, pages: list[dict]) -> list[dict]:
@@ -878,10 +879,11 @@ def _parse_date(value: Any) -> date | None:
     if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+        dt = safe_parse_datetime(value)
+        return dt.date() if dt else None
     except ValueError:
         try:
-            return date.fromisoformat(value)
+            return safe_parse_date(value)
         except ValueError:
             return None
 

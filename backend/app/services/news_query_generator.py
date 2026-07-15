@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 import re
 from datetime import date
@@ -170,7 +171,7 @@ class ScholarshipQueryGenerator:
         content = content.strip()
         if content.startswith("```"):
             content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I)
-        parsed = json.loads(content)
+        parsed = safe_json_loads(content, default={})
         query = re.sub(r"\s+", " ", str(parsed["query"])).strip()
         return query
 

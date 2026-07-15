@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any
 from datetime import datetime
 
@@ -683,7 +684,7 @@ class AiService:
             return fallback
 
         try:
-            decision = json.loads(raw_answer[start_idx:end_idx + 1])
+            decision = safe_json_loads(raw_answer[start_idx:end_idx + 1], default={})
         except (TypeError, ValueError):
             return fallback
 

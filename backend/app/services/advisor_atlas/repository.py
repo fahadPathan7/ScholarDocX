@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 from typing import Any
 
@@ -38,7 +39,7 @@ def _decode_row(row) -> dict[str, Any]:
     for field in JSON_FIELDS:
         if field in item and isinstance(item[field], str):
             try:
-                item[field.removesuffix("_json")] = json.loads(item[field])
+                item[field.removesuffix("_json")] = safe_json_loads(item[field], default=[])
             except (TypeError, ValueError):
                 item[field.removesuffix("_json")] = {} if item[field].startswith("{") else []
             del item[field]

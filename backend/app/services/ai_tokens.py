@@ -12,6 +12,7 @@ Two-bucket balance, consumed subscription-first then purchased:
 Charging is wired through `AiService.chat()` (instance billing). Pack catalog
 + purchase request/approve flow is exposed via the `/ai-tokens` router.
 """
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 import math
 from datetime import datetime
@@ -71,7 +72,7 @@ def load_user_dict(user_id: int, session: Session) -> dict:
     if not row:
         return {"id": user_id, "roles": []}
     try:
-        roles = json.loads(row["roles"]) if row["roles"] else []
+        roles = safe_json_loads(row["roles"], default=[])
     except (TypeError, ValueError):
         roles = []
     return {"id": user_id, "roles": roles, "plan_started_at": row.get("plan_started_at")}
@@ -182,13 +183,14 @@ def _current_period(user: dict) -> str:
     plan_started_at_str = user.get("plan_started_at")
     if plan_started_at_str:
         try:
-            start_dt = datetime.fromisoformat(plan_started_at_str.replace("Z", "+00:00").split("+")[0])
-            now_dt = datetime.utcnow()
-            if now_dt >= start_dt:
-                delta = now_dt - start_dt
-                cycle_index = delta.days // 30
-                start_date_str = start_dt.strftime("%Y-%m-%d")
-                return f"{start_date_str}-cycle-{cycle_index}"
+            start_dt = safe_parse_datetime(plan_started_at_str)
+            if start_dt is not None:
+                now_dt = datetime.utcnow()
+                if now_dt >= start_dt:
+                    delta = now_dt - start_dt
+                    cycle_index = delta.days // 30
+                    start_date_str = start_dt.strftime("%Y-%m-%d")
+                    return f"{start_date_str}-cycle-{cycle_index}"
         except (ValueError, AttributeError):
             pass
             
@@ -225,7 +227,7 @@ def refresh_balance(user: dict, session: Session) -> dict:
             text("SELECT * FROM ai_token_balances WHERE user_id = :uid"),
             {"uid": uid},
         ).mappings().fetchone()
-        return dict(row)
+        return dict(row) if row else {}
 
     if row["subscription_period"] != current_period:
         allowance = get_role_monthly_allowance(user, session)
@@ -234,7 +236,6 @@ def refresh_balance(user: dict, session: Session) -> dict:
             text(
                 "UPDATE ai_token_balances SET subscription_remaining = :sub, "
                 "subscription_period = :period, "
-                "subscription_used_this_period = 0, "
                 "last_reset_at = CURRENT_TIMESTAMP "
                 "WHERE user_id = :uid"
             ),
@@ -246,7 +247,7 @@ def refresh_balance(user: dict, session: Session) -> dict:
             {"uid": uid},
         ).mappings().fetchone()
 
-    return dict(row)
+    return dict(row) if row else {}
 
 
 def ensure_can_spend(user: dict, session: Session, min_tokens: int = 1) -> bool:
@@ -429,7 +430,6 @@ def charge(
         text(
             "UPDATE ai_token_balances SET "
             "subscription_remaining = GREATEST(0, subscription_remaining - :sub), "
-            "subscription_used_this_period = subscription_used_this_period + :sub, "
             "purchased_remaining = GREATEST(0, purchased_remaining - :purch), "
             "total_spent_tokens = total_spent_tokens + :t, "
             "total_spent_usd = total_spent_usd + :c "
@@ -542,7 +542,6 @@ def charge_flat_fee(
         text(
             "UPDATE ai_token_balances SET "
             "subscription_remaining = GREATEST(0, subscription_remaining - :sub), "
-            "subscription_used_this_period = subscription_used_this_period + :sub, "
             "purchased_remaining = GREATEST(0, purchased_remaining - :purch), "
             "total_spent_tokens = total_spent_tokens + :t, "
             "total_spent_usd = total_spent_usd + :c "
@@ -767,12 +766,15 @@ def submit_purchase_request(
         ),
         {"uid": user_id, "pack_id": pack["id"]},
     )
-    new_id = cur.first()[0]
+    first_row = cur.first()
+    if not first_row:
+        raise RuntimeError("Failed to insert purchase request")
+    new_id = first_row[0]
     session.commit()
     row = session.execute(
         text(_request_select() + " WHERE r.id = :id"), {"id": new_id}
     ).mappings().fetchone()
-    return dict(row)
+    return dict(row) if row else {}
 
 
 def list_my_purchase_requests(user_id: int, session: Session) -> list[dict]:
@@ -866,7 +868,7 @@ def resolve_purchase_request(
         text(_request_select(alias_user=True) + " WHERE r.id = :id"),
         {"id": request_id},
     ).mappings().fetchone()
-    return dict(updated)
+    return dict(updated) if updated else {}
 
 
 # ── Model pricing catalog (super_admin) ──────────────────────────────────────

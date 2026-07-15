@@ -1,3 +1,4 @@
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 from typing import Any, Optional, List, Dict
 import random
@@ -169,7 +170,7 @@ class AdminService:
         if not value:
             return None
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00").split("+")[0])
+            return safe_parse_datetime(value)
         except (ValueError, AttributeError):
             return None
 
@@ -294,7 +295,7 @@ class AdminService:
         results = []
         for u in users:
             d = dict(u)
-            d["roles"] = json.loads(d["roles"]) if d["roles"] else []
+            d["roles"] = safe_json_loads(d["roles"], default=[])
             results.append(d)
             
         return results
@@ -392,7 +393,7 @@ class AdminService:
             raise LookupError("User not found")
             
         d = dict(user)
-        d["roles"] = json.loads(d["roles"]) if d["roles"] else []
+        d["roles"] = safe_json_loads(d["roles"], default=[])
         
         usage = self.connection.execute(
             "SELECT feature, current_count, last_reset_at FROM user_usage_stats WHERE user_id = ?", (user_id,)
@@ -731,7 +732,7 @@ class AdminService:
         results = []
         for row in logs:
             d = dict(row)
-            d["details"] = json.loads(d["details"]) if d["details"] else None
+            d["details"] = safe_json_loads(d["details"], default=None)
             results.append(d)
         return results
 

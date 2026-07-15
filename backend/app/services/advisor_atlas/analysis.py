@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import datetime
 import json
 import re
@@ -54,7 +55,7 @@ def extract_json_object(text: str) -> dict[str, Any] | None:
     if start < 0 or end <= start:
         return None
     try:
-        value = json.loads(text[start : end + 1])
+        value = safe_json_loads(text[start : end + 1], default={})
     except (TypeError, ValueError):
         return None
     return value if isinstance(value, dict) else None

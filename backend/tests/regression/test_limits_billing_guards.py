@@ -32,12 +32,14 @@ def make_settings(tmp_path: Path) -> Settings:
     return settings
 
 
-def make_user(settings: Settings, roles: list, email: str = None) -> dict:
+import uuid
+
+def make_user(settings: Settings, roles: list, email: str | None = None) -> dict:
     with connect(settings.database_target) as db:
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
-            (email or f"{'-'.join(roles)}@test.local", json.dumps(roles)),
+            (email or f"{'-'.join(roles)}-{uuid.uuid4().hex[:8]}@test.local", json.dumps(roles)),
         )
         db.commit()
         uid = cur.lastrowid

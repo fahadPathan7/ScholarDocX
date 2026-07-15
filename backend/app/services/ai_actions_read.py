@@ -7,6 +7,7 @@ actions that need more than basic listing.
 
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import date, datetime, timedelta
 from typing import Any
 import json
@@ -121,11 +122,12 @@ def parse_date_value(value: Any) -> date | None:
     cleaned = value.strip()
     # Try ISO format
     try:
-        return datetime.fromisoformat(cleaned.replace("Z", "+00:00")).date()
+        parsed_dt = safe_parse_datetime(cleaned)
+        return parsed_dt.date() if parsed_dt else None
     except (ValueError, TypeError):
         pass
     try:
-        return date.fromisoformat(cleaned)
+        return safe_parse_date(cleaned)
     except (ValueError, TypeError):
         pass
     # Try common formats

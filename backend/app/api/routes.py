@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -269,10 +270,10 @@ def _crud_routes(table: str):
             from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
             old_record = store.legacy_connection.execute("SELECT rows_json FROM project_pages WHERE id = ?", (record_id,)).fetchone()
             if old_record:
-                old_rows = json.loads(old_record["rows_json"] or "[]")
+                old_rows = safe_json_loads(old_record["rows_json"], default=[])
                 new_rows = payload.data["rows_json"]
                 if isinstance(new_rows, str):
-                    new_rows = json.loads(new_rows)
+                    new_rows = safe_json_loads(new_rows, default=[])
                 
                 rows_diff = len(new_rows) - len(old_rows)
                 
@@ -463,7 +464,7 @@ async def ai_chat(
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
-            context_list = json.loads(payload.context) if payload.context else []
+            context_list = safe_json_loads(payload.context, default=[])
             msg_count = len(context_list) // 2
         except Exception:
             msg_count = 0
@@ -495,7 +496,7 @@ async def ai_research(
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
-            context_list = json.loads(payload.context) if payload.context else []
+            context_list = safe_json_loads(payload.context, default=[])
             msg_count = len(context_list) // 2
         except Exception:
             msg_count = 0
@@ -548,7 +549,7 @@ async def ai_action_plan(
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
         try:
-            context_list = json.loads(payload.context) if payload.context else []
+            context_list = safe_json_loads(payload.context, default=[])
             msg_count = len(context_list) // 2
         except Exception:
             msg_count = 0

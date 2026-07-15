@@ -87,14 +87,18 @@ def get_current_user(
     if plan_ends_at:
         try:
             from datetime import datetime, timezone
-            end_dt = datetime.fromisoformat(plan_ends_at.replace("Z", "+00:00").split("+")[0])
+            if isinstance(plan_ends_at, datetime):
+                end_dt = plan_ends_at
+            else:
+                end_dt = datetime.fromisoformat(str(plan_ends_at).replace("Z", "+00:00").split("+")[0])
+                
             if end_dt.date() < datetime.utcnow().date():
                 user_roles = user_dict["roles"]
                 user_roles = [r for r in user_roles if r not in ["max_user", "pro_user", "general_user"]]
                 if "free_user" not in user_roles:
                     user_roles.append("free_user")
                 user_dict["roles"] = user_roles
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, TypeError):
             pass
             
     return user_dict

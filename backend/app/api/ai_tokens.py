@@ -63,7 +63,7 @@ def get_balance(
     unlimited = ai_tokens.is_unlimited(current_user)
     return {
         "subscription_remaining": -1 if unlimited else int(balance["subscription_remaining"]),
-        "subscription_used": int(balance.get("subscription_used_this_period", 0)),
+        "subscription_used": 0 if unlimited else max(0, allowance - int(balance["subscription_remaining"])),
         "purchased_remaining": int(balance["purchased_remaining"]),
         "purchased_total": int(balance.get("purchased_total", 0)),
         "subscription_period": balance["subscription_period"],

@@ -9,6 +9,7 @@ role-limit enforcement hooks used by executors.
 """
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import date
 from typing import Any
 import json
@@ -661,7 +662,7 @@ class AiActionService:
         if start_idx == -1 or end_idx == -1 or end_idx < start_idx:
             return None
         try:
-            parsed = json.loads(raw_answer[start_idx:end_idx + 1])
+            parsed = safe_json_loads(raw_answer[start_idx:end_idx + 1], default={})
             return parsed if isinstance(parsed, dict) else None
         except ValueError:
             return None

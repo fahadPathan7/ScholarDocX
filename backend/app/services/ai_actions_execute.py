@@ -7,6 +7,7 @@ the same plan limits as the manual REST routes before mutating anything.
 """
 from __future__ import annotations
 
+from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any
 import json
 
@@ -122,8 +123,8 @@ def execute_create_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> d
 def execute_add_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
     column_names = [
         col.get("name") if isinstance(col, dict) else col
         for col in columns
@@ -188,8 +189,8 @@ def execute_update_row(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
     if row_index is None:
         raise ValueError("Row index is required for update_row action")
 
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
 
     if row_index < 0 or row_index >= len(rows):
         raise ValueError(f"Row index {row_index} is out of range")
@@ -225,8 +226,8 @@ def execute_delete_row(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
     if row_index is None:
         raise ValueError("Row index is required for delete_row action")
 
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
 
     if row_index < 0 or row_index >= len(rows):
         raise ValueError(f"Row index {row_index} is out of range")
@@ -244,8 +245,8 @@ def execute_add_column(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
 
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
 
     new_column = action.get("column", {})
     columns.append(new_column)
@@ -267,8 +268,8 @@ def execute_add_group(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
 
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
 
     group_column = {
         "name": action.get("group_name", "New Group"),
@@ -338,7 +339,7 @@ def execute_get_sheets(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
 def execute_get_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
     return {"type": "get_rows", "project": project, "page": page, "rows": rows, "count": len(rows)}
 
 
@@ -361,7 +362,7 @@ def execute_count_items(svc, action: dict[str, Any], refs: dict[str, Any]) -> di
     elif item_type == "rows":
         project = resolve_project(svc.store, action, refs)
         page = resolve_page(svc.store, project["id"], action, refs)
-        rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+        rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
         return {"type": "count_items", "item_type": "rows", "project": project, "page": page, "count": len(rows)}
     else:
         raise ValueError(f"Unsupported item_type for count_items: {item_type}")
@@ -387,8 +388,8 @@ def execute_rename_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> d
 def execute_bulk_update_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     filter_column = action["filter_column"]
     filter_value = action.get("filter_value")
     updates = action["updates"]
@@ -407,7 +408,7 @@ def execute_bulk_update_rows(svc, action: dict[str, Any], refs: dict[str, Any]) 
 def execute_clear_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    old_rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    old_rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
     svc.store.update_record("project_pages", page["id"], {"rows_json": []})
     return {"type": "clear_sheet", "project": project, "cleared_count": len(old_rows)}
 
@@ -416,8 +417,8 @@ def execute_duplicate_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
     _enforce_sheet_limits(svc, project["id"])
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
     new_name = action.get("new_name") or f"Copy of {page.get('name', 'Sheet')}"
     new_sheet = svc.store.create_record("project_sheets", {"project_id": project["id"], "name": new_name})
     new_page = svc.store.create_record("project_pages", {
@@ -493,8 +494,8 @@ def execute_delete_sticky_note(svc, action: dict[str, Any], refs: dict[str, Any]
 def execute_search_rows_action(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     result = execute_search_rows(rows, columns, action["query"])
     return {"type": "search_rows", "project": project, **result}
 
@@ -502,8 +503,8 @@ def execute_search_rows_action(svc, action: dict[str, Any], refs: dict[str, Any]
 def execute_filter_rows_action(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     result = execute_filter_rows(
         rows, columns,
         column_name=None,
@@ -517,8 +518,8 @@ def execute_filter_rows_action(svc, action: dict[str, Any], refs: dict[str, Any]
 def execute_analyze_sheet_action(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     result = execute_analyze_sheet(
         rows, columns,
         focus_column=action.get("focus_column"),
@@ -547,8 +548,8 @@ def execute_get_overdue_rows_action(svc, action: dict[str, Any], refs: dict[str,
 def execute_get_column_values_action(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     page = resolve_page(svc.store, project["id"], action, refs)
-    rows = page.get("rows") or json.loads(page.get("rows_json") or "[]")
-    columns = page.get("columns") or json.loads(page.get("columns_json") or "[]")
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     result = execute_get_column_values(
         rows, columns,
         column_query=action.get("column_query"),

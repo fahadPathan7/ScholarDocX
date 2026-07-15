@@ -202,8 +202,8 @@ class AdminService:
 
     def get_dashboard_stats(self) -> dict:
         total_users = self.connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '30 days'").fetchone()[0]
-        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '7 days'").fetchone()[0]
+        active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days'").fetchone()[0]
+        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days'").fetchone()[0]
         total_projects = self.connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         total_sheets = self.connection.execute("SELECT COUNT(*) FROM project_sheets").fetchone()[0]
         total_documents = self.connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
@@ -234,17 +234,17 @@ class AdminService:
         pending_password_resets = self.connection.execute("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'").fetchone()[0]
 
         total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
-        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '30 days'").fetchone()[0]
-        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '7 days'").fetchone()[0]
+        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days'").fetchone()[0]
+        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days'").fetchone()[0]
         tavily_total = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')").fetchone()[0]
         tavily_web_search = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'").fetchone()[0]
         tavily_scholarship_hunt = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'").fetchone()[0]
         tavily_advisor_atlas = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'").fetchone()[0]
 
         ai_usage_10d_rows = self.connection.execute(
-            "SELECT created_at::date as day, SUM(-tokens_delta) as tokens "
+            "SELECT created_at::timestamp::date as day, SUM(-tokens_delta) as tokens "
             "FROM ai_token_ledger "
-            "WHERE tokens_delta < 0 AND created_at >= now() - interval '10 days' "
+            "WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '10 days' "
             "GROUP BY day ORDER BY day ASC"
         ).fetchall()
         

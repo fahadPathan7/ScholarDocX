@@ -39,20 +39,46 @@ def _resolve_database_url(database_url: str) -> str:
     )
 
 
-def get_engine(database_url: str) -> Engine:
-    """Create the SQLAlchemy engine for the Postgres URL.
+# SCHOLARDOCX-0139: engine cache. Engines are expensive — each one opens its own
+# connection pool. Creating one per request exhausts Supabase's pool_size: 15
+# session-mode limit instantly (EMAXCONNSESSION). This cache ensures exactly one
+# engine per database URL for the whole process.
+_engine_cache: dict[str, Engine] = {}
 
-    ``pool_pre_ping`` keeps connections healthy across Supabase's idle
-    timeouts; the default QueuePool is correct for a server process.
+
+def get_engine(database_url: str) -> Engine:
+    """Return the singleton SQLAlchemy engine for the Postgres URL.
+
+    The engine is created once and reused for the life of the process. The pool
+    is sized to stay under Supabase's session-mode limit of 15: pool_size=5 with
+    max_overflow=3 gives 8 max connections, leaving headroom for the repositories'
+    legacy_session connections and ad-hoc queries. ``pool_pre_ping`` keeps
+    connections healthy across Supabase's idle timeouts.
     """
-    return create_engine(_resolve_database_url(database_url), pool_pre_ping=True)
+    resolved = _resolve_database_url(database_url)
+    if resolved not in _engine_cache:
+        _engine_cache[resolved] = create_engine(
+            resolved,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=3,
+            pool_timeout=30,
+        )
+    return _engine_cache[resolved]
+
+
+# Cache session factories alongside engines — one sessionmaker per engine.
+_SessionLocal_cache: dict[str, sessionmaker] = {}
 
 
 def get_db(database_url: str):
     """FastAPI dependency yielding a SQLAlchemy Session."""
-    engine = get_engine(database_url)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+    resolved = _resolve_database_url(database_url)
+    if resolved not in _SessionLocal_cache:
+        _SessionLocal_cache[resolved] = sessionmaker(
+            autocommit=False, autoflush=False, bind=get_engine(database_url)
+        )
+    db = _SessionLocal_cache[resolved]()
     try:
         yield db
     finally:

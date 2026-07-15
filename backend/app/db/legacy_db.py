@@ -201,8 +201,13 @@ class legacy_session:
         self._conn = None
 
     def _ensure(self) -> "LegacyConnection":
-        """Lazily create the session + connection if not yet entered."""
+        """Lazily create the session + connection if not yet entered.
+
+        Reuses the cached session factory from connection.py so we don't create
+        a new sessionmaker per call (which would fragment the connection pool).
+        """
         if self._conn is None:
+            from app.db.connection import get_db  # noqa: F401 (avoid circular at import)
             from sqlalchemy.orm import sessionmaker
             SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
             self._session = SessionLocal()

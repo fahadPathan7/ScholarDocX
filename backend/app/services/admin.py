@@ -210,7 +210,8 @@ class AdminService:
         total_sticky_notes = self.connection.execute("SELECT COUNT(*) FROM sticky_notes").fetchone()[0]
         total_whiteboards = self.connection.execute("SELECT COUNT(*) FROM whiteboards").fetchone()[0]
         # rows_json is TEXT holding a JSON array; cast to jsonb for array length.
-        total_records = self.connection.execute("SELECT COALESCE(SUM(jsonb_array_length(rows_json::jsonb)), 0) FROM project_pages").fetchone()[0]
+        # NULLIF guards against empty-string values (invalid json syntax).
+        total_records = self.connection.execute("SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages").fetchone()[0]
         storage_row = self.connection.execute("SELECT SUM(size_bytes) FROM static_files").fetchone()
         storage_bytes = storage_row[0] if storage_row and storage_row[0] else 0
 
@@ -666,8 +667,8 @@ class AdminService:
                 UPDATE ai_token_balances 
                 SET subscription_period = 'FORCE_RESET'
                 WHERE user_id IN (
-                    SELECT id FROM users 
-                    WHERE roles LIKE ?
+                    SELECT id FROM users
+                    WHERE roles ILIKE ?
                 )
                 """,
                 (f'%"{role}"%',)

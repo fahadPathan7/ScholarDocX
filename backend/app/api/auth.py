@@ -1,5 +1,6 @@
 import re
 import json
+from collections import defaultdict
 from typing import Any, Optional, Literal
 from datetime import datetime, timedelta
 
@@ -311,7 +312,7 @@ def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(ge
         }
         
     settings_rows = store.legacy_connection.execute(
-        "SELECT key, value FROM app_settings WHERE key LIKE 'plan_price_%'"
+        "SELECT key, value FROM app_settings WHERE key ILIKE 'plan_price_%'"
     ).fetchall()
     
     pricing = {row["key"]: row["value"] for row in settings_rows}

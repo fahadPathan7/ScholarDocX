@@ -214,19 +214,22 @@ class AdminService:
         self.connection.commit()
 
     def get_dashboard_stats(self) -> dict:
-        total_users = self.connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days'").fetchone()[0]
-        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days'").fetchone()[0]
-        total_projects = self.connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
-        total_sheets = self.connection.execute("SELECT COUNT(*) FROM project_sheets").fetchone()[0]
-        total_documents = self.connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
-        total_sticky_notes = self.connection.execute("SELECT COUNT(*) FROM sticky_notes").fetchone()[0]
-        total_whiteboards = self.connection.execute("SELECT COUNT(*) FROM whiteboards").fetchone()[0]
+        def _get_count(query: str) -> int:
+            row = self.connection.execute(query).fetchone()
+            return row[0] if row and row[0] is not None else 0
+
+        total_users = _get_count("SELECT COUNT(*) FROM users")
+        active_users = _get_count("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days'")
+        active_users_7d = _get_count("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days'")
+        total_projects = _get_count("SELECT COUNT(*) FROM projects")
+        total_sheets = _get_count("SELECT COUNT(*) FROM project_sheets")
+        total_documents = _get_count("SELECT COUNT(*) FROM documents")
+        total_sticky_notes = _get_count("SELECT COUNT(*) FROM sticky_notes")
+        total_whiteboards = _get_count("SELECT COUNT(*) FROM whiteboards")
         # rows_json is TEXT holding a JSON array; cast to jsonb for array length.
         # NULLIF guards against empty-string values (invalid json syntax).
-        total_records = self.connection.execute("SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages").fetchone()[0]
-        storage_row = self.connection.execute("SELECT SUM(size_bytes) FROM static_files").fetchone()
-        storage_bytes = storage_row[0] if storage_row and storage_row[0] else 0
+        total_records = _get_count("SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages")
+        storage_bytes = _get_count("SELECT SUM(size_bytes) FROM static_files")
 
         # Fetch recent activity
         recent_registrations = [
@@ -241,19 +244,19 @@ class AdminService:
             ).fetchall()
         ]
 
-        pending_invite_requests = self.connection.execute("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'").fetchone()[0]
-        pending_appeals = self.connection.execute("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'").fetchone()[0]
-        pending_plan_requests = self.connection.execute("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'").fetchone()[0]
-        pending_credit_requests = self.connection.execute("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending'").fetchone()[0]
-        pending_password_resets = self.connection.execute("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'").fetchone()[0]
+        pending_invite_requests = _get_count("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'")
+        pending_appeals = _get_count("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'")
+        pending_plan_requests = _get_count("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'")
+        pending_credit_requests = _get_count("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending'")
+        pending_password_resets = _get_count("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'")
 
-        total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
-        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days'").fetchone()[0]
-        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days'").fetchone()[0]
-        tavily_total = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')").fetchone()[0]
-        tavily_web_search = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'").fetchone()[0]
-        tavily_scholarship_hunt = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'").fetchone()[0]
-        tavily_advisor_atlas = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'").fetchone()[0]
+        total_ai_tokens = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0")
+        ai_tokens_30d = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days'")
+        ai_tokens_7d = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days'")
+        tavily_total = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')")
+        tavily_web_search = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'")
+        tavily_scholarship_hunt = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'")
+        tavily_advisor_atlas = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'")
 
         ai_usage_10d_rows = self.connection.execute(
             "SELECT created_at::timestamp::date as day, SUM(-tokens_delta) as tokens "
@@ -501,6 +504,8 @@ class AdminService:
         self.connection.commit()
         
         row = self.connection.execute("SELECT * FROM invite_codes WHERE id = ?", (new_id,)).fetchone()
+        if not row:
+            raise LookupError("Failed to fetch created invite code")
         return dict(row)
 
     def get_invite_usages(self, admin_id: int, code: str) -> list[dict]:
@@ -693,6 +698,8 @@ class AdminService:
         row = self.connection.execute(
             "SELECT * FROM role_limits WHERE role = ? AND feature = ?", (role, feature)
         ).fetchone()
+        if not row:
+            raise LookupError(f"Failed to fetch updated role limit for {role}:{feature}")
         return dict(row)
 
     def reset_role_limits(self, admin_id: int, role: str) -> list[dict]:

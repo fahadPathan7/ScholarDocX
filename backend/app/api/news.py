@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -71,7 +71,7 @@ def _filter_kwargs(filters: ScholarshipSearchFilters) -> Dict[str, Any]:
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _charge_scholarship_hunt(user: dict, store: Store) -> None:

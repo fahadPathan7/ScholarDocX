@@ -1,6 +1,6 @@
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 import json
@@ -184,7 +184,7 @@ class AiService:
             sys_prompt = override_system_prompt if override_system_prompt else SCHOLARDOCX_SYSTEM_PROMPT
 
             # Inject temporal context so the AI knows the current date and local time
-            current_time = datetime.now().astimezone().strftime("%A, %B %d, %Y %I:%M %p %Z")
+            current_time = datetime.now(timezone.utc).strftime("%A, %B %d, %Y %I:%M %p %Z")
             sys_prompt += f"\n\nSystem Time: {current_time}"
 
             system_tokens = len(sys_prompt) // 4

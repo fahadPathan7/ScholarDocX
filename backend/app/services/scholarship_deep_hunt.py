@@ -27,7 +27,7 @@ from __future__ import annotations
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -272,7 +272,7 @@ class ScholarshipDeepHuntService:
                 run_id,
                 status="running",
                 current_stage="planning",
-                started_at=datetime.now().astimezone().isoformat(),
+                started_at=datetime.now(timezone.utc).isoformat(),
                 progress_json={"completed": 0, "total": None, "message": "Planning search passes"},
             )
             queries = _build_queries(run)
@@ -394,7 +394,7 @@ class ScholarshipDeepHuntService:
                 run_id,
                 status="completed",
                 current_stage="completed",
-                completed_at=datetime.now().astimezone().isoformat(),
+                completed_at=datetime.now(timezone.utc).isoformat(),
                 result_count=accepted,
                 progress_json={
                     "completed": len(extraction_targets),

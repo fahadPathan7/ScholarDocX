@@ -25,21 +25,16 @@ def should_reset(last_reset_at: str, reset_period: str) -> bool:
     if reset_period == 'never':
         return False
         
-    last_reset_str = last_reset_at.replace("Z", "+00:00").split("+")[0]
-    last_reset_utc_naive = safe_parse_datetime(last_reset_str)
-    if not last_reset_utc_naive:
+    last_reset_utc = safe_parse_datetime(last_reset_at)
+    if not last_reset_utc:
         return False
         
-    last_reset_utc = last_reset_utc_naive.replace(tzinfo=timezone.utc)
     now_utc = datetime.now(timezone.utc)
     
-    last_reset_local = last_reset_utc.astimezone()
-    now_local = now_utc.astimezone()
-    
     if reset_period == 'daily':
-        return last_reset_local.date() < now_local.date()
+        return last_reset_utc.date() < now_utc.date()
     elif reset_period == 'monthly':
-        return (last_reset_local.year, last_reset_local.month) < (now_local.year, now_local.month)
+        return (last_reset_utc.year, last_reset_utc.month) < (now_utc.year, now_utc.month)
     elif reset_period == 'per_session':
         # Handled explicitly by the frontend or specific endpoints
         return False
@@ -111,7 +106,7 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
     # ── Plan date guard ─────────────────────────────────────────────────────
     # (Plan expiry is enforced by the auth-time role downgrade in
     # app/auth/dependencies.py; only the not-yet-started case is checked here.)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     plan_started_at = user.get("plan_started_at")
 
     if plan_started_at:
@@ -160,7 +155,7 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
             """), {"uid": user["id"], "feature": feature}
         )
         current_count = 0
-        last_reset_at = datetime.utcnow().isoformat()
+        last_reset_at = datetime.now(timezone.utc).isoformat()
     else:
         current_count = usage_record["current_count"]
         last_reset_at = usage_record["last_reset_at"]

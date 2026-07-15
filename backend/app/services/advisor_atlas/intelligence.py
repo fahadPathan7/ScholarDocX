@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from typing import Any
 
@@ -182,7 +182,7 @@ def semantic_fallback(interests: list[str], research_text: str) -> dict[str, Any
 
 
 def upcoming_semesters(count: int = 3, now: datetime | None = None) -> list[str]:
-    current = now or datetime.now()
+    current = now or datetime.now(timezone.utc)
     options = []
     for year in range(current.year, current.year + 3):
         for month, season in ((1, "Spring"), (8, "Fall")):
@@ -198,7 +198,7 @@ def opportunity_forecast(
 ) -> dict[str, Any]:
     text = combined_text.lower()
     years = [int(year) for year in YEAR_PATTERN.findall(text)]
-    recent_activity = bool(years and max(years) >= datetime.now().year - 1)
+    recent_activity = bool(years and max(years) >= datetime.now(timezone.utc).year - 1)
     signals = []
     counter_signals = []
     if recruitment_state == "confirmed_open":

@@ -277,8 +277,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "Role Limits",
       features: [
-        { key: "admin_manage_user_roles", label: "Can View Role Limits", description: "Allows editing limits and quotas for user-level roles (Free User, General User, Pro User, Max User)." },
-        { key: "admin_manage_role_limits", label: "Can Manage Role Limits", description: "Allows opening the Role Limits section and viewing role-limit settings and admin permission toggles." },
+        { key: "admin_manage_user_roles", label: "Can Manage Role Limits", description: "Allows editing limits and quotas for user-level roles (Free User, General User, Pro User, Max User)." },
+        { key: "admin_manage_role_limits", label: "Can View Role Limits", description: "Allows opening the Role Limits section and viewing role-limit settings and admin permission toggles." },
         { key: "admin_manage_admin_roles", label: "Can Manage Admin Roles", description: "Allows editing permissions for admin-level roles." }
       ]
     },

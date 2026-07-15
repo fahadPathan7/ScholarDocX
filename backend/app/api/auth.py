@@ -3,7 +3,7 @@ import re
 import json
 from collections import defaultdict
 from typing import Any, Optional, Literal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
@@ -99,9 +99,8 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
         raise HTTPException(status_code=400, detail="Invalid invite code.")
         
     expires_dt = safe_parse_datetime(invite["expires_at"])
-    if expires_dt and expires_dt < datetime.utcnow():
+    if expires_dt and expires_dt < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invite code has expired.")
-        
     if invite["max_uses"] != 0 and invite["used_count"] >= invite["max_uses"]:
         raise HTTPException(status_code=400, detail="Invite code usage limit reached.")
 
@@ -117,7 +116,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     hashed_password = hash_password(payload.password)
     default_roles = json.dumps(["free_user"])
     
-    plan_started_at = datetime.utcnow().isoformat()
+    plan_started_at = datetime.now(timezone.utc).isoformat()
     plan_ends_at = None
     
     cursor = store.legacy_connection.execute(

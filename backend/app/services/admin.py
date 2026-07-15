@@ -175,9 +175,13 @@ class AdminService:
             return None
 
     def _calculate_plan_extension_window(self, user: dict, billing_cycle: str) -> tuple[str, str]:
-        now = datetime.utcnow()
         current_start = self._parse_iso_datetime(user.get("plan_started_at"))
         current_end = self._parse_iso_datetime(user.get("plan_ends_at"))
+        
+        now = datetime.now(timezone.utc)
+        if current_end and current_end.tzinfo is not None:
+            now = datetime.now(current_end.tzinfo)
+
         duration_days = 365 if billing_cycle == "yearly" else 30
 
         if current_end and current_end > now:
@@ -785,7 +789,7 @@ class AdminService:
             user = self.get_user_details(req["user_id"])
             current_roles = user.get("roles", [])
             request_type = req["request_type"] or "upgrade"
-            plan_started_at = datetime.utcnow().isoformat()
+            plan_started_at = datetime.now(timezone.utc).isoformat()
             days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
             audit_details = {
                 "request_type": request_type,
@@ -802,7 +806,7 @@ class AdminService:
                 # Add requested plan
                 if req["requested_plan"] not in new_roles:
                     new_roles.append(req["requested_plan"])
-                plan_ends_at = (datetime.utcnow() + timedelta(days=days_to_add)).isoformat()
+                plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days_to_add)).isoformat()
                 
                 self.connection.execute(
                     "UPDATE ai_token_balances SET subscription_period = 'FORCE_RESET' WHERE user_id = ?",

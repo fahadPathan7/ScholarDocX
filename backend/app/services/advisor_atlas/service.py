@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import re
@@ -92,7 +92,7 @@ class AdvisorAtlasService:
                 run_id,
                 status="running",
                 current_stage="resolving",
-                started_at=datetime.now().astimezone().isoformat(),
+                started_at=datetime.now(timezone.utc).isoformat(),
                 progress_json={"completed": 0, "total": None, "message": "Resolving the institution and search scope"},
             )
             discovery_usage = self._new_usage()
@@ -174,7 +174,7 @@ class AdvisorAtlasService:
                 run_id,
                 status="completed",
                 current_stage="completed",
-                completed_at=datetime.now().astimezone().isoformat(),
+                completed_at=datetime.now(timezone.utc).isoformat(),
                 action_center_json=action_center,
                 progress_json={
                     "completed": completed,

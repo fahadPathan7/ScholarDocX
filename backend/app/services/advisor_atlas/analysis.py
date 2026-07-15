@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import re
 from typing import Any
@@ -107,7 +107,7 @@ def deterministic_analysis(
     risks = []
     if len(sources) < 2:
         risks.append("limited_source_coverage")
-    if latest_year and latest_year < datetime.now().year - 3:
+    if latest_year and latest_year < datetime.now(timezone.utc).year - 3:
         risks.append("stale_visible_activity")
     if recruitment_state == "unknown":
         risks.append("recruitment_unverified")

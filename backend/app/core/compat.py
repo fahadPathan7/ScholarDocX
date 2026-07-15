@@ -2,15 +2,23 @@ from datetime import datetime, date
 import json
 from typing import Any
 
+from datetime import timezone
+
 def safe_parse_datetime(val: Any) -> datetime | None:
-    """Safely parse a datetime object from either a string or a native datetime."""
+    """Safely parse a datetime object from either a string or a native datetime.
+    Always returns a timezone-aware UTC datetime."""
     if not val:
         return None
     if isinstance(val, datetime):
-        return val
+        if val.tzinfo is None:
+            return val.replace(tzinfo=timezone.utc)
+        return val.astimezone(timezone.utc)
     try:
-        # Handle formats with Z or +00:00
-        return datetime.fromisoformat(str(val).replace("Z", "+00:00").split("+")[0])
+        # Handle formats with Z or offsets. First, parse as-is.
+        parsed = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     except (ValueError, TypeError, AttributeError):
         return None
 

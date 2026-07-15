@@ -11,7 +11,7 @@ Admin domains intentionally have no specs here and never will.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.services.store import Store
@@ -510,7 +510,7 @@ def _execute_complete(store: Store, table: str, label: str, action: dict[str, An
     if len(open_items) > 1:
         raise ValueError(f"Multiple open {label}s titled '{action['title']}'; rename one first.")
     updated = store.update_record(
-        table, open_items[0]["id"], {"completed_at": datetime.now().isoformat(timespec="seconds")}
+        table, open_items[0]["id"], {"completed_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     )
     return {
         "type": action["type"],
@@ -613,7 +613,7 @@ def _execute_mark_notifications_read(store: Store, action: dict[str, Any]) -> di
     unread = [
         record for record in store.list_records("notifications") if not record.get("read_at")
     ]
-    stamp = datetime.now().isoformat(timespec="seconds")
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for record in unread:
         store.update_record("notifications", record["id"], {"read_at": stamp})
     return {

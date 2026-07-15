@@ -211,7 +211,7 @@ def test_outreach_follow_up_creates_reminder(tmp_path):
         reminders = store.list_records("reminders")
 
         assert outreach["recipient_email"] == "advisor@example.edu"
-        assert reminders[0]["due_at"] == "2026-06-06"
+        assert str(reminders[0]["due_at"])[:10] == "2026-06-06"
     finally:
         store.db.close()
 

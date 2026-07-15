@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr
 from app.auth.dependencies import get_current_user, require_admin, require_super_admin
 from app.auth.password import hash_password, validate_password_strength
@@ -195,7 +195,7 @@ def create_invite_code(payload: InviteCodePayload, admin_service: AdminService =
     require_feature("admin_manage_invites", current_user, admin_service.db)
     expires_at = None
     if payload.expiration_hours is not None and payload.expiration_hours > 0:
-        expires_at = (datetime.utcnow() + timedelta(hours=payload.expiration_hours)).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=payload.expiration_hours)).isoformat()
     return admin_service.create_invite_code(current_user["id"], payload.max_uses, expires_at)
 
 @router.delete("/invites/{code}")

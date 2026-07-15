@@ -185,7 +185,8 @@ def _current_period(user: dict) -> str:
         try:
             start_dt = safe_parse_datetime(plan_started_at_str)
             if start_dt is not None:
-                now_dt = datetime.utcnow()
+                from datetime import timezone
+                now_dt = datetime.now(timezone.utc)
                 if now_dt >= start_dt:
                     delta = now_dt - start_dt
                     cycle_index = delta.days // 30
@@ -194,7 +195,8 @@ def _current_period(user: dict) -> str:
         except (ValueError, AttributeError):
             pass
             
-    return datetime.utcnow().strftime("%Y-%m")
+    from datetime import timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
 def refresh_balance(user: dict, session: Session) -> dict:

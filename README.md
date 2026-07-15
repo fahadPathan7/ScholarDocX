@@ -108,15 +108,17 @@ Backend health: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/hea
 
 ## Access Control (RBAC) & Admin setup
 
-The application now supports Role-Based Access Control. Upon fresh database initialization, a default super admin user is created:
-- **Email**: `admin@localhost`
-- **Password**: `admin123`
+The application now supports Role-Based Access Control. Upon fresh database
+initialization, a default super admin user is created. The admin email and
+password are configured via environment variables / the database seed — see
+`.env.example` and `backend/app/db/schema.py`. Do not commit real credentials.
 
 To test the registration flow:
-1. Use the default invite code: `TEST_INVITE`
-2. Register a new user at [http://localhost:5173](http://localhost:5173)
+1. Generate an invite code from the Admin Dashboard (or via the API).
+2. Register a new user at [http://localhost:5173](http://localhost:5173).
 3. New users get the `general_user` role by default.
-4. Log in as an Admin to manage users, assign `pro_user` or `max_user` roles, generate new invite codes, and adjust system limits via the Admin Dashboard.
+4. Log in as an Admin to manage users, assign `pro_user` or `max_user` roles,
+   generate new invite codes, and adjust system limits via the Admin Dashboard.
 
 ## Tests
 

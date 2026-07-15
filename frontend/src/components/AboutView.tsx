@@ -36,14 +36,14 @@ const featureCards = [
   {
     icon: Database,
     tone: "storage",
-    title: "Secure Workspace",
-    copy: "Fast, secure, and always yours."
+    title: "Secure Cloud Workspace",
+    copy: "Fast, secure, and accessible anywhere."
   },
   {
     icon: ShieldCheck,
     tone: "privacy",
     title: "Privacy First",
-    copy: "Your data. Your device. Your control."
+    copy: "Your data. Securely hosted. Your control."
   },
   {
     icon: Bot,
@@ -327,7 +327,10 @@ export function AboutView() {
       </div>
 
 
-      <p className="about-footer">ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning</p>
+      <p className="about-footer">
+        ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning<br/>
+        All system dates and deadlines follow UTC, not local timezone.
+      </p>
 
       {showModelsModal && (
         <div className="modal-backdrop models-modal-backdrop" onClick={() => setShowModelsModal(false)}>

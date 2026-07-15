@@ -23,7 +23,7 @@ Backend:
 Database:
 
 - PostgreSQL via SQLAlchemy 2.0 + psycopg3 driver (`psycopg[binary]`).
-- Hosted Supabase for development/production; a Postgres service container in CI for tests.
+- Hosted Supabase for development/production.
 - SQLite support was fully removed in SCHOLARDOCX-0139 (single-dialect codebase).
 
 File storage:

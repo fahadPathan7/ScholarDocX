@@ -111,36 +111,29 @@ For UI tasks:
 
 ## Regression Gate
 
-A regression gate runs both suites and fails the build on any regression, so a
+A regression gate runs both suites locally and fails on any regression, so a
 broken change cannot land silently.
 
 ### CI
 
-`.github/workflows/ci.yml` runs on every push and pull request to `main`:
-
-- **Backend job**: installs requirements, runs `pytest` against an ephemeral
-  workspace (`SCHOLARDOCX_WORKSPACE` pointed at `${{ runner.temp }}`), so tests
-  never touch the repo's `workspace/`. No secrets needed — provider and
-  key-missing paths are mocked.
-- **Frontend job**: `npm ci`, `npm run build` (tsc + vite), and `npm test`
-  (vitest).
-
-Both jobs must be green for a PR to merge.
+GitHub Actions CI was removed (SCHOLARDOCX-0139). There is no automated test
+gate on push. Run the test suites locally before deploying — Render auto-deploys
+on every push to `main` regardless of test status.
 
 ### Local gate
 
-`make check` reproduces what CI runs, and `make test` runs both test suites
-without the (slower) frontend build:
+`make check` runs both test suites plus the frontend build, and `make test`
+runs both suites without the (slower) build:
 
 ```bash
-make check       # backend tests + frontend tests + frontend build  (matches CI)
+make check       # backend tests + frontend tests + frontend build
 make test        # backend tests + frontend tests (no build)
 make test-backend  # backend only
 make test-frontend # frontend only
 ```
 
-Before pushing, run `make check` locally — a green `make check` means CI will
-be green.
+Before pushing, run `make check` locally — there is no CI safety net to catch
+regressions otherwise.
 
 ### Fast feedback: smoke and regression subsets
 

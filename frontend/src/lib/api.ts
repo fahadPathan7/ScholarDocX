@@ -1,9 +1,20 @@
 function defaultApiBase() {
   const protocol = window.location.protocol || "http:";
-  const host = window.location.hostname === "0.0.0.0"
-    ? "127.0.0.1"
-    : window.location.hostname || "localhost";
-  return `${protocol}//${host}:8000/api`;
+  const hostname = window.location.hostname || "localhost";
+  // SCHOLARDOCX-0139: in local dev the FastAPI backend runs on a separate
+  // port (8000) while Vite serves the frontend on 5173. In production the
+  // frontend and API share an origin behind a reverse proxy, so the API is
+  // reached at the same origin's /api path with no port suffix.
+  const isLocalDev =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname === "[::1]";
+  const host = hostname === "0.0.0.0" ? "127.0.0.1" : hostname;
+  if (isLocalDev) {
+    return `${protocol}//${host}:8000/api`;
+  }
+  return `${protocol}//${hostname}/api`;
 }
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || defaultApiBase();

@@ -26,18 +26,19 @@ from app.db.connection import connect, initialize_database
 
 def make_settings(tmp_path: Path) -> Settings:
     """Build a Settings pointing at an ephemeral workspace under ``tmp_path``
-    and initialize its database. Returns the configured Settings."""
+    and initialize its Postgres database. Returns the configured Settings."""
     settings = Settings()
+    # SCHOLARDOCX-0139: tests use the Postgres DATABASE_URL from the environment.
+    # The workspace/media paths are still tmp-scoped for file isolation.
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
-    initialize_database(settings.database_path)
+    settings.media_path = tmp_path / "workspace" / "media"
+    initialize_database(settings.database_target)
     return settings
 
 
 def make_user(settings: Settings, roles: list, email: str = None) -> dict[str, Any]:
     """Insert a user row and return a minimal user dict for auth/token code."""
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
@@ -49,7 +50,7 @@ def make_user(settings: Settings, roles: list, email: str = None) -> dict[str, A
 
 
 def set_model_price(settings: Settings, model_id: str, input_price: float, output_price: float) -> None:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         db.execute(
             "UPDATE ai_models SET input_price_per_1m = ?, output_price_per_1m = ? WHERE model_id = ?",
             (input_price, output_price, model_id),
@@ -58,14 +59,14 @@ def set_model_price(settings: Settings, model_id: str, input_price: float, outpu
 
 
 def get_balance(settings: Settings, uid: int) -> dict[str, Any]:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         return dict(db.execute(
             "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
         ).fetchone())
 
 
 def ledger_rows(settings: Settings, uid: int) -> list[dict[str, Any]]:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         return [dict(r) for r in db.execute(
             "SELECT * FROM ai_token_ledger WHERE user_id = ? ORDER BY id", (uid,)
         ).fetchall()]

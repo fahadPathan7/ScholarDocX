@@ -1,62 +1,50 @@
 import json
-import sqlite3
 
 import pytest
 from sqlalchemy import text
 
 from app.api import news as news_api
-from app.db.connection import connect, initialize_database
+from app.db.connection import connect, get_engine
 from app.services.store import Store
+
+from tests.helpers import make_settings
 
 
 def _store(tmp_path):
-    database_path = tmp_path / "scholardocx.db"
-    initialize_database(database_path)
-    from app.db.connection import get_engine
+    settings = make_settings(tmp_path)
     from sqlalchemy.orm import sessionmaker
-    engine = get_engine(database_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
     return session, Store(session)
 
 
-def test_legacy_database_adds_user_scope_before_schema_indexes(tmp_path):
-    database_path = tmp_path / "legacy.db"
-    connection = sqlite3.connect(database_path)
-    connection.executescript(
-        """
-        CREATE TABLE users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT NOT NULL UNIQUE,
-          password_hash TEXT NOT NULL,
-          display_name TEXT NOT NULL DEFAULT 'User',
-          roles TEXT NOT NULL DEFAULT '["general_user"]',
-          token_version INTEGER NOT NULL DEFAULT 1,
-          is_active INTEGER NOT NULL DEFAULT 1,
-          is_blocked INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE local_profiles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          display_name TEXT
-        );
-        """
-    )
-    connection.close()
-
-    initialize_database(database_path)
-
-    with connect(database_path) as migrated:
+def test_legacy_database_migration_is_no_longer_applicable(tmp_path):
+    """SCHOLARDOCX-0139: the SQLite legacy-migration path (which added the
+    user_id column to local_profiles and created scholarship_search_feedback
+    when upgrading an old SQLite file) was removed when the codebase became
+    Postgres-only. A fresh Postgres DB gets its authoritative schema from
+    Base.metadata.create_all + SEED_SQL, so there is no migration history to
+    repair. This test now just asserts the authoritative schema lands the
+    expected table and column on a fresh database.
+    """
+    settings = make_settings(tmp_path)
+    with connect(settings.database_target) as migrated:
         columns = {
             row["name"]
-            for row in migrated.execute("PRAGMA table_info(local_profiles)")
+            for row in migrated.execute(
+                """
+                SELECT column_name AS name
+                FROM information_schema.columns
+                WHERE table_name = 'local_profiles'
+                """
+            ).fetchall()
         }
         feedback_table = migrated.execute(
             """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table' AND name = 'scholarship_search_feedback'
+            SELECT table_name AS name
+            FROM information_schema.tables
+            WHERE table_name = 'scholarship_search_feedback'
             """
         ).fetchone()
         assert "user_id" in columns

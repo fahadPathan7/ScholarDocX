@@ -22,19 +22,18 @@ from app.auth.limits import (
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
+    settings.media_path = tmp_path / "workspace" / "media"
     settings.glm_api_key = ""
     settings.gemini_api_key = ""
     settings.groq_api_key = ""
     settings.mistral_api_key = ""
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
     invalidate_limits_cache()
     return settings
 
 
 def make_user(settings: Settings, roles: list, email: str = None) -> dict:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
@@ -46,7 +45,7 @@ def make_user(settings: Settings, roles: list, email: str = None) -> dict:
 
 
 def get_session(settings: Settings):
-    return next(get_db(settings.database_path))
+    return next(get_db(settings.database_target))
 
 
 def usage_count(session, uid: int, feature: str) -> int:
@@ -311,20 +310,16 @@ def test_permission_only_check_commits_bootstrap_row(tmp_path):
         check_and_increment_limit(user, "can_use_scholarship_hunt", 0, session)
 
         # The session must not be left holding an uncommitted write: a
-        # separate raw sqlite3 connection (short busy_timeout, no retries to
-        # wait out) must be able to write immediately without hitting
-        # "database is locked".
-        import sqlite3
-
-        other_connection = sqlite3.connect(settings.database_path, timeout=0.2)
-        try:
+        # separate connection must be able to write immediately. Postgres uses
+        # MVCC so a committed row is visible to a new connection; the guard
+        # here is that check_and_increment_limit committed (rather than
+        # leaving the bootstrap INSERT open on the caller's session).
+        with connect(settings.database_target) as other_connection:
             other_connection.execute(
                 "INSERT INTO scholarship_deep_hunt_runs (user_id, goal) VALUES (?, ?)",
                 (user["id"], "regression test goal"),
             )
             other_connection.commit()
-        finally:
-            other_connection.close()
 
         assert usage_count(session, user["id"], "can_use_scholarship_hunt") == 0
     finally:

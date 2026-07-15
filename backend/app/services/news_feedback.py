@@ -22,6 +22,7 @@ def create_query_preview_feedback(
             provider_status
         )
         VALUES (:user_id, :initial_query, :refined_query, :filters_json, 0, 'previewed')
+        RETURNING id
         """),
         {
             "user_id": user_id,
@@ -31,7 +32,7 @@ def create_query_preview_feedback(
         },
     )
     session.commit()
-    return int(cursor.lastrowid)
+    return int(cursor.first()[0])
 
 
 def create_search_feedback(
@@ -52,6 +53,7 @@ def create_search_feedback(
             provider_status
         )
         VALUES (:user_id, :initial_query, :refined_query, :filters_json, :was_edited, 'pending')
+        RETURNING id
         """),
         {
             "user_id": user_id,
@@ -62,7 +64,7 @@ def create_search_feedback(
         },
     )
     session.commit()
-    return int(cursor.lastrowid)
+    return int(cursor.first()[0])
 
 
 def claim_query_preview_feedback(

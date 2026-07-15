@@ -10,7 +10,7 @@ from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.categories import normalize_media_category
 from app.core.config import Settings, get_settings
 from app.core.workspace import ensure_workspace, save_upload, workspace_status
-from app.db.connection import connect, initialize_database
+from app.db.connection import initialize_database
 from app.services.ai import AiService
 from app.services.ai_actions import AiActionService
 from app.services.store import Store
@@ -124,7 +124,7 @@ def health(settings: Settings = Depends(get_settings)) -> dict:
 @router.post("/workspace/init")
 def init_workspace(settings: Settings = Depends(get_settings)) -> dict:
     status = ensure_workspace(settings)
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
     return status
 
 
@@ -369,7 +369,12 @@ def upload_file(
                     current_user, "total_documents_bytes", actual_size - file_size, store.db
                 )
             except UsageLimitExceeded:
-                (settings.workspace_path / saved["relative_path"]).unlink(missing_ok=True)
+                # SCHOLARDOCX-0139: compensate the Storage upload on failure.
+                from app.core.storage import delete_file
+                try:
+                    delete_file(saved["relative_path"])
+                except Exception:
+                    pass
                 check_and_increment_limit(
                     current_user, "total_documents_bytes", -file_size, store.db
                 )
@@ -401,21 +406,22 @@ def view_file_content(
     store: Store = Depends(get_user_store),
 ):
     try:
-        from fastapi.responses import FileResponse
+        from fastapi.responses import Response
+        from app.core.storage import download_bytes
         records = store.list_records("static_files")
         file_record = next((r for r in records if r["id"] == file_id), None)
         if not file_record:
             raise HTTPException(status_code=404, detail="File not found")
-        
-        file_path = settings.workspace_path / file_record["relative_path"]
-        if not file_path.exists() or not file_path.is_file():
-            raise HTTPException(status_code=404, detail="Physical file not found")
-            
-        return FileResponse(
-            path=str(file_path),
-            filename=file_record["display_name"],
-            media_type=file_record.get("mime_type")
+
+        # SCHOLARDOCX-0139: files live in Supabase Storage, not local disk.
+        content, content_type = download_bytes(file_record["relative_path"])
+        return Response(
+            content=content,
+            media_type=file_record.get("mime_type") or content_type,
+            headers={"Content-Disposition": f'inline; filename="{file_record["display_name"]}"'},
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

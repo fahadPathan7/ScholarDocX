@@ -43,11 +43,10 @@ from app.services.advisor_atlas.intelligence import (
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
+    settings.media_path = tmp_path / "workspace" / "media"
     settings.glm_api_key = ""
     settings.tavily_api_key = ""
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
     return settings
 
 
@@ -762,7 +761,7 @@ async def test_advisor_vision_does_not_set_fixed_output_token_limit(monkeypatch)
 
 def test_repository_persists_dossier_publications_and_save(tmp_path):
     settings = make_settings(tmp_path)
-    repository = AdvisorAtlasRepository(settings.database_path)
+    repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
         1,
         {
@@ -836,7 +835,7 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
 
 def test_repository_enforces_user_scope(tmp_path):
     settings = make_settings(tmp_path)
-    repository = AdvisorAtlasRepository(settings.database_path)
+    repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
         1,
         {
@@ -938,7 +937,7 @@ async def test_professor_mode_does_not_admit_other_search_result_names(tmp_path,
 
 def test_repository_caps_visible_evidence_at_eight(tmp_path):
     settings = make_settings(tmp_path)
-    repository = AdvisorAtlasRepository(settings.database_path)
+    repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
         1,
         {

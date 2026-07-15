@@ -2,9 +2,18 @@ from pathlib import Path
 import sys
 
 import pytest
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# SCHOLARDOCX-0139: load the repo-root .env so DATABASE_URL (and Supabase
+# Storage keys) are available to every test, including unit tests that build
+# Settings directly via make_settings. WARNING: most tests CREATE and DELETE
+# users/projects/rows, so they mutate whatever DATABASE_URL points at. Do not
+# point this at a production database — use a separate dev/test Supabase
+# project or a local Postgres instance for the test run.
+load_dotenv(ROOT.parent / ".env")
 
 
 @pytest.fixture(autouse=True)

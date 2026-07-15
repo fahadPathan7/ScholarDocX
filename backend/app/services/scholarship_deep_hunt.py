@@ -33,7 +33,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
-from app.db.connection import connect
+from app.db.legacy_db import legacy_session
 from app.services.advisor_atlas.crawler import PublicCrawler, canonicalize_url
 from app.services.ai import AiService
 from app.services.scholarship_extraction import scholarship_extraction_service
@@ -68,11 +68,11 @@ def _decode_row(row: Any) -> dict[str, Any]:
 
 
 class ScholarshipDeepHuntRepository:
-    def __init__(self, database_path: Path) -> None:
-        self.database_path = database_path
+    def __init__(self, database_url: str) -> None:
+        self.database_url = database_url
 
     def create_run(self, user_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 """
                 INSERT INTO scholarship_deep_hunt_runs (
@@ -92,7 +92,7 @@ class ScholarshipDeepHuntRepository:
             return self.get_run(int(cursor.lastrowid or 0), user_id, include_opportunities=False)
 
     def list_runs(self, user_id: int) -> list[dict[str, Any]]:
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             rows = db.execute(
                 """
                 SELECT r.*, COUNT(o.id) AS live_opportunity_count
@@ -107,7 +107,7 @@ class ScholarshipDeepHuntRepository:
             return [_decode_row(row) for row in rows]
 
     def get_run(self, run_id: int, user_id: int, include_opportunities: bool = True) -> dict[str, Any]:
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             row = db.execute(
                 "SELECT * FROM scholarship_deep_hunt_runs WHERE id = ? AND user_id = ?",
                 (run_id, user_id),
@@ -144,7 +144,7 @@ class ScholarshipDeepHuntRepository:
         assignments = [f"{key} = ?" for key in clean]
         assignments.append("updated_at = CURRENT_TIMESTAMP")
         params = [*clean.values(), run_id]
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             db.execute(
                 f"UPDATE scholarship_deep_hunt_runs SET {', '.join(assignments)} WHERE id = ?",
                 params,
@@ -152,7 +152,7 @@ class ScholarshipDeepHuntRepository:
             db.commit()
 
     def is_cancelled(self, run_id: int) -> bool:
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             row = db.execute(
                 "SELECT status FROM scholarship_deep_hunt_runs WHERE id = ?",
                 (run_id,),
@@ -160,7 +160,7 @@ class ScholarshipDeepHuntRepository:
             return not row or row["status"] == "cancelled"
 
     def cancel_run(self, run_id: int, user_id: int) -> dict[str, Any]:
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 """
                 UPDATE scholarship_deep_hunt_runs
@@ -184,7 +184,7 @@ class ScholarshipDeepHuntRepository:
         run = self.get_run(run_id, user_id, include_opportunities=False)
         if run["status"] not in {"failed", "cancelled"}:
             raise ValueError("Only failed or cancelled runs can be resumed.")
-        with connect(self.database_path) as db:
+        with legacy_session(self.database_url) as db:
             db.execute(
                 """
                 UPDATE scholarship_deep_hunt_runs
@@ -198,8 +198,7 @@ class ScholarshipDeepHuntRepository:
         return self.get_run(run_id, user_id, include_opportunities=False)
 
     def delete_run(self, run_id: int, user_id: int) -> bool:
-        with connect(self.database_path) as db:
-            db.execute("PRAGMA foreign_keys = ON;")
+        with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 "DELETE FROM scholarship_deep_hunt_runs WHERE id = ? AND user_id = ?",
                 (run_id, user_id),
@@ -246,7 +245,7 @@ def _is_acceptable(extracted: dict[str, Any]) -> bool:
 class ScholarshipDeepHuntService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.repository = ScholarshipDeepHuntRepository(settings.database_path)
+        self.repository = ScholarshipDeepHuntRepository(settings.database_target)
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
 
@@ -259,7 +258,7 @@ class ScholarshipDeepHuntService:
             from app.services.ai_tokens import load_user_dict
 
             billing_session = sessionmaker(
-                autocommit=False, autoflush=False, bind=get_engine(self.settings.database_path)
+                autocommit=False, autoflush=False, bind=get_engine(self.settings.database_target)
             )()
             store = Store(billing_session, current_user_id=user_id)
             self.ai_service.set_billing(load_user_dict(user_id, billing_session), billing_session)

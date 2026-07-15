@@ -5,20 +5,20 @@ from app.api.auth import ForgotPasswordPayload, forgot_password
 from app.auth.limits import invalidate_limits_cache
 from app.auth.rate_limit import rate_limiter
 from app.auth.password import verify_password
-from app.db.connection import initialize_database
+from app.db.connection import get_engine, initialize_database
 from app.services.admin import AdminService
 from app.services.store import Store
+
+from tests.helpers import make_settings
 
 
 GENERIC_SUBSTRING = "request has been submitted to the administrator"
 
 
 def make_store(tmp_path):
-    database_path = tmp_path / "app.db"
-    initialize_database(database_path)
-    from app.db.connection import get_engine
+    settings = make_settings(tmp_path)
     from sqlalchemy.orm import sessionmaker
-    engine = get_engine(database_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
     return Store(session), session.connection().connection.dbapi_connection

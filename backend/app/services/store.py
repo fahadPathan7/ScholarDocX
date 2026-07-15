@@ -243,36 +243,17 @@ class Store:
     def __init__(self, db: Session, current_user_id: int | None = None) -> None:
         self.db = db
         self.current_user_id = current_user_id
-        # Provide raw sqlite3 connection for legacy endpoints
-        import sqlite3
-        self.connection = self.db.connection().connection.dbapi_connection
-        self.connection.row_factory = sqlite3.Row
 
     @property
     def legacy_connection(self):
-        class LegacyResult:
-            def __init__(self, cursor_result):
-                self._cursor_result = cursor_result
-                self._mappings = cursor_result.mappings()
-            @property
-            def lastrowid(self):
-                return self._cursor_result.lastrowid
-            def fetchone(self):
-                return self._mappings.fetchone()
-            def fetchall(self):
-                return self._mappings.fetchall()
-            def fetchmany(self, size=None):
-                return self._mappings.fetchmany(size)
+        """Session-backed connection accepting sqlite3-style raw SQL.
 
-        class LegacyConnection:
-            def __init__(self, db):
-                self.db = db
-            def execute(self, sql, params=()):
-                return LegacyResult(self.db.connection().exec_driver_sql(sql, params))
-            def commit(self):
-                self.db.commit()
-            def rollback(self):
-                self.db.rollback()
+        Delegates to app.db.legacy_db.LegacyConnection, which translates ``?``
+        placeholders to named params and appends ``RETURNING id`` to INSERTs so
+        ``lastrowid`` works on Postgres. See legacy_db.py for details.
+        SCHOLARDOCX-0139.
+        """
+        from app.db.legacy_db import LegacyConnection
         return LegacyConnection(self.db)
 
     def list_records(self, table: str) -> list[dict]:
@@ -446,25 +427,36 @@ class Store:
         return self.get_record("document_categories", category_id)
 
     def delete_document_category(self, category_id: int, workspace_path: Path, media_path: Path) -> dict:
+        """Delete a category, its files (from Supabase Storage), and DB rows.
+
+        SCHOLARDOCX-0139: files now live in Supabase Storage, not on disk. The
+        workspace_path/media_path params are retained for signature compat but
+        no longer used for physical file deletion — that goes through the
+        Storage REST API (app.core.storage).
+        """
+        from app.core.storage import delete_file
+
         category = self.get_record("document_categories", category_id)
         uid = self.current_user_id
-        
+
         sf_model = models.StaticFiles
         sf_stmt = select(sf_model).where(sf_model.file_type == category["slug"])
         if uid:
             sf_stmt = sf_stmt.where(sf_model.user_id == uid)
-            
+
         files = self.db.scalars(sf_stmt).all()
         file_records = [self._row(f) for f in files]
-        
+
+        # Delete each file from Storage (best-effort; DB row is the source of truth).
         for file_record in file_records:
-            file_path = (workspace_path / file_record["relative_path"]).resolve()
-            if workspace_path.resolve() in file_path.parents and file_path.exists() and file_path.is_file():
-                file_path.unlink()
-                
+            try:
+                delete_file(file_record["relative_path"])
+            except Exception:
+                pass
+
         for f in files:
             self.db.delete(f)
-            
+
         cat_model = models.DocumentCategories
         cat_stmt = select(cat_model).where(cat_model.id == category_id)
         if uid:
@@ -472,11 +464,7 @@ class Store:
         cat_obj = self.db.scalar(cat_stmt)
         if cat_obj:
             self.db.delete(cat_obj)
-            
-        category_dir = (media_path / category["slug"]).resolve()
-        if media_path.resolve() in category_dir.parents and category_dir.exists():
-            shutil.rmtree(category_dir)
-            
+
         self.db.commit()
         return {**category, "deleted_document_count": len(files)}
 

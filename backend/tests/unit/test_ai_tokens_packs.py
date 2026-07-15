@@ -27,14 +27,13 @@ from app.services.store import Store
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
-    initialize_database(settings.database_path)
+    settings.media_path = tmp_path / "workspace" / "media"
+    initialize_database(settings.database_target)
     return settings
 
 
 def make_user(settings: Settings, roles: list, email: str = None) -> dict:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
@@ -46,14 +45,14 @@ def make_user(settings: Settings, roles: list, email: str = None) -> dict:
 
 
 def get_balance(settings: Settings, uid: int) -> dict:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         return dict(db.execute(
             "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
         ).fetchone())
 
 
 def ledger_grants(settings: Settings, uid: int) -> list:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         return [dict(r) for r in db.execute(
             "SELECT * FROM ai_token_ledger WHERE user_id = ? AND tokens_delta > 0 ORDER BY id",
             (uid,),
@@ -61,7 +60,7 @@ def ledger_grants(settings: Settings, uid: int) -> list:
 
 
 def make_store(settings: Settings) -> Store:
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     return Store(session)
 
 
@@ -69,7 +68,7 @@ def make_store(settings: Settings) -> Store:
 
 def test_list_packs_active_only_by_default(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         packs = ai_tokens.list_packs(session)
         assert [p["code"] for p in packs] == ["small", "medium", "large", "extra_large"]
@@ -84,7 +83,7 @@ def test_list_packs_active_only_by_default(tmp_path):
 
 def test_list_packs_include_inactive(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.update_pack("small", session=session, is_active=False)
         active = ai_tokens.list_packs(session)
@@ -98,7 +97,7 @@ def test_list_packs_include_inactive(tmp_path):
 
 def test_get_pack_excludes_inactive_by_default(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         assert ai_tokens.get_pack("small", session) is not None
         ai_tokens.update_pack("small", session=session, is_active=False)
@@ -110,7 +109,7 @@ def test_get_pack_excludes_inactive_by_default(tmp_path):
 
 def test_update_pack_partial_fields(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         updated = ai_tokens.update_pack(
             "medium", session=session, token_amount=750000, price_usd=55.0,
@@ -128,7 +127,7 @@ def test_update_pack_partial_fields(tmp_path):
 
 def test_update_pack_validates_inputs(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         with pytest.raises(ValueError):
             ai_tokens.update_pack("small", session=session, token_amount=0)
@@ -147,7 +146,7 @@ def test_update_pack_validates_inputs(tmp_path):
 def test_submit_purchase_request_creates_pending(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         req = ai_tokens.submit_purchase_request(user["id"], "medium", session)
         assert req["status"] == "Pending"
@@ -163,7 +162,7 @@ def test_submit_purchase_request_creates_pending(tmp_path):
 def test_submit_purchase_request_rejects_inactive_or_unknown(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.update_pack("large", session=session, is_active=False)
         with pytest.raises(LookupError):
@@ -178,7 +177,7 @@ def test_list_my_purchase_requests_scoped(tmp_path):
     settings = make_settings(tmp_path)
     a = make_user(settings, ["general_user"], email="a@test.local")
     b = make_user(settings, ["general_user"], email="b@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.submit_purchase_request(a["id"], "small", session)
         ai_tokens.submit_purchase_request(b["id"], "medium", session)
@@ -193,7 +192,7 @@ def test_list_my_purchase_requests_scoped(tmp_path):
 def test_list_purchase_requests_admin_view_joins_user(tmp_path):
     settings = make_settings(tmp_path)
     a = make_user(settings, ["general_user"], email="alice@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.submit_purchase_request(a["id"], "small", session)
         rows = ai_tokens.list_purchase_requests(session)
@@ -217,7 +216,7 @@ def test_resolve_approve_grants_tokens(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         req = ai_tokens.submit_purchase_request(user["id"], "medium", session)  # 500000 tokens
         result = ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
@@ -241,7 +240,7 @@ def test_resolve_reject_grants_nothing(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         req = ai_tokens.submit_purchase_request(user["id"], "large", session)
         result = ai_tokens.resolve_purchase_request(
@@ -250,7 +249,7 @@ def test_resolve_reject_grants_nothing(tmp_path):
         assert result["status"] == "Rejected"
         assert result["admin_notes"] == "no funds"
         # No balance row created, no grant ledgered.
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             assert db.execute(
                 "SELECT COUNT(*) FROM ai_token_balances WHERE user_id = ?", (user["id"],)
             ).fetchone()[0] == 0
@@ -263,7 +262,7 @@ def test_resolve_double_review_is_guarded(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         req = ai_tokens.submit_purchase_request(user["id"], "small", session)
         ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
@@ -279,7 +278,7 @@ def test_resolve_double_review_is_guarded(tmp_path):
 def test_resolve_unknown_and_bad_action(tmp_path):
     settings = make_settings(tmp_path)
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         with pytest.raises(LookupError):
             ai_tokens.resolve_purchase_request(9999, admin["id"], "approve", session=session)
@@ -375,8 +374,8 @@ def test_can_purchase_token_packs_seeded(tmp_path):
     """All four user tiers are seeded with the default purchasability matrix
     (free/general off; pro/max on) and survive migrate_database."""
     settings = make_settings(tmp_path)
-    initialize_database(settings.database_path)  # re-run migrate -> applies seed
-    with connect(settings.database_path) as db:
+    initialize_database(settings.database_target)  # re-run migrate -> applies seed
+    with connect(settings.database_target) as db:
         rows = {
             r["role"]: r["limit_count"]
             for r in db.execute(
@@ -442,7 +441,7 @@ def test_balance_can_purchase_packs_reflects_role(tmp_path):
 
 def test_admin_manage_token_requests_seeded(tmp_path):
     settings = make_settings(tmp_path)
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         rows = {
             (r["role"], r["limit_count"])
             for r in db.execute(
@@ -460,8 +459,8 @@ def test_ai_tokens_per_month_in_canonical_set(tmp_path):
     settings = make_settings(tmp_path)
     # Re-running initialize_database triggers migrate_database's DELETE of
     # non-canonical features; ai_tokens_per_month must survive.
-    initialize_database(settings.database_path)
-    with connect(settings.database_path) as db:
+    initialize_database(settings.database_target)
+    with connect(settings.database_target) as db:
         count = db.execute(
             "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
         ).fetchone()[0]
@@ -477,7 +476,7 @@ def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
     store = make_store(settings)
     try:
         AdminService(store.db).reset_role_limits(admin["id"], "general_user")
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             row = db.execute(
                 "SELECT limit_count FROM role_limits "
                 "WHERE role = 'general_user' AND feature = 'ai_tokens_per_month'"
@@ -492,7 +491,7 @@ def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
 # ── model pricing catalog ─────────────────────────────────────────────────────
 
 def _model_pk(settings: Settings, model_id: str) -> int:
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         return int(db.execute(
             "SELECT id FROM ai_models WHERE model_id = ?", (model_id,)
         ).fetchone()[0])
@@ -500,7 +499,7 @@ def _model_pk(settings: Settings, model_id: str) -> int:
 
 def test_list_models_seeded(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         models = ai_tokens.list_models(session)
         assert len(models) > 0
@@ -515,7 +514,7 @@ def test_list_models_seeded(tmp_path):
 
 def test_update_model_pricing(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         pk = _model_pk(settings, "GLM-4.7")
         updated = ai_tokens.update_model(
@@ -534,7 +533,7 @@ def test_update_model_pricing(tmp_path):
 
 def test_update_model_validates_and_unknown(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         pk = _model_pk(settings, "GLM-4.7")
         with pytest.raises(ValueError):

@@ -762,13 +762,15 @@ def submit_purchase_request(
         text(
             "INSERT INTO ai_token_purchase_requests "
             "(user_id, pack_id, status, requested_at) "
-            "VALUES (:uid, :pack_id, 'Pending', CURRENT_TIMESTAMP)"
+            "VALUES (:uid, :pack_id, 'Pending', CURRENT_TIMESTAMP) "
+            "RETURNING id"
         ),
         {"uid": user_id, "pack_id": pack["id"]},
     )
+    new_id = cur.first()[0]
     session.commit()
     row = session.execute(
-        text(_request_select() + " WHERE r.id = :id"), {"id": cur.lastrowid}
+        text(_request_select() + " WHERE r.id = :id"), {"id": new_id}
     ).mappings().fetchone()
     return dict(row)
 

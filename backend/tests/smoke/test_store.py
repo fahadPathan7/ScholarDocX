@@ -1,16 +1,16 @@
 import json
 import pytest
 
-from app.db.connection import connect, initialize_database
+from app.db.connection import connect, get_engine
 from app.services.store import Store, render_text
+
+from tests.helpers import make_settings
 
 
 def make_store(tmp_path):
-    database_path = tmp_path / "app.db"
-    initialize_database(database_path)
-    from app.db.connection import get_engine
+    settings = make_settings(tmp_path)
     from sqlalchemy.orm import sessionmaker
-    engine = get_engine(database_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
     return Store(session), session.connection().connection.dbapi_connection

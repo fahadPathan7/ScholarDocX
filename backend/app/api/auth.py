@@ -14,7 +14,7 @@ from app.auth.rate_limit import (
     user_identity,
 )
 from app.core.config import Settings, get_settings
-from app.db.connection import connect, initialize_database
+from app.db.connection import initialize_database
 from app.services.store import Store
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user, get_jwt_secret
@@ -150,7 +150,7 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     from app.core.categories import DEFAULT_MEDIA_CATEGORIES
     for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
         store.legacy_connection.execute(
-            "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
+            "INSERT INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
             (slug, label, index, user_id)
         )
 

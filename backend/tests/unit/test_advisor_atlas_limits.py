@@ -13,9 +13,8 @@ from app.db.connection import connect, get_db, initialize_database
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
-    initialize_database(settings.database_path)
+    settings.media_path = tmp_path / "workspace" / "media"
+    initialize_database(settings.database_target)
     return settings
 
 
@@ -48,12 +47,12 @@ def test_deprecated_count_limits_are_removed(tmp_path):
             ).fetchall()
         }
 
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         assert present(db) == set()
 
     # Re-initializing must not resurrect them.
-    initialize_database(settings.database_path)
-    with connect(settings.database_path) as db:
+    initialize_database(settings.database_target)
+    with connect(settings.database_target) as db:
         assert present(db) == set()
 
 
@@ -73,13 +72,13 @@ def test_advisor_atlas_permission_is_seeded(tmp_path):
 
     expected = {"free_user": 0, "general_user": 0, "pro_user": 1, "max_user": 1}
 
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         for role, value in expected.items():
             assert limit_for(db, role) == value
 
     # Re-initializing must not drop the feature (canonical-features cleanup).
-    initialize_database(settings.database_path)
-    with connect(settings.database_path) as db:
+    initialize_database(settings.database_target)
+    with connect(settings.database_target) as db:
         for role, value in expected.items():
             assert limit_for(db, role) == value
 
@@ -94,7 +93,7 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
     from app.db.connection import get_engine
 
     settings = make_settings(tmp_path)
-    session = sessionmaker(bind=get_engine(settings.database_path))()
+    session = sessionmaker(bind=get_engine(settings.database_target))()
     try:
         # Default seed: only pro/max enabled.
         assert feature_plan_phrase("can_use_advisor_atlas", session) == "the Pro and Max plans"

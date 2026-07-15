@@ -1,6 +1,5 @@
 import json
 from typing import Any, Optional, List, Dict
-import sqlite3
 import random
 import string
 from datetime import datetime, timedelta, timezone
@@ -8,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.limits import invalidate_limits_cache
 from app.auth.password import hash_password
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
+from app.db.legacy_db import LegacyConnection
 
 DEFAULT_ROLE_LIMITS = {
     'free_user': [
@@ -159,12 +159,10 @@ DEFAULT_ROLE_LIMITS = {
 class AdminService:
     def __init__(self, db: Session):
         self.db = db
-        from typing import cast
-        import sqlite3
-        conn = db.connection().connection.dbapi_connection
-        assert conn is not None
-        self.connection = cast(sqlite3.Connection, conn)
-        self.connection.row_factory = sqlite3.Row
+        # SCHOLARDOCX-0139: route raw-SQL call sites through the legacy shim so
+        # the ~35 self.connection.execute(...) sites (with ? params and
+        # fetchone()[0] / row["col"] access) work unchanged on Postgres.
+        self.connection = LegacyConnection(db)
 
     @staticmethod
     def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -204,14 +202,15 @@ class AdminService:
 
     def get_dashboard_stats(self) -> dict:
         total_users = self.connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= date('now', '-30 days')").fetchone()[0]
-        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= date('now', '-7 days')").fetchone()[0]
+        active_users = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '30 days'").fetchone()[0]
+        active_users_7d = self.connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '7 days'").fetchone()[0]
         total_projects = self.connection.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
         total_sheets = self.connection.execute("SELECT COUNT(*) FROM project_sheets").fetchone()[0]
         total_documents = self.connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         total_sticky_notes = self.connection.execute("SELECT COUNT(*) FROM sticky_notes").fetchone()[0]
         total_whiteboards = self.connection.execute("SELECT COUNT(*) FROM whiteboards").fetchone()[0]
-        total_records = self.connection.execute("SELECT COALESCE(SUM(json_array_length(rows_json)), 0) FROM project_pages").fetchone()[0]
+        # rows_json is TEXT holding a JSON array; cast to jsonb for array length.
+        total_records = self.connection.execute("SELECT COALESCE(SUM(jsonb_array_length(rows_json::jsonb)), 0) FROM project_pages").fetchone()[0]
         storage_row = self.connection.execute("SELECT SUM(size_bytes) FROM static_files").fetchone()
         storage_bytes = storage_row[0] if storage_row and storage_row[0] else 0
 
@@ -221,7 +220,7 @@ class AdminService:
                 "SELECT id, email, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5"
             ).fetchall()
         ]
-        
+
         recent_logins = [
             dict(row) for row in self.connection.execute(
                 "SELECT id, email, display_name, last_login_at FROM users WHERE last_login_at IS NOT NULL ORDER BY last_login_at DESC LIMIT 5"
@@ -235,17 +234,17 @@ class AdminService:
         pending_password_resets = self.connection.execute("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'").fetchone()[0]
 
         total_ai_tokens = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0").fetchone()[0]
-        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= date('now', '-30 days')").fetchone()[0]
-        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= date('now', '-7 days')").fetchone()[0]
+        ai_tokens_30d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '30 days'").fetchone()[0]
+        ai_tokens_7d = self.connection.execute("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '7 days'").fetchone()[0]
         tavily_total = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')").fetchone()[0]
         tavily_web_search = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'").fetchone()[0]
         tavily_scholarship_hunt = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'").fetchone()[0]
         tavily_advisor_atlas = self.connection.execute("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'").fetchone()[0]
 
         ai_usage_10d_rows = self.connection.execute(
-            "SELECT date(created_at) as day, SUM(-tokens_delta) as tokens "
+            "SELECT created_at::date as day, SUM(-tokens_delta) as tokens "
             "FROM ai_token_ledger "
-            "WHERE tokens_delta < 0 AND created_at >= date('now', '-10 days') "
+            "WHERE tokens_delta < 0 AND created_at >= now() - interval '10 days' "
             "GROUP BY day ORDER BY day ASC"
         ).fetchall()
         
@@ -627,7 +626,7 @@ class AdminService:
         from app.core.categories import DEFAULT_MEDIA_CATEGORIES
         for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
             self.connection.execute(
-                "INSERT OR IGNORE INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?)",
+                "INSERT INTO document_categories (slug, display_name, sort_order, user_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
                 (slug, label, index, user_id)
             )
 

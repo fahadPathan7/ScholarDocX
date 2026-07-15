@@ -6,6 +6,6 @@ from app.services.store import Store
 
 def get_store(settings: Settings = Depends(get_settings)) -> Store:
     ensure_workspace(settings)
-    initialize_database(settings.database_path)
-    for session in get_db(settings.database_path):
+    initialize_database(settings.database_target)
+    for session in get_db(settings.database_target):
         yield Store(session)

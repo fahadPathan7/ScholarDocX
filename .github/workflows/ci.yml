@@ -2,11 +2,12 @@
 #
 # Runs the full test suite on every push and pull request so regressions are
 # caught before they land. Privacy-first: this workflow runs only tests; tests
-# use tmp_path / isolated DBs and never touch real user data. No secrets are
-# required — AI provider and key-missing paths are already covered by mocks.
+# use an isolated Postgres service container and never touch real user data.
+# No secrets are required — AI provider and key-missing paths are covered by
+# mocks, and the DATABASE_URL points at the ephemeral CI Postgres instance.
 #
 # The two jobs mirror `make check` locally:
-#   - backend:  pytest
+#   - backend:  pytest (against a Postgres service container)
 #   - frontend: npm ci, npm run build (tsc + vite), npm test (vitest)
 
 name: CI
@@ -27,13 +28,29 @@ jobs:
     name: Backend (pytest)
     runs-on: ubuntu-latest
 
+    # SCHOLARDOCX-0139: provision an ephemeral Postgres for the test run. The
+    # app is Postgres-only; tests create/drop users and rows, so this isolated
+    # DB is wiped per run. No real user data is involved.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: scholardocx
+          POSTGRES_PASSWORD: scholardocx
+          POSTGRES_DB: scholardocx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U scholardocx"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
-      # Point the app at an ephemeral workspace so tests never read or write the
-      # repo's checked-in `workspace/` dir. get_settings() reads this lazily, and
-      # initialize_database() creates the db parent dir, so an empty tmp path is
-      # sufficient. Honors the privacy-first / zero-infra-cost constraints: no
-      # real user data is involved, only synthetic test fixtures.
       SCHOLARDOCX_WORKSPACE: ${{ runner.temp }}/scholardocx-workspace
+      # Tests run against the CI Postgres service container. localhost maps to
+      # the container's published port (GitHub Actions maps service ports).
+      DATABASE_URL: postgresql://scholardocx:scholardocx@localhost:5432/scholardocx_test
 
     steps:
       - uses: actions/checkout@v4

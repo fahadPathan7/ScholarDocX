@@ -25,11 +25,10 @@ from app.services.advisor_atlas.service import AdvisorAtlasService
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
+    settings.media_path = tmp_path / "workspace" / "media"
     settings.glm_api_key = ""
     settings.tavily_api_key = ""
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
     return settings
 
 

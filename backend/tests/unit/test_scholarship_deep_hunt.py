@@ -25,11 +25,10 @@ from app.services.scholarship_deep_hunt import (
 def make_settings(tmp_path: Path) -> Settings:
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
-    settings.database_path = settings.workspace_path / "db" / "app.db"
-    settings.media_path = settings.workspace_path / "media"
+    settings.media_path = tmp_path / "workspace" / "media"
     settings.glm_api_key = ""
     settings.tavily_api_key = "test-tavily-key"
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
     return settings
 
 
@@ -56,7 +55,7 @@ def _fake_extraction_result(**overrides):
 
 def test_repository_create_get_list_lifecycle(tmp_path):
     settings = make_settings(tmp_path)
-    repo = ScholarshipDeepHuntRepository(settings.database_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
 
     run = repo.create_run(
         1,
@@ -82,9 +81,9 @@ def test_repository_create_get_list_lifecycle(tmp_path):
 
 def test_repository_enforces_user_scope(tmp_path):
     settings = make_settings(tmp_path)
-    repo = ScholarshipDeepHuntRepository(settings.database_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
     # Seed a second user row so the FK constraint on user_id is satisfiable.
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles) "
             "VALUES ('second@example.com', 'x', 'Second', '[\"max_user\"]')"
@@ -102,7 +101,7 @@ def test_repository_enforces_user_scope(tmp_path):
 
 def test_repository_cancel_and_resume(tmp_path):
     settings = make_settings(tmp_path)
-    repo = ScholarshipDeepHuntRepository(settings.database_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
     run = repo.create_run(1, {"goal": "test goal"})
 
     cancelled = repo.cancel_run(run["id"], 1)
@@ -120,7 +119,7 @@ def test_repository_cancel_and_resume(tmp_path):
 
 def test_repository_delete(tmp_path):
     settings = make_settings(tmp_path)
-    repo = ScholarshipDeepHuntRepository(settings.database_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
     run = repo.create_run(1, {"goal": "test goal"})
 
     assert repo.delete_run(run["id"], 1) is True

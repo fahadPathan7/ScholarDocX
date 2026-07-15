@@ -14,7 +14,7 @@ load_dotenv()
 def create_app() -> FastAPI:
     settings = get_settings()
     ensure_workspace(settings)
-    initialize_database(settings.database_path)
+    initialize_database(settings.database_target)
 
     app = FastAPI(title="ScholarDocX API", version="0.1.0")
     app.add_middleware(

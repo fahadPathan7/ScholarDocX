@@ -1,0 +1,64 @@
+# Render deployment config for ScholarDocX (SCHOLARDOCX-0139).
+# Deploy with: render deploy (or import this repo in the Render dashboard and
+# Render auto-detects this file).
+#
+# Architecture:
+#   - Backend (FastAPI):  Web Service running uvicorn. Persistent process, no
+#     ephemeral-disk data loss issue (files live in Supabase Storage, data in
+#     Supabase Postgres). The free "Starter" plan sleeps after 15 min idle.
+#   - Frontend (Vite/React): deployed on Vercel separately (see frontend/). This
+#     file deploys the backend only; set VITE_API_BASE_URL on Vercel to the
+#     backend's URL below once deployed.
+#
+# Required env vars (set in Render dashboard → Environment, NOT committed):
+#   DATABASE_URL            - Supabase pooler URL (postgresql://...)
+#   SUPABASE_URL            - https://<project>.supabase.co
+#   SUPABASE_SECRET_KEY     - sb_secret_...
+#   SUPABASE_BUCKET         - media
+#   CORS_ORIGINS            - your Vercel frontend URL(s)
+#   GLM_API_KEY, GEMINI_API_KEY, etc. - AI provider keys (optional)
+#   SCHOLARDOCX_WORKSPACE   - /tmp/workspace (Render ephemeral; only media cache)
+
+services:
+  - type: web
+    name: scholardocx-backend
+    runtime: python
+    rootDir: backend
+    # Render auto-installs from requirements.txt. Python 3.13 for psycopg3 wheel.
+    pythonVersion: "3.13"
+    buildCommand: pip install -r requirements.txt
+    # Bind 0.0.0.0:$PORT — Render injects PORT. uvicorn reads it.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    autoDeploy: true
+    envVars:
+      # Static defaults that don't need dashboard entry.
+      - key: SCHOLARDOCX_WORKSPACE
+        value: /tmp/scholardocx-workspace
+      # Secrets — set these in the Render dashboard under Environment.
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GLM_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY_SCHOLARSHIP_HUNT
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: NEWSDATA_API_KEY
+        sync: false

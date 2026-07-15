@@ -2,7 +2,8 @@
 
 ## Storage Principle
 
-SQLite stores structured metadata. Secure files store binary and rich media artifacts.
+PostgreSQL stores structured metadata (SCHOLARDOCX-0139; previously SQLite).
+Secure files store binary and rich media artifacts on the local workspace.
 
 ## Workspace
 
@@ -14,9 +15,9 @@ workspace/
 
 Initial database path:
 
-```text
-workspace/db/app.db
-```
+The relational store is PostgreSQL, configured via `DATABASE_URL` (see
+stack-and-runtime.md). There is no local database file. `Settings.database_path`
+is retained only for legacy path math and is not used for relational data.
 
 Initial media path:
 
@@ -24,7 +25,7 @@ Initial media path:
 workspace/media/
 ```
 
-## SQLite Should Store
+## PostgreSQL Should Store
 
 - Scholarship Hunt beta query feedback: user ID, generated query, approved
   query, selected filters JSON, whether the user edited it, provider status,

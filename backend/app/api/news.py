@@ -268,7 +268,7 @@ async def delete_bookmark(
     store: Store = Depends(get_user_store),
 ):
     # need to find the record ID first to delete
-    record = store.connection.execute(
+    record = store.legacy_connection.execute(
         "SELECT id FROM bookmarked_news WHERE user_id = ? AND article_id = ?",
         (user["id"], article_id)
     ).fetchone()

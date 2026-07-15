@@ -2,17 +2,18 @@ from app.core.notifications import default_notification_settings_json
 
 
 SEED_SQL = """
-INSERT OR IGNORE INTO degree_workspaces (degree_type, display_name, enabled)
+INSERT INTO degree_workspaces (degree_type, display_name, enabled)
 VALUES
   ('bachelors', 'Bachelor''s', 1),
   ('masters', 'Master''s', 1),
-  ('phd', 'PhD', 1);
+  ('phd', 'PhD', 1)
+ON CONFLICT (degree_type) DO NOTHING;
 
 INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked)
-SELECT 'admin@scholardocx.com', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Super Admin', '["super_admin", "max_user"]', 1, 0
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@scholardocx.com');
+VALUES ('admin@scholardocx.com', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Super Admin', '["super_admin", "max_user"]', 1, 0)
+ON CONFLICT (email) DO NOTHING;
 
-INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
+INSERT INTO role_limits (role, feature, limit_count, reset_period) VALUES
   ('free_user', 'ai_messages_per_session', 0, 'per_session'),
   ('free_user', 'can_use_gemini', 1, 'never'),
   ('free_user', 'can_use_glm', 0, 'never'),
@@ -115,15 +116,17 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('super_admin', 'admin_manage_requests', 1, 'never'),
   ('super_admin', 'admin_manage_suspension_appeals', 1, 'never'),
   ('super_admin', 'admin_manage_settings', 1, 'never'),
-  ('super_admin', 'admin_view_info', 1, 'never');
+  ('super_admin', 'admin_view_info', 1, 'never')
+ON CONFLICT (role, feature) DO NOTHING;
 
-INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
+INSERT INTO role_limits (role, feature, limit_count, reset_period) VALUES
   ('free_user', 'ai_tokens_per_month', 0, 'monthly'),
   ('general_user', 'ai_tokens_per_month', 500000, 'monthly'),
   ('pro_user', 'ai_tokens_per_month', 2000000, 'monthly'),
-  ('max_user', 'ai_tokens_per_month', 5000000, 'monthly');
+  ('max_user', 'ai_tokens_per_month', 5000000, 'monthly')
+ON CONFLICT (role, feature) DO NOTHING;
 
-INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VALUES
+INSERT INTO role_limits (role, feature, limit_count, reset_period) VALUES
   ('free_user', 'can_purchase_token_packs', 0, 'never'),
   ('general_user', 'can_purchase_token_packs', 0, 'never'),
   ('pro_user', 'can_purchase_token_packs', 1, 'never'),
@@ -131,12 +134,13 @@ INSERT OR IGNORE INTO role_limits (role, feature, limit_count, reset_period) VAL
   ('free_user', 'can_use_purchased_tokens', 0, 'never'),
   ('general_user', 'can_use_purchased_tokens', 0, 'never'),
   ('pro_user', 'can_use_purchased_tokens', 1, 'never'),
-  ('max_user', 'can_use_purchased_tokens', 1, 'never');
+  ('max_user', 'can_use_purchased_tokens', 1, 'never')
+ON CONFLICT (role, feature) DO NOTHING;
 
 -- NOTE: jwt_secret_key is intentionally NOT seeded here. It is generated as a
 -- strong random value per install in initialize_database() so the signing key
 -- is never a committed, publicly-known constant.
-INSERT OR IGNORE INTO app_settings (key, value) VALUES
+INSERT INTO app_settings (key, value) VALUES
   ('jwt_expiration_days', '30'),
   ('plan_price_general_monthly', '0'),
   ('plan_price_general_yearly', '0'),
@@ -145,6 +149,7 @@ INSERT OR IGNORE INTO app_settings (key, value) VALUES
   ('plan_price_max_monthly', '180'),
   ('plan_price_max_yearly', '1500'),
   ('ai_token_rate_tokens_per_dollar', '10000'),
-  ('tavily_call_cost_usd', '0.01');
+  ('tavily_call_cost_usd', '0.01')
+ON CONFLICT (key) DO NOTHING;
 
 """

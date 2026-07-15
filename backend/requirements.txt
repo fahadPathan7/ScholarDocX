@@ -9,3 +9,10 @@ bcrypt==4.1.2
 PyJWT==2.8.0
 email-validator==2.1.1
 sqlalchemy>=2.0.0
+# PostgreSQL driver for SQLAlchemy (SCHOLARDOCX-0139). Used when DATABASE_URL
+# points at Postgres (e.g. Supabase). SQLite still uses the stdlib sqlite3
+# driver, so this is only required for Postgres deployments.
+# NOTE: psycopg2-binary has no Python 3.13 wheel on Apple Silicon and fails to
+# build from source without PG dev headers. psycopg3 (psycopg[binary]) is the
+# modern SQLAlchemy-recommended driver and installs cleanly on 3.13.
+psycopg[binary]>=3.1

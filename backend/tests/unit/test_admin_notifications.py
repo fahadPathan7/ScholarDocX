@@ -2,15 +2,16 @@ import json
 from typing import Optional
 import pytest
 
-from app.db.connection import get_engine, initialize_database
+from app.db.connection import get_engine
 from app.services.admin import AdminService
 from sqlalchemy.orm import sessionmaker
 
+from tests.helpers import make_settings
+
 
 def make_session(tmp_path):
-    database_path = tmp_path / "app.db"
-    initialize_database(database_path)
-    engine = get_engine(database_path)
+    settings = make_settings(tmp_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return SessionLocal()
 

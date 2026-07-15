@@ -6,17 +6,17 @@ from fastapi import HTTPException
 from app.api.admin import list_plan_requests as list_admin_plan_requests, review_plan_request, PlanRequestReviewPayload
 from app.auth.limits import invalidate_limits_cache
 from app.api.auth import PlanRequestPayload, list_my_plan_requests, request_plan_upgrade
-from app.db.connection import connect, initialize_database
+from app.db.connection import get_engine
 from app.services.admin import AdminService
 from app.services.store import Store
 
+from tests.helpers import make_settings
+
 
 def make_store(tmp_path):
-    database_path = tmp_path / "app.db"
-    initialize_database(database_path)
-    from app.db.connection import get_engine
+    settings = make_settings(tmp_path)
     from sqlalchemy.orm import sessionmaker
-    engine = get_engine(database_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
     return Store(session), session.connection().connection.dbapi_connection

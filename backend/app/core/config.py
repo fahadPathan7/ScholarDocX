@@ -9,6 +9,12 @@ class Settings:
         workspace = os.getenv("SCHOLARDOCX_WORKSPACE")
         self.repo_root = repo_root
         self.workspace_path = Path(workspace).expanduser().resolve() if workspace else repo_root / "workspace"
+        # SCHOLARDOCX-0139: PostgreSQL is the only database. DATABASE_URL must
+        # point at a Postgres instance (e.g. Supabase). SQLite was removed in
+        # favor of a single-dialect codebase. database_path is retained only
+        # because some legacy callers still reference it for media/workspace
+        # path math; it is no longer used for the relational store.
+        self.database_url = os.getenv("DATABASE_URL", "").strip()
         self.database_path = self.workspace_path / "db" / "app.db"
         self.media_path = self.workspace_path / "media"
         self.glm_api_key = os.getenv("GLM_API_KEY", "")
@@ -45,6 +51,22 @@ class Settings:
             "CORS_ORIGIN_REGEX",
             r"^http://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$",
         )
+
+    @property
+    def database_target(self) -> str:
+        """The Postgres connection URL. Required (SQLite was removed).
+
+        Callers pass this to get_engine/get_db/initialize_database. Raises if
+        DATABASE_URL is unset so misconfiguration fails loudly at startup.
+        (SCHOLARDOCX-0139)
+        """
+        if not self.database_url:
+            raise RuntimeError(
+                "DATABASE_URL is required (SCHOLARDOCX-0139). "
+                "Set it to a PostgreSQL connection string, e.g. "
+                "postgresql://user:pass@host:5432/dbname"
+            )
+        return self.database_url
 
     @property
     def ai_configured(self) -> bool:

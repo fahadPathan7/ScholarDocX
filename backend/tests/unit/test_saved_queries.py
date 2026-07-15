@@ -2,17 +2,17 @@ import pytest
 from sqlalchemy import text
 
 from app.api import news as news_api
-from app.db.connection import initialize_database
+from app.db.connection import get_engine
 from app.services.store import Store
+
+from tests.helpers import make_settings
 
 
 def _store(tmp_path, user_id=1):
-    database_path = tmp_path / "scholardocx.db"
-    initialize_database(database_path)
-    from app.db.connection import get_engine
+    settings = make_settings(tmp_path)
     from sqlalchemy.orm import sessionmaker
 
-    engine = get_engine(database_path)
+    engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
     store = Store(session)

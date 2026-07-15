@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.auth.jwt import decode_token, verify_token_version
-from app.db.connection import connect, COMPROMISED_JWT_SECRET_PREFIX
+from app.db.connection import COMPROMISED_JWT_SECRET_PREFIX
 from app.core.config import Settings, get_settings
 from app.api.dependencies import get_store
 from app.services.store import Store
@@ -48,15 +48,15 @@ def get_current_user(
         )
 
     try:
-        payload = decode_token(token_str, get_jwt_secret(store.connection))
+        payload = decode_token(token_str, get_jwt_secret(store.legacy_connection))
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    user = store.connection.execute(
+
+    user = store.legacy_connection.execute(
         "SELECT * FROM users WHERE id = ?", (payload["user_id"],)
     ).fetchone()
     

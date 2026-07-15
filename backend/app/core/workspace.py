@@ -52,11 +52,33 @@ def safe_media_path(settings: Settings, category: str, filename: str) -> Path:
 
 
 def save_upload(settings: Settings, category: str, filename: str, source_file) -> dict:
-    destination = safe_media_path(settings, category, filename)
-    with destination.open("wb") as output:
-        shutil.copyfileobj(source_file, output)
-    relative_path = destination.relative_to(settings.workspace_path)
+    """Upload a file to Supabase Storage and return its relative path + size.
+
+    SCHOLARDOCX-0139: files are stored in the Supabase "media" bucket (object
+    key = relative_path, e.g. ``media/cv/<uuid>-resume.pdf``) so they persist
+    across serverless/host restarts. The relative_path stored in static_files
+    is unchanged in format — only the physical storage moved from local disk
+    to Supabase Storage.
+    """
+    from app.core.storage import upload_file
+
+    safe_category = normalize_media_category(category)
+    cleaned_name = Path(filename).name.strip()
+    if not cleaned_name:
+        raise ValueError("Filename is required")
+    # Object key is bucket-relative: the bucket is "media", so the key is just
+    # <category>/<uuid>-<filename>. The relative_path stored in static_files
+    # keeps the "media/" prefix so existing lookups and migrations are unaffected;
+    # only the Storage object key drops it.
+    object_key = f"{safe_category}/{uuid4().hex}-{cleaned_name}"
+    relative_path = f"media/{object_key}"
+
+    # Read the upload stream once so we can measure size and upload it.
+    body = source_file.read()
+    import io
+    size_bytes = len(body)
+    upload_file(object_key, io.BytesIO(body))
     return {
-        "relative_path": str(relative_path),
-        "size_bytes": destination.stat().st_size,
+        "relative_path": relative_path,
+        "size_bytes": size_bytes,
     }

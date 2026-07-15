@@ -207,8 +207,10 @@ _USAGE_COUNT_QUERIES = {
         "JOIN projects p ON ps.project_id = p.id WHERE p.user_id = :uid"
     ),
     "total_records": (
-        "SELECT COALESCE(SUM(json_array_length("
-        "COALESCE(NULLIF(pp.rows_json, ''), '[]'))), 0) "
+        # rows_json is TEXT holding a JSON array. Cast to jsonb so Postgres can
+        # compute the array length. COALESCE handles NULL/empty values.
+        "SELECT COALESCE(SUM(jsonb_array_length("
+        "COALESCE(NULLIF(pp.rows_json, ''), '[]')::jsonb)), 0) "
         "FROM project_pages pp JOIN projects p ON pp.project_id = p.id "
         "WHERE p.user_id = :uid"
     ),

@@ -71,7 +71,7 @@ DEEP_CONCURRENCY = 2
 class AdvisorAtlasService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.repository = AdvisorAtlasRepository(settings.database_path)
+        self.repository = AdvisorAtlasRepository(settings.database_target)
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
 
@@ -83,7 +83,7 @@ class AdvisorAtlasService:
             from sqlalchemy.orm import sessionmaker
             from app.services.ai_tokens import load_user_dict
             billing_session = sessionmaker(
-                autocommit=False, autoflush=False, bind=get_engine(self.settings.database_path)
+                autocommit=False, autoflush=False, bind=get_engine(self.settings.database_target)
             )()
             self.ai_service.set_billing(
                 load_user_dict(user_id, billing_session), billing_session

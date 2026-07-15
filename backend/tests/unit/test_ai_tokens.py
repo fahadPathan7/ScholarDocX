@@ -26,7 +26,7 @@ from tests.helpers import (
 
 def test_seed_defaults(tmp_path):
     settings = make_settings(tmp_path)
-    with connect(settings.database_path) as db:
+    with connect(settings.database_target) as db:
         rate = db.execute(
             "SELECT value FROM app_settings WHERE key='ai_token_rate_tokens_per_dollar'"
         ).fetchone()["value"]
@@ -55,7 +55,7 @@ def test_seed_defaults(tmp_path):
 def test_compute_cost_math_and_ceil(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         # cost = 1000*1/1e6 + 500*2/1e6 = 0.002 USD -> ceil(0.002*10000) = 20 tokens
         cost_usd, tokens = ai_tokens.compute_cost("GLM-4.7", 1000, 500, session)
@@ -71,7 +71,7 @@ def test_compute_cost_math_and_ceil(tmp_path):
 
 def test_compute_cost_unknown_model_is_free(tmp_path):
     settings = make_settings(tmp_path)
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         cost_usd, tokens = ai_tokens.compute_cost("does-not-exist", 1000, 500, session)
         assert cost_usd == 0.0
@@ -85,7 +85,7 @@ def test_compute_cost_unknown_model_is_free(tmp_path):
 def test_refresh_balance_grants_monthly_allowance(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         balance = ai_tokens.refresh_balance(user, session)
         assert balance["subscription_remaining"] == 500000
@@ -101,11 +101,11 @@ def test_refresh_balance_resets_at_month_boundary_no_rollover(tmp_path):
     now = datetime.utcnow()
     last_period = f"{now.year - 1}-12" if now.month == 1 else f"{now.year}-{now.month - 1:02d}"
 
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.refresh_balance(user, session)
         # Spend down to 1000 left, stamp a prior period.
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 1000, "
                 "subscription_period = ? WHERE user_id = ?",
@@ -126,7 +126,7 @@ def test_charge_consumes_subscription_before_purchased(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)  # 1000/500 -> 20 tokens
     user = make_user(settings, ["pro_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.grant_purchased(user["id"], 100000, session=session, source="test")
         # Sub has 2000000 -> first charge eats from sub only.
@@ -140,7 +140,7 @@ def test_charge_consumes_subscription_before_purchased(tmp_path):
         assert b["purchased_remaining"] == 100000
 
         # Exhaust sub, charge again -> spills into purchased.
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 0 WHERE user_id = ?",
                 (user["id"],),
@@ -170,10 +170,10 @@ def test_charge_consumes_subscription_before_purchased(tmp_path):
 def test_ensure_can_spend_hard_stops_at_zero(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.refresh_balance(user, session)
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 0, "
                 "purchased_remaining = 0 WHERE user_id = ?",
@@ -191,11 +191,11 @@ def test_charge_at_zero_charges_nothing(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)
     user = make_user(settings, ["pro_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         # Never grant sub/purchased beyond a tiny amount.
         ai_tokens.refresh_balance(user, session)
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 0, "
                 "purchased_remaining = 5 WHERE user_id = ?",
@@ -220,7 +220,7 @@ def test_charge_at_zero_charges_nothing(tmp_path):
 def test_grant_purchased_accumulates(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         first = ai_tokens.grant_purchased(
             user["id"], 100000, session=session, source="pack", ref_id=3, note="small"
@@ -242,10 +242,10 @@ def test_grant_purchased_accumulates(tmp_path):
 def test_out_of_tokens_user_recovers_after_grant(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["pro_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.refresh_balance(user, session)
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 0, "
                 "purchased_remaining = 0 WHERE user_id = ?",
@@ -288,7 +288,7 @@ async def test_chat_charges_via_instance_billing(tmp_path, monkeypatch):
     settings.glm_api_key = "test-glm"
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)  # 1000/500 -> 20 tokens
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         svc = AiService(settings, user=user, session=session)
 
@@ -315,10 +315,10 @@ async def test_chat_hard_stops_when_out_of_tokens(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     settings.glm_api_key = "test-glm"
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         ai_tokens.refresh_balance(user, session)
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             db.execute(
                 "UPDATE ai_token_balances SET subscription_remaining = 0, "
                 "purchased_remaining = 0 WHERE user_id = ?",
@@ -339,7 +339,7 @@ def test_charge_tokens_helper_charges_when_billed(tmp_path):
     settings = make_settings(tmp_path)
     set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)  # 1000/500 -> 20 tokens
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         svc = AiService(settings, user=user, session=session)
         svc.charge_tokens(
@@ -357,7 +357,7 @@ def test_charge_tokens_helper_charges_when_billed(tmp_path):
 def test_charge_tokens_helper_noop_without_billing(tmp_path):
     settings = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
-    session = next(get_db(settings.database_path))
+    session = next(get_db(settings.database_target))
     try:
         svc = AiService(settings)  # no billing context
         svc.charge_tokens(
@@ -365,7 +365,7 @@ def test_charge_tokens_helper_noop_without_billing(tmp_path):
             input_tokens=1000, output_tokens=500, source="anything",
         )
         # No balance row, no ledger — internal/system call is unmetered.
-        with connect(settings.database_path) as db:
+        with connect(settings.database_target) as db:
             assert db.execute(
                 "SELECT COUNT(*) FROM ai_token_ledger WHERE user_id = ?", (user["id"],)
             ).fetchone()[0] == 0

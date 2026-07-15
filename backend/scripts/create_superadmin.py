@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -5,19 +6,22 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(backend_dir))
 
+from dotenv import load_dotenv
+load_dotenv(backend_dir.parent / ".env")
+
 from app.auth.password import hash_password
 from app.db.connection import get_engine
 from app.db.models import Users
 from sqlalchemy.orm import sessionmaker
 
 def create_superadmin():
-    repo_root = backend_dir.parent
-    db_path = repo_root / "workspace" / "db" / "app.db"
-    
-    # Ensure directory exists
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    engine = get_engine(db_path)
+    # SCHOLARDOCX-0139: Postgres-only. DATABASE_URL is required.
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if not database_url:
+        print("ERROR: DATABASE_URL is not set. Configure it in .env.")
+        sys.exit(1)
+
+    engine = get_engine(database_url)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
 
@@ -38,11 +42,11 @@ def create_superadmin():
         display_name="Super Admin",
         roles=["general_user", "super_admin"]
     )
-    
+
     session.add(admin_user)
     session.commit()
     session.close()
-    
+
     print(f"Super admin created with {email} / {password}")
 
 if __name__ == "__main__":

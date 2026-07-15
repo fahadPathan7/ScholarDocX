@@ -12,7 +12,7 @@ def test_openrouter_charge(tmp_path, monkeypatch):
     from sqlalchemy.orm import Session
     from app.db.connection import get_engine
     
-    with Session(get_engine(settings.database_path)) as db:
+    with Session(get_engine(settings.database_target)) as db:
         ai_tokens.refresh_balance(user, db)
         ai_tokens.grant_purchased(user["id"], 10000, session=db, source="test")
         # Drain the subscription bucket (pinning the current period so

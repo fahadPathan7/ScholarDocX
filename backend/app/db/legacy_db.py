@@ -1,17 +1,16 @@
 """SQLAlchemy-backed shim for legacy raw-SQL call sites.
 
 SCHOLARDOCX-0139: the codebase has ~80 raw-SQL call sites (in Store,
-AdminService, auth.py, routes.py, repositories) that were written for the
-stdlib sqlite3 driver. They use:
+AdminService, auth.py, routes.py, repositories) that use legacy patterns:
 
   - ``?`` positional placeholders  (psycopg needs named params)
   - ``cursor.lastrowid``           (Postgres does not populate it)
-  - ``row["col"]`` / ``row[0]``    (sqlite3.Row access style)
+  - ``row["col"]`` / ``row[0]``    (dict/index row access)
 
 Rewriting every call site is high-risk and high-effort. This shim provides a
 connection object that transparently supports all three, so call sites stay
-byte-for-byte identical to the SQLite era. The shim routes through a normal
-SQLAlchemy ``Session``, so all SQL is parameterized safely.
+byte-for-byte identical to the pre-migration era. The shim routes through a
+normal SQLAlchemy ``Session``, so all SQL is parameterized safely.
 
 Usage::
 
@@ -31,8 +30,8 @@ from sqlalchemy.orm import Session
 
 
 class _LegacyRow:
-    """Row wrapper mimicking sqlite3.Row: supports ``row["col"]`` and
-    ``row[0]`` access over a SQLAlchemy mapping row."""
+    """Row wrapper supporting ``row["col"]`` and ``row[0]`` access
+    over a SQLAlchemy mapping row (legacy compatibility)."""
 
     def __init__(self, mapping: Any):
         self._mapping = mapping
@@ -110,7 +109,7 @@ class _LegacyResult:
 
 
 class LegacyConnection:
-    """A session-backed connection that accepts sqlite3-style raw SQL.
+    """A session-backed connection that accepts legacy-style raw SQL.
 
     Translates ``?`` placeholders to named bind params, and appends
     ``RETURNING id`` to INSERT statements so ``lastrowid`` works on Postgres.
@@ -177,7 +176,7 @@ class legacy_session:
     """Context manager yielding a ``LegacyConnection`` over a fresh session.
 
     SCHOLARDOCX-0139: the Advisor Atlas and Scholarship Deep Hunt repositories
-    historically opened a raw ``sqlite3`` connection per method
+    historically opened a raw database connection per method
     (``with connect(path) as db:``). This replaces that pattern with a short-lived
     SQLAlchemy session wrapped in the legacy shim, so the same call sites work
     on Postgres::

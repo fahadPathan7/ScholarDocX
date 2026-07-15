@@ -18,7 +18,7 @@
 
 ```mermaid
 flowchart TD
-  Init["Local initialization"] --> Storage["SQLite and local media storage"]
+  Init["Local initialization"] --> Storage["PostgreSQL (Supabase) and media storage"]
   Storage --> Hierarchy["Degree, geography, institution, program, professor hierarchy"]
   Storage --> Docs["Document playground and static files"]
   Hierarchy --> Dashboard["Unified dashboard"]

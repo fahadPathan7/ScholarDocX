@@ -21,7 +21,7 @@ If unit tests are not needed, the Jira task must explain why.
 ## Priority Areas
 
 1. Workspace initialization.
-2. SQLite schema and migrations.
+2. PostgreSQL schema and migrations.
 3. Path validation and file storage.
 4. Application hierarchy and dashboard aggregation.
 5. Document versioning.

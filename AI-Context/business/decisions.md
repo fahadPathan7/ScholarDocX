@@ -16,8 +16,8 @@ Applicants handle sensitive academic, identity, and career documents. Secure per
 
 Implications:
 
-- No remote backend database for core data.
-- SQLite is preferred for structured local data.
+- No remote backend database for core data (superseded by SCHOLARDOCX-0139: now uses Supabase PostgreSQL).
+- PostgreSQL (Supabase) is used for structured application data.
 - Secure file system is preferred for media and documents.
 - AI integrations must be explicit external calls, not silent uploads.
 
@@ -117,7 +117,7 @@ Status: Accepted
 
 Decision:
 
-Use React/Vite/TypeScript/Tailwind for the frontend and FastAPI/SQLite for the backend.
+Use React/Vite/TypeScript/Tailwind for the frontend and FastAPI/PostgreSQL (Supabase) for the backend.
 
 Rationale:
 
@@ -126,8 +126,8 @@ This keeps the secure app simple to run, keeps frontend and backend boundaries c
 Implications:
 
 - Frontend runs on localhost during development.
-- Backend owns SQLite, file storage, and AI provider calls.
-- SQLite is accessed through the backend.
+- Backend owns PostgreSQL (Supabase), file storage, and AI provider calls.
+- The database is accessed through the backend.
 - The first MVP uses a browser-based secure app rather than a packaged desktop app.
 
 ## BD-008: Optional Multi-Provider AI

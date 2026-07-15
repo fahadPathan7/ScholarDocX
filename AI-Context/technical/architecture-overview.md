@@ -1,6 +1,6 @@
 # Architecture Overview
 
-ScholarDocX should be built as a secure personal workspace application with a frontend UI, local backend API, SQLite database, and local media workspace.
+ScholarDocX should be built as a secure personal workspace application with a frontend UI, local backend API, PostgreSQL database, and local media workspace.
 
 ## Initial Architecture
 
@@ -13,7 +13,7 @@ FastAPI backend
   |
   | SQL
   v
-SQLite database
+PostgreSQL database
   |
   | file paths
   v
@@ -30,7 +30,7 @@ GLM AI API and Tavily API
 
 - Frontend handles UI state, forms, views, and user interactions.
 - Backend owns persistence, workspace initialization, file operations, AI provider calls, and validation.
-- SQLite stores structured metadata.
+- The database stores structured metadata.
 - Secure file system stores uploaded or generated binary files.
 - External APIs are called only by backend integration services.
 

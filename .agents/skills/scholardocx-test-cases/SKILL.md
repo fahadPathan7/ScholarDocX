@@ -14,7 +14,7 @@ description: Use for ScholarDocX test planning, unit tests, integration tests, U
 ## Cover First
 
 - Path safety and local workspace initialization.
-- SQLite persistence and migrations or schema changes.
+- PostgreSQL persistence and migrations or schema changes.
 - Request/response validation.
 - AI provider fallback and key-missing behavior.
 - UI failure, loading, empty, and disabled states.

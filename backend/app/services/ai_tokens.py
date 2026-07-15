@@ -428,9 +428,9 @@ def charge(
     session.execute(
         text(
             "UPDATE ai_token_balances SET "
-            "subscription_remaining = MAX(0, subscription_remaining - :sub), "
+            "subscription_remaining = GREATEST(0, subscription_remaining - :sub), "
             "subscription_used_this_period = subscription_used_this_period + :sub, "
-            "purchased_remaining = MAX(0, purchased_remaining - :purch), "
+            "purchased_remaining = GREATEST(0, purchased_remaining - :purch), "
             "total_spent_tokens = total_spent_tokens + :t, "
             "total_spent_usd = total_spent_usd + :c "
             "WHERE user_id = :uid"
@@ -541,9 +541,9 @@ def charge_flat_fee(
     session.execute(
         text(
             "UPDATE ai_token_balances SET "
-            "subscription_remaining = MAX(0, subscription_remaining - :sub), "
+            "subscription_remaining = GREATEST(0, subscription_remaining - :sub), "
             "subscription_used_this_period = subscription_used_this_period + :sub, "
-            "purchased_remaining = MAX(0, purchased_remaining - :purch), "
+            "purchased_remaining = GREATEST(0, purchased_remaining - :purch), "
             "total_spent_tokens = total_spent_tokens + :t, "
             "total_spent_usd = total_spent_usd + :c "
             "WHERE user_id = :uid"

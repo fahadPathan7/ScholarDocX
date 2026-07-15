@@ -1,14 +1,13 @@
 """Database connection layer (PostgreSQL only).
 
-SCHOLARDOCX-0139: SQLite support was removed in favor of a single PostgreSQL
-dialect (hosted Supabase for the app and the test suite). This module owns
-engine creation, session management, raw-connection access for the legacy
-SQL callers, schema creation, and seeding.
+SCHOLARDOCX-0139: this module owns engine creation, session management,
+raw-connection access for the legacy SQL callers, schema creation, and seeding.
 
-Historical note: a ~580-line ``migrate_database`` function repaired old SQLite
-files column-by-column via PRAGMA introspection. It is gone — a fresh Postgres
-DB gets its authoritative schema from ``Base.metadata.create_all`` plus the
-ON CONFLICT-based SEED_SQL, so there is no schema history to migrate.
+Historical note: the original codebase used SQLite with a ~580-line
+``migrate_database`` function that repaired schema column-by-column via PRAGMA
+introspection. That was removed — a fresh Postgres DB gets its authoritative
+schema from ``Base.metadata.create_all`` plus the ON CONFLICT-based SEED_SQL,
+so there is no schema history to migrate.
 """
 
 import secrets
@@ -94,11 +93,10 @@ def connect(database_url: str):
     """Return a legacy-compatible connection for raw-SQL callers (mainly tests).
 
     SCHOLARDOCX-0139: test helpers and a few services historically used
-    ``with connect(path) as db:`` expecting a stdlib ``sqlite3.Connection``
-    with ``?``-params, ``lastrowid``, and ``row["col"]`` access. Postgres has
-    no stdlib driver, so this returns a ``legacy_session`` context manager
+    ``with connect(path) as db:`` with ``?``-params, ``lastrowid``, and
+    ``row["col"]`` access. This returns a ``legacy_session`` context manager
     (see app.db.legacy_db) that transparently supports all three. Call sites
-    stay byte-for-byte identical to the SQLite era.
+    stay byte-for-byte identical to the pre-Postgres era.
 
     App-layer code now uses Store.legacy_connection / AdminService.connection /
     legacy_session directly; this entry point is retained for tests and scripts.
@@ -119,8 +117,8 @@ def initialize_database(database_url: str) -> None:
 
     with engine.begin() as conn:
         # SEED_SQL is multi-statement; psycopg cannot run a whole multi-statement
-        # string the way sqlite3 executescript did, so split on ';'. SEED_SQL
-        # contains no triggers/function bodies/embedded ';', so naive split is safe.
+        # string in one execute call, so split on ';'. SEED_SQL contains no
+        # triggers/function bodies/embedded ';', so naive split is safe.
         try:
             for stmt in _split_sql_script(SEED_SQL):
                 if stmt.strip():

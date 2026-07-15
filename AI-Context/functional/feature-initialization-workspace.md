@@ -50,7 +50,7 @@ Rules:
 1. User launches app.
 2. Backend checks whether local workspace exists.
 3. Backend creates missing folders.
-4. Backend creates or migrates SQLite database.
+4. Backend initializes or connects to the PostgreSQL database.
 5. Backend validates optional AI configuration.
 6. UI reports readiness and any missing optional integrations.
 

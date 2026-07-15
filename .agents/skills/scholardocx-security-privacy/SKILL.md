@@ -1,6 +1,6 @@
 ---
 name: scholardocx-security-privacy
-description: Use for ScholarDocX local-first security, privacy, path traversal prevention, file upload/storage safety, SQLite data boundaries, secrets handling, authentication, admin/user roles, and any change that could expose or transmit user data.
+description: Use for ScholarDocX local-first security, privacy, path traversal prevention, file upload/storage safety, PostgreSQL data boundaries, secrets handling, authentication, admin/user roles, and any change that could expose or transmit user data.
 ---
 
 # ScholarDocX Security And Privacy
@@ -8,7 +8,7 @@ description: Use for ScholarDocX local-first security, privacy, path traversal p
 ## Non-Negotiables
 
 - User application data stays on the local machine.
-- SQLite and local files are the default persistence layer.
+- PostgreSQL and Supabase Storage are the default persistence layer.
 - No telemetry, analytics, remote sync, or cloud persistence without explicit approval and context updates.
 - No real secrets in repo files, logs, tests, screenshots, or task notes.
 

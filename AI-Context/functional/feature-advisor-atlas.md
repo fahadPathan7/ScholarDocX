@@ -45,7 +45,7 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.14: Expose evidence coverage and conflicting or missing information.
 - FR-9.15: Organize candidates into decision lanes and compare up to four.
 - FR-9.16: Persist runs, partial results, dossiers, shortlists, notes, reading
-  status, and refresh changes in local SQLite.
+  status, and refresh changes in the database.
 - FR-9.17: Allow stop, revisit, refresh, and safe resume of eligible runs.
 - FR-9.18: End completed runs with a prioritized student action center.
 - FR-9.19: Require confirmation before saving a candidate into core professor

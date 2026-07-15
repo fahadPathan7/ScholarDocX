@@ -9,11 +9,11 @@ class Settings:
         workspace = os.getenv("SCHOLARDOCX_WORKSPACE")
         self.repo_root = repo_root
         self.workspace_path = Path(workspace).expanduser().resolve() if workspace else repo_root / "workspace"
-        # SCHOLARDOCX-0139: PostgreSQL is the only database. DATABASE_URL must
-        # point at a Postgres instance (e.g. Supabase). SQLite was removed in
-        # favor of a single-dialect codebase. database_path is retained only
-        # because some legacy callers still reference it for media/workspace
-        # path math; it is no longer used for the relational store.
+        # SCHOLARDOCX-0139: PostgreSQL (Supabase) is the only database.
+        # DATABASE_URL must point at a Postgres instance. database_path is
+        # retained only because some legacy callers still reference it for
+        # media/workspace path math; it is no longer used for the relational
+        # store.
         self.database_url = os.getenv("DATABASE_URL", "").strip()
         self.database_path = self.workspace_path / "db" / "app.db"
         self.media_path = self.workspace_path / "media"
@@ -54,7 +54,7 @@ class Settings:
 
     @property
     def database_target(self) -> str:
-        """The Postgres connection URL. Required (SQLite was removed).
+        """The Postgres connection URL (required).
 
         Callers pass this to get_engine/get_db/initialize_database. Raises if
         DATABASE_URL is unset so misconfiguration fails loudly at startup.

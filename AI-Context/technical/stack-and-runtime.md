@@ -4,7 +4,7 @@
 
 - Frontend: Next.js or React/Vite with Tailwind CSS.
 - Backend: Python FastAPI.
-- Database: SQLite (original; migrated to PostgreSQL in SCHOLARDOCX-0139).
+- Database: PostgreSQL (Supabase).
 - Storage: secure file system (original; migrated to Supabase Storage in SCHOLARDOCX-0139).
 - AI providers: GLM AI API and Tavily API.
 
@@ -49,7 +49,7 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 - A bare `postgresql://` is normalized to `postgresql+psycopg://` internally so
   SQLAlchemy uses psycopg3 (psycopg2 has no Python 3.13 wheel).
 - Raw-SQL call sites route through `app.db.legacy_db.LegacyConnection`, which
-  translates SQLite-style `?` params → named params and emulates
+  translates legacy-style `?` params → named params and emulates
   `cursor.lastrowid` via `RETURNING id`. This keeps ~80 call sites unchanged.
 
 ## Deployment Architecture (SCHOLARDOCX-0139)

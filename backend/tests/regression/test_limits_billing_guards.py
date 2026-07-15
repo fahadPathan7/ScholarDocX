@@ -296,7 +296,7 @@ def test_failed_create_compensation_restores_quota(tmp_path):
 # the first-ever `increment=0` permission check bootstraps one via INSERT.
 # That INSERT must be committed even though increment is 0 — otherwise it
 # sits open on the caller's session for the rest of the request and
-# deadlocks a background service's own raw sqlite3 connection writing to the
+# deadlocks a background service's own raw database connection writing to the
 # same file (e.g. AdvisorAtlasRepository/ScholarshipDeepHuntRepository).
 
 def test_permission_only_check_commits_bootstrap_row(tmp_path):

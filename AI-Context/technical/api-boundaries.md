@@ -23,7 +23,7 @@ development.
 
 - Initialize workspace.
 - Validate environment variables.
-- Read and write SQLite data.
+- Read and write PostgreSQL data.
 - Manage file uploads and secure storage.
 - Validate paths and file types.
 - Call GLM and Tavily APIs.
@@ -80,7 +80,7 @@ development.
   contacts Tavily, and consumes one Scholarship Hunt usage unit when the
   preview succeeds
 - confirmed `/news/search` requests accept both the exact preview shown to the
-  user and the approved query, then persist both to user-scoped SQLite feedback
+  user and the approved query, then persist both to user-scoped feedback
   storage before returning normalized results
 - `/news/bookmarks` (superseded by the Opportunity Library UI; endpoints
   remain and back the one-time additive migration into

@@ -38,7 +38,7 @@ Supported file examples:
 - Writing sample
 - PDF proposal
 
-Static files should be stored under the local workspace media folder. SQLite should store metadata and file paths.
+Static files should be stored in Supabase Storage or the local workspace media folder. The database should store metadata and file paths.
 
 ## File Linking
 

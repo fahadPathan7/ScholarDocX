@@ -44,7 +44,7 @@ right of the date in the card footer.
 
 ## Data Rules
 
-Sticky notes are local user data stored in SQLite. They should not sync to a
+Sticky notes are user data stored in the database. They should not sync to a
 remote backend or use external services.
 
 ## Safety And Scope

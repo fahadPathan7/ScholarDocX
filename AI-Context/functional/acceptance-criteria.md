@@ -5,7 +5,7 @@ Use this file for high-level acceptance criteria. Detailed task-specific criteri
 ## Initialization
 
 - App creates missing workspace folders on first launch.
-- App creates or opens local SQLite database.
+- App connects to the PostgreSQL database.
 - Missing AI keys are reported clearly.
 - Non-AI features remain usable when AI keys are missing.
 

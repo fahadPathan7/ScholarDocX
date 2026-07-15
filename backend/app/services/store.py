@@ -246,7 +246,7 @@ class Store:
 
     @property
     def legacy_connection(self):
-        """Session-backed connection accepting sqlite3-style raw SQL.
+        """Session-backed connection accepting legacy-style raw SQL.
 
         Delegates to app.db.legacy_db.LegacyConnection, which translates ``?``
         placeholders to named params and appends ``RETURNING id`` to INSERTs so

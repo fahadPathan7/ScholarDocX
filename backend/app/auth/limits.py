@@ -46,7 +46,7 @@ def should_reset(last_reset_at: str, reset_period: str) -> bool:
         
     return False
 
-_role_limits_cache = {}
+_role_limits_cache: dict[str, dict] = {}
 
 def invalidate_limits_cache():
     global _role_limits_cache
@@ -76,7 +76,7 @@ def get_user_limit(user: dict, feature: str, session: Session) -> int:
             _role_limits_cache[cache_key] = limit_record
     return limit_record["limit_count"] if limit_record else -1
 
-def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Session = None):
+def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Optional[Session] = None):
     if session is None:
         raise ValueError("Database session required for limit checks")
         
@@ -91,12 +91,12 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
         limit_record = _role_limits_cache.get(cache_key)
         
         if not limit_record:
-            limit_record = session.execute(
+            limit_row = session.execute(
                 text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
                 {"role": admin_role, "feature": feature}
             ).mappings().fetchone()
-            if limit_record:
-                limit_record = dict(limit_record)
+            if limit_row:
+                limit_record = dict(limit_row)
                 _role_limits_cache[cache_key] = limit_record
                 
         if not limit_record or limit_record['limit_count'] == 0:
@@ -132,13 +132,13 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
     limit_record = _role_limits_cache.get(cache_key)
     
     if not limit_record:
-        limit_record = session.execute(
+        limit_row = session.execute(
             text("SELECT * FROM role_limits WHERE role = :role AND feature = :feature"),
             {"role": primary_role, "feature": feature}
         ).mappings().fetchone()
         
-        if limit_record:
-            limit_record = dict(limit_record)
+        if limit_row:
+            limit_record = dict(limit_row)
             _role_limits_cache[cache_key] = limit_record
     
     if not limit_record:
@@ -183,15 +183,14 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
     # Increment usage
     if increment != 0:
         session.execute(
-            text("UPDATE user_usage_stats SET current_count = MAX(0, current_count + :inc) WHERE user_id = :uid AND feature = :feature"),
+            text("UPDATE user_usage_stats SET current_count = GREATEST(0, current_count + :inc) WHERE user_id = :uid AND feature = :feature"),
             {"inc": increment, "uid": user["id"], "feature": feature}
         )
     # Always commit, even for a permission-only check (increment=0): the
     # usage-row bootstrap INSERT and the reset UPDATE above are real writes
     # that must not stay open on the caller's session for the rest of the
-    # request. Left open, they hold SQLite's write lock and deadlock against
-    # any other connection (e.g. a background service's own raw sqlite3
-    # connection) trying to write before this request finishes.
+    # request. Left open, they hold a transaction lock and can deadlock
+    # against other connections writing concurrently.
     session.commit()
 
     return True

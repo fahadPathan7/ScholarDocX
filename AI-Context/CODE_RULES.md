@@ -5,7 +5,7 @@ These are repository-wide coding rules for ScholarDocX.
 ## Architecture Rules
 
 - Keep the product secure personal workspace.
-- Use SQLite for structured application data unless context is updated and the user approves a different secure database.
+- Use PostgreSQL (Supabase) for structured application data.
 - Use the secure file system for uploaded and generated files.
 - Keep AI providers behind backend service boundaries. UI code should not call GLM or Tavily directly.
 - Treat external AI/search APIs as optional integrations that require user-provided API keys.
@@ -17,7 +17,7 @@ Initial recommended stack from project context:
 
 - Frontend: Next.js or React/Vite with Tailwind CSS.
 - Backend: Python FastAPI.
-- Database: SQLite.
+- Database: PostgreSQL (Supabase).
 - File storage: local workspace directory.
 - AI integrations: GLM AI API and Tavily API.
 
@@ -80,7 +80,7 @@ For every new feature or feature modification:
 
 - Never commit `.env` files with real values.
 - Never print API keys in logs.
-- Store only file paths and metadata in SQLite; store file bytes in local media folders unless a later decision changes this.
+- Store only file paths and metadata in the database; store file bytes in Supabase Storage or local media folders unless a later decision changes this.
 - Validate uploaded file types and paths.
 - Prevent path traversal when reading or writing secure files.
 - Keep professor, university, essay, transcript, and outreach data private by default.

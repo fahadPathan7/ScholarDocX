@@ -20,9 +20,9 @@ def _store(tmp_path):
 
 
 def test_legacy_database_migration_is_no_longer_applicable(tmp_path):
-    """SCHOLARDOCX-0139: the SQLite legacy-migration path (which added the
+    """SCHOLARDOCX-0139: the legacy-migration path (which added the
     user_id column to local_profiles and created scholarship_search_feedback
-    when upgrading an old SQLite file) was removed when the codebase became
+    when upgrading an old database file) was removed when the codebase became
     Postgres-only. A fresh Postgres DB gets its authoritative schema from
     Base.metadata.create_all + SEED_SQL, so there is no migration history to
     repair. This test now just asserts the authoritative schema lands the

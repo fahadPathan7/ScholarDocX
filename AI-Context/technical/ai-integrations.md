@@ -297,7 +297,7 @@ Execution permissions:
   the registry and the planner prompt instructs an explicit refusal for user
   management, roles, limits, invites, tokens, settings, and model management.
 
-All actions are local SQLite mutations. They do not send emails, submit
+All actions are local database mutations. They do not send emails, submit
 applications, upload files externally, overwrite existing document versions,
 or call cloud storage.
 

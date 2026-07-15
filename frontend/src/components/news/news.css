@@ -90,6 +90,7 @@
 .filter-panel {
   width: 300px;
   min-width: 300px;
+  min-height: 0;
   border-right: 1px solid rgba(47, 109, 122, 0.15);
   background:
     linear-gradient(180deg, rgba(248, 251, 249, 0.96), rgba(255, 255, 255, 0.92));

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -11,7 +11,7 @@ class AppSettings(Base):
     __tablename__ = 'app_settings'
 
     value: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     key: Mapped[Optional[str]] = mapped_column(Text, primary_key=True)
 
 
@@ -27,10 +27,10 @@ class InviteCodes(Base):
     max_uses: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     used_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_by: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    expires_at: Mapped[Optional[str]] = mapped_column(Text)
+    expires_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     users: Mapped['Users'] = relationship('Users', foreign_keys=[created_by], back_populates='invite_codes_created_by')
     users_registered_with_invite: Mapped[list['Users']] = relationship('Users', foreign_keys='[Users.registered_with_invite_id]', back_populates='registered_with_invite')
@@ -48,8 +48,8 @@ class RoleLimits(Base):
     feature: Mapped[str] = mapped_column(Text, nullable=False)
     limit_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('-1'))
     reset_period: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'never'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -59,8 +59,8 @@ class SuspensionAppeals(Base):
     email: Mapped[str] = mapped_column(Text, nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -72,10 +72,10 @@ class PasswordResetRequests(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    reviewed_at: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -94,13 +94,13 @@ class Users(Base):
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     is_blocked: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     avatar: Mapped[Optional[str]] = mapped_column(Text)
-    last_login_at: Mapped[Optional[str]] = mapped_column(Text)
-    plan_started_at: Mapped[Optional[str]] = mapped_column(Text)
-    plan_ends_at: Mapped[Optional[str]] = mapped_column(Text)
+    last_login_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    plan_started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    plan_ends_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     registered_with_invite_id: Mapped[Optional[int]] = mapped_column(ForeignKey('invite_codes.id'))
 
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
@@ -144,8 +144,8 @@ class AiConversations(Base):
     __tablename__ = 'ai_conversations'
 
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -163,7 +163,7 @@ class AuditLogs(Base):
     )
 
     action: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     target_type: Mapped[Optional[str]] = mapped_column(Text)
@@ -183,7 +183,7 @@ class BookmarkedNews(Base):
     article_id: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     link: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     source_name: Mapped[Optional[str]] = mapped_column(Text)
@@ -201,8 +201,8 @@ class DegreeWorkspaces(Base):
     degree_type: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     enabled: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -219,8 +219,8 @@ class DocumentCategories(Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -232,8 +232,8 @@ class Documents(Base):
 
     document_type: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     owner_scope: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'general'"))
@@ -249,8 +249,8 @@ class EmailTemplates(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     subject_template: Mapped[str] = mapped_column(Text, nullable=False)
     body_template: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -264,8 +264,8 @@ class InviteRequests(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     phone: Mapped[Optional[str]] = mapped_column(Text)
@@ -281,8 +281,8 @@ class LocalProfiles(Base):
         Index('idx_local_profiles_user_id', 'user_id'),
     )
 
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     display_name: Mapped[Optional[str]] = mapped_column(Text)
@@ -305,12 +305,12 @@ class PlanUpgradeRequests(Base):
     requested_plan: Mapped[str] = mapped_column(Text, nullable=False)
     billing_cycle: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'monthly'"))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     message: Mapped[Optional[str]] = mapped_column(Text)
     reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    reviewed_at: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     users: Mapped[Optional['Users']] = relationship('Users', foreign_keys=[reviewed_by], back_populates='plan_upgrade_requests_reviewed_by')
     user: Mapped['Users'] = relationship('Users', foreign_keys=[user_id], back_populates='plan_upgrade_requests_user')
@@ -323,8 +323,8 @@ class Projects(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Active'"))
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     degree_type: Mapped[Optional[str]] = mapped_column(Text)
@@ -350,8 +350,8 @@ class ScholarshipSearchFeedback(Base):
     filters_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     was_edited: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     provider_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'pending'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     result_count: Mapped[Optional[int]] = mapped_column(Integer)
 
@@ -368,8 +368,8 @@ class StickyNotes(Base):
     font: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'caveat'"))
     font_size: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     body: Mapped[Optional[str]] = mapped_column(Text)
@@ -382,8 +382,8 @@ class Universities(Base):
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
     country: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     region: Mapped[Optional[str]] = mapped_column(Text)
@@ -408,12 +408,12 @@ class UserSessions(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     token_jti: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    expires_at: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    expires_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
     user_agent: Mapped[Optional[str]] = mapped_column(Text)
-    revoked_at: Mapped[Optional[str]] = mapped_column(Text)
+    revoked_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped['Users'] = relationship('Users', back_populates='user_sessions')
 
@@ -429,8 +429,8 @@ class UserUsageStats(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     feature: Mapped[str] = mapped_column(Text, nullable=False)
     current_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    last_reset_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    last_reset_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
     user: Mapped['Users'] = relationship('Users', back_populates='user_usage_stats')
@@ -442,9 +442,9 @@ class Whiteboards(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     shapes_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     camera_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('\'{"x":0,"y":0,"zoom":1}\''))
-    last_used_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    last_used_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -457,14 +457,14 @@ class Notifications(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     notification_type: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'general'"))
     preference_key: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'system'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     project_id: Mapped[Optional[int]] = mapped_column(ForeignKey('projects.id'))
     body: Mapped[Optional[str]] = mapped_column(Text)
-    due_at: Mapped[Optional[str]] = mapped_column(Text)
-    read_at: Mapped[Optional[str]] = mapped_column(Text)
+    due_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    read_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     project: Mapped[Optional['Projects']] = relationship('Projects', back_populates='notifications')
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='notifications')
@@ -475,8 +475,8 @@ class Programs(Base):
 
     university_id: Mapped[int] = mapped_column(ForeignKey('universities.id'), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     degree_type: Mapped[Optional[str]] = mapped_column(Text)
@@ -498,8 +498,8 @@ class ProjectSheets(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
 
@@ -512,8 +512,8 @@ class Professors(Base):
     __tablename__ = 'professors'
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     university_id: Mapped[Optional[int]] = mapped_column(ForeignKey('universities.id'))
@@ -540,8 +540,8 @@ class ProjectPages(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     columns_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     rows_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     sheet_id: Mapped[Optional[int]] = mapped_column(ForeignKey('project_sheets.id'))
@@ -556,8 +556,8 @@ class Applications(Base):
     __tablename__ = 'applications'
 
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Researching'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     degree_workspace_id: Mapped[Optional[int]] = mapped_column(ForeignKey('degree_workspaces.id'))
@@ -588,13 +588,13 @@ class Deadlines(Base):
 
     deadline_type: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    due_at: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    due_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
-    completed_at: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='deadlines')
@@ -608,8 +608,8 @@ class DocumentVersions(Base):
     version_label: Mapped[str] = mapped_column(Text, nullable=False)
     content_format: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'markdown'"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
@@ -625,8 +625,8 @@ class EmailDrafts(Base):
     subject: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Draft'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     template_id: Mapped[Optional[int]] = mapped_column(ForeignKey('email_templates.id'))
@@ -646,8 +646,8 @@ class ResearchNotes(Base):
 
     title: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
@@ -669,8 +669,8 @@ class StaticFiles(Base):
     relative_path: Mapped[str] = mapped_column(Text, nullable=False)
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     mime_type: Mapped[Optional[str]] = mapped_column(Text)
@@ -687,9 +687,9 @@ class OutreachLogs(Base):
 
     recipient_email: Mapped[str] = mapped_column(Text, nullable=False)
     subject: Mapped[str] = mapped_column(Text, nullable=False)
-    sent_at: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    sent_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     email_draft_id: Mapped[Optional[int]] = mapped_column(ForeignKey('email_drafts.id'))
@@ -709,14 +709,14 @@ class Reminders(Base):
     __tablename__ = 'reminders'
 
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    due_at: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    due_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
     outreach_log_id: Mapped[Optional[int]] = mapped_column(ForeignKey('outreach_logs.id'))
-    completed_at: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='reminders')
@@ -747,11 +747,11 @@ class AdvisorAtlasRuns(Base):
     progress_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     action_center_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     error_message: Mapped[Optional[str]] = mapped_column(Text)
-    started_at: Mapped[Optional[str]] = mapped_column(Text)
-    completed_at: Mapped[Optional[str]] = mapped_column(Text)
-    cancelled_at: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -788,8 +788,8 @@ class AdvisorAtlasCandidates(Base):
     coverage_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     risk_flags_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     saved_professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("professors.id"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -808,8 +808,8 @@ class AdvisorAtlasEvidence(Base):
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_excerpt: Mapped[Optional[str]] = mapped_column(Text)
     confidence: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("50"))
-    published_at: Mapped[Optional[str]] = mapped_column(Text)
-    retrieved_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    published_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
@@ -831,8 +831,8 @@ class AdvisorAtlasPublications(Base):
     reading_priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     reading_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unread'"))
     user_note: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -852,8 +852,8 @@ class AdvisorAtlasDossiers(Base):
     application_fit_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     verification_questions_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     next_actions_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
-    generated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    generated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -868,8 +868,8 @@ class AdvisorAtlasWatchEvents(Base):
     previous_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
     new_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
     importance: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
-    detected_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    acknowledged_at: Mapped[Optional[str]] = mapped_column(Text)
+    detected_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    acknowledged_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -879,9 +879,9 @@ class SavedScholarshipQueries(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     query_string: Mapped[str] = mapped_column(Text, nullable=False)
     filters_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    last_used_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_used_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     seen_article_ids_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
@@ -906,15 +906,15 @@ class ScholarshipOpportunities(Base):
     deadlines_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     requirements_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     field_confidence_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
     sponsor: Mapped[Optional[str]] = mapped_column(Text)
     application_url: Mapped[Optional[str]] = mapped_column(Text)
     linked_sheet_id: Mapped[Optional[int]] = mapped_column(ForeignKey('project_sheets.id'))
     linked_row_snapshot: Mapped[Optional[str]] = mapped_column(Text)
-    last_deadline_notified_at: Mapped[Optional[str]] = mapped_column(Text)
+    last_deadline_notified_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     deep_hunt_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey('scholarship_deep_hunt_runs.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='scholarship_opportunities')
@@ -937,11 +937,11 @@ class ScholarshipDeepHuntRuns(Base):
     progress_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     result_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     error_message: Mapped[Optional[str]] = mapped_column(Text)
-    started_at: Mapped[Optional[str]] = mapped_column(Text)
-    completed_at: Mapped[Optional[str]] = mapped_column(Text)
-    cancelled_at: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -959,8 +959,8 @@ class AiModels(Base):
     output_price_per_1m: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
 
 
@@ -975,10 +975,10 @@ class AiTokenBalances(Base):
     subscription_period: Mapped[Optional[str]] = mapped_column(Text)
     purchased_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     purchased_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    last_reset_at: Mapped[Optional[str]] = mapped_column(Text)
+    last_reset_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     total_spent_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     total_spent_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class AiTokenLedger(Base):
@@ -1002,7 +1002,7 @@ class AiTokenLedger(Base):
     balance_bucket: Mapped[Optional[str]] = mapped_column(Text)
     ref_id: Mapped[Optional[int]] = mapped_column(Integer)
     note: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class AiTokenPacks(Base):
@@ -1028,7 +1028,7 @@ class AiTokenPurchaseRequests(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     pack_id: Mapped[int] = mapped_column(ForeignKey('ai_token_packs.id'), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
-    requested_at: Mapped[str] = mapped_column(Text, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    reviewed_at: Mapped[Optional[str]] = mapped_column(Text)
+    requested_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[Optional[int]] = mapped_column(Integer)
     admin_notes: Mapped[Optional[str]] = mapped_column(Text)

@@ -7,14 +7,12 @@ import { Loader2 } from "lucide-react";
 
 interface NewsFeedProps {
   articles: NewsArticle[];
-  bookmarks: any[];
   isLoading: boolean;
   isRefreshing?: boolean;
   refreshMessage?: string;
   hasMore: boolean;
   hasFilters?: boolean;
   onLoadMore: () => void;
-  onToggleBookmark: (article: NewsArticle) => void;
   onAnalyze?: (article: NewsArticle) => void;
   analyzingUrl?: string | null;
   opportunitiesByUrl?: Record<string, ScholarshipOpportunity>;
@@ -25,14 +23,12 @@ interface NewsFeedProps {
 
 export function NewsFeed({
   articles,
-  bookmarks,
   isLoading,
   isRefreshing = false,
   refreshMessage,
   hasMore,
   hasFilters = true,
   onLoadMore,
-  onToggleBookmark,
   onAnalyze,
   analyzingUrl,
   opportunitiesByUrl,
@@ -40,16 +36,13 @@ export function NewsFeed({
   huntProfile,
   newArticleIds,
 }: NewsFeedProps) {
-  const isArticleBookmarked = (articleId: string) => {
-    return bookmarks.some(b => b.article_id === articleId);
-  };
 
   if (articles.length === 0 && !isLoading) {
     if (!hasFilters) {
       return (
         <div className="news-empty-state">
-          <p>Select at least one query input.</p>
-          <p className="news-empty-subtext">ScholarDocX will turn your choices into an editable scholarship search query before using a credit.</p>
+          <p>Select at least one query input, or start a Custom AI Search.</p>
+          <p className="news-empty-subtext">ScholarDocX will translate your selections or custom prompt into an editable query before performing the search.</p>
         </div>
       );
     }
@@ -73,13 +66,10 @@ export function NewsFeed({
         )}
         <div className={`news-grid ${isRefreshing && articles.length > 0 ? "news-grid--refreshing" : ""}`}>
           {articles.map((article, index) => {
-            const isBookmarked = isArticleBookmarked(article.article_id);
             return (
               <NewsCard
                 key={article.article_id || index}
                 article={article}
-                isBookmarked={isBookmarked}
-                onToggleBookmark={onToggleBookmark}
                 onAnalyze={onAnalyze}
                 isAnalyzing={analyzingUrl === article.link}
                 analyzedOpportunity={opportunitiesByUrl?.[article.link]}

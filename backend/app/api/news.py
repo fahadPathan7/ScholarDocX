@@ -61,7 +61,7 @@ class QueryPreviewRequest(BaseModel):
 
 class ConfirmedSearchRequest(BaseModel):
     filters: ScholarshipSearchFilters
-    preview_feedback_id: int = Field(ge=0)
+    preview_feedback_id: str = ""
     approved_query: str = Field(min_length=3, max_length=MAX_TAVILY_QUERY_LENGTH)
     query_approved: bool
 
@@ -121,7 +121,7 @@ async def preview_news_query(
         )
     feedback_id = create_query_preview_feedback(
         store.db,
-        int(user["id"]),
+        str(user["id"]),
         generated["query"],
         _filter_kwargs(payload.filters),
     )
@@ -160,15 +160,15 @@ async def search_news_confirmed(
             detail="Approved query must contain at least 3 characters.",
         )
 
-    if payload.preview_feedback_id == 0:
+    if not payload.preview_feedback_id or payload.preview_feedback_id == "0":
         _charge_scholarship_hunt(user, store)
-        feedback_id = create_search_feedback(store.db, int(user["id"]), approved_query, approved_query, filters)
+        feedback_id = create_search_feedback(store.db, str(user["id"]), approved_query, approved_query, filters)
     else:
         try:
             initial_query = claim_query_preview_feedback(
                 store.db,
                 payload.preview_feedback_id,
-                int(user["id"]),
+                str(user["id"]),
                 approved_query,
             )
         except LookupError as error:
@@ -299,7 +299,7 @@ async def add_saved_query(
 
 @router.patch("/news/saved-queries/{query_id}")
 async def update_saved_query(
-    query_id: int,
+    query_id: str,
     payload: SavedQueryUpdate,
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
@@ -321,9 +321,8 @@ async def update_saved_query(
 
 @router.delete("/news/saved-queries/{query_id}")
 async def delete_saved_query(
-    query_id: int,
+    query_id: str,
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
 ):
     return store.delete_record("saved_scholarship_queries", query_id)
-

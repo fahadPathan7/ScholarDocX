@@ -140,7 +140,7 @@ def dashboard_summary(store: Store = Depends(get_user_store)) -> dict:
 
 
 @router.get("/projects/{project_id}/summary")
-def project_summary(project_id: int, store: Store = Depends(get_user_store)) -> dict:
+def project_summary(project_id: str, store: Store = Depends(get_user_store)) -> dict:
     try:
         return store.project_summary(project_id)
     except LookupError as exc:
@@ -149,7 +149,7 @@ def project_summary(project_id: int, store: Store = Depends(get_user_store)) -> 
 
 @router.post("/projects/{project_id}/sheets")
 def create_project_sheet(
-    project_id: int, 
+    project_id: str, 
     payload: SheetPayload, 
     store: Store = Depends(get_user_store),
     current_user: dict = Depends(get_current_user)
@@ -188,7 +188,7 @@ def create_document_category(payload: CategoryPayload, store: Store = Depends(ge
 
 
 @router.patch("/document_categories/{category_id}")
-def rename_document_category(category_id: int, payload: CategoryPayload, store: Store = Depends(get_user_store)) -> dict:
+def rename_document_category(category_id: str, payload: CategoryPayload, store: Store = Depends(get_user_store)) -> dict:
     try:
         return store.rename_document_category(category_id, payload.name)
     except LookupError as exc:
@@ -201,7 +201,7 @@ def rename_document_category(category_id: int, payload: CategoryPayload, store: 
 
 @router.delete("/document_categories/{category_id}")
 def delete_document_category(
-    category_id: int,
+    category_id: str,
     settings: Settings = Depends(get_settings),
     store: Store = Depends(get_user_store),
 ) -> dict:
@@ -259,7 +259,7 @@ def _crud_routes(table: str):
 
     @router.patch(f"/{table}" + "/{record_id}")
     def update_record(
-        record_id: int,
+        record_id: str,
         payload: Payload,
         store: Store = Depends(get_user_store),
         table_name: str = table,
@@ -297,7 +297,7 @@ def _crud_routes(table: str):
 
     @router.delete(f"/{table}" + "/{record_id}")
     def delete_record(
-        record_id: int,
+        record_id: str,
         store: Store = Depends(get_user_store),
         table_name: str = table,
         current_user: dict = Depends(get_current_user),
@@ -402,7 +402,7 @@ def upload_file(
 
 @router.get("/files/{file_id}/content")
 def view_file_content(
-    file_id: int,
+    file_id: str,
     settings: Settings = Depends(get_settings),
     store: Store = Depends(get_user_store),
 ):
@@ -428,7 +428,7 @@ def view_file_content(
 
 
 @router.post("/email_templates/{template_id}/render")
-def render_email_template(template_id: int, payload: RenderPayload, store: Store = Depends(get_user_store)) -> dict:
+def render_email_template(template_id: str, payload: RenderPayload, store: Store = Depends(get_user_store)) -> dict:
     try:
         return store.render_template(template_id, payload.variables)
     except LookupError as exc:

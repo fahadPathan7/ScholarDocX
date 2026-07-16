@@ -26,7 +26,7 @@ import { useDialog } from "../DialogProvider";
 import DateRangeCalendar from "../DateRangeCalendar";
 
 type UserRecord = {
-  id: number;
+  id: string;
   email: string;
   display_name: string;
   roles: string[];
@@ -37,7 +37,7 @@ type UserRecord = {
 };
 
 type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
-type PlanStatusFilter = "all" | "expiring_soon" | "expired";
+type PlanStatusFilter = "all" | "expiring_soon" | "expiring_soon_3d" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
 type NotificationModalMode = "broadcast" | "user" | null;
 
@@ -86,6 +86,7 @@ function selectRoleExclusive(currentRoles: string[], role: string): string[] {
 const planTabs = [
   { id: "all" as const, label: "All Plans", icon: null },
   { id: "expiring_soon" as const, label: "Expiring Soon (7 days)", icon: Clock },
+  { id: "expiring_soon_3d" as const, label: "Expiring Soon (3 days)", icon: Clock },
   { id: "expired" as const, label: "Expired", icon: XCircle },
 ];
 
@@ -99,7 +100,7 @@ const adminNotificationOptions = adminNotificationCategories.flatMap((category) 
   category.settings.map((setting) => ({ value: setting.key, label: setting.label, description: setting.description }))
 );
 
-export function UsersTab({ adminPermissions }: { adminPermissions: Record<string, boolean> }) {
+export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermissions: Record<string, boolean>; refreshTrigger?: number }) {
   const { showConfirm, showAlert } = useDialog();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -112,7 +113,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
   const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
   const [creatingUser, setCreatingUser] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
@@ -137,7 +138,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [refreshTrigger]);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -167,7 +168,18 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
     if (filter === "any_admin") return user.roles.some(role => adminRoleKeys.includes(role));
     return user.roles.includes(filter);
   };
-  const matchesPlan = (user: UserRecord, filter: PlanStatusFilter) => filter === "all" || getPlanStatus(user) === filter;
+  const matchesPlan = (user: UserRecord, filter: PlanStatusFilter) => {
+    if (filter === "all") return true;
+    if (!user.plan_ends_at) return false;
+    const now = new Date();
+    const endDate = new Date(user.plan_ends_at);
+    const daysUntilExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (filter === "expired") return daysUntilExpiry < 0;
+    if (filter === "expiring_soon") return daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
+    if (filter === "expiring_soon_3d") return daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+    return false;
+  };
   const matchesStatus = (user: UserRecord, filter: AccountStatusFilter) => {
     if (filter === "all") return true;
     return filter === "active" ? user.is_active : !user.is_active;
@@ -429,8 +441,9 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
         </div>
       </div>
 
-      <div className="flex overflow-x-auto items-start gap-4 shrink-0 bg-slate-100/50 p-2 rounded-xl border border-slate-200/50">
-        <div className="flex flex-col gap-1.5 flex-1">
+      <div className="flex flex-col gap-4 bg-slate-100/50 p-3.5 rounded-xl border border-slate-200/50 shrink-0">
+        {/* Role Filters Group */}
+        <div className="flex flex-col gap-1.5 w-full">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
           <div className="flex gap-1.5 flex-wrap">
             {roleTabs.map((tab) => {
@@ -439,7 +452,7 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
                 <button
                   key={tab.id}
                   onClick={() => setRoleFilter(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
                     ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                     }`}
@@ -451,62 +464,68 @@ export function UsersTab({ adminPermissions }: { adminPermissions: Record<string
           </div>
         </div>
 
-        <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
+        <div className="h-px bg-slate-200/80 w-full" />
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan</span>
-          <div className="flex items-center gap-1.5">
-            {planTabs.map((tab) => {
-              const isActive = planStatusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setPlanStatusFilter(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                    }`}
-                >
-                  {tab.icon && <tab.icon size={14} />}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+        {/* Plan / Status / Selection Filters Group */}
+        <div className="flex flex-wrap gap-4 items-center w-full">
+          {/* Plan Subgroup */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan</span>
+            <div className="flex items-center gap-1.5">
+              {planTabs.map((tab) => {
+                const isActive = planStatusFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setPlanStatusFilter(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                  >
+                    {tab.icon && <tab.icon size={13} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
+          <div className="w-px bg-slate-200 h-8 hidden sm:block" />
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Status</span>
-          <div className="flex items-center gap-1.5">
-            {statusTabs.map((tab) => {
-              const isActive = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setStatusFilter(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg ${isActive
-                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                    }`}
-                >
-                  {tab.icon && <tab.icon size={14} />}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+          {/* Status Subgroup */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Status</span>
+            <div className="flex items-center gap-1.5">
+              {statusTabs.map((tab) => {
+                const isActive = statusFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setStatusFilter(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                  >
+                    {tab.icon && <tab.icon size={13} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="w-px bg-slate-200 self-stretch hidden sm:block" />
+          <div className="w-px bg-slate-200 h-8 hidden sm:block" />
 
-        <div className="flex flex-col gap-1.5 pr-2 justify-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
-          <div className="flex items-center px-2 py-2">
-            <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
-              {filteredUsers.length}
-            </span>
+          {/* Selection Subgroup */}
+          <div className="flex flex-col gap-1.5 justify-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+            <div className="flex items-center px-2 py-1">
+              <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                {filteredUsers.length}
+              </span>
+            </div>
           </div>
         </div>
       </div>

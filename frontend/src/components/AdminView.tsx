@@ -301,10 +301,10 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
         </section>
       )}
 
-      {/* 2 — AI Credit Usage */}
+      {/* 2 — Credit Usage */}
       {showAi && (
         <section className="admin-dashboard-section">
-          <SectionHeader icon={Zap} title="AI Credit Usage" subtitle="Credits consumed over the last 10 days" />
+          <SectionHeader icon={Zap} title="Credit Usage" subtitle="Credits consumed over the last 10 days" />
           <div className="admin-dashboard-panel admin-dashboard-panel--full-width">
             <div className="admin-dashboard-chart-wrap" style={{ height: 250, padding: "16px 20px" }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -322,7 +322,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                     contentStyle={{ backgroundColor: "var(--ui-bg-panel)", border: "1px solid var(--ui-border)", borderRadius: "8px", color: "var(--ui-text)" }}
                     itemStyle={{ color: "#8b5cf6" }}
                   />
-                  <Area type="monotone" dataKey="tokens" name="AI Credits" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
+                  <Area type="monotone" dataKey="tokens" name="Credits" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorTokens)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -566,7 +566,7 @@ export function SuspensionAppealsTab() {
     fetchAppeals();
   }, []);
 
-  const handleResolve = async (appealId: number, action: 'Resolve' | 'Dismiss') => {
+  const handleResolve = async (appealId: string, action: 'Resolve' | 'Dismiss') => {
     try {
       await api.post(`/admin/suspension-appeals/${appealId}/resolve`, { action });
       fetchAppeals();
@@ -816,7 +816,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
             }}
           />
         )}
-        {activeTab === "users" && <UsersTab adminPermissions={adminPermissions} />}
+        {activeTab === "users" && <UsersTab adminPermissions={adminPermissions} refreshTrigger={refreshTrigger} />}
         {activeTab === "limits" && <RoleLimitsTab onLimitsUpdated={fetchAdminPermissions} />}
         {activeTab === "notification_texts" && adminPermissions["admin_manage_notification_texts"] && <NotificationTextsTab />}
         {activeTab === "requests" && hasAnyRequestPermission && (

@@ -50,7 +50,7 @@ def get_session(settings: Settings):
     return next(get_db(settings.database_target))
 
 
-def usage_count(session, uid: int, feature: str) -> int:
+def usage_count(session, uid: str, feature: str) -> int:
     row = session.execute(
         text("SELECT current_count FROM user_usage_stats WHERE user_id = :uid AND feature = :f"),
         {"uid": uid, "f": feature},

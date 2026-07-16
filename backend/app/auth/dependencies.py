@@ -4,30 +4,28 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.auth.jwt import decode_token, verify_token_version
 from app.db.connection import COMPROMISED_JWT_SECRET_PREFIX
-from app.core.config import Settings, get_settings
+from app.core.config import get_settings
 from app.api.dependencies import get_store
 from app.services.store import Store
 
 security = HTTPBearer(auto_error=False)
 
+
 def get_jwt_secret(connection) -> str:
-    """Return the per-install JWT signing secret.
+    """Return the JWT signing secret from the environment.
 
     Raises 500 if the secret is missing or still set to a known-compromised
-    placeholder. The secret is always provisioned at startup by
-    initialize_database(), so hitting this error indicates a misconfigured or
-    not-yet-initialized database rather than a fallback path.
+    placeholder.
     """
-    row = connection.execute(
-        "SELECT value FROM app_settings WHERE key = 'jwt_secret_key'"
-    ).fetchone()
-    value = row["value"] if row else None
-    if not value or str(value).startswith(COMPROMISED_JWT_SECRET_PREFIX):
+    settings = get_settings()
+    secret = settings.jwt_secret_key
+    if not secret or secret.startswith(COMPROMISED_JWT_SECRET_PREFIX):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="JWT signing secret is not configured. Restart the server to initialize it.",
+            detail="JWT signing secret is not configured in the env.",
         )
-    return value
+    return secret
+
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),

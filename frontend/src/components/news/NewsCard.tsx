@@ -1,5 +1,5 @@
 import React from "react";
-import { ExternalLink, BookmarkPlus, BookmarkCheck, Sparkles, Loader2 } from "lucide-react";
+import { ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { NewsArticle } from "../../lib/newsApi";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
 import { HuntProfile } from "../../lib/huntProfile";
@@ -7,8 +7,6 @@ import { OpportunityCard } from "./OpportunityCard";
 
 interface NewsCardProps {
   article: NewsArticle;
-  isBookmarked: boolean;
-  onToggleBookmark: (article: NewsArticle) => void;
   onAnalyze?: (article: NewsArticle) => void;
   isAnalyzing?: boolean;
   analyzedOpportunity?: ScholarshipOpportunity;
@@ -19,8 +17,6 @@ interface NewsCardProps {
 
 export function NewsCard({
   article,
-  isBookmarked,
-  onToggleBookmark,
   onAnalyze,
   isAnalyzing = false,
   analyzedOpportunity,
@@ -66,13 +62,6 @@ export function NewsCard({
               {isAnalyzing ? "Analyzing..." : "Analyze"}
             </button>
           )}
-          <button
-            className={`icon-button bookmark-btn ${isBookmarked ? "bookmarked" : ""}`}
-            onClick={() => onToggleBookmark(article)}
-            title={isBookmarked ? "Remove bookmark" : "Bookmark article"}
-          >
-            {isBookmarked ? <BookmarkCheck size={20} className="fill-current" /> : <BookmarkPlus size={20} />}
-          </button>
         </div>
         {analyzedOpportunity && (
           <OpportunityCard

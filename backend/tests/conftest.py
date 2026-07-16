@@ -32,3 +32,38 @@ def _reset_rate_limiter():
     yield
     rate_limiter.reset()
 
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_users():
+    """Automatically delete test users with test domains.
+
+    Runs once before the test session begins to clean any leftover state, and once after
+    the session finishes to prevent test users from persisting in the shared target database.
+    """
+    from app.core.config import Settings
+    from app.db.connection import connect
+    from tests.helpers import cleanup_user_records
+
+    settings = Settings()
+
+    def do_cleanup():
+        try:
+            with connect(settings.database_target) as db:
+                rows = db.execute(
+                    "SELECT id FROM users "
+                    "WHERE email LIKE '%@test.local' "
+                    "   OR email LIKE '%@example.com' "
+                    "   OR email LIKE '%@localhost'"
+                ).fetchall()
+                for row in rows:
+                    cleanup_user_records(db, user_id=str(row["id"]))
+                db.commit()
+        except Exception as e:
+            import sys
+            print(f"\n[cleanup_test_users] Warning: failed to clean up test users: {e}", file=sys.stderr)
+
+    do_cleanup()
+    yield
+    do_cleanup()
+
+

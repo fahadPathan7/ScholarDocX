@@ -20,7 +20,7 @@ export function FloatingNotifications({
   onClose: () => void;
   onChanged: () => Promise<void>;
   onNavigateToEvent: (event: RecordMap) => void;
-  onNavigateToProject: (projectId: number | string) => void;
+  onNavigateToProject: (projectId: string) => void;
   onToast: (message: string) => void;
 }) {
   if (!isOpen) return null;
@@ -38,7 +38,7 @@ export function FloatingNotifications({
     await onChanged();
   };
 
-  const deleteOne = async (id: number) => {
+  const deleteOne = async (id: string) => {
     await deleteRecord("notifications", id);
     await onChanged();
   };
@@ -116,7 +116,7 @@ export function FloatingNotifications({
                   </div>
                   <ExternalLink size={16} className="notification-link-icon" />
                 </button>
-                <button className="notification-delete" type="button" onClick={() => deleteOne(Number(item.id))} title="Delete notification">
+                <button className="notification-delete" type="button" onClick={() => deleteOne(String(item.id))} title="Delete notification">
                   <Trash2 size={16} />
                 </button>
               </article>

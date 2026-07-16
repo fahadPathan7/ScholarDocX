@@ -18,7 +18,7 @@ interface HuntProfileModalProps {
 }
 
 export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModalProps) {
-  const [profileId, setProfileId] = useState<number | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [profile, setProfile] = useState<HuntProfile | null>(null);
   const [destinationsInput, setDestinationsInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -75,7 +75,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
 
   if (isLoading || !profile) {
     return (
-      <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
         <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
           <div className="modal-content">Loading...</div>
         </div>
@@ -84,7 +84,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -97,7 +97,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
         <div className="modal-content">
           <div className="hunt-profile-grid">
             <label className="field">
-              <span>Degree level</span>
+              <span>Degree level <span style={{ color: "#e74c3c", marginLeft: "2px" }}>*</span></span>
               <select
                 value={profile.degree_level}
                 onChange={(e) => setProfile({ ...profile, degree_level: e.target.value })}
@@ -111,7 +111,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
               </select>
             </label>
             <label className="field">
-              <span>Intake term</span>
+              <span>Intake term <span style={{ color: "#e74c3c", marginLeft: "2px" }}>*</span></span>
               <input
                 type="text"
                 value={profile.intake_term}
@@ -120,7 +120,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
               />
             </label>
             <label className="field full-width">
-              <span>Target destinations (comma-separated)</span>
+              <span>Target destinations (comma-separated) <span style={{ color: "#e74c3c", marginLeft: "2px" }}>*</span></span>
               <input
                 type="text"
                 value={destinationsInput}
@@ -129,7 +129,7 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
               />
             </label>
             <label className="field full-width">
-              <span>Field of study</span>
+              <span>Field of study <span style={{ color: "#e74c3c", marginLeft: "2px" }}>*</span></span>
               <input
                 type="text"
                 value={profile.field_of_study}

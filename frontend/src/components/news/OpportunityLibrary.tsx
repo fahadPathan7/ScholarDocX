@@ -47,7 +47,7 @@ function isWithinRadarThreshold(dateStr: string): boolean {
 // last_deadline_notified_at check before either write lands, double-firing
 // the notification. This is a same-session guard; the server-side
 // day-granularity check remains the source of truth across page reloads.
-const notifiedThisSession = new Set<number>();
+const notifiedThisSession = new Set<string>();
 
 export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, huntProfile }: OpportunityLibraryProps) {
   const [opportunities, setOpportunities] = useState<ScholarshipOpportunity[]>([]);
@@ -148,8 +148,7 @@ export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, hu
       <div className="news-empty-state">
         <p>Your Opportunity Library is empty.</p>
         <p className="news-empty-subtext">
-          Analyze a Scholarship Hunt or Catalog result to add structured opportunities here. Previously
-          bookmarked articles are migrated in automatically.
+          Analyze a Scholarship Hunt or Catalog result to add structured opportunities here.
         </p>
       </div>
     );

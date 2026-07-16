@@ -40,8 +40,8 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [loadingRuns, setLoadingRuns] = useState(true);
-  const [candidateId, setCandidateId] = useState<number | null>(null);
-  const [refreshingCandidateId, setRefreshingCandidateId] = useState<number | null>(null);
+  const [candidateId, setCandidateId] = useState<string | null>(null);
+  const [refreshingCandidateId, setRefreshingCandidateId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const loadRuns = async (selectLatest = false) => {
@@ -58,7 +58,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
     }
   };
 
-  const selectRun = async (runId: number) => {
+  const selectRun = async (runId: string) => {
     try {
       const data = await advisorAtlasApi.getRun(runId);
       setActiveRun(data);
@@ -147,7 +147,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
     onToast("Advisor Atlas resumed.");
   };
 
-  const deleteRun = async (runId: number, e: React.MouseEvent) => {
+  const deleteRun = async (runId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const confirmed = await showConfirm(
       "Are you sure you want to delete this search? All discovered candidates will be removed. This cannot be undone.",
@@ -175,7 +175,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
     onToast(status === "shortlisted" ? "Professor shortlisted." : "Professor removed from shortlist.");
   };
 
-  const refreshCandidate = async (id: number) => {
+  const refreshCandidate = async (id: string) => {
     setRefreshingCandidateId(id);
     try {
       await advisorAtlasApi.refreshCandidate(id);
@@ -279,7 +279,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
           </div>
         </aside>
 
-        <main className="atlas-main">
+        <div className="atlas-main">
           {showNewSearch || !activeRun ? (
             <AdvisorAtlasSearchForm
               submitting={submitting}
@@ -297,7 +297,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
               onReload={reloadActive}
             />
           )}
-        </main>
+        </div>
       </div>
 
       {candidateId != null && (

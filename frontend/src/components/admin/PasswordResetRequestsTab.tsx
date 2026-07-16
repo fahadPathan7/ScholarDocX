@@ -4,9 +4,9 @@ import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
 type PasswordResetRecord = {
-  id: number;
+  id: string;
   email: string;
-  user_id: number | null;
+  user_id: string | null;
   user_email: string | null;
   status: string;
   ip_address?: string | null;
@@ -113,7 +113,7 @@ export function PasswordResetRequestsTab({ refreshTrigger }: Props) {
     }
   };
 
-  const handleDismiss = async (id: number) => {
+  const handleDismiss = async (id: string) => {
     try {
       await api.post(`/admin/password-reset-requests/${id}/resolve`, { action: "dismiss" });
       fetchRequests();

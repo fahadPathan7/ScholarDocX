@@ -16,7 +16,7 @@ export interface CatalogEntry {
 }
 
 export interface ScholarshipOpportunity {
-  id: number;
+  id: string;
   source: "catalog" | "hunt" | "bookmark_migration" | "deep_hunt";
   canonical_name: string;
   normalized_url: string;
@@ -30,10 +30,10 @@ export interface ScholarshipOpportunity {
   requirements: string[];
   field_confidence: Record<string, number>;
   application_url: string | null;
-  linked_sheet_id: number | null;
+  linked_sheet_id: string | null;
   linked_row_snapshot: string | null;
   last_deadline_notified_at: string | null;
-  deep_hunt_run_id: number | null;
+  deep_hunt_run_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,7 +68,7 @@ export const listScholarshipOpportunities = async (): Promise<ScholarshipOpportu
 };
 
 export const updateScholarshipOpportunity = async (
-  id: number,
+  id: string,
   data: Partial<
     Pick<ScholarshipOpportunity, "status" | "linked_sheet_id" | "linked_row_snapshot" | "last_deadline_notified_at">
   >,
@@ -76,6 +76,6 @@ export const updateScholarshipOpportunity = async (
   return updateRecord<ScholarshipOpportunity>("scholarship-opportunities", id, data);
 };
 
-export const deleteScholarshipOpportunity = async (id: number): Promise<void> => {
+export const deleteScholarshipOpportunity = async (id: string): Promise<void> => {
   await deleteRecord("scholarship-opportunities", id);
 };

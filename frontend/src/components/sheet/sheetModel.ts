@@ -394,8 +394,8 @@ export type SheetPage = RecordMap & {
 
 export type ProjectNavigationTarget = {
   token: number;
-  projectId: number | string;
-  sheetId?: number | string;
-  pageId?: number | string;
+  projectId: string;
+  sheetId?: string;
+  pageId?: string;
   rowIndex?: number;
 };

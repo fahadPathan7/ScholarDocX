@@ -188,7 +188,7 @@ async def list_scholarship_opportunities(
 
 @router.patch("/scholarship-opportunities/{opportunity_id}")
 async def update_scholarship_opportunity(
-    opportunity_id: int,
+    opportunity_id: str,
     payload: Payload,
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
@@ -202,7 +202,7 @@ async def update_scholarship_opportunity(
 
 @router.delete("/scholarship-opportunities/{opportunity_id}")
 async def delete_scholarship_opportunity(
-    opportunity_id: int,
+    opportunity_id: str,
     user: dict = Depends(get_current_user),
     store: Store = Depends(get_user_store),
 ) -> Dict[str, Any]:

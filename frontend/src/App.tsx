@@ -288,6 +288,91 @@ export function App() {
       .post<RecordMap>("/workspace/init", {})
       .then(refresh)
       .catch((error) => setMessage(error.message));
+
+    // Global instant custom tooltips replacing browser-native title delay
+    const handleMouseOver = (e: any) => {
+      const target = e.target.closest('[title]');
+      if (!target) return;
+      
+      if (e.relatedTarget && target.contains(e.relatedTarget)) {
+        return;
+      }
+
+      const titleText = target.getAttribute('title');
+      if (!titleText) return;
+
+      target.setAttribute('data-tooltip', titleText);
+      target.removeAttribute('title');
+
+      let tooltipEl = document.getElementById('global-custom-tooltip');
+      if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'global-custom-tooltip';
+        tooltipEl.className = 'global-custom-tooltip';
+        document.body.appendChild(tooltipEl);
+      }
+      
+      tooltipEl.textContent = titleText;
+      tooltipEl.style.display = 'block';
+
+      const rect = target.getBoundingClientRect();
+      const tooltipHeight = tooltipEl.offsetHeight;
+      const tooltipWidth = tooltipEl.offsetWidth;
+
+      // Position above target by default, fallback to below if no space
+      let top = rect.top + window.scrollY - tooltipHeight - 6;
+      if (rect.top < tooltipHeight + 20) {
+        top = rect.bottom + window.scrollY + 6;
+      }
+
+      let left = rect.left + window.scrollX + (rect.width - tooltipWidth) / 2;
+      // Constrain inside window bounds
+      left = Math.max(10, Math.min(left, window.innerWidth - tooltipWidth - 10));
+
+      tooltipEl.style.top = `${top}px`;
+      tooltipEl.style.left = `${left}px`;
+    };
+
+    const handleMouseOut = (e: any) => {
+      const target = e.target.closest('[data-tooltip]');
+      if (!target) return;
+
+      if (e.relatedTarget && target.contains(e.relatedTarget)) {
+        return;
+      }
+
+      const tooltipText = target.getAttribute('data-tooltip');
+      if (tooltipText) {
+        target.setAttribute('title', tooltipText);
+        target.removeAttribute('data-tooltip');
+      }
+
+      const tooltipEl = document.getElementById('global-custom-tooltip');
+      if (tooltipEl) {
+        tooltipEl.style.display = 'none';
+      }
+    };
+
+    const handleHide = () => {
+      const tooltipEl = document.getElementById('global-custom-tooltip');
+      if (tooltipEl) {
+        tooltipEl.style.display = 'none';
+      }
+    };
+
+    document.addEventListener('mouseover', handleMouseOver);
+    document.addEventListener('mouseout', handleMouseOut);
+    document.addEventListener('mousedown', handleHide);
+    document.addEventListener('scroll', handleHide, true);
+
+    return () => {
+      document.removeEventListener('mouseover', handleMouseOver);
+      document.removeEventListener('mouseout', handleMouseOut);
+      document.removeEventListener('mousedown', handleHide);
+      document.removeEventListener('scroll', handleHide, true);
+      const tooltipEl = document.getElementById('global-custom-tooltip');
+      if (tooltipEl) tooltipEl.remove();
+    };
   }, []);
 
   const baseNavItems = [
@@ -379,7 +464,7 @@ export function App() {
     setActiveTab("projects");
   };
 
-  const navigateToProject = (projectId: number | string) => {
+  const navigateToProject = (projectId: string) => {
     setProjectNavigationTarget({ token: Date.now(), projectId });
     setActiveTab("projects");
   };
@@ -580,7 +665,7 @@ function DashboardView({
   dashboard: Dashboard;
   notificationCount: number;
   onCalendarEventClick: (event: RecordMap) => void;
-  onProjectClick?: (projectId: number | string) => void;
+  onProjectClick?: (projectId: string) => void;
 }) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const cards = [
@@ -903,7 +988,7 @@ function DocumentView(props: {
     await props.onChanged();
   };
 
-  const deleteDocument = async (fileId: number) => {
+  const deleteDocument = async (fileId: string) => {
     const confirmed = await props.showConfirm("Are you sure you want to delete this document?", "Delete Document");
     if (!confirmed) return;
     await deleteRecord("static_files", fileId);
@@ -1154,7 +1239,7 @@ function DocumentView(props: {
                   </span>
                   <div>
                     <strong>{selectedUploadFileName || "Choose a document"}</strong>
-                    <small>{selectedUploadFileName ? "Ready to store locally" : "PDF, image, or prepared document"}</small>
+                    <small>{selectedUploadFileName ? "Ready to upload" : "PDF, image, or prepared document"}</small>
                   </div>
                 </div>
               </label>
@@ -1166,7 +1251,7 @@ function DocumentView(props: {
             <div className="modal-footer doc-upload-footer">
               <button className="secondary" type="button" onClick={closeUploadModal}>Cancel</button>
               <button className="primary full" type="submit">
-                <Upload size={16} /> Store file
+                <Upload size={16} /> Upload file
               </button>
             </div>
           </form>
@@ -1444,6 +1529,6 @@ function cleanData(data: Record<string, string>) {
   );
 }
 
-function findName(rows: RecordMap[], id: number | string | null | undefined) {
+function findName(rows: RecordMap[], id: string | null | undefined) {
   return rows.find((item) => String(item.id) === String(id))?.name ?? "";
 }

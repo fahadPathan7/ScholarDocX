@@ -4,7 +4,7 @@ import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
 type AiModel = {
-  id: number;
+  id: string;
   provider: string;
   model_id: string;
   display_name: string;
@@ -74,8 +74,8 @@ function TableSkeleton({ rows = 6 }: { rows?: number }) {
 
 export function ModelPricingTab() {
   const [models, setModels] = useState<AiModel[]>([]);
-  const [drafts, setDrafts] = useState<Record<number, Draft>>({});
-  const [saving, setSaving] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [saving, setSaving] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -98,7 +98,7 @@ export function ModelPricingTab() {
     fetchModels();
   }, []);
 
-  const updateDraft = (id: number, patch: Partial<Draft>) => {
+  const updateDraft = (id: string, patch: Partial<Draft>) => {
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   };
 

@@ -50,7 +50,7 @@ interface Shape {
 }
 
 interface WhiteboardRecord {
-  id: number;
+  id: string;
   name: string;
   shapes_json: string;
   camera_json: string;
@@ -63,7 +63,7 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
 
   const { showAlert, showConfirm, showPrompt } = useDialog();
   const [boards, setBoards] = useState<WhiteboardRecord[]>([]);
-  const [activeBoardId, setActiveBoardId] = useState<number | null>(null);
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
   const [isLoadingBoards, setIsLoadingBoards] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
@@ -113,7 +113,7 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
     setHistoryIndex(newHistory.length - 1);
   };
 
-  const saveBoard = async (id: number, s: Shape[], c: any) => {
+  const saveBoard = async (id: string, s: Shape[], c: any) => {
     try {
       await updateRecord("whiteboards", id, {
         shapes_json: JSON.stringify(s),
@@ -913,11 +913,17 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
       );
     }
     return (
-      <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 16 }}>
-        <div style={{ color: 'var(--wb-text-dim)', fontSize: 16 }}>No whiteboards yet</div>
-        <button className="wb-btn" onClick={createNewBoard} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Plus size={16} /> Create Whiteboard
-        </button>
+      <div className="whiteboard-view wb-empty-state">
+        <div className="wb-empty-card">
+          <div className="wb-empty-icon">
+            <Plus size={28} strokeWidth={2.5} />
+          </div>
+          <h2 className="wb-empty-title">No whiteboards yet</h2>
+          <p className="wb-empty-subtitle">Create your first whiteboard to start sketching ideas, diagrams, and plans.</p>
+          <button className="wb-btn-primary" onClick={createNewBoard}>
+            <Plus size={18} /> Create Whiteboard
+          </button>
+        </div>
       </div>
     );
   }

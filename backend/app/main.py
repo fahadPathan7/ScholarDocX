@@ -1,3 +1,4 @@
+from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,8 +8,12 @@ from app.core.config import get_settings
 from app.core.workspace import ensure_workspace
 from app.db.connection import initialize_database
 
-
-load_dotenv()
+# Load .env from project root if it exists, or fallback to default
+env_path = Path(__file__).resolve().parents[2] / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 
 def create_app() -> FastAPI:

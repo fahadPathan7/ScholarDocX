@@ -32,7 +32,7 @@ export function RecordFormModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop modal-backdrop-main" onClick={onCancel}>
       <form className="modal-panel record-form" onClick={(e) => e.stopPropagation()} onSubmit={onSave} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();

@@ -38,6 +38,11 @@ from app.services.advisor_atlas.intelligence import (
     semantic_fallback,
     upcoming_semesters,
 )
+from tests.helpers import cleanup_user_records
+
+
+TEST_USER_ID = "00000000-0000-0000-0000-0000000000a7"
+TEST_INTRUDER_ID = "00000000-0000-0000-0000-0000000000a8"
 
 
 def make_settings(tmp_path: Path) -> Settings:
@@ -47,6 +52,24 @@ def make_settings(tmp_path: Path) -> Settings:
     settings.glm_api_key = ""
     settings.tavily_api_key = ""
     initialize_database(settings.database_target)
+    with connect(settings.database_target) as db:
+        cleanup_user_records(db, TEST_USER_ID, "advisor-atlas@test.local")
+        cleanup_user_records(db, TEST_INTRUDER_ID, "advisor-atlas-intruder@test.local")
+        db.execute(
+            """
+            INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked)
+            VALUES (?, 'advisor-atlas@test.local', 'x', 'Advisor Atlas User', '["max_user"]', 1, 0)
+            """,
+            (TEST_USER_ID,),
+        )
+        db.execute(
+            """
+            INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked)
+            VALUES (?, 'advisor-atlas-intruder@test.local', 'x', 'Advisor Atlas Intruder', '["max_user"]', 1, 0)
+            """,
+            (TEST_INTRUDER_ID,),
+        )
+        db.commit()
     return settings
 
 
@@ -245,7 +268,7 @@ async def test_discovery_crawls_selected_directory_and_preserves_unit_relation()
 def test_discovery_summary_reports_coverage_and_excludes_possible_outlook():
     candidates = [
         {
-            "id": 1,
+            "id": "1",
             "display_name": "Ada Scholar",
             "department": "Computer Science",
             "match_score": 91,
@@ -257,7 +280,7 @@ def test_discovery_summary_reports_coverage_and_excludes_possible_outlook():
             },
         },
         {
-            "id": 2,
+            "id": "2",
             "display_name": "Grace Researcher",
             "department": "Software Engineering",
             "match_score": 84,
@@ -269,7 +292,7 @@ def test_discovery_summary_reports_coverage_and_excludes_possible_outlook():
             },
         },
         {
-            "id": 3,
+            "id": "3",
             "display_name": "Lin Faculty",
             "department": "Software Engineering",
             "match_score": 79,
@@ -310,7 +333,7 @@ def test_discovery_summary_reports_coverage_and_excludes_possible_outlook():
         {"mode": "department", "department": "Computer Science"},
     )
     summary = action_center["discovery"]
-    assert summary["opportunity_match_ids"] == [1, 3]
+    assert summary["opportunity_match_ids"] == ["1", "3"]
     assert summary["coverage"]["directories_inspected"] == 2
     assert summary["coverage"]["directories_accessible"] == 1
     assert summary["coverage"]["directories_inaccessible"] == 1
@@ -763,7 +786,7 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
     settings = make_settings(tmp_path)
     repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
-        1,
+        TEST_USER_ID,
         {
             "mode": "professor",
             "search_depth": "focused",
@@ -775,7 +798,7 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
     )
     candidate_id = repository.replace_candidate_data(
         run["id"],
-        1,
+        TEST_USER_ID,
         {
             "display_name": "Ada Scholar",
             "institution": "Example University",
@@ -822,22 +845,22 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
             "next_actions": [{"type": "read", "label": "Read the paper"}],
         },
     )
-    detail = repository.get_candidate(candidate_id, 1)
+    detail = repository.get_candidate(candidate_id, TEST_USER_ID)
     assert detail["coverage"]["identity"] == "Strong"
     assert detail["intelligence"]["is_research_match"] is True
     assert detail["publications"][0]["title"] == "Accessible AI Systems"
     assert detail["dossier"]["decision_snapshot"]["why_this_professor"] == "Direct topic match."
 
-    professor = repository.save_to_professors(candidate_id, 1)
+    professor = repository.save_to_professors(candidate_id, TEST_USER_ID)
     assert professor["name"] == "Ada Scholar"
-    assert repository.get_candidate(candidate_id, 1)["saved_professor_id"] == professor["id"]
+    assert repository.get_candidate(candidate_id, TEST_USER_ID)["saved_professor_id"] == professor["id"]
 
 
 def test_repository_enforces_user_scope(tmp_path):
     settings = make_settings(tmp_path)
     repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
-        1,
+        TEST_USER_ID,
         {
             "mode": "department",
             "search_depth": "quick",
@@ -847,7 +870,7 @@ def test_repository_enforces_user_scope(tmp_path):
         },
     )
     with pytest.raises(LookupError):
-        repository.get_run(run["id"], 999)
+        repository.get_run(run["id"], TEST_INTRUDER_ID)
 
 
 @pytest.mark.asyncio
@@ -855,7 +878,7 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
     settings = make_settings(tmp_path)
     service = AdvisorAtlasService(settings)
     run = service.repository.create_run(
-        1,
+        TEST_USER_ID,
         {
             "mode": "professor",
             "search_depth": "focused",
@@ -892,9 +915,8 @@ async def test_service_completes_persisted_run_with_deterministic_fallback(tmp_p
     monkeypatch.setattr(service, "_discover_candidates", fake_discovery)
     monkeypatch.setattr(service, "_tavily_search", no_extra_search)
 
-    await service.run(run["id"], 1)
-
-    completed = service.repository.get_run(run["id"], 1)
+    await service.run(run["id"], TEST_USER_ID)
+    completed = service.repository.get_run(run["id"], TEST_USER_ID)
     assert completed["status"] == "completed"
     assert completed["candidates"][0]["display_name"] == "Ada Scholar"
     assert completed["candidates"][0]["recruitment_state"] == "confirmed_open"
@@ -939,7 +961,7 @@ def test_repository_caps_visible_evidence_at_eight(tmp_path):
     settings = make_settings(tmp_path)
     repository = AdvisorAtlasRepository(settings.database_target)
     run = repository.create_run(
-        1,
+        TEST_USER_ID,
         {
             "mode": "professor",
             "professor_name": "Ada Scholar",
@@ -948,7 +970,7 @@ def test_repository_caps_visible_evidence_at_eight(tmp_path):
     )
     candidate_id = repository.replace_candidate_data(
         run["id"],
-        1,
+        TEST_USER_ID,
         {
             "display_name": "Ada Scholar",
             "match_score": 50,
@@ -968,4 +990,4 @@ def test_repository_caps_visible_evidence_at_eight(tmp_path):
         [],
         {},
     )
-    assert len(repository.get_candidate(candidate_id, 1)["evidence"]) == 8
+    assert len(repository.get_candidate(candidate_id, TEST_USER_ID)["evidence"]) == 8

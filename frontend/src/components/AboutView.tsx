@@ -333,7 +333,7 @@ export function AboutView() {
       </p>
 
       {showModelsModal && (
-        <div className="modal-backdrop models-modal-backdrop" onClick={() => setShowModelsModal(false)}>
+        <div className="modal-backdrop modal-backdrop-main models-modal-backdrop" onClick={() => setShowModelsModal(false)}>
           <div className="modal-panel models-modal-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header models-modal-header">
               <div>

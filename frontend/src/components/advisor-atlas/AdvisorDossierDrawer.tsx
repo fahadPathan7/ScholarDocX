@@ -35,7 +35,7 @@ import {
 import { useUsage } from "../../contexts/UsageContext";
 
 type Props = {
-  candidateId: number;
+  candidateId: string;
   onClose: () => void;
   onChanged: () => void;
   onToast: (message: string) => void;
@@ -461,7 +461,7 @@ export function AdvisorDossierDrawer({
     }
   };
 
-  const updateReading = async (publicationId: number, readingStatus: string) => {
+  const updateReading = async (publicationId: string, readingStatus: string) => {
     if (!candidate) return;
     setWorking(`paper-${publicationId}`);
     try {

@@ -428,9 +428,9 @@
 }
 
 .atlas-search-card {
-  width: min(980px, 100%);
+  width: min(1180px, 100%);
   box-sizing: border-box;
-  max-width: 980px;
+  max-width: 1180px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

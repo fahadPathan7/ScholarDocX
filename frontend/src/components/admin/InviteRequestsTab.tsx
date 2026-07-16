@@ -40,7 +40,7 @@ export function InviteRequestsTab() {
     fetchRequests();
   }, []);
 
-  const handleReview = async (id: number, action: string, req: any) => {
+  const handleReview = async (id: string, action: string, req: any) => {
     try {
       const res = await api.post<any>(`/admin/invite-requests/${id}/review`, { action });
 

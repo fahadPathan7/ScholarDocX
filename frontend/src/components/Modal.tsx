@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 function resolvePortalTarget(scope: "main" | "body"): HTMLElement {
   if (scope === "main") {
-    return document.querySelector("main") ?? document.body;
+    return document.querySelector(".main-content") as HTMLElement ?? document.body;
   }
   return document.body;
 }
@@ -20,7 +20,7 @@ export function Modal({
   scope?: "main" | "body";
 }) {
   const [portalTarget] = useState(() => resolvePortalTarget(scope));
-  const isMainScope = scope === "main" && portalTarget.tagName === "MAIN";
+  const isMainScope = scope === "main" && (portalTarget.tagName === "MAIN" || portalTarget.classList.contains("main-content"));
 
   return createPortal(
     <div

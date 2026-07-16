@@ -6,7 +6,7 @@ import { emitUiError } from "../../lib/uiError";
 type PlanRequestType = "upgrade" | "extension";
 
 type PlanRequestRecord = {
-  id: number;
+  id: string;
   user_email: string;
   requested_plan: string;
   billing_cycle?: string;
@@ -73,7 +73,7 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
     return base;
   }, [requests, requestType, filterType, filterStatus, searchQuery]);
 
-  const handleReview = async (id: number, action: "Approve" | "Reject") => {
+  const handleReview = async (id: string, action: "Approve" | "Reject") => {
     try {
       await api.post(`/admin/plan-requests/${id}/review`, { action });
       fetchRequests();

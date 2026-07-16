@@ -9,9 +9,6 @@ introspection. That was removed — a fresh Postgres DB gets its authoritative
 schema from ``Base.metadata.create_all`` plus the ON CONFLICT-based SEED_SQL,
 so there is no schema history to migrate.
 """
-
-import secrets
-
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -125,8 +122,40 @@ def initialize_database(database_url: str) -> None:
                     conn.execute(text(stmt))
         except Exception as e:
             print("Seed execution warning:", e)
-        _ensure_jwt_secret(conn)
+        conn.execute(text("DELETE FROM app_settings WHERE key = 'jwt_secret_key'"))
+        _seed_role_limits(conn)
         _seed_ai_token_defaults(conn)
+
+
+def _seed_role_limits(conn) -> None:
+    """Seed role_limits from DEFAULT_ROLE_LIMITS (the single source of truth).
+
+    SCHOLARDOCX-0140: role-limit defaults previously lived in two places — the
+    SEED_SQL string in schema.py and DEFAULT_ROLE_LIMITS in admin.py — and they
+    drifted (the schema seed was missing admin_view_dashboard,
+    admin_manage_invite_requests, and others). DEFAULT_ROLE_LIMITS is now the
+    authoritative source; the schema.py role_limits block was removed and this
+    helper seeds every role/feature idempotently on init. ON CONFLICT DO NOTHING
+    preserves any limit an admin has already customized.
+    """
+    from app.services.admin import DEFAULT_ROLE_LIMITS
+
+    stmt = text(
+        "INSERT INTO role_limits (role, feature, limit_count, reset_period) "
+        "VALUES (:role, :feature, :limit_count, :reset_period) "
+        "ON CONFLICT (role, feature) DO NOTHING"
+    )
+    for role, features in DEFAULT_ROLE_LIMITS.items():
+        for feature, limit_count, reset_period in features:
+            conn.execute(
+                stmt,
+                {
+                    "role": role,
+                    "feature": feature,
+                    "limit_count": limit_count,
+                    "reset_period": reset_period,
+                },
+            )
 
 
 def _split_sql_script(script: str) -> list[str]:
@@ -137,32 +166,6 @@ def _split_sql_script(script: str) -> list[str]:
 # A previously-shipped, committed placeholder secret. Any install still using it
 # (or a value derived from it) must be treated as publicly known and rotated.
 COMPROMISED_JWT_SECRET_PREFIX = "scholar-docx-secure personal workspace"
-
-
-def _ensure_jwt_secret(conn) -> None:
-    """Guarantee a strong, unique JWT signing secret for this install.
-
-    Generates a random secret on first init and stores it in app_settings. If a
-    previous install was seeded with the committed placeholder constant, the
-    secret is rotated so any token signed with the public value (including
-    forged super_admin tokens) stops validating.
-    """
-    row = conn.execute(
-        text("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'")
-    ).fetchone()
-    current = row[0] if row else None
-    if (
-        not current
-        or str(current).strip() == ""
-        or str(current).startswith(COMPROMISED_JWT_SECRET_PREFIX)
-    ):
-        conn.execute(
-            text(
-                "INSERT INTO app_settings (key, value) VALUES ('jwt_secret_key', :secret) "
-                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
-            ),
-            {"secret": secrets.token_hex(32)},
-        )
 
 
 def _seed_ai_token_defaults(conn) -> None:

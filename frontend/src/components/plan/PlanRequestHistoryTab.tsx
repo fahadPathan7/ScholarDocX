@@ -2,7 +2,7 @@ import React from "react";
 import { CheckCircle2, Clock3, RefreshCcw, ShieldAlert, Sparkles, XCircle } from "lucide-react";
 
 export type UserPlanRequest = {
-  id: number;
+  id: string;
   request_type?: "upgrade" | "extension";
   requested_plan: string;
   billing_cycle?: string;
@@ -16,7 +16,7 @@ interface Props {
   loading: boolean;
   requests: UserPlanRequest[];
   onRefresh: () => void;
-  onCancel?: (id: number) => void;
+  onCancel?: (id: string) => void;
 }
 
 function getPlanLabel(plan: string) {

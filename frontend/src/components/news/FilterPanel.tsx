@@ -11,7 +11,7 @@ interface FilterPanelProps {
   onRunSavedQuery?: (
     queryString: string,
     filtersJson: string,
-    savedQuery?: { id: number; seen_article_ids_json?: string },
+    savedQuery?: { id: string; seen_article_ids_json?: string },
   ) => void;
 }
 

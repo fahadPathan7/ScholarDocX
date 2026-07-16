@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LogIn, Mail } from "lucide-react";
+import { LogIn, Mail, Loader2, ArrowRight } from "lucide-react";
 import { api } from "../lib/api";
 import { setToken, saveLoginCredentials, loadSavedCredentials, clearSavedCredentials } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
@@ -190,8 +190,18 @@ export function LoginPage() {
               <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteDesc">Why do you want to join? (Optional)</label>
               <textarea id="inviteDesc" rows={3} maxLength={500} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
             </div>
-            <button type="submit" disabled={inviteLoading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6">
-              {inviteLoading ? "Submitting..." : "Submit Request"}
+            <button type="submit" disabled={inviteLoading} className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6">
+              {inviteLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <>
+                  <span>Submit Request</span>
+                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
             </button>
             <div className="mt-4 text-center text-sm">
               <button type="button" onClick={() => setShowInviteRequest(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
@@ -229,8 +239,18 @@ export function LoginPage() {
                   onChange={(e) => setForgotEmail(e.target.value)}
                 />
               </div>
-              <button type="submit" disabled={forgotLoading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6">
-                {forgotLoading ? "Submitting..." : "Submit Request"}
+              <button type="submit" disabled={forgotLoading} className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6">
+                {forgotLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Request</span>
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
               </button>
               <div className="mt-4 text-center text-sm">
                 <button type="button" onClick={() => setShowForgotPassword(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
@@ -298,7 +318,7 @@ export function LoginPage() {
                     setError("");
                     setForgotSuccess(false);
                   }}
-                  className="text-sm font-medium text-emerald-500 hover:text-emerald-400"
+                  className="text-sm font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -307,22 +327,32 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-6"
+                className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6"
               >
-                {loading ? "Logging in..." : "Log In"}
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Logging in...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Log In</span>
+                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
               </button>
             </form>
 
             <div className="mt-6 text-center text-sm text-zinc-400 space-y-2 flex flex-col">
               <div>
                 Don't have an account?{" "}
-                <Link to="/register" className="font-medium text-emerald-500 hover:text-emerald-400">
+                <Link to="/register" className="font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors">
                   Sign up with invite code
                 </Link>
               </div>
               <div>
                 Need an invite code?{" "}
-                <button type="button" onClick={() => setShowInviteRequest(true)} className="font-medium text-emerald-500 hover:text-emerald-400">
+                <button type="button" onClick={() => setShowInviteRequest(true)} className="font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors">
                   Request one here
                 </button>
               </div>

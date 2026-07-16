@@ -75,7 +75,7 @@ def can_use_feature(feature: str, user: dict, session) -> bool:
     except UsageLimitExceeded:
         return False
 
-def check_admin_modification_clearance(user_id: int, admin_service: AdminService, current_user: dict):
+def check_admin_modification_clearance(user_id: str, admin_service: AdminService, current_user: dict):
     target_user = admin_service.get_user_details(user_id)
     target_is_admin = any(r in target_user.get("roles", []) for r in ["general_admin", "super_admin"])
     if target_is_admin:
@@ -126,14 +126,14 @@ def list_users(admin_service: AdminService = Depends(get_admin_service)):
     return admin_service.list_users()
 
 @router.get("/users/{user_id}")
-def get_user_details(user_id: int, admin_service: AdminService = Depends(get_admin_service)):
+def get_user_details(user_id: str, admin_service: AdminService = Depends(get_admin_service)):
     try:
         return admin_service.get_user_details(user_id)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.patch("/users/{user_id}/roles")
-def update_user_roles(user_id: int, payload: RoleUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def update_user_roles(user_id: str, payload: RoleUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     # Check if user has any role assignment permission
     has_user_assign = can_use_feature("admin_assign_user_roles", current_user, admin_service.db)
     has_admin_assign = can_use_feature("admin_assign_admin_roles", current_user, admin_service.db)
@@ -159,7 +159,7 @@ def update_user_roles(user_id: int, payload: RoleUpdatePayload, admin_service: A
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/users/{user_id}/toggle-status")
-def toggle_user_status(user_id: int, payload: StatusUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def toggle_user_status(user_id: str, payload: StatusUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_suspend_user", current_user, admin_service.db)
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
@@ -168,7 +168,7 @@ def toggle_user_status(user_id: int, payload: StatusUpdatePayload, admin_service
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/users/{user_id}/toggle-block")
-def toggle_user_block(user_id: int, payload: BlockUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def toggle_user_block(user_id: str, payload: BlockUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_suspend_user", current_user, admin_service.db) # Using same feature flag for now
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
@@ -177,7 +177,7 @@ def toggle_user_block(user_id: int, payload: BlockUpdatePayload, admin_service: 
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/users/{user_id}/revoke")
-def revoke_tokens(user_id: int, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def revoke_tokens(user_id: str, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_revoke_user", current_user, admin_service.db)
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
@@ -300,7 +300,7 @@ def list_plan_requests(
     return admin_service.list_plan_requests(normalized_type)
 
 @router.post("/plan-requests/{request_id}/review")
-def review_plan_request(request_id: int, payload: PlanRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def review_plan_request(request_id: str, payload: PlanRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     request_row = admin_service.connection.execute(
         "SELECT COALESCE(request_type, 'upgrade') AS request_type FROM plan_upgrade_requests WHERE id = ?",
         (request_id,),
@@ -321,7 +321,7 @@ def list_invite_requests(admin_service: AdminService = Depends(get_admin_service
     return admin_service.list_invite_requests()
 
 @router.post("/invite-requests/{request_id}/review")
-def review_invite_request(request_id: int, payload: InviteRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def review_invite_request(request_id: str, payload: InviteRequestReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_manage_invite_requests", current_user, admin_service.db)
     try:
         return admin_service.resolve_invite_request(current_user["id"], request_id, payload.action)
@@ -341,7 +341,7 @@ def list_password_reset_requests(
     return admin_service.list_password_reset_requests(normalized_status)
 
 @router.post("/password-reset-requests/{request_id}/resolve")
-def resolve_password_reset_request(request_id: int, payload: PasswordResetResolvePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def resolve_password_reset_request(request_id: str, payload: PasswordResetResolvePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_manage_password_resets", current_user, admin_service.db)
     try:
         return admin_service.resolve_password_reset_request(current_user["id"], request_id, payload.action, payload.new_password)
@@ -359,7 +359,7 @@ def list_suspension_appeals(admin_service: AdminService = Depends(get_admin_serv
     return admin_service.list_suspension_appeals()
 
 @router.post("/suspension-appeals/{appeal_id}/resolve")
-def resolve_suspension_appeal(appeal_id: int, payload: SuspensionAppealReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
+def resolve_suspension_appeal(appeal_id: str, payload: SuspensionAppealReviewPayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_manage_suspension_appeals", current_user, admin_service.db)
     try:
         return admin_service.resolve_suspension_appeal(current_user["id"], appeal_id, payload.action)

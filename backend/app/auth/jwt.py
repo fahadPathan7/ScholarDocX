@@ -3,7 +3,6 @@ import uuid
 from typing import Any, Dict
 
 import jwt
-import jwt
 
 JWT_ALGORITHM = "HS256"
 
@@ -27,11 +26,17 @@ def create_token(user: Dict[str, Any], secret_key: str, expiration_days: int) ->
 def decode_token(token: str, secret_key: str) -> Dict[str, Any]:
     """Decode and validate JWT token"""
     try:
-        return jwt.decode(token, secret_key, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[JWT_ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")
     except jwt.InvalidTokenError as e:
         raise ValueError(f"Invalid token: {str(e)}")
+
+    try:
+        payload["user_id"] = str(uuid.UUID(str(payload["user_id"])))
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Invalid token identity")
+    return payload
 
 
 def verify_token_version(token_payload: Dict[str, Any], user: Dict[str, Any]) -> bool:

@@ -56,7 +56,7 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
       let sheet = sheets.find(
         (s) => String(s.project_id) === selectedProjectId && s.name === TRACKER_SHEET_NAME,
       );
-      let pageId: number;
+      let pageId: string;
 
       if (!sheet) {
         const created = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, {
@@ -82,7 +82,7 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
       });
 
       const updatedOpportunity = await updateScholarshipOpportunity(opportunity.id, {
-        linked_sheet_id: Number(sheet?.id ?? pageId),
+        linked_sheet_id: String(sheet?.id ?? pageId),
         linked_row_snapshot: `${newRow["Scholarship Name"]} · ${newRow["Deadline"] || "no deadline"}`,
       });
 
@@ -98,7 +98,7 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
       <div className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Add to tracker</h2>

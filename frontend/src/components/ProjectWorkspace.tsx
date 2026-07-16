@@ -266,7 +266,7 @@ export function ProjectWorkspace({
   const createProject = async (event: FormEvent) => {
     event.preventDefault();
     const project = await createRecord<RecordMap>("projects", projectForm);
-    await notify("project_create", { project_id: project.id, projectName: project.name, projectId: Number(project.id) });
+    await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
     setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
     onToast?.("Project created.");
     setShowCreateProject(false);
@@ -316,7 +316,7 @@ export function ProjectWorkspace({
       }
     }
 
-    await notify("sheet_create", { project_id: Number(selectedProjectId), sheetName: result.sheet.name, sheetId: Number(result.sheet.id) });
+    await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
     onToast?.(`Sheet created: ${result.sheet.name}.`);
     setSheetName("");
     setSelectedTemplateId("default");
@@ -351,12 +351,12 @@ export function ProjectWorkspace({
     }
   };
 
-  const deleteProject = async (id: number) => {
+  const deleteProject = async (id: string) => {
     const confirmed = await showConfirm("Are you sure you want to delete this project? This will permanently delete all sheets, pages, and records in it.", "Delete Campaign");
     if (!confirmed) return;
     try {
       await api.delete(`/projects/${id}`);
-      const deletedProjectName = projects.find((p) => Number(p.id) === id)?.name;
+      const deletedProjectName = projects.find((p) => String(p.id) === id)?.name;
       await notify("project_delete", { project_id: id, projectId: id, projectName: deletedProjectName });
       onToast?.("Project deleted.");
       await refreshProjects();
@@ -366,13 +366,13 @@ export function ProjectWorkspace({
     }
   };
 
-  const deleteSheet = async (id: number) => {
+  const deleteSheet = async (id: string) => {
     const confirmed = await showConfirm("Are you sure you want to delete this sheet? This will permanently delete all records in it.", "Delete Sheet");
     if (!confirmed) return;
     try {
       await api.delete(`/project_sheets/${id}`);
-      const deletedSheetName = sheets.find((s: RecordMap) => Number(s.id) === id)?.name;
-      await notify("sheet_delete", { project_id: Number(selectedProjectId), sheetId: id, sheetName: deletedSheetName });
+      const deletedSheetName = sheets.find((s: RecordMap) => String(s.id) === id)?.name;
+      await notify("sheet_delete", { project_id: String(selectedProjectId), sheetId: id, sheetName: deletedSheetName });
       onToast?.("Sheet deleted.");
       await refreshSummary();
     } catch (error) {
@@ -459,7 +459,7 @@ export function ProjectWorkspace({
     return (
       <div className="project-home">
         {showCreateProject ? (
-          <div className="modal-backdrop" onClick={() => setShowCreateProject(false)}>
+          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateProject(false)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createProject}>
               <div className="modal-header">
                 <div>
@@ -486,7 +486,7 @@ export function ProjectWorkspace({
         ) : null}
 
         {editingProject ? (
-          <div className="modal-backdrop" onClick={() => setEditingProject(null)}>
+          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingProject(null)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveProjectEdit}>
               <div className="modal-header">
                 <div>
@@ -967,7 +967,7 @@ export function ProjectWorkspace({
         }
       >
         {showCreateSheet ? (
-          <div className="modal-backdrop" onClick={() => setShowCreateSheet(false)}>
+          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateSheet(false)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createSheet}>
               <div className="modal-header">
                 <h2>Create Sheet</h2>
@@ -1020,7 +1020,7 @@ export function ProjectWorkspace({
         ) : null}
 
         {editingSheet ? (
-          <div className="modal-backdrop" onClick={() => setEditingSheet(null)}>
+          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingSheet(null)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveSheetEdit}>
               <div className="modal-header">
                 <h2>Edit columns</h2>

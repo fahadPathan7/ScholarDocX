@@ -25,7 +25,7 @@ from app.services.ai_actions_read import (
 
 def resolve_project(store, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     if action.get("project_id"):
-        return store.get_record("projects", int(action["project_id"]))
+        return store.get_record("projects", str(action["project_id"]))
     project_name = clean(action.get("project_name"))
     if project_name:
         ref = refs["projects"].get(project_name.lower())
@@ -41,10 +41,10 @@ def resolve_project(store, action: dict[str, Any], refs: dict[str, Any]) -> dict
     raise ValueError("Project not found. Please provide an existing project name.")
 
 
-def resolve_page(store, project_id: int, action: dict[str, Any], refs: dict[str, Any]) -> dict:
+def resolve_page(store, project_id: str, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     if action.get("sheet_id"):
-        sheet = store.get_record("project_sheets", int(action["sheet_id"]))
-        project_id = int(sheet["project_id"])
+        sheet = store.get_record("project_sheets", str(action["sheet_id"]))
+        project_id = str(sheet["project_id"])
     sheet_name = clean(action.get("sheet_name"))
     if sheet_name:
         ref = refs["sheets"].get((project_id, sheet_name.lower()))
@@ -52,12 +52,12 @@ def resolve_page(store, project_id: int, action: dict[str, Any], refs: dict[str,
             return page_for_sheet_id(store, project_id, ref["sheet"]["id"])
     elif refs.get("latest_sheet"):
         latest = refs["latest_sheet"]
-        return page_for_sheet_id(store, int(latest["sheet"]["project_id"]), int(latest["sheet"]["id"]))
+        return page_for_sheet_id(store, str(latest["sheet"]["project_id"]), str(latest["sheet"]["id"]))
 
     summary = store.project_summary(project_id)
     pages = summary.get("pages", [])
     if action.get("sheet_id"):
-        matches = [page for page in pages if int(page.get("sheet_id") or 0) == int(action["sheet_id"])]
+        matches = [page for page in pages if str(page.get("sheet_id") or "") == str(action["sheet_id"])]
     else:
         matches = [page for page in pages if page.get("name", "").lower() == sheet_name.lower()]
     if len(matches) == 1:
@@ -67,10 +67,10 @@ def resolve_page(store, project_id: int, action: dict[str, Any], refs: dict[str,
     raise ValueError("Sheet not found. Please provide an existing sheet name.")
 
 
-def page_for_sheet_id(store, project_id: int, sheet_id: int) -> dict:
+def page_for_sheet_id(store, project_id: str, sheet_id: str) -> dict:
     summary = store.project_summary(project_id)
     for page in summary.get("pages", []):
-        if int(page.get("sheet_id") or 0) == int(sheet_id):
+        if str(page.get("sheet_id") or "") == str(sheet_id):
             return page
     raise ValueError("Sheet page not found.")
 
@@ -82,7 +82,7 @@ def row_for_columns(row: dict[str, Any], column_names: list[str]) -> dict[str, A
     return {key: value for key, value in cleaned.items() if key in column_names}
 
 
-def _enforce_sheet_limits(svc, project_id: int) -> None:
+def _enforce_sheet_limits(svc, project_id: str) -> None:
     """Mirror the sheets_per_project + total_sheets checks from routes.py."""
     per_project_limit = svc.limit_for("sheets_per_project")
     if per_project_limit != -1:

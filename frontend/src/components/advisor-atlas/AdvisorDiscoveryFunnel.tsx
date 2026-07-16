@@ -31,10 +31,10 @@ type Sort = "recommended" | "alignment" | "confidence" | "outlook" | "name";
 type Props = {
   candidates: AdvisorCandidate[];
   summary?: AdvisorDiscoverySummary;
-  compareIds: number[];
-  refreshingCandidateId: number | null;
-  onOpenCandidate: (id: number) => void;
-  onRefreshCandidate: (id: number) => void;
+  compareIds: string[];
+  refreshingCandidateId: string | null;
+  onOpenCandidate: (id: string) => void;
+  onRefreshCandidate: (id: string) => void;
   onShortlist: (candidate: AdvisorCandidate) => void;
   onCompare: (candidate: AdvisorCandidate) => void;
   onOpenComparison: () => void;
@@ -367,10 +367,10 @@ function Candidate({
 }: {
   candidate: AdvisorCandidate;
   variant: DiscoveryCardVariant;
-  compareIds: number[];
-  refreshingCandidateId: number | null;
-  onOpenCandidate: (id: number) => void;
-  onRefreshCandidate: (id: number) => void;
+  compareIds: string[];
+  refreshingCandidateId: string | null;
+  onOpenCandidate: (id: string) => void;
+  onRefreshCandidate: (id: string) => void;
   onShortlist: (candidate: AdvisorCandidate) => void;
   onCompare: (candidate: AdvisorCandidate) => void;
 }) {

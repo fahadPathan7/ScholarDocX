@@ -97,22 +97,22 @@ export async function listRecords<T>(table: string): Promise<T[]> {
   return api.get<T[]>(`/${table}`);
 }
 
-export async function updateRecord<T>(table: string, id: number, data: RecordMap): Promise<T> {
+export async function updateRecord<T>(table: string, id: string, data: RecordMap): Promise<T> {
   return api.patch<T>(`/${table}/${id}`, { data });
 }
 
-export async function deleteRecord<T>(table: string, id: number): Promise<T> {
+export async function deleteRecord<T>(table: string, id: string): Promise<T> {
   return api.delete<T>(`/${table}/${id}`);
 }
 
 export async function notify(
   eventKey: NotificationEventKey,
   vars: {
-    project_id?: number;
+    project_id?: string;
     projectName?: string;
-    projectId?: number;
+    projectId?: string;
     sheetName?: string;
-    sheetId?: number;
+    sheetId?: string;
     whiteboardName?: string;
     dueAt?: string;
     attachmentSummary?: string;

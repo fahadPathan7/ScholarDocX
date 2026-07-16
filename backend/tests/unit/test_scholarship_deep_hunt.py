@@ -32,6 +32,31 @@ def make_settings(tmp_path: Path) -> Settings:
     return settings
 
 
+def _seed_user(settings: Settings, email: str, roles: str = '["max_user"]') -> str:
+    """Insert a user and return its UUID id.
+
+    SCHOLARDOCX-0140: primary keys are UUID strings, so repository methods that
+    take a ``user_id`` (and hit a ``user_id`` FK on ``scholarship_deep_hunt_runs``)
+    need a real user row. Previously tests passed the literal ``1`` which only
+    worked under SQLite's lax FK enforcement.
+    """
+    with connect(settings.database_target) as db:
+        db.execute(
+            "DELETE FROM users WHERE email = ?",
+            (email,),
+        )
+        db.execute(
+            "INSERT INTO users (email, password_hash, display_name, roles) "
+            "VALUES (?, 'x', 'Test', ?)",
+            (email, roles),
+        )
+        db.commit()
+        row = db.execute(
+            "SELECT id FROM users WHERE email = ?", (email,)
+        ).fetchone()
+        return row["id"]
+
+
 def _fake_extraction_result(**overrides):
     result = {
         "canonical_name": "Example Deep Hunt Scholarship",
@@ -56,9 +81,10 @@ def _fake_extraction_result(**overrides):
 def test_repository_create_get_list_lifecycle(tmp_path):
     settings = make_settings(tmp_path)
     repo = ScholarshipDeepHuntRepository(settings.database_target)
+    user_id = _seed_user(settings, "lifecycle@example.com")
 
     run = repo.create_run(
-        1,
+        user_id,
         {
             "goal": "fully funded CS PhD funding, EU, Fall 2027",
             "degree_level": "PhD",
@@ -71,10 +97,10 @@ def test_repository_create_get_list_lifecycle(tmp_path):
     assert run["destinations"] == ["Germany", "France"]
     assert run["progress"]["message"] == "Queued"
 
-    fetched = repo.get_run(run["id"], 1, include_opportunities=False)
+    fetched = repo.get_run(run["id"], user_id, include_opportunities=False)
     assert fetched["goal"] == "fully funded CS PhD funding, EU, Fall 2027"
 
-    listed = repo.list_runs(1)
+    listed = repo.list_runs(user_id)
     assert len(listed) == 1
     assert listed[0]["id"] == run["id"]
 
@@ -82,18 +108,12 @@ def test_repository_create_get_list_lifecycle(tmp_path):
 def test_repository_enforces_user_scope(tmp_path):
     settings = make_settings(tmp_path)
     repo = ScholarshipDeepHuntRepository(settings.database_target)
-    # Seed a second user row so the FK constraint on user_id is satisfiable.
-    with connect(settings.database_target) as db:
-        db.execute(
-            "INSERT INTO users (email, password_hash, display_name, roles) "
-            "VALUES ('second@example.com', 'x', 'Second', '[\"max_user\"]')"
-        )
-        db.commit()
-        other_user_id = db.execute(
-            "SELECT id FROM users WHERE email = 'second@example.com'"
-        ).fetchone()["id"]
+    # Seed two users so the FK constraint on user_id is satisfiable and we can
+    # assert one user cannot see another's run.
+    owner_id = _seed_user(settings, "owner@example.com")
+    other_user_id = _seed_user(settings, "second@example.com")
 
-    run = repo.create_run(1, {"goal": "test goal"})
+    run = repo.create_run(owner_id, {"goal": "test goal"})
 
     with pytest.raises(LookupError):
         repo.get_run(run["id"], other_user_id)
@@ -102,30 +122,32 @@ def test_repository_enforces_user_scope(tmp_path):
 def test_repository_cancel_and_resume(tmp_path):
     settings = make_settings(tmp_path)
     repo = ScholarshipDeepHuntRepository(settings.database_target)
-    run = repo.create_run(1, {"goal": "test goal"})
+    user_id = _seed_user(settings, "cancel@example.com")
+    run = repo.create_run(user_id, {"goal": "test goal"})
 
-    cancelled = repo.cancel_run(run["id"], 1)
+    cancelled = repo.cancel_run(run["id"], user_id)
     assert cancelled["status"] == "cancelled"
     assert repo.is_cancelled(run["id"]) is True
 
-    resumed = repo.prepare_resume(run["id"], 1)
+    resumed = repo.prepare_resume(run["id"], user_id)
     assert resumed["status"] == "queued"
     assert resumed["error_message"] is None
 
     with pytest.raises(ValueError):
         # queued runs cannot be resumed again
-        repo.prepare_resume(run["id"], 1)
+        repo.prepare_resume(run["id"], user_id)
 
 
 def test_repository_delete(tmp_path):
     settings = make_settings(tmp_path)
     repo = ScholarshipDeepHuntRepository(settings.database_target)
-    run = repo.create_run(1, {"goal": "test goal"})
+    user_id = _seed_user(settings, "delete@example.com")
+    run = repo.create_run(user_id, {"goal": "test goal"})
 
-    assert repo.delete_run(run["id"], 1) is True
+    assert repo.delete_run(run["id"], user_id) is True
     with pytest.raises(LookupError):
-        repo.get_run(run["id"], 1, include_opportunities=False)
-    assert repo.delete_run(run["id"], 1) is False
+        repo.get_run(run["id"], user_id, include_opportunities=False)
+    assert repo.delete_run(run["id"], user_id) is False
 
 
 # --- Plan gate (API layer) --------------------------------------------------
@@ -196,14 +218,14 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
     result = await deep_hunt_api.create_run(
         _create_payload(),
         BackgroundTasks(),
-        user={"id": 9, "roles": ["pro_user"]},
+        user={"id": "00000000-0000-0000-0000-000000000009", "roles": ["pro_user"]},
         service=FakeService(),  # type: ignore
         store=FakeStore(),  # type: ignore
         settings=Settings(),
     )
 
     assert result["id"] == 50
-    assert created == [9]
+    assert created == ["00000000-0000-0000-0000-000000000009"]
 
 
 @pytest.mark.asyncio
@@ -262,7 +284,8 @@ def _install_pipeline_mocks(monkeypatch, service, *, results_by_query, pages_by_
 async def test_service_run_persists_accepted_opportunities_tagged_with_run(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
-    run = service.repository.create_run(1, {"goal": "fully funded CS PhD funding, EU"})
+    user_id = _seed_user(settings, "svc-persist@example.com")
+    run = service.repository.create_run(user_id, {"goal": "fully funded CS PhD funding, EU"})
 
     result_url = "example.edu/scholarship"
     result = {"title": "Example Scholarship", "url": result_url, "content": "snippet", "score": 0.9}
@@ -278,9 +301,9 @@ async def test_service_run_persists_accepted_opportunities_tagged_with_run(tmp_p
         extraction_by_url={result_url: _fake_extraction_result()},
     )
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    finished = service.repository.get_run(run["id"], 1)
+    finished = service.repository.get_run(run["id"], user_id)
     assert finished["status"] == "completed"
     assert finished["result_count"] == 1
     assert len(finished["opportunities"]) == 1
@@ -294,7 +317,8 @@ async def test_service_run_persists_accepted_opportunities_tagged_with_run(tmp_p
 async def test_service_run_rejects_results_with_no_name_or_signal(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
-    run = service.repository.create_run(1, {"goal": "fully funded CS PhD funding, EU"})
+    user_id = _seed_user(settings, "svc-reject@example.com")
+    run = service.repository.create_run(user_id, {"goal": "fully funded CS PhD funding, EU"})
 
     result_url = "example.edu/thin-result"
     result = {"title": "Thin Result", "url": result_url, "content": "snippet", "score": 0.5}
@@ -311,9 +335,9 @@ async def test_service_run_rejects_results_with_no_name_or_signal(tmp_path, monk
         },
     )
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    finished = service.repository.get_run(run["id"], 1)
+    finished = service.repository.get_run(run["id"], user_id)
     assert finished["status"] == "completed"
     assert finished["result_count"] == 0
     assert finished["opportunities"] == []
@@ -323,8 +347,9 @@ async def test_service_run_rejects_results_with_no_name_or_signal(tmp_path, monk
 async def test_service_run_dedupes_same_url_across_search_passes(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
+    user_id = _seed_user(settings, "svc-dedupe@example.com")
     run = service.repository.create_run(
-        1, {"goal": "fully funded CS PhD funding, EU", "degree_level": "PhD"}
+        user_id, {"goal": "fully funded CS PhD funding, EU", "degree_level": "PhD"}
     )
 
     result_url = "example.edu/scholarship"
@@ -360,12 +385,12 @@ async def test_service_run_dedupes_same_url_across_search_passes(tmp_path, monke
 
     monkeypatch.setattr(deep_hunt_module.scholarship_extraction_service, "extract", counting_extract)
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
     # Deduped by canonical URL before extraction, so the same source is only
     # ever extracted once even though every search pass surfaced it.
     assert extract_calls == [result["url"]]
-    finished = service.repository.get_run(run["id"], 1)
+    finished = service.repository.get_run(run["id"], user_id)
     assert finished["result_count"] == 1
     assert len(finished["opportunities"]) == 1
 
@@ -374,11 +399,12 @@ async def test_service_run_dedupes_same_url_across_search_passes(tmp_path, monke
 async def test_service_run_stops_when_cancelled_mid_run(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
-    run = service.repository.create_run(1, {"goal": "fully funded CS PhD funding, EU"})
+    user_id = _seed_user(settings, "svc-cancel@example.com")
+    run = service.repository.create_run(user_id, {"goal": "fully funded CS PhD funding, EU"})
 
     async def fake_search(query, max_results):
         # Cancel the run from underneath the in-flight search pass.
-        service.repository.cancel_run(run["id"], 1)
+        service.repository.cancel_run(run["id"], user_id)
         return [{"title": "X", "url": "example.edu/x", "content": "y", "score": 1}]
 
     async def fail_extract(ai_service, **kwargs):
@@ -389,9 +415,9 @@ async def test_service_run_stops_when_cancelled_mid_run(tmp_path, monkeypatch):
 
     monkeypatch.setattr(deep_hunt_module.scholarship_extraction_service, "extract", fail_extract)
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    finished = service.repository.get_run(run["id"], 1, include_opportunities=False)
+    finished = service.repository.get_run(run["id"], user_id, include_opportunities=False)
     assert finished["status"] == "cancelled"
 
 
@@ -399,16 +425,17 @@ async def test_service_run_stops_when_cancelled_mid_run(tmp_path, monkeypatch):
 async def test_service_run_fails_gracefully_with_no_search_results(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
-    run = service.repository.create_run(1, {"goal": "an extremely obscure goal"})
+    user_id = _seed_user(settings, "svc-empty@example.com")
+    run = service.repository.create_run(user_id, {"goal": "an extremely obscure goal"})
 
     async def _empty_impl(query, max_results):
         return []
 
     monkeypatch.setattr(service, "_tavily_search", _empty_impl)
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    finished = service.repository.get_run(run["id"], 1, include_opportunities=False)
+    finished = service.repository.get_run(run["id"], user_id, include_opportunities=False)
     assert finished["status"] == "failed"
     assert finished["error_message"]
 

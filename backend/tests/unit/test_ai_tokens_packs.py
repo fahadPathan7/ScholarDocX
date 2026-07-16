@@ -8,6 +8,7 @@ admin_manage_token_requests is seeded).
 """
 import json
 from pathlib import Path
+import uuid
 
 import pytest
 from fastapi import HTTPException
@@ -20,6 +21,7 @@ from app.db.connection import connect, get_db, initialize_database
 from app.services import ai_tokens
 from app.services.admin import AdminService
 from app.services.store import Store
+from tests.helpers import cleanup_user_records
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -29,29 +31,53 @@ def make_settings(tmp_path: Path) -> Settings:
     settings.workspace_path = tmp_path / "workspace"
     settings.media_path = tmp_path / "workspace" / "media"
     initialize_database(settings.database_target)
+    with connect(settings.database_target) as db:
+        db.execute(
+            """
+            UPDATE ai_token_packs
+            SET is_active = 1, token_amount = CASE code
+              WHEN 'small' THEN 100000
+              WHEN 'medium' THEN 500000
+              WHEN 'large' THEN 1500000
+              WHEN 'extra_large' THEN 5000000
+              ELSE token_amount
+            END,
+            price_usd = CASE code
+              WHEN 'small' THEN 10
+              WHEN 'medium' THEN 40
+              WHEN 'large' THEN 100
+              WHEN 'extra_large' THEN 300
+              ELSE price_usd
+            END
+            """
+        )
+        db.commit()
+    invalidate_limits_cache()
     return settings
 
 
 def make_user(settings: Settings, roles: list, email: str = None) -> dict:
+    user_email = email or f"{roles[0]}-{roles[-1]}-{uuid.uuid4().hex[:8]}@test.local"
     with connect(settings.database_target) as db:
+        cleanup_user_records(db, email=user_email)
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
-            (email or f"{roles[0]}-{roles[-1]}@test.local", json.dumps(roles)),
+            (user_email, json.dumps(roles)),
         )
         db.commit()
         uid = cur.lastrowid
     return {"id": uid, "roles": roles}
 
 
-def get_balance(settings: Settings, uid: int) -> dict:
+def get_balance(settings: Settings, uid: str) -> dict:
     with connect(settings.database_target) as db:
         return dict(db.execute(
             "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
         ).fetchone())
 
 
-def ledger_grants(settings: Settings, uid: int) -> list:
+def ledger_grants(settings: Settings, uid: str) -> list:
     with connect(settings.database_target) as db:
         return [dict(r) for r in db.execute(
             "SELECT * FROM ai_token_ledger WHERE user_id = ? AND tokens_delta > 0 ORDER BY id",
@@ -192,18 +218,28 @@ def test_list_my_purchase_requests_scoped(tmp_path):
 def test_list_purchase_requests_admin_view_joins_user(tmp_path):
     settings = make_settings(tmp_path)
     a = make_user(settings, ["general_user"], email="alice@test.local")
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
     try:
-        ai_tokens.submit_purchase_request(a["id"], "small", session)
-        rows = ai_tokens.list_purchase_requests(session)
+        req = ai_tokens.submit_purchase_request(a["id"], "small", session)
+        rows = [
+            row for row in ai_tokens.list_purchase_requests(session)
+            if row["id"] == req["id"]
+        ]
         assert len(rows) == 1
         assert rows[0]["user_email"] == "alice@test.local"
         assert rows[0]["pack_code"] == "small"
 
         # Status filter.
-        ai_tokens.resolve_purchase_request(rows[0]["id"], 1, "approve", session=session)
-        pending = ai_tokens.list_purchase_requests(session, status="pending")
-        approved = ai_tokens.list_purchase_requests(session, status="approved")
+        ai_tokens.resolve_purchase_request(rows[0]["id"], admin["id"], "approve", session=session)
+        pending = [
+            row for row in ai_tokens.list_purchase_requests(session, status="pending")
+            if row["id"] == req["id"]
+        ]
+        approved = [
+            row for row in ai_tokens.list_purchase_requests(session, status="approved")
+            if row["id"] == req["id"]
+        ]
         assert pending == []
         assert len(approved) == 1
     finally:
@@ -281,7 +317,12 @@ def test_resolve_unknown_and_bad_action(tmp_path):
     session = next(get_db(settings.database_target))
     try:
         with pytest.raises(LookupError):
-            ai_tokens.resolve_purchase_request(9999, admin["id"], "approve", session=session)
+            ai_tokens.resolve_purchase_request(
+                "00000000-0000-0000-0000-000000009999",
+                admin["id"],
+                "approve",
+                session=session,
+            )
         user = make_user(settings, ["general_user"])
         req = ai_tokens.submit_purchase_request(user["id"], "small", session)
         with pytest.raises(ValueError):
@@ -490,9 +531,9 @@ def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
 
 # ── model pricing catalog ─────────────────────────────────────────────────────
 
-def _model_pk(settings: Settings, model_id: str) -> int:
+def _model_pk(settings: Settings, model_id: str) -> str:
     with connect(settings.database_target) as db:
-        return int(db.execute(
+        return str(db.execute(
             "SELECT id FROM ai_models WHERE model_id = ?", (model_id,)
         ).fetchone()[0])
 
@@ -540,7 +581,7 @@ def test_update_model_validates_and_unknown(tmp_path):
             ai_tokens.update_model(pk, session=session, input_price_per_1m=-1)
         with pytest.raises(ValueError):
             ai_tokens.update_model(pk, session=session, output_price_per_1m=-0.1)
-        assert ai_tokens.update_model(999999, session=session, input_price_per_1m=1) is None
+        assert ai_tokens.update_model("00000000-0000-0000-0000-000000009999", session=session, input_price_per_1m=1) is None
     finally:
         session.close()
 

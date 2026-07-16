@@ -104,7 +104,7 @@ export function ProfileView({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [profileId, setProfileId] = useState<number | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
 
   const planStatus = getUserPlanStatus(user?.plan_ends_at);
   const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
@@ -148,7 +148,7 @@ export function ProfileView({
     api.get<RecordMap[]>("/local_profiles").then((rows) => {
       const first = rows[0];
       if (first) {
-        setProfileId(first.id as number);
+        setProfileId(String(first.id));
         const loaded: ProfileData = {
           display_name: first.display_name ?? "",
           email: first.email ?? "",
@@ -223,12 +223,12 @@ export function ProfileView({
     };
     if (!profileId) {
       const res = await api.post<RecordMap>("/local_profiles", { data: { ...identity, email: user?.email || "" } });
-      setProfileId(res.id as number);
+      setProfileId(String(res.id));
     } else {
       await api.patch(`/local_profiles/${profileId}`, { data: identity });
     }
     setSaved((current) => ({ ...current, ...identity }));
-    onToast?.("Profile saved locally.");
+    onToast?.("Profile saved.");
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
     setShowIdentityModal(false);
@@ -237,12 +237,12 @@ export function ProfileView({
   const saveAvatar = async () => {
     if (!profileId) {
       const res = await api.post<RecordMap>("/local_profiles", { data: { avatar: draft.avatar, email: user?.email || "" } });
-      setProfileId(res.id as number);
+      setProfileId(String(res.id));
     } else {
       await api.patch(`/local_profiles/${profileId}`, { data: { avatar: draft.avatar } });
     }
     setSaved((current) => ({ ...current, avatar: draft.avatar }));
-    onToast?.("Avatar saved locally.");
+    onToast?.("Avatar saved.");
     setAvatarJustSaved(true);
     setTimeout(() => setAvatarJustSaved(false), 2000);
     setShowAvatarModal(false);

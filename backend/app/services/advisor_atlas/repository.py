@@ -50,7 +50,7 @@ class AdvisorAtlasRepository:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
 
-    def create_run(self, user_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    def create_run(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 """
@@ -76,9 +76,9 @@ class AdvisorAtlasRepository:
                 ),
             )
             db.commit()
-            return self.get_run((cursor.lastrowid or 0), user_id)
+            return self.get_run(str(cursor.lastrowid), user_id)
 
-    def list_runs(self, user_id: int) -> list[dict[str, Any]]:
+    def list_runs(self, user_id: str) -> list[dict[str, Any]]:
         with legacy_session(self.database_url) as db:
             rows = db.execute(
                 """
@@ -95,7 +95,7 @@ class AdvisorAtlasRepository:
             ).fetchall()
             return [_decode_row(row) for row in rows]
 
-    def get_run(self, run_id: int, user_id: int, include_candidates: bool = True) -> dict[str, Any]:
+    def get_run(self, run_id: str, user_id: str, include_candidates: bool = True) -> dict[str, Any]:
         with legacy_session(self.database_url) as db:
             row = db.execute(
                 "SELECT * FROM advisor_atlas_runs WHERE id = ? AND user_id = ?",
@@ -116,7 +116,7 @@ class AdvisorAtlasRepository:
                 result["candidates"] = [_decode_row(item) for item in candidates]
             return result
 
-    def update_run(self, run_id: int, **values: Any) -> None:
+    def update_run(self, run_id: str, **values: Any) -> None:
         if not values:
             return
         allowed = {
@@ -144,7 +144,7 @@ class AdvisorAtlasRepository:
             )
             db.commit()
 
-    def is_cancelled(self, run_id: int) -> bool:
+    def is_cancelled(self, run_id: str) -> bool:
         with legacy_session(self.database_url) as db:
             row = db.execute(
                 "SELECT status FROM advisor_atlas_runs WHERE id = ?",
@@ -152,7 +152,7 @@ class AdvisorAtlasRepository:
             ).fetchone()
             return not row or row["status"] == "cancelled"
 
-    def cancel_run(self, run_id: int, user_id: int) -> dict[str, Any]:
+    def cancel_run(self, run_id: str, user_id: str) -> dict[str, Any]:
         with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 """
@@ -173,7 +173,7 @@ class AdvisorAtlasRepository:
             db.commit()
         return self.get_run(run_id, user_id)
 
-    def prepare_resume(self, run_id: int, user_id: int) -> dict[str, Any]:
+    def prepare_resume(self, run_id: str, user_id: str) -> dict[str, Any]:
         run = self.get_run(run_id, user_id, include_candidates=False)
         if run["status"] not in {"failed", "cancelled"}:
             raise ValueError("Only failed or cancelled runs can be resumed.")
@@ -192,8 +192,8 @@ class AdvisorAtlasRepository:
 
     def replace_candidate_data(
         self,
-        run_id: int,
-        user_id: int,
+        run_id: str,
+        user_id: str,
         candidate: dict[str, Any],
         evidence: list[dict[str, Any]],
         publications: list[dict[str, Any]],
@@ -231,7 +231,7 @@ class AdvisorAtlasRepository:
                 _json(candidate.get("risk_flags", [])),
             )
             if existing:
-                candidate_id = int(existing["id"])
+                candidate_id = str(existing["id"])
                 db.execute(
                     """
                     UPDATE advisor_atlas_candidates SET
@@ -282,7 +282,7 @@ class AdvisorAtlasRepository:
                     """,
                     (run_id, user_id, normalized_name, *values),
                 )
-                candidate_id = (cursor.lastrowid or 0)
+                candidate_id = str(cursor.lastrowid)
 
             for item in evidence:
                 db.execute(
@@ -338,7 +338,7 @@ class AdvisorAtlasRepository:
                   next_actions_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(candidate_id) DO UPDATE SET
-                  dossier_version = dossier_version + 1,
+                  dossier_version = advisor_atlas_dossiers.dossier_version + 1,
                   decision_snapshot_json = excluded.decision_snapshot_json,
                   research_bridge_json = excluded.research_bridge_json,
                   method_bridge_json = excluded.method_bridge_json,
@@ -364,7 +364,7 @@ class AdvisorAtlasRepository:
             db.commit()
             return candidate_id
 
-    def get_candidate(self, candidate_id: int, user_id: int) -> dict[str, Any]:
+    def get_candidate(self, candidate_id: str, user_id: str) -> dict[str, Any]:
         with legacy_session(self.database_url) as db:
             row = db.execute(
                 "SELECT * FROM advisor_atlas_candidates WHERE id = ? AND user_id = ?",
@@ -410,7 +410,7 @@ class AdvisorAtlasRepository:
             ]
             return candidate
 
-    def delete_run(self, run_id: int, user_id: int) -> bool:
+    def delete_run(self, run_id: str, user_id: str) -> bool:
         with legacy_session(self.database_url) as db:
             cursor = db.execute(
                 "DELETE FROM advisor_atlas_runs WHERE id = ? AND user_id = ?",
@@ -418,7 +418,7 @@ class AdvisorAtlasRepository:
             )
             return cursor.rowcount > 0
 
-    def update_candidate(self, candidate_id: int, user_id: int, values: dict[str, Any]) -> dict[str, Any]:
+    def update_candidate(self, candidate_id: str, user_id: str, values: dict[str, Any]) -> dict[str, Any]:
         allowed = {"shortlist_status", "decision_lane", "user_notes"}
         clean = {key: value for key, value in values.items() if key in allowed}
         if clean:
@@ -431,7 +431,7 @@ class AdvisorAtlasRepository:
                 db.commit()
         return self.get_candidate(candidate_id, user_id)
 
-    def update_publication(self, publication_id: int, candidate_id: int, user_id: int, values: dict[str, Any]) -> dict[str, Any]:
+    def update_publication(self, publication_id: str, candidate_id: str, user_id: str, values: dict[str, Any]) -> dict[str, Any]:
         candidate = self.get_candidate(candidate_id, user_id)
         allowed = {"reading_status", "user_note"}
         clean = {key: value for key, value in values.items() if key in allowed}
@@ -445,7 +445,7 @@ class AdvisorAtlasRepository:
                 db.commit()
         return self.get_candidate(candidate_id, user_id)
 
-    def save_to_professors(self, candidate_id: int, user_id: int) -> dict[str, Any]:
+    def save_to_professors(self, candidate_id: str, user_id: str) -> dict[str, Any]:
         candidate = self.get_candidate(candidate_id, user_id)
         with legacy_session(self.database_url) as db:
             existing = db.execute(
@@ -457,7 +457,7 @@ class AdvisorAtlasRepository:
                 (user_id, candidate["display_name"]),
             ).fetchone()
             if existing:
-                professor_id = int(existing["id"])
+                professor_id = str(existing["id"])
                 db.execute(
                     """
                     UPDATE professors SET title=?, email=?, profile_url=?,
@@ -491,7 +491,7 @@ class AdvisorAtlasRepository:
                         candidate.get("user_notes"),
                     ),
                 )
-                professor_id = (cursor.lastrowid or 0)
+                professor_id = str(cursor.lastrowid)
             db.execute(
                 "UPDATE advisor_atlas_candidates SET saved_professor_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (professor_id, candidate_id),

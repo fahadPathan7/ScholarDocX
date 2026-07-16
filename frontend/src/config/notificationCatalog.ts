@@ -18,7 +18,7 @@ export type NotificationSettingKey =
 export type NotificationEventKey = NotificationSettingKey;
 
 export type NotificationPayload = {
-  project_id?: number;
+  project_id?: string;
   due_at?: string;
   title: string;
   body: string;
@@ -28,9 +28,9 @@ export type NotificationPayload = {
 
 type NotificationTemplateVars = {
   projectName?: string;
-  projectId?: number;
+  projectId?: string;
   sheetName?: string;
-  sheetId?: number;
+  sheetId?: string;
   whiteboardName?: string;
   dueAt?: string;
   attachmentSummary?: string;
@@ -167,7 +167,7 @@ export const notificationTemplates: Record<NotificationEventKey, NotificationTem
   }
 };
 
-export function buildNotification(eventKey: NotificationEventKey, vars: NotificationTemplateVars = {}, project_id?: number): NotificationPayload {
+export function buildNotification(eventKey: NotificationEventKey, vars: NotificationTemplateVars = {}, project_id?: string): NotificationPayload {
   const definition = notificationTemplates[eventKey];
   const rendered = definition.render(vars);
   return {

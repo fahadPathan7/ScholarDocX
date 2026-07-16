@@ -414,7 +414,15 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
               </div>
 
               <div className="overflow-y-auto flex-1 p-6 space-y-6">
-                {groups.map((group, groupIdx) => (
+                {groups.map((group, groupIdx) => {
+                  // Skip the whole group (header included) when none of its
+                  // features have a seeded limit yet — otherwise an empty
+                  // category header renders with no rows beneath it.
+                  const visibleFeatures = group.features.filter(
+                    (f) => getLimitByFeature(f.key)
+                  );
+                  if (visibleFeatures.length === 0) return null;
+                  return (
                   <div key={groupIdx} className="bg-slate-50 rounded-xl p-5 border border-slate-200">
                     <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                       <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
@@ -459,7 +467,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                       })}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="px-6 py-4 border-t border-slate-200 shrink-0 flex items-center justify-between gap-3">

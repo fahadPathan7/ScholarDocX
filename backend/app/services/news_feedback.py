@@ -7,10 +7,10 @@ from sqlalchemy import text
 
 def create_query_preview_feedback(
     session: Session,
-    user_id: int,
+    user_id: str,
     initial_query: str,
     filters: Dict[str, Any],
-) -> int:
+) -> str:
     cursor = session.execute(
         text("""
         INSERT INTO scholarship_search_feedback (
@@ -32,16 +32,16 @@ def create_query_preview_feedback(
         },
     )
     session.commit()
-    return int(cursor.first()[0])
+    return str(cursor.first()[0])
 
 
 def create_search_feedback(
     session: Session,
-    user_id: int,
+    user_id: str,
     initial_query: str,
     refined_query: str,
     filters: Dict[str, Any],
-) -> int:
+) -> str:
     cursor = session.execute(
         text("""
         INSERT INTO scholarship_search_feedback (
@@ -64,13 +64,13 @@ def create_search_feedback(
         },
     )
     session.commit()
-    return int(cursor.first()[0])
+    return str(cursor.first()[0])
 
 
 def claim_query_preview_feedback(
     session: Session,
-    feedback_id: int,
-    user_id: int,
+    feedback_id: str,
+    user_id: str,
     approved_query: str,
 ) -> str:
     row = session.execute(
@@ -109,7 +109,7 @@ def claim_query_preview_feedback(
 
 def complete_search_feedback(
     session: Session,
-    feedback_id: int,
+    feedback_id: str,
     provider_status: str,
     result_count: Optional[int] = None,
 ) -> None:

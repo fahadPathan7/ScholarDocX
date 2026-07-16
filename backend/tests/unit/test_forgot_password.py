@@ -9,10 +9,15 @@ from app.db.connection import get_engine, initialize_database
 from app.services.admin import AdminService
 from app.services.store import Store
 
-from tests.helpers import make_settings
+from tests.helpers import cleanup_user_records, make_settings
 
 
 GENERIC_SUBSTRING = "request has been submitted to the administrator"
+
+# SCHOLARDOCX-0140: primary keys are UUID strings. These fixed UUIDs let tests
+# reference a known user/admin id without relying on a DB-assigned sequence.
+TEST_USER_ID = "00000000-0000-0000-0000-000000000002"
+TEST_ADMIN_ID = "00000000-0000-0000-0000-000000000010"
 
 
 def make_store(tmp_path):
@@ -21,22 +26,39 @@ def make_store(tmp_path):
     engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
-    return Store(session), session.connection().connection.dbapi_connection
+    store = Store(session)
+    # Route raw SQL through the legacy shim (translates '?' placeholders,
+    # supports lastrowid / row["col"]) instead of the raw psycopg3 dbapi
+    # connection, which rejects '?' placeholders. SCHOLARDOCX-0140.
+    return store, store.legacy_connection
 
 
-def seed_user(connection, user_id, email, roles='["general_user"]'):
+def _cleanup_user(connection, email):
+    cleanup_user_records(connection, TEST_USER_ID, email)
+    cleanup_user_records(connection, TEST_ADMIN_ID, "password-reset-admin@test.local")
+
+
+def seed_user(connection, email, roles='["general_user"]'):
+    _cleanup_user(connection, email)
     connection.execute(
         """
         INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked)
         VALUES (?, ?, ?, ?, ?, 1, 0)
         """,
         (
-            user_id,
+            TEST_USER_ID,
             email,
             "$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq",
             "Test User",
             roles,
         ),
+    )
+    connection.execute(
+        """
+        INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked)
+        VALUES (?, 'password-reset-admin@test.local', 'x', 'Reset Admin', '["super_admin"]', 1, 0)
+        """,
+        (TEST_ADMIN_ID,),
     )
     connection.commit()
 
@@ -66,7 +88,7 @@ def test_forgot_password_creates_request_for_known_user(tmp_path):
     store, connection = make_store(tmp_path)
     try:
         reset_rate_limiter()
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
 
         resp = forgot_password(
             ForgotPasswordPayload(email="member@example.com"),
@@ -76,9 +98,10 @@ def test_forgot_password_creates_request_for_known_user(tmp_path):
 
         assert resp["status"] == "success"
         assert GENERIC_SUBSTRING in resp["message"]
-        assert count_requests(connection, 2) == 1
+        assert count_requests(connection, TEST_USER_ID) == 1
         row = connection.execute(
-            "SELECT status, ip_address FROM password_reset_requests WHERE user_id = 2"
+            "SELECT status, ip_address FROM password_reset_requests WHERE user_id = ?",
+            (TEST_USER_ID,),
         ).fetchone()
         assert row["status"] == "Pending"
         assert row["ip_address"] == "10.0.0.10"
@@ -97,7 +120,11 @@ def test_forgot_password_unknown_email_creates_no_row_same_message(tmp_path):
         )
         assert resp["status"] == "success"
         assert GENERIC_SUBSTRING in resp["message"]
-        assert count_requests(connection) == 0
+        row = connection.execute(
+            "SELECT COUNT(*) FROM password_reset_requests WHERE email = ?",
+            ("nobody@example.com",),
+        ).fetchone()
+        assert row[0] == 0
     finally:
         store.db.close()
 
@@ -106,7 +133,7 @@ def test_forgot_password_max_one_pending_per_user(tmp_path):
     store, connection = make_store(tmp_path)
     try:
         reset_rate_limiter()
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
 
         first = forgot_password(
             ForgotPasswordPayload(email="member@example.com"),
@@ -122,7 +149,7 @@ def test_forgot_password_max_one_pending_per_user(tmp_path):
         )
 
         assert first["message"] == second["message"]
-        assert count_requests(connection, 2) == 1
+        assert count_requests(connection, TEST_USER_ID) == 1
     finally:
         store.db.close()
 
@@ -131,7 +158,7 @@ def test_forgot_password_ip_rate_limit_one_per_hour(tmp_path):
     store, connection = make_store(tmp_path)
     try:
         reset_rate_limiter()
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
 
         first = forgot_password(
             ForgotPasswordPayload(email="member@example.com"),
@@ -146,7 +173,7 @@ def test_forgot_password_ip_rate_limit_one_per_hour(tmp_path):
 
         assert first["message"] == second["message"]
         # Only the first call should have created a row.
-        assert count_requests(connection, 2) == 1
+        assert count_requests(connection, TEST_USER_ID) == 1
     finally:
         store.db.close()
 
@@ -154,25 +181,26 @@ def test_forgot_password_ip_rate_limit_one_per_hour(tmp_path):
 def test_resolve_set_password_updates_hash_and_token_version(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         before = connection.execute(
-            "SELECT password_hash, token_version FROM users WHERE id = 2"
+            "SELECT password_hash, token_version FROM users WHERE id = ?", (TEST_USER_ID,)
         ).fetchone()
 
         request_id = connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
-            VALUES ('member@example.com', 2, '10.0.0.40', 'Pending')
-            """
+            VALUES ('member@example.com', ?, '10.0.0.40', 'Pending')
+            """,
+            (TEST_USER_ID,),
         ).lastrowid
         connection.commit()
 
         result = AdminService(store.db).resolve_password_reset_request(
-            admin_id=1, request_id=request_id, action="set_password", new_password="NewPass!2024"
+            admin_id=TEST_ADMIN_ID, request_id=request_id, action="set_password", new_password="NewPass!2024"
         )
 
         after = connection.execute(
-            "SELECT password_hash, token_version FROM users WHERE id = 2"
+            "SELECT password_hash, token_version FROM users WHERE id = ?", (TEST_USER_ID,)
         ).fetchone()
         req = connection.execute(
             "SELECT status, reviewed_by FROM password_reset_requests WHERE id = ?", (request_id,)
@@ -183,7 +211,7 @@ def test_resolve_set_password_updates_hash_and_token_version(tmp_path):
         assert after["token_version"] == before["token_version"] + 1
         assert verify_password("NewPass!2024", after["password_hash"]) is True
         assert req["status"] == "Completed"
-        assert req["reviewed_by"] == 1
+        assert req["reviewed_by"] == TEST_ADMIN_ID
     finally:
         store.db.close()
 
@@ -191,25 +219,26 @@ def test_resolve_set_password_updates_hash_and_token_version(tmp_path):
 def test_resolve_dismiss_marks_dismissed_without_changing_password(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         before = connection.execute(
-            "SELECT password_hash, token_version FROM users WHERE id = 2"
+            "SELECT password_hash, token_version FROM users WHERE id = ?", (TEST_USER_ID,)
         ).fetchone()
 
         request_id = connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
-            VALUES ('member@example.com', 2, '10.0.0.50', 'Pending')
-            """
+            VALUES ('member@example.com', ?, '10.0.0.50', 'Pending')
+            """,
+            (TEST_USER_ID,),
         ).lastrowid
         connection.commit()
 
         result = AdminService(store.db).resolve_password_reset_request(
-            admin_id=1, request_id=request_id, action="dismiss"
+            admin_id=TEST_ADMIN_ID, request_id=request_id, action="dismiss"
         )
 
         after = connection.execute(
-            "SELECT password_hash, token_version FROM users WHERE id = 2"
+            "SELECT password_hash, token_version FROM users WHERE id = ?", (TEST_USER_ID,)
         ).fetchone()
         req = connection.execute(
             "SELECT status FROM password_reset_requests WHERE id = ?", (request_id,)
@@ -226,18 +255,19 @@ def test_resolve_dismiss_marks_dismissed_without_changing_password(tmp_path):
 def test_resolve_set_password_requires_non_empty_password(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         request_id = connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
-            VALUES ('member@example.com', 2, '10.0.0.60', 'Pending')
-            """
+            VALUES ('member@example.com', ?, '10.0.0.60', 'Pending')
+            """,
+            (TEST_USER_ID,),
         ).lastrowid
         connection.commit()
 
         try:
             AdminService(store.db).resolve_password_reset_request(
-                admin_id=1, request_id=request_id, action="set_password", new_password="   "
+                admin_id=TEST_ADMIN_ID, request_id=request_id, action="set_password", new_password="   "
             )
             assert False, "Expected ValueError for empty password"
         except ValueError as e:
@@ -249,18 +279,19 @@ def test_resolve_set_password_requires_non_empty_password(tmp_path):
 def test_resolve_rejects_already_resolved_request(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         request_id = connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
-            VALUES ('member@example.com', 2, '10.0.0.70', 'Completed')
-            """
+            VALUES ('member@example.com', ?, '10.0.0.70', 'Completed')
+            """,
+            (TEST_USER_ID,),
         ).lastrowid
         connection.commit()
 
         try:
             AdminService(store.db).resolve_password_reset_request(
-                admin_id=1, request_id=request_id, action="dismiss"
+                admin_id=TEST_ADMIN_ID, request_id=request_id, action="dismiss"
             )
             assert False, "Expected ValueError for already-resolved request"
         except ValueError as e:
@@ -272,17 +303,18 @@ def test_resolve_rejects_already_resolved_request(tmp_path):
 def test_admin_resolve_blocks_without_permission(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         request_id = connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
-            VALUES ('member@example.com', 2, '10.0.0.80', 'Pending')
-            """
+            VALUES ('member@example.com', ?, '10.0.0.80', 'Pending')
+            """,
+            (TEST_USER_ID,),
         ).lastrowid
         connection.commit()
 
         current_user = {
-            "id": 10,
+            "id": "00000000-0000-0000-0000-0000000000aa",
             "roles": ["general_admin"],
             "plan_started_at": None,
             "plan_ends_at": None,
@@ -310,14 +342,15 @@ def test_admin_resolve_blocks_without_permission(tmp_path):
 def test_admin_list_password_reset_requests(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, ip_address, status)
             VALUES
-              ('member@example.com', 2, '10.0.0.90', 'Pending'),
-              ('member@example.com', 2, '10.0.0.91', 'Completed')
-            """
+              ('member@example.com', ?, '10.0.0.90', 'Pending'),
+              ('member@example.com', ?, '10.0.0.91', 'Completed')
+            """,
+            (TEST_USER_ID, TEST_USER_ID),
         )
         connection.commit()
 
@@ -336,16 +369,17 @@ def test_admin_list_password_reset_requests(tmp_path):
 def test_dashboard_stats_counts_pending_password_resets(tmp_path):
     store, connection = make_store(tmp_path)
     try:
-        seed_user(connection, 2, "member@example.com")
+        seed_user(connection, "member@example.com")
         connection.execute(
             """
             INSERT INTO password_reset_requests (email, user_id, status)
             VALUES
-              ('member@example.com', 2, 'Pending'),
-              ('member@example.com', 2, 'Pending'),
-              ('member@example.com', 2, 'Completed'),
-              ('member@example.com', 2, 'Dismissed')
-            """
+              ('member@example.com', ?, 'Pending'),
+              ('member@example.com', ?, 'Pending'),
+              ('member@example.com', ?, 'Completed'),
+              ('member@example.com', ?, 'Dismissed')
+            """,
+            (TEST_USER_ID, TEST_USER_ID, TEST_USER_ID, TEST_USER_ID),
         )
         connection.commit()
 

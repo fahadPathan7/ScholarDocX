@@ -85,9 +85,9 @@ export type AdvisorDiscoverySummary = {
     completeness_note?: string;
     coverage_gaps?: string[];
   };
-  faculty_ids?: number[];
-  research_match_ids?: number[];
-  opportunity_match_ids?: number[];
+  faculty_ids?: string[];
+  research_match_ids?: string[];
+  opportunity_match_ids?: string[];
 };
 
 export type CreateAdvisorRun = {
@@ -103,8 +103,8 @@ export type CreateAdvisorRun = {
 };
 
 export type AdvisorCandidate = {
-  id: number;
-  run_id: number;
+  id: string;
+  run_id: string;
   display_name: string;
   title?: string;
   institution?: string;
@@ -127,11 +127,11 @@ export type AdvisorCandidate = {
   user_notes?: string;
   coverage: Record<string, string>;
   risk_flags: string[];
-  saved_professor_id?: number;
+  saved_professor_id?: string;
 };
 
 export type AdvisorRun = {
-  id: number;
+  id: string;
   mode: SearchMode;
   university_name?: string;
   university_url?: string;
@@ -153,7 +153,7 @@ export type AdvisorRun = {
 };
 
 export type AdvisorPublication = {
-  id: number;
+  id: string;
   title: string;
   authors: string[];
   publication_year?: number;
@@ -167,7 +167,7 @@ export type AdvisorPublication = {
 };
 
 export type AdvisorEvidence = {
-  id: number;
+  id: string;
   source_url: string;
   source_type: string;
   page_title?: string;
@@ -201,29 +201,29 @@ export const advisorAtlasApi = {
   createRun: (payload: CreateAdvisorRun) =>
     api.post<AdvisorRun>("/advisor-atlas/runs", payload),
   listRuns: () => api.get<AdvisorRun[]>("/advisor-atlas/runs"),
-  getRun: (runId: number) =>
+  getRun: (runId: string) =>
     api.get<AdvisorRun>(`/advisor-atlas/runs/${runId}`),
-  deleteRun: (runId: number) =>
+  deleteRun: (runId: string) =>
     api.delete(`/advisor-atlas/runs/${runId}`),
-  cancelRun: (runId: number) =>
+  cancelRun: (runId: string) =>
     api.post<AdvisorRun>(`/advisor-atlas/runs/${runId}/cancel`, {}),
-  resumeRun: (runId: number) =>
+  resumeRun: (runId: string) =>
     api.post<AdvisorRun>(`/advisor-atlas/runs/${runId}/resume`, {}),
-  getCandidate: (candidateId: number) =>
+  getCandidate: (candidateId: string) =>
     api.get<AdvisorCandidateDetail>(`/advisor-atlas/candidates/${candidateId}`),
-  updateCandidate: (candidateId: number, payload: Record<string, any>) =>
+  updateCandidate: (candidateId: string, payload: Record<string, any>) =>
     api.patch<AdvisorCandidateDetail>(`/advisor-atlas/candidates/${candidateId}`, payload),
   updatePublication: (
-    candidateId: number,
-    publicationId: number,
+    candidateId: string,
+    publicationId: string,
     payload: Record<string, any>,
   ) =>
     api.patch<AdvisorCandidateDetail>(
       `/advisor-atlas/candidates/${candidateId}/publications/${publicationId}`,
       payload,
     ),
-  refreshCandidate: (candidateId: number) =>
+  refreshCandidate: (candidateId: string) =>
     api.post<AdvisorCandidateDetail>(`/advisor-atlas/candidates/${candidateId}/refresh`, {}),
-  saveCandidate: (candidateId: number) =>
+  saveCandidate: (candidateId: string) =>
     api.post<Record<string, any>>(`/advisor-atlas/candidates/${candidateId}/save`, {}),
 };

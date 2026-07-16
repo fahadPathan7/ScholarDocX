@@ -304,20 +304,73 @@ def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(ge
     limits = store.legacy_connection.execute(
         "SELECT role, feature, limit_count, reset_period FROM role_limits ORDER BY role, feature"
     ).fetchall()
-    
+
     plans = defaultdict(dict)
     for row in limits:
         plans[row["role"]][row["feature"]] = {
             "limit_count": row["limit_count"],
             "reset_period": row["reset_period"]
         }
-        
+
+    # SCHOLARDOCX-0140: monthly AI credits moved from role_limits (feature
+    # ai_tokens_per_month) to app_settings (plan_ai_credits_<tier>). Inject it
+    # back into each tier's feature map so the response shape is unchanged for
+    # PlanComparisonView and other existing consumers.
+    credit_settings = store.legacy_connection.execute(
+        "SELECT key, value FROM app_settings WHERE key ILIKE 'plan_ai_credits_%'"
+    ).fetchall()
+    credit_defaults = {
+        "plan_ai_credits_free": "0",
+        "plan_ai_credits_general": "500000",
+        "plan_ai_credits_pro": "2000000",
+        "plan_ai_credits_max": "5000000",
+    }
+    credit_by_role = {
+        "free_user": "plan_ai_credits_free",
+        "general_user": "plan_ai_credits_general",
+        "pro_user": "plan_ai_credits_pro",
+        "max_user": "plan_ai_credits_max",
+    }
+    credits = {row["key"]: row["value"] for row in credit_settings}
+    for role, setting_key in credit_by_role.items():
+        value = credits.get(setting_key, credit_defaults[setting_key])
+        plans[role]["ai_tokens_per_month"] = {
+            "limit_count": int(value),
+            "reset_period": "monthly",
+        }
+
+    # SCHOLARDOCX-0140: Filter out inactive plans based on plan_is_active_* settings
+    active_settings = store.legacy_connection.execute(
+        "SELECT key, value FROM app_settings WHERE key ILIKE 'plan_is_active_%'"
+    ).fetchall()
+    active_by_role = {
+        "free_user": "plan_is_active_free",
+        "general_user": "plan_is_active_general",
+        "pro_user": "plan_is_active_pro",
+        "max_user": "plan_is_active_max",
+    }
+    active_flags = {row["key"]: row["value"] for row in active_settings}
+    
+    # Debug: print what we got
+    print(f"[DEBUG] Active flags from DB: {active_flags}")
+    
+    # Remove inactive plans from the response
+    filtered_plans = {}
+    for role, setting_key in active_by_role.items():
+        is_active = active_flags.get(setting_key, "1") == "1"  # Default to active if not set
+        print(f"[DEBUG] {role}: is_active={is_active} (setting_key={setting_key}, value={active_flags.get(setting_key, 'NOT_FOUND')})")
+        if is_active and role in plans:
+            filtered_plans[role] = plans[role]
+    
+    print(f"[DEBUG] Original plans: {list(plans.keys())}")
+    print(f"[DEBUG] Filtered plans: {list(filtered_plans.keys())}")
+
     settings_rows = store.legacy_connection.execute(
         "SELECT key, value FROM app_settings WHERE key ILIKE 'plan_price_%'"
     ).fetchall()
-    
+
     pricing = {row["key"]: row["value"] for row in settings_rows}
-    
+
     # Defaults in case not in DB yet
     pricing.setdefault("plan_price_general_monthly", "0")
     pricing.setdefault("plan_price_general_yearly", "0")
@@ -326,7 +379,7 @@ def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(ge
     pricing.setdefault("plan_price_max_monthly", "180")
     pricing.setdefault("plan_price_max_yearly", "1500")
 
-    return {"status": "success", "plans": plans, "pricing": pricing}
+    return {"status": "success", "plans": filtered_plans, "pricing": pricing}
 
 @router.get("/plans/requests")
 def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
@@ -476,7 +529,7 @@ def request_plan_upgrade(payload: PlanRequestPayload, store: Store = Depends(get
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/plans/requests/{request_id}/cancel")
-def cancel_plan_request(request_id: int, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+def cancel_plan_request(request_id: str, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
     request = store.legacy_connection.execute(
         "SELECT id, status FROM plan_upgrade_requests WHERE id = ? AND user_id = ?",
         (request_id, current_user["id"])

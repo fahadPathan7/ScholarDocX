@@ -12,9 +12,9 @@ import { AdvisorProfessorBrief } from "./AdvisorProfessorBrief";
 
 type Props = {
   run: AdvisorRun;
-  refreshingCandidateId: number | null;
-  onOpenCandidate: (id: number) => void;
-  onRefreshCandidate: (id: number) => void;
+  refreshingCandidateId: string | null;
+  onOpenCandidate: (id: string) => void;
+  onRefreshCandidate: (id: string) => void;
   onShortlist: (candidate: AdvisorCandidate) => void;
   onCancel: () => void;
   onResume: () => void;
@@ -31,7 +31,7 @@ export function AdvisorRunWorkspace({
   onResume,
   onReload,
 }: Props) {
-  const [compareIds, setCompareIds] = useState<number[]>([]);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
   const candidates = run.candidates || [];
   const compared = candidates.filter((candidate) => compareIds.includes(candidate.id));

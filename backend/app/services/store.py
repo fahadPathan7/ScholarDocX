@@ -241,7 +241,7 @@ def get_columns_for_degree(degree_type: str) -> list[dict]:
 
 
 class Store:
-    def __init__(self, db: Session, current_user_id: int | None = None) -> None:
+    def __init__(self, db: Session, current_user_id: str | None = None) -> None:
         self.db = db
         self.current_user_id = current_user_id
 
@@ -267,7 +267,7 @@ class Store:
         stmt = stmt.order_by(text(order_by))
         return [self._row(obj) for obj in self.db.scalars(stmt).all()]
 
-    def get_record(self, table: str, record_id: int) -> dict:
+    def get_record(self, table: str, record_id: str) -> dict:
         self._ensure_table(table)
         model = MODEL_MAP[table]
         stmt = select(model).where(model.id == record_id)
@@ -293,7 +293,7 @@ class Store:
         self.db.refresh(obj)
         return self._row(obj)
 
-    def update_record(self, table: str, record_id: int, payload: dict[str, Any]) -> dict:
+    def update_record(self, table: str, record_id: str, payload: dict[str, Any]) -> dict:
         self._ensure_table(table)
         model = MODEL_MAP[table]
         stmt = select(model).where(model.id == record_id)
@@ -319,7 +319,7 @@ class Store:
         self.db.refresh(obj)
         return self._row(obj)
 
-    def delete_record(self, table: str, record_id: int) -> dict:
+    def delete_record(self, table: str, record_id: str) -> dict:
         self._ensure_table(table)
         model = MODEL_MAP[table]
         stmt = select(model).where(model.id == record_id)
@@ -399,7 +399,7 @@ class Store:
         self.db.refresh(obj)
         return self._row(obj)
 
-    def rename_document_category(self, category_id: int, name: str) -> dict:
+    def rename_document_category(self, category_id: str, name: str) -> dict:
         category = self.get_record("document_categories", category_id)
         display_name = category_display_name(name)
         next_slug = normalize_media_category(display_name)
@@ -427,7 +427,7 @@ class Store:
         self.db.commit()
         return self.get_record("document_categories", category_id)
 
-    def delete_document_category(self, category_id: int, workspace_path: Path, media_path: Path) -> dict:
+    def delete_document_category(self, category_id: str, workspace_path: Path, media_path: Path) -> dict:
         """Delete a category, its files (from Supabase Storage), and DB rows.
 
         SCHOLARDOCX-0139: files now live in Supabase Storage, not on disk. The
@@ -633,7 +633,7 @@ class Store:
             "calendar_items": self._calendar_items(project_pages),
         }
 
-    def project_summary(self, project_id: int) -> dict:
+    def project_summary(self, project_id: str) -> dict:
         project = self.get_record("projects", project_id)  # already enforces user_id ownership
         uid = self.current_user_id
         if uid:
@@ -687,7 +687,7 @@ class Store:
             "calendar_items": self._calendar_items(pages),
         }
 
-    def create_sheet_with_defaults(self, project_id: int, name: str) -> dict:
+    def create_sheet_with_defaults(self, project_id: str, name: str) -> dict:
         project = self.get_record("projects", project_id)
         degree_type = (project.get("degree_type") or "phd").lower()
 
@@ -747,7 +747,7 @@ class Store:
         )
         return {"sheet": sheet, "page": page}
 
-    def render_template(self, template_id: int, variables: dict[str, Any]) -> dict:
+    def render_template(self, template_id: str, variables: dict[str, Any]) -> dict:
         template = self.get_record("email_templates", template_id)
         subject = render_text(template["subject_template"], variables)
         body = render_text(template["body_template"], variables)

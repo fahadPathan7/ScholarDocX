@@ -175,6 +175,7 @@ Both services live on Render (free tier):
 - `backend/app/services/store.py` — `delete_document_category()` deletes from Storage; `Store.__init__` restored.
 - `backend/app/db/legacy_db.py` — added direct-use passthroughs (execute/close/commit) for test fixtures.
 - `backend/tests/conftest.py` — loads repo-root `.env` so unit tests find `DATABASE_URL`.
+- `backend/tests/smoke/test_postgres_foundation.py` — fixed count query assertions from `.fetchone()[0]` to `.scalar() or 0` to prevent subscripting exceptions when fetchone() returns None.
 - `render.yaml` (new) — Render deployment config (backend + frontend).
 - `AGENTS.md`, `AI-Context/technical/*` — updated constraints and stack docs.
 

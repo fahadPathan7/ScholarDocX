@@ -7,15 +7,33 @@ from app.api import news as news_api
 from app.db.connection import connect, get_engine
 from app.services.store import Store
 
-from tests.helpers import make_settings
+from tests.helpers import cleanup_user_records, make_settings
+
+
+# SCHOLARDOCX-0140: primary keys are UUID strings. Fixed UUID for the seeded
+# test user so feedback rows satisfy the user_id FK constraint.
+_TEST_USER_ID = "00000000-0000-0000-0000-0000000000fb"
+_TEST_USER = {"id": _TEST_USER_ID, "roles": ["pro_user"]}
 
 
 def _store(tmp_path):
     settings = make_settings(tmp_path)
+    with connect(settings.database_target) as db:
+        cleanup_user_records(db, _TEST_USER_ID, "feedback-test@test.local")
+        db.commit()
     from sqlalchemy.orm import sessionmaker
     engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
+    session.execute(
+        text(
+            "INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked) "
+            "VALUES (:uid, :email, 'x', 'Test', '[\"pro_user\"]', 1, 0) "
+            "ON CONFLICT (id) DO NOTHING"
+        ),
+        {"uid": _TEST_USER_ID, "email": "feedback-test@test.local"},
+    )
+    session.commit()
     return session, Store(session)
 
 
@@ -96,7 +114,7 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
         payload=news_api.QueryPreviewRequest(
             filters=news_api.ScholarshipSearchFilters(levels=["Master's"])
         ),
-        user={"id": 1, "roles": ["pro_user"]},
+        user=_TEST_USER,
         store=store,
     )
 
@@ -110,7 +128,7 @@ async def test_query_preview_consumes_usage_without_tavily_provider_call(
     assert row["provider_status"] == "previewed"
     assert row["refined_query"] == "generated master's scholarship query"
     # Query building is metered by AI tokens, not by search counts.
-    assert spend_calls == [(1, 1)]
+    assert spend_calls == [(_TEST_USER_ID, 1)]
     assert len(charge_calls) == 1
     assert charge_calls[0]["source"] == "scholarship_query_build"
     assert charge_calls[0]["input_tokens"] == 120
@@ -135,7 +153,7 @@ async def test_confirmed_search_persists_initial_and_refined_queries(
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fake_search)
     preview_feedback_id = news_api.create_query_preview_feedback(
         connection,
-        1,
+        _TEST_USER_ID,
         "AI-generated USA master's query",
         {
             "countries": ["USA"],
@@ -156,15 +174,15 @@ async def test_confirmed_search_persists_initial_and_refined_queries(
                 approved_query="refined USA master's scholarship query",
                 query_approved=True,
             ),
-            user={"id": 1, "roles": ["pro_user"]},
+            user=_TEST_USER,
             store=store,
         )
 
-        row = connection.connection().connection.dbapi_connection.execute(
+        row = connection.execute(text(
             "SELECT * FROM scholarship_search_feedback ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        )).mappings().fetchone()
         assert response["totalResults"] == 2
-        assert row["user_id"] == 1
+        assert row["user_id"] == _TEST_USER_ID
         assert row["initial_query"] == "AI-generated USA master's query"
         assert row["refined_query"] == "refined USA master's scholarship query"
         assert row["was_edited"] == 1
@@ -195,7 +213,7 @@ async def test_failed_confirmed_search_keeps_feedback_without_consuming_usage(
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fail_search)
     preview_feedback_id = news_api.create_query_preview_feedback(
         connection,
-        1,
+        _TEST_USER_ID,
         "generated query",
         {
             "language": "en",
@@ -213,13 +231,13 @@ async def test_failed_confirmed_search_keeps_feedback_without_consuming_usage(
                     approved_query="generated query",
                     query_approved=True,
                 ),
-                user={"id": 1, "roles": ["pro_user"]},
+                user=_TEST_USER,
                 store=store,
             )
 
-        row = connection.connection().connection.dbapi_connection.execute(
+        row = connection.execute(text(
             "SELECT * FROM scholarship_search_feedback ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        )).mappings().fetchone()
         assert row["was_edited"] == 0
         assert row["provider_status"] == "failed"
         assert row["result_count"] is None
@@ -238,7 +256,7 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
     monkeypatch.setattr(news_api.news_service, "search_scholarships", fake_search)
     preview_feedback_id = news_api.create_query_preview_feedback(
         connection,
-        1,
+        _TEST_USER_ID,
         "generated query",
         {
             "language": "en",
@@ -254,7 +272,7 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
             approved_query="generated query",
             query_approved=True,
         ),
-        user={"id": 1, "roles": ["pro_user"]},
+        user=_TEST_USER,
         store=store,
     )
 
@@ -266,7 +284,7 @@ async def test_confirmed_search_rejects_reused_preview_feedback(tmp_path, monkey
                 approved_query="generated query",
                 query_approved=True,
             ),
-            user={"id": 1, "roles": ["pro_user"]},
+            user=_TEST_USER,
             store=store,
         )
 

@@ -58,37 +58,38 @@ def test_initialize_database_creates_tables():
 
 
 def test_seed_inserts_defaults():
-    """SEED_SQL populated degree_workspaces, role_limits, app_settings, admin user."""
+    """SEED_SQL populated degree_workspaces, role_limits, app_settings.
+
+    SCHOLARDOCX-0140: no default admin user is auto-seeded anymore (a committed
+    account with a publicly-known password hash was a security risk). Super
+    admins are created explicitly via scripts/create_superadmin.py. This test
+    asserts the users table starts empty after a fresh seed.
+    """
     from app.db.connection import get_engine
 
     engine = get_engine(DATABASE_URL)
     with engine.connect() as conn:
-        degree_count = conn.execute(text("SELECT COUNT(*) FROM degree_workspaces")).fetchone()[0]
-        role_count = conn.execute(text("SELECT COUNT(*) FROM role_limits")).fetchone()[0]
-        admin = conn.execute(
-            text("SELECT email FROM users WHERE email = 'admin@scholardocx.com'")
-        ).fetchone()
+        degree_count = conn.execute(text("SELECT COUNT(*) FROM degree_workspaces")).scalar() or 0
+        role_count = conn.execute(text("SELECT COUNT(*) FROM role_limits")).scalar() or 0
+        user_count = conn.execute(text("SELECT COUNT(*) FROM users")).scalar() or 0
         setting = conn.execute(
             text("SELECT value FROM app_settings WHERE key = 'jwt_expiration_days'")
         ).fetchone()
     assert degree_count >= 3  # bachelors, masters, phd
     assert role_count >= 50  # many role/feature combinations seeded
-    assert admin is not None
+    assert user_count == 0, "no default admin should be auto-seeded; create one via create_superadmin.py"
     assert setting is not None and setting[0] == "30"
 
 
 def test_jwt_secret_provisioned():
-    """initialize_database provisioned a non-placeholder JWT signing secret."""
-    from app.db.connection import get_engine, COMPROMISED_JWT_SECRET_PREFIX
+    """initialize_database verifies that the JWT signing secret is provisioned in the settings."""
+    from app.core.config import get_settings
+    from app.db.connection import COMPROMISED_JWT_SECRET_PREFIX
 
-    engine = get_engine(DATABASE_URL)
-    with engine.connect() as conn:
-        row = conn.execute(
-            text("SELECT value FROM app_settings WHERE key = 'jwt_secret_key'")
-        ).fetchone()
-    assert row is not None
-    assert row[0].strip() != ""
-    assert not row[0].startswith(COMPROMISED_JWT_SECRET_PREFIX)
+    secret = get_settings().jwt_secret_key
+    assert secret is not None
+    assert secret.strip() != ""
+    assert not secret.startswith(COMPROMISED_JWT_SECRET_PREFIX)
 
 
 def test_ai_models_and_packs_seeded():
@@ -97,7 +98,7 @@ def test_ai_models_and_packs_seeded():
 
     engine = get_engine(DATABASE_URL)
     with engine.connect() as conn:
-        models = conn.execute(text("SELECT COUNT(*) FROM ai_models")).fetchone()[0]
-        packs = conn.execute(text("SELECT COUNT(*) FROM ai_token_packs")).fetchone()[0]
+        models = conn.execute(text("SELECT COUNT(*) FROM ai_models")).scalar() or 0
+        packs = conn.execute(text("SELECT COUNT(*) FROM ai_token_packs")).scalar() or 0
     assert models >= 10  # provider model lists
     assert packs >= 4  # small, medium, large, extra_large

@@ -8,7 +8,7 @@ interface SavedQueriesDialogProps {
   onRunSavedQuery?: (
     queryString: string,
     filtersJson: string,
-    savedQuery?: { id: number; seen_article_ids_json?: string },
+    savedQuery?: { id: string; seen_article_ids_json?: string },
   ) => void;
   isPreparingQuery?: boolean;
 }
@@ -21,7 +21,7 @@ export function SavedQueriesDialog({
 }: SavedQueriesDialogProps) {
   const [savedQueries, setSavedQueries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedQueryId, setExpandedQueryId] = useState<number | null>(null);
+  const [expandedQueryId, setExpandedQueryId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,7 +51,7 @@ export function SavedQueriesDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleDeleteSavedQuery = async (e: React.MouseEvent, id: number) => {
+  const handleDeleteSavedQuery = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     try {
       const { deleteSavedQuery } = await import("../../lib/newsApi");

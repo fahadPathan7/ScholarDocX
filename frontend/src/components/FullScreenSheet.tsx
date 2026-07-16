@@ -73,8 +73,8 @@ export function FullScreenSheet() {
         onFilesChanged={loadFiles}
         navigationTarget={{
           token: Date.now(),
-          projectId: Number(projectId),
-          pageId: Number(pageId)
+          projectId: String(projectId),
+          pageId: pageId ? String(pageId) : undefined
         }}
         fullScreenMode={true}
       />

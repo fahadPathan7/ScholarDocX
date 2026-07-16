@@ -1,5 +1,6 @@
 import { ModelPricingTab } from "./ModelPricingTab";
 import { TokenPacksTab } from "./TokenPacksTab";
+import { PlanPricingTable } from "./PlanPricingTable";
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../../lib/api";
 import { hasRole } from "../../lib/auth";
@@ -15,7 +16,6 @@ export function SettingsTab() {
   const { showAlert } = useDialog();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [showJwt, setShowJwt] = useState(false);
 
   const [showJwtModal, setShowJwtModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -174,35 +174,13 @@ export function SettingsTab() {
               </button>
             </div>
             <div className="p-6 space-y-6">
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-slate-700">JWT Sign Key</label>
-                <div className="flex gap-3">
-                  <div className="relative flex-1">
-                    <input
-                      type={showJwt ? "text" : "password"}
-                      defaultValue={settings["jwt_secret_key"] || "scholar-docx-secure personal workspace-secret-key-do-not-use-in-cloud"}
-                      id="modal-input-jwt_secret_key"
-                      className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowJwt(!showJwt)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      {showJwt ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const el = document.getElementById("modal-input-jwt_secret_key") as HTMLInputElement;
-                      if (el) handleUpdate("jwt_secret_key", el.value);
-                    }}
-                    className="profile-primary-button px-5"
-                  >
-                    Save
-                  </button>
+              <div className="space-y-3 bg-slate-50 border border-slate-200/50 p-4 rounded-xl">
+                <label className="block text-sm font-semibold text-slate-800">JWT Sign Key</label>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-emerald-700">Configured securely via environment variables (or auto-generated at startup)</span>
                 </div>
-                <p className="text-xs text-rose-500 font-medium">Warning: Changing this will instantly log out all active users!</p>
+                <p className="text-[11px] text-slate-400">For security compliance, the cryptographic signature key cannot be modified or viewed dynamically from this admin dashboard.</p>
               </div>
 
               <div className="space-y-3">
@@ -238,160 +216,42 @@ export function SettingsTab() {
       )}
 
       {showPricingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
-              <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
-                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-sm font-bold">BDT</span>
-                Plan Pricing Configuration
-              </h3>
-              <button onClick={() => setShowPricingModal(false)} className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-200 transition-colors">
+        <Modal onClose={() => setShowPricingModal(false)} zIndex={999}>
+          <div
+            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold shrink-0">BDT</span>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">Plan Pricing Configuration</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure pricing & monthly AI credits for all user plans.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPricingModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                title="Close"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="space-y-6">
-                {/* General Plan */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                  <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                    General Plan
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_general_monthly"] || "0"}
-                          id="modal-input-plan_price_general_monthly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_general_yearly"] || "0"}
-                          id="modal-input-plan_price_general_yearly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pro Plan */}
-                <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-5">
-                  <h4 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    Pro Plan
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_pro_monthly"] || "50"}
-                          id="modal-input-plan_price_pro_monthly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_pro_yearly"] || "500"}
-                          id="modal-input-plan_price_pro_yearly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Max Plan */}
-                <div className="bg-purple-50/40 border border-purple-100 rounded-xl p-5">
-                  <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    Max Plan
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Monthly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_max_monthly"] || "180"}
-                          id="modal-input-plan_price_max_monthly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Yearly</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">৳</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={settings["plan_price_max_yearly"] || "1500"}
-                          id="modal-input-plan_price_max_yearly"
-                          className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+              <PlanPricingTable />
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 shrink-0">
+            <div className="modal-footer">
               <button
                 onClick={() => setShowPricingModal(false)}
-                className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
               >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  const keys = [
-                    "plan_price_general_monthly", "plan_price_general_yearly",
-                    "plan_price_pro_monthly", "plan_price_pro_yearly",
-                    "plan_price_max_monthly", "plan_price_max_yearly"
-                  ];
-                  let updated = false;
-                  for (const key of keys) {
-                    const el = document.getElementById(`modal-input-${key}`) as HTMLInputElement;
-                    if (el && el.value !== String(settings[key] || "0")) {
-                      await handleUpdate(key, el.value);
-                      updated = true;
-                    }
-                  }
-                  if (updated) fetchSettings();
-                  setShowPricingModal(false);
-                }}
-                className="px-6 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm hover:shadow transition-all"
-              >
-                Save Changes
+                Close
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showModelPricingModal && (

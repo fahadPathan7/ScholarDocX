@@ -1,6 +1,7 @@
+import uuid
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Text, UniqueConstraint, func, text
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -26,10 +27,10 @@ class InviteCodes(Base):
     code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     max_uses: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     used_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    created_by: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    created_by: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     expires_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     users: Mapped['Users'] = relationship('Users', foreign_keys=[created_by], back_populates='invite_codes_created_by')
@@ -50,7 +51,7 @@ class RoleLimits(Base):
     reset_period: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'never'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class SuspensionAppeals(Base):
@@ -61,7 +62,7 @@ class SuspensionAppeals(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
 
 
@@ -69,14 +70,14 @@ class PasswordResetRequests(Base):
     __tablename__ = 'password_reset_requests'
 
     email: Mapped[str] = mapped_column(Text, nullable=False)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    reviewed_by: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class Users(Base):
@@ -96,12 +97,12 @@ class Users(Base):
     is_blocked: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     avatar: Mapped[Optional[str]] = mapped_column(Text)
     last_login_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     plan_started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     plan_ends_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
-    registered_with_invite_id: Mapped[Optional[int]] = mapped_column(ForeignKey('invite_codes.id'))
+    registered_with_invite_id: Mapped[Optional[str]] = mapped_column(ForeignKey('invite_codes.id'))
 
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
@@ -146,8 +147,8 @@ class AiConversations(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='ai_conversations')
 
@@ -164,8 +165,8 @@ class AuditLogs(Base):
 
     action: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     target_type: Mapped[Optional[str]] = mapped_column(Text)
     target_id: Mapped[Optional[str]] = mapped_column(Text)
     details: Mapped[Optional[str]] = mapped_column(Text)
@@ -184,8 +185,8 @@ class BookmarkedNews(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     link: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     source_name: Mapped[Optional[str]] = mapped_column(Text)
     pub_date: Mapped[Optional[str]] = mapped_column(Text)
     image_url: Mapped[Optional[str]] = mapped_column(Text)
@@ -203,8 +204,8 @@ class DegreeWorkspaces(Base):
     enabled: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='degree_workspaces')
     applications: Mapped[list['Applications']] = relationship('Applications', back_populates='degree_workspace')
@@ -221,8 +222,8 @@ class DocumentCategories(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='document_categories')
 
@@ -234,10 +235,10 @@ class Documents(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     owner_scope: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'general'"))
-    owner_id: Mapped[Optional[int]] = mapped_column(Integer)
+    owner_id: Mapped[Optional[str]] = mapped_column(String(36))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='documents')
     document_versions: Mapped[list['DocumentVersions']] = relationship('DocumentVersions', back_populates='document')
@@ -251,8 +252,8 @@ class EmailTemplates(Base):
     body_template: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='email_templates')
     email_drafts: Mapped[list['EmailDrafts']] = relationship('EmailDrafts', back_populates='template')
@@ -266,8 +267,8 @@ class InviteRequests(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     phone: Mapped[Optional[str]] = mapped_column(Text)
     description: Mapped[Optional[str]] = mapped_column(Text)
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
@@ -283,8 +284,8 @@ class LocalProfiles(Base):
 
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     display_name: Mapped[Optional[str]] = mapped_column(Text)
     email: Mapped[Optional[str]] = mapped_column(Text)
     preferred_email_provider: Mapped[Optional[str]] = mapped_column(Text)
@@ -300,16 +301,16 @@ class LocalProfiles(Base):
 class PlanUpgradeRequests(Base):
     __tablename__ = 'plan_upgrade_requests'
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     request_type: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'upgrade'"))
     requested_plan: Mapped[str] = mapped_column(Text, nullable=False)
     billing_cycle: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'monthly'"))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     message: Mapped[Optional[str]] = mapped_column(Text)
-    reviewed_by: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    reviewed_by: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     users: Mapped[Optional['Users']] = relationship('Users', foreign_keys=[reviewed_by], back_populates='plan_upgrade_requests_reviewed_by')
@@ -325,8 +326,8 @@ class Projects(Base):
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     degree_type: Mapped[Optional[str]] = mapped_column(Text)
     intake_term: Mapped[Optional[str]] = mapped_column(Text)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -344,7 +345,7 @@ class ScholarshipSearchFeedback(Base):
         Index('idx_scholarship_search_feedback_user_id', 'user_id')
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     initial_query: Mapped[str] = mapped_column(Text, nullable=False)
     refined_query: Mapped[str] = mapped_column(Text, nullable=False)
     filters_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
@@ -352,7 +353,7 @@ class ScholarshipSearchFeedback(Base):
     provider_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'pending'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     result_count: Mapped[Optional[int]] = mapped_column(Integer)
 
     user: Mapped['Users'] = relationship('Users', back_populates='scholarship_search_feedback')
@@ -370,8 +371,8 @@ class StickyNotes(Base):
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     body: Mapped[Optional[str]] = mapped_column(Text)
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='sticky_notes')
@@ -384,8 +385,8 @@ class Universities(Base):
     country: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     region: Mapped[Optional[str]] = mapped_column(Text)
     website_url: Mapped[Optional[str]] = mapped_column(Text)
     notes: Mapped[Optional[str]] = mapped_column(Text)
@@ -406,11 +407,11 @@ class UserSessions(Base):
         Index('idx_user_sessions_user_id', 'user_id')
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     token_jti: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     expires_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     ip_address: Mapped[Optional[str]] = mapped_column(Text)
     user_agent: Mapped[Optional[str]] = mapped_column(Text)
     revoked_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
@@ -426,12 +427,12 @@ class UserUsageStats(Base):
         Index('idx_user_usage_stats_user_id', 'user_id')
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     feature: Mapped[str] = mapped_column(Text, nullable=False)
     current_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     last_reset_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
     user: Mapped['Users'] = relationship('Users', back_populates='user_usage_stats')
 
@@ -445,8 +446,8 @@ class Whiteboards(Base):
     last_used_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='whiteboards')
 
@@ -459,9 +460,9 @@ class Notifications(Base):
     preference_key: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'system'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    project_id: Mapped[Optional[int]] = mapped_column(ForeignKey('projects.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    project_id: Mapped[Optional[str]] = mapped_column(ForeignKey('projects.id'))
     body: Mapped[Optional[str]] = mapped_column(Text)
     due_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     read_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
@@ -473,12 +474,12 @@ class Notifications(Base):
 class Programs(Base):
     __tablename__ = 'programs'
 
-    university_id: Mapped[int] = mapped_column(ForeignKey('universities.id'), nullable=False)
+    university_id: Mapped[str] = mapped_column(ForeignKey('universities.id'), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     degree_type: Mapped[Optional[str]] = mapped_column(Text)
     department: Mapped[Optional[str]] = mapped_column(Text)
     application_url: Mapped[Optional[str]] = mapped_column(Text)
@@ -494,14 +495,14 @@ class Programs(Base):
 class ProjectSheets(Base):
     __tablename__ = 'project_sheets'
 
-    project_id: Mapped[int] = mapped_column(ForeignKey('projects.id'), nullable=False)
+    project_id: Mapped[str] = mapped_column(ForeignKey('projects.id'), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     project: Mapped['Projects'] = relationship('Projects', back_populates='project_sheets')
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='project_sheets')
@@ -514,10 +515,10 @@ class Professors(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    university_id: Mapped[Optional[int]] = mapped_column(ForeignKey('universities.id'))
-    program_id: Mapped[Optional[int]] = mapped_column(ForeignKey('programs.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    university_id: Mapped[Optional[str]] = mapped_column(ForeignKey('universities.id'))
+    program_id: Mapped[Optional[str]] = mapped_column(ForeignKey('programs.id'))
     title: Mapped[Optional[str]] = mapped_column(Text)
     email: Mapped[Optional[str]] = mapped_column(Text)
     profile_url: Mapped[Optional[str]] = mapped_column(Text)
@@ -536,15 +537,15 @@ class Professors(Base):
 class ProjectPages(Base):
     __tablename__ = 'project_pages'
 
-    project_id: Mapped[int] = mapped_column(ForeignKey('projects.id'), nullable=False)
+    project_id: Mapped[str] = mapped_column(ForeignKey('projects.id'), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     columns_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     rows_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    sheet_id: Mapped[Optional[int]] = mapped_column(ForeignKey('project_sheets.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    sheet_id: Mapped[Optional[str]] = mapped_column(ForeignKey('project_sheets.id'))
     email_config_json: Mapped[Optional[str]] = mapped_column(Text)
 
     project: Mapped['Projects'] = relationship('Projects', back_populates='project_pages')
@@ -558,12 +559,12 @@ class Applications(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Researching'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    degree_workspace_id: Mapped[Optional[int]] = mapped_column(ForeignKey('degree_workspaces.id'))
-    university_id: Mapped[Optional[int]] = mapped_column(ForeignKey('universities.id'))
-    program_id: Mapped[Optional[int]] = mapped_column(ForeignKey('programs.id'))
-    professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey('professors.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    degree_workspace_id: Mapped[Optional[str]] = mapped_column(ForeignKey('degree_workspaces.id'))
+    university_id: Mapped[Optional[str]] = mapped_column(ForeignKey('universities.id'))
+    program_id: Mapped[Optional[str]] = mapped_column(ForeignKey('programs.id'))
+    professor_id: Mapped[Optional[str]] = mapped_column(ForeignKey('professors.id'))
     intake_term: Mapped[Optional[str]] = mapped_column(Text)
     application_url: Mapped[Optional[str]] = mapped_column(Text)
     priority: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'Medium'"))
@@ -591,9 +592,9 @@ class Deadlines(Base):
     due_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
     completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -604,15 +605,15 @@ class Deadlines(Base):
 class DocumentVersions(Base):
     __tablename__ = 'document_versions'
 
-    document_id: Mapped[int] = mapped_column(ForeignKey('documents.id'), nullable=False)
+    document_id: Mapped[str] = mapped_column(ForeignKey('documents.id'), nullable=False)
     version_label: Mapped[str] = mapped_column(Text, nullable=False)
     content_format: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'markdown'"))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='document_versions')
     document: Mapped['Documents'] = relationship('Documents', back_populates='document_versions')
@@ -627,11 +628,11 @@ class EmailDrafts(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Draft'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    template_id: Mapped[Optional[int]] = mapped_column(ForeignKey('email_templates.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
-    professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey('professors.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    template_id: Mapped[Optional[str]] = mapped_column(ForeignKey('email_templates.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
+    professor_id: Mapped[Optional[str]] = mapped_column(ForeignKey('professors.id'))
     recipient_email: Mapped[Optional[str]] = mapped_column(Text)
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='email_drafts')
@@ -648,11 +649,11 @@ class ResearchNotes(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
-    professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey('professors.id'))
-    university_id: Mapped[Optional[int]] = mapped_column(ForeignKey('universities.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
+    professor_id: Mapped[Optional[str]] = mapped_column(ForeignKey('professors.id'))
+    university_id: Mapped[Optional[str]] = mapped_column(ForeignKey('universities.id'))
     sources: Mapped[Optional[str]] = mapped_column(Text)
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='research_notes')
@@ -671,11 +672,11 @@ class StaticFiles(Base):
     pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     mime_type: Mapped[Optional[str]] = mapped_column(Text)
     size_bytes: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('0'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     application: Mapped[Optional['Applications']] = relationship('Applications', back_populates='static_files')
@@ -690,11 +691,11 @@ class OutreachLogs(Base):
     sent_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    email_draft_id: Mapped[Optional[int]] = mapped_column(ForeignKey('email_drafts.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
-    professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey('professors.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    email_draft_id: Mapped[Optional[str]] = mapped_column(ForeignKey('email_drafts.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
+    professor_id: Mapped[Optional[str]] = mapped_column(ForeignKey('professors.id'))
     response_status: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'Waiting'"))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -712,10 +713,10 @@ class Reminders(Base):
     due_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
-    application_id: Mapped[Optional[int]] = mapped_column(ForeignKey('applications.id'))
-    outreach_log_id: Mapped[Optional[int]] = mapped_column(ForeignKey('outreach_logs.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
+    application_id: Mapped[Optional[str]] = mapped_column(ForeignKey('applications.id'))
+    outreach_log_id: Mapped[Optional[str]] = mapped_column(ForeignKey('outreach_logs.id'))
     completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -731,7 +732,7 @@ class AdvisorAtlasRuns(Base):
         Index("idx_advisor_atlas_runs_status", "status"),
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     mode: Mapped[str] = mapped_column(Text, nullable=False)
     search_depth: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'deep'"))
     university_name: Mapped[Optional[str]] = mapped_column(Text)
@@ -752,7 +753,7 @@ class AdvisorAtlasRuns(Base):
     cancelled_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AdvisorAtlasCandidates(Base):
@@ -762,8 +763,8 @@ class AdvisorAtlasCandidates(Base):
         Index("idx_advisor_atlas_candidates_user_id", "user_id"),
     )
 
-    run_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_runs.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    run_id: Mapped[str] = mapped_column(ForeignKey("advisor_atlas_runs.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[Optional[str]] = mapped_column(Text)
@@ -787,10 +788,10 @@ class AdvisorAtlasCandidates(Base):
     user_notes: Mapped[Optional[str]] = mapped_column(Text)
     coverage_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     risk_flags_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
-    saved_professor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("professors.id"))
+    saved_professor_id: Mapped[Optional[str]] = mapped_column(ForeignKey("professors.id"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AdvisorAtlasEvidence(Base):
@@ -799,7 +800,7 @@ class AdvisorAtlasEvidence(Base):
         Index("idx_advisor_atlas_evidence_candidate_id", "candidate_id"),
     )
 
-    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     canonical_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_type: Mapped[str] = mapped_column(Text, nullable=False)
@@ -811,7 +812,7 @@ class AdvisorAtlasEvidence(Base):
     published_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     retrieved_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AdvisorAtlasPublications(Base):
@@ -820,7 +821,7 @@ class AdvisorAtlasPublications(Base):
         Index("idx_advisor_atlas_publications_candidate_id", "candidate_id"),
     )
 
-    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     authors_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     publication_year: Mapped[Optional[int]] = mapped_column(Integer)
@@ -833,7 +834,7 @@ class AdvisorAtlasPublications(Base):
     user_note: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AdvisorAtlasDossiers(Base):
@@ -842,7 +843,7 @@ class AdvisorAtlasDossiers(Base):
         UniqueConstraint("candidate_id"),
     )
 
-    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
     dossier_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     decision_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     research_bridge_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
@@ -854,7 +855,7 @@ class AdvisorAtlasDossiers(Base):
     next_actions_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     generated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AdvisorAtlasWatchEvents(Base):
@@ -863,14 +864,14 @@ class AdvisorAtlasWatchEvents(Base):
         Index("idx_advisor_atlas_watch_candidate_id", "candidate_id"),
     )
 
-    candidate_id: Mapped[int] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("advisor_atlas_candidates.id", ondelete="CASCADE"), nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
     previous_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
     new_value_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'null'"))
     importance: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
     detected_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     acknowledged_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class SavedScholarshipQueries(Base):
@@ -883,8 +884,8 @@ class SavedScholarshipQueries(Base):
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     last_used_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     seen_article_ids_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='saved_scholarship_queries')
 
@@ -908,14 +909,14 @@ class ScholarshipOpportunities(Base):
     field_confidence_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.id'))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     sponsor: Mapped[Optional[str]] = mapped_column(Text)
     application_url: Mapped[Optional[str]] = mapped_column(Text)
-    linked_sheet_id: Mapped[Optional[int]] = mapped_column(ForeignKey('project_sheets.id'))
+    linked_sheet_id: Mapped[Optional[str]] = mapped_column(ForeignKey('project_sheets.id'))
     linked_row_snapshot: Mapped[Optional[str]] = mapped_column(Text)
     last_deadline_notified_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
-    deep_hunt_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey('scholarship_deep_hunt_runs.id'))
+    deep_hunt_run_id: Mapped[Optional[str]] = mapped_column(ForeignKey('scholarship_deep_hunt_runs.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='scholarship_opportunities')
 
@@ -927,7 +928,7 @@ class ScholarshipDeepHuntRuns(Base):
         Index("idx_scholarship_deep_hunt_runs_status", "status"),
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     goal: Mapped[str] = mapped_column(Text, nullable=False)
     degree_level: Mapped[Optional[str]] = mapped_column(Text)
     destinations_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
@@ -942,7 +943,7 @@ class ScholarshipDeepHuntRuns(Base):
     cancelled_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AiModels(Base):
@@ -961,7 +962,7 @@ class AiModels(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AiTokenBalances(Base):
@@ -970,7 +971,7 @@ class AiTokenBalances(Base):
         Index('idx_ai_token_balances_period', 'subscription_period'),
     )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
     subscription_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     subscription_period: Mapped[Optional[str]] = mapped_column(Text)
     purchased_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
@@ -989,8 +990,8 @@ class AiTokenLedger(Base):
         Index('idx_ai_ledger_source', 'source'),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
     model_id: Mapped[Optional[str]] = mapped_column(Text)
     provider: Mapped[Optional[str]] = mapped_column(Text)
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
@@ -1000,7 +1001,7 @@ class AiTokenLedger(Base):
     tokens_delta: Mapped[int] = mapped_column(Integer, nullable=False)
     source: Mapped[str] = mapped_column(Text, nullable=False)
     balance_bucket: Mapped[Optional[str]] = mapped_column(Text)
-    ref_id: Mapped[Optional[int]] = mapped_column(Integer)
+    ref_id: Mapped[Optional[str]] = mapped_column(String(36))
     note: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -1014,7 +1015,7 @@ class AiTokenPacks(Base):
     price_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    id: Mapped[Optional[int]] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
 class AiTokenPurchaseRequests(Base):
@@ -1024,11 +1025,11 @@ class AiTokenPurchaseRequests(Base):
         Index('idx_ai_tpr_status', 'status'),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
-    pack_id: Mapped[int] = mapped_column(ForeignKey('ai_token_packs.id'), nullable=False)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
+    pack_id: Mapped[str] = mapped_column(ForeignKey('ai_token_packs.id'), nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'Pending'"))
     requested_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
-    reviewed_by: Mapped[Optional[int]] = mapped_column(Integer)
+    reviewed_by: Mapped[Optional[str]] = mapped_column(String(36))
     admin_notes: Mapped[Optional[str]] = mapped_column(Text)

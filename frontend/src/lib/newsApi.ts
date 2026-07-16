@@ -33,7 +33,7 @@ export interface NewsResponse {
 }
 
 export interface NewsQueryPreview {
-  preview_feedback_id: number;
+  preview_feedback_id: string;
   initial_query: string;
   max_length: number;
   generation_source: "openrouter" | "fallback";
@@ -56,7 +56,7 @@ export const previewNewsQuery = async (
 
 export const searchNews = async (
   params: NewsSearchParams,
-  previewFeedbackId: number,
+  previewFeedbackId: string,
   approvedQuery: string,
 ): Promise<NewsResponse> => {
   return api.post<NewsResponse>("/news/search", {
@@ -89,7 +89,7 @@ export const removeBookmark = async (articleId: string): Promise<any> => {
 };
 
 export interface SavedNewsQuery {
-  id: number;
+  id: string;
   name: string;
   query_string: string;
   filters_json: string;
@@ -109,13 +109,13 @@ export const saveQuery = async (name: string, query_string: string, filters_json
   });
 };
 
-export const deleteSavedQuery = async (id: number): Promise<any> => {
+export const deleteSavedQuery = async (id: string): Promise<any> => {
   return api.delete(`/news/saved-queries/${id}`);
 };
 
 // Watchlist diff (FR-8.41): persists the seen-article-ID set after a re-run
 // so the next run can badge genuinely new results. Uses the bespoke
 // saved-queries endpoint contract (raw body, not the generic {data} wrapper).
-export const updateSavedQuery = async (id: number, seen_article_ids_json: string): Promise<SavedNewsQuery> => {
+export const updateSavedQuery = async (id: string, seen_article_ids_json: string): Promise<SavedNewsQuery> => {
   return api.patch(`/news/saved-queries/${id}`, { seen_article_ids_json });
 };

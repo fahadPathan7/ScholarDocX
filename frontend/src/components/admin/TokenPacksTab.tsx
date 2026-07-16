@@ -4,7 +4,7 @@ import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
 type Pack = {
-  id: number;
+  id: string;
   code: string;
   display_name: string;
   token_amount: number;

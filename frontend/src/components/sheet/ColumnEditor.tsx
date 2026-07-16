@@ -84,7 +84,7 @@ export function AddColumnModal({
   onClose: () => void;
 }) {
   return (
-    <div className="modal-backdrop" style={{ zIndex: 1010 }} onClick={onClose}>
+    <div className="modal-backdrop modal-backdrop-main" style={{ zIndex: 1010 }} onClick={onClose}>
       <form className="modal-panel column-form" onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -224,7 +224,7 @@ export function EditColumnsModal({
   onAddGroup: () => void;
 }) {
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
       <form className={`modal-panel column-form edit-columns-form${showColumnForm ? ' blurred' : ''}`} onClick={(e) => e.stopPropagation()} onSubmit={onSave} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();

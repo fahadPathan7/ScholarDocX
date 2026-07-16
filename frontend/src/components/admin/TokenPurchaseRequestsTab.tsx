@@ -4,7 +4,7 @@ import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 
 type PurchaseRequestRecord = {
-  id: number;
+  id: string;
   user_email: string;
   user_display_name?: string;
   pack_name: string;
@@ -68,7 +68,7 @@ export function TokenPurchaseRequestsTab() {
     return base;
   }, [requests, filterStatus, searchQuery]);
 
-  const handleReview = async (id: number, action: "approve" | "reject") => {
+  const handleReview = async (id: string, action: "approve" | "reject") => {
     try {
       await api.post(`/ai-tokens/admin/purchase-requests/${id}/review`, { action });
       fetchRequests();

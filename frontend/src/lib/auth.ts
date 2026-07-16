@@ -41,7 +41,7 @@ export function clearSavedCredentials(): void {
 }
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   display_name: string;
   avatar?: string;

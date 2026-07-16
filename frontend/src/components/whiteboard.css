@@ -392,3 +392,84 @@
 .wb-panel-toggle:hover {
   background: var(--wb-hover);
 }
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.wb-empty-state {
+  justify-content: center;
+  align-items: center;
+}
+
+.wb-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 48px 56px;
+  max-width: 420px;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.06);
+}
+
+.wb-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--wb-active);
+  color: #ffffff;
+  margin-bottom: 4px;
+  box-shadow: 0 6px 16px rgba(92, 133, 255, 0.35);
+}
+
+.wb-empty-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.wb-empty-subtitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* Primary CTA button */
+.wb-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background: var(--wb-active);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(92, 133, 255, 0.3);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.wb-btn-primary:hover {
+  background: #4a75f0;
+  box-shadow: 0 6px 18px rgba(92, 133, 255, 0.4);
+}
+
+.wb-btn-primary:active {
+  background: #3f66e0;
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(92, 133, 255, 0.3);
+}
+
+.wb-btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(92, 133, 255, 0.4);
+}

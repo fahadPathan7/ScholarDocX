@@ -565,7 +565,7 @@ export function useSheetPage({
     } else {
       if (!(await ensureRowCapacity(1))) return;
       nextRows = [...rows, recordForm];
-      await notify("record_create", { project_id: Number(selectedProjectId) });
+      await notify("record_create", { project_id: String(selectedProjectId) });
     }
 
     setRows(nextRows);
@@ -589,7 +589,7 @@ export function useSheetPage({
     const nextRows = [...rows, {}];
     setRows(nextRows);
     record({ columns, rows: nextRows });
-    await notify("record_create", { project_id: Number(selectedProjectId) });
+    await notify("record_create", { project_id: String(selectedProjectId) });
     await persistPage(columns, nextRows, true);
     return nextRows.length - 1;
   };
@@ -598,7 +598,7 @@ export function useSheetPage({
     const confirmed = await showConfirm("Are you sure you want to delete this record? This cannot be undone.", "Delete Record");
     if (!confirmed) return;
     const nextRows = rows.filter((_, index) => index !== rowIndex);
-    await notify("record_delete", { project_id: Number(selectedProjectId) });
+    await notify("record_delete", { project_id: String(selectedProjectId) });
     setRows(nextRows);
     record({ columns, rows: nextRows });
     // Indices after the deleted row shifted; stale selection/focus would point at the wrong rows
@@ -857,7 +857,7 @@ export function useSheetPage({
       );
       if (!duplicate) {
         await notify("scheduled_email", {
-          project_id: Number(selectedProjectId),
+          project_id: String(selectedProjectId),
           sheetName: row["Name"] || row["Professor name"] || to || "Unknown",
           dueAt: row["Scheduled send time"],
           attachmentSummary: attachNames || "No attachments listed"

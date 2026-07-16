@@ -113,8 +113,8 @@ async def create_run(
     from app.api.routes import verify_model_permission
     verify_model_permission(None, user, store.db, settings)
 
-    run = service.repository.create_run(int(user["id"]), payload.model_dump())
-    background_tasks.add_task(service.run, int(run["id"]), int(user["id"]))
+    run = service.repository.create_run(str(user["id"]), payload.model_dump())
+    background_tasks.add_task(service.run, str(run["id"]), str(user["id"]))
     return run
 
 
@@ -123,17 +123,17 @@ def list_runs(
     user: dict = Depends(get_current_user),
     service: ScholarshipDeepHuntService = Depends(_service),
 ):
-    return service.repository.list_runs(int(user["id"]))
+    return service.repository.list_runs(str(user["id"]))
 
 
 @router.get("/runs/{run_id}")
 def get_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: ScholarshipDeepHuntService = Depends(_service),
 ):
     try:
-        run = service.repository.get_run(run_id, int(user["id"]))
+        run = service.repository.get_run(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     return _with_parsed_opportunities(run)
@@ -141,19 +141,19 @@ def get_run(
 
 @router.post("/runs/{run_id}/cancel")
 def cancel_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: ScholarshipDeepHuntService = Depends(_service),
 ):
     try:
-        return service.repository.cancel_run(run_id, int(user["id"]))
+        return service.repository.cancel_run(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.post("/runs/{run_id}/resume", status_code=202)
 def resume_run(
-    run_id: int,
+    run_id: str,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
     service: ScholarshipDeepHuntService = Depends(_service),
@@ -161,21 +161,21 @@ def resume_run(
 ):
     _require_scholarship_deep_hunt_access(user, store.db)
     try:
-        run = service.repository.prepare_resume(run_id, int(user["id"]))
+        run = service.repository.prepare_resume(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    background_tasks.add_task(service.run, run_id, int(user["id"]))
+    background_tasks.add_task(service.run, run_id, str(user["id"]))
     return run
 
 
 @router.delete("/runs/{run_id}", status_code=204)
 def delete_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: ScholarshipDeepHuntService = Depends(_service),
 ):
-    success = service.repository.delete_run(run_id, int(user["id"]))
+    success = service.repository.delete_run(run_id, str(user["id"]))
     if not success:
         raise HTTPException(status_code=404, detail="Run not found.")

@@ -124,7 +124,7 @@ def list_my_purchase_requests(
 
 @router.post("/purchase-requests/{request_id}/cancel")
 def cancel_my_purchase_request(
-    request_id: int,
+    request_id: str,
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
@@ -168,7 +168,7 @@ class ModelUpdatePayload(BaseModel):
 
 @router.patch("/admin/models/{model_pk}")
 def admin_update_model(
-    model_pk: int,
+    model_pk: str,
     payload: ModelUpdatePayload,
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
@@ -247,7 +247,7 @@ class PurchaseReviewPayload(BaseModel):
 
 @router.post("/admin/purchase-requests/{request_id}/review")
 def admin_review_purchase_request(
-    request_id: int,
+    request_id: str,
     payload: PurchaseReviewPayload,
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),

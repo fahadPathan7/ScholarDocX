@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import Optional
 import pytest
 
@@ -17,14 +18,20 @@ def make_session(tmp_path):
     return SessionLocal()
 
 
-def seed_user(session, user_id: int, email: str, settings: Optional[dict] = None):
+def seed_user(session, email: str, settings: Optional[dict] = None) -> str:
+    """Insert a user with a fresh UUID and return the new user id.
+
+    SCHOLARDOCX-0140: primary keys are UUID strings, so the caller no longer
+    passes a fixed integer id — one is generated here.
+    """
+    user_id = str(uuid.uuid4())
     session.execute(text("DELETE FROM notifications WHERE user_id = :user_id"), {"user_id": user_id})
     session.execute(text("DELETE FROM local_profiles WHERE user_id = :user_id"), {"user_id": user_id})
     session.execute(text("DELETE FROM users WHERE id = :user_id"), {"user_id": user_id})
-    
+
     # Also delete by email to prevent UniqueViolation if a previous test failed to clean up
     session.execute(text("DELETE FROM users WHERE email = :email"), {"email": email})
-    
+
     session.execute(
         text("""
         INSERT INTO users (
@@ -50,16 +57,22 @@ def seed_user(session, user_id: int, email: str, settings: Optional[dict] = None
         },
     )
     session.commit()
+    return user_id
+
+
+def _admin_id() -> str:
+    """Generate a throwaway admin sender id (notifications logging only)."""
+    return str(uuid.uuid4())
 
 
 def test_send_notifications_respects_user_category_preferences(tmp_path):
     session = make_session(tmp_path)
     try:
-        seed_user(session, 201, "enabled201@example.com", {"billing": True})
-        seed_user(session, 202, "disabled202@example.com", {"billing": False})
+        enabled_id = seed_user(session, f"enabled-{uuid.uuid4().hex}@example.com", {"billing": True})
+        disabled_id = seed_user(session, f"disabled-{uuid.uuid4().hex}@example.com", {"billing": False})
 
         result = AdminService(session).send_notifications(
-            1,
+            enabled_id,
             title="Billing update",
             body="Your billing cycle was updated.",
             category="billing",
@@ -72,14 +85,14 @@ def test_send_notifications_respects_user_category_preferences(tmp_path):
 
         assert result["status"] == "success"
         assert result["delivered_count"] >= 2
-        assert 201 in result["delivered_user_ids"]
-        assert 202 in result.get("skipped_user_ids", [])
-        
+        assert enabled_id in result["delivered_user_ids"]
+        assert disabled_id in result.get("skipped_user_ids", [])
+
         user_ids = [r[0] for r in rows]
         pref_keys = {r[0]: r[2] for r in rows}
-        
-        assert 201 in user_ids
-        assert pref_keys[201] == "billing"
+
+        assert enabled_id in user_ids
+        assert pref_keys[enabled_id] == "billing"
     finally:
         session.close()
 
@@ -87,25 +100,26 @@ def test_send_notifications_respects_user_category_preferences(tmp_path):
 def test_system_notifications_remain_deliverable_even_if_flagged_false(tmp_path):
     session = make_session(tmp_path)
     try:
-        seed_user(session, 203, "member203@example.com", {"system": False})
+        member_id = seed_user(session, f"member-{uuid.uuid4().hex}@example.com", {"system": False})
 
         result = AdminService(session).send_notifications(
-            1,
+            member_id,
             title="Required system notice",
             body="This category should always deliver.",
             category="system",
-            recipient_user_ids=[203],
+            recipient_user_ids=[member_id],
         )
 
         row = session.execute(
-            text("SELECT user_id, title, preference_key FROM notifications WHERE user_id = 203")
+            text("SELECT user_id, title, preference_key FROM notifications WHERE user_id = :uid"),
+            {"uid": member_id},
         ).fetchone()
 
         assert result["status"] == "success"
         assert result["delivered_count"] >= 1
-        assert 203 in result["delivered_user_ids"]
-        
-        assert row is not None, "Notification row for user 203 was not found in the database. Was it rolled back or deleted by another test?"
+        assert member_id in result["delivered_user_ids"]
+
+        assert row is not None, "Notification row for the seeded user was not found in the database. Was it rolled back or deleted by another test?"
         assert row[2] == "system"
     finally:
         session.close()
@@ -114,15 +128,15 @@ def test_system_notifications_remain_deliverable_even_if_flagged_false(tmp_path)
 def test_send_notifications_requires_known_category(tmp_path):
     session = make_session(tmp_path)
     try:
-        seed_user(session, 204, "member204@example.com")
+        member_id = seed_user(session, f"member-{uuid.uuid4().hex}@example.com")
 
         with pytest.raises(ValueError, match="Unsupported notification category"):
             AdminService(session).send_notifications(
-                1,
+                _admin_id(),
                 title="Unknown category",
                 body="This should fail.",
                 category="custom",
-                recipient_user_ids=[204],
+                recipient_user_ids=[member_id],
             )
     finally:
         session.close()

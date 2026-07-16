@@ -124,7 +124,7 @@ export function CsvImportModal({
   const isOverQuota = csvData.length > remainingQuota;
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop modal-backdrop-main">
       <div className="modal-panel" style={{ width: '600px', maxWidth: '90vw' }}>
         <div className="modal-header">
           <h2>Import CSV</h2>

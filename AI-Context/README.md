@@ -20,7 +20,7 @@ Those files were deleted after their content was absorbed into this refined work
 - [technical](technical): architecture, stack, storage, APIs, coding rules, testing.
 - [planbook](planbook): detailed pre-implementation plans for large or cross-module features.
 - [jira-tasks](jira-tasks): task files used to execute work.
-- [workflows](workflows): the process rules for AI development (ai-dlc-process.md).
+- [workflows](workflows): the process rules for AI development (ai-dlc-process.md, branch-creation.md).
 - (Skills are natively integrated into `.agents/skills`, `.claude/skills`, and `.codex/skills`).
 
 ## AI-DLC Reading Strategy

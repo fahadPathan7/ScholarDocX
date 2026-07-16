@@ -4,30 +4,18 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.db.connection import connect
 from app.core.config import get_settings
+from tests.helpers import cleanup_user_records
 
 client = TestClient(app)
 settings = get_settings()
 
+# SCHOLARDOCX-0140: primary keys are UUID strings. Fixed UUID for the seeded
+# admin user so raw-SQL inserts and forged tokens stay self-consistent.
+ADMIN_USER_ID = "00000000-0000-0000-0000-000000000001"
+
 
 def _delete_user_safely(conn, email):
-    """Delete a user and the child rows registration creates for it.
-
-    The register endpoint inserts rows into local_profiles, user_usage_stats,
-    document_categories and sets registered_with_invite_id. Several of those
-    FKs are ON DELETE NO ACTION, so a bare ``DELETE FROM users`` raises a
-    foreign-key error when those children exist — which happens on a fresh
-    workspace (e.g. CI) once any test has registered the user. Clearing the
-    dependents first lets the user be removed cleanly so registration tests can
-    re-create it from scratch each run.
-    """
-    row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
-    if not row:
-        return
-    uid = row["id"]
-    conn.execute("UPDATE users SET registered_with_invite_id = NULL WHERE id = ?", (uid,))
-    for child in ("local_profiles", "user_usage_stats", "document_categories"):
-        conn.execute(f"DELETE FROM {child} WHERE user_id = ?", (uid,))
-    conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+    cleanup_user_records(conn, email=email)
 
 
 @pytest.fixture(autouse=True)
@@ -44,8 +32,8 @@ def setup_db():
         "WHERE registered_with_invite_id IN (SELECT id FROM invite_codes WHERE code = 'TEST_INVITE')"
     )
     # Seed admin user
-    conn.execute("INSERT INTO users (id, email, password_hash, display_name, roles, is_active) VALUES (1, 'admin@localhost', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Applicant', '[\"super_admin\", \"max_user\"]', 1) ON CONFLICT (id) DO NOTHING")
-    conn.execute("INSERT INTO invite_codes (code, max_uses, used_count, created_by) VALUES ('TEST_INVITE', 1, 0, 1) ON CONFLICT (code) DO UPDATE SET max_uses = EXCLUDED.max_uses, used_count = EXCLUDED.used_count, created_by = EXCLUDED.created_by")
+    conn.execute(f"INSERT INTO users (id, email, password_hash, display_name, roles, is_active) VALUES ('{ADMIN_USER_ID}', 'admin@localhost', '$2b$12$Ips0zkIqEjVyfWtGRl7BH.TFYknvo8RypghNzxslffUkwXV32k/zq', 'Applicant', '[\"super_admin\", \"max_user\"]', 1) ON CONFLICT (id) DO NOTHING")
+    conn.execute(f"INSERT INTO invite_codes (code, max_uses, used_count, created_by) VALUES ('TEST_INVITE', 1, 0, '{ADMIN_USER_ID}') ON CONFLICT (code) DO UPDATE SET max_uses = EXCLUDED.max_uses, used_count = EXCLUDED.used_count, created_by = EXCLUDED.created_by")
     conn.commit()
     conn.close()
 
@@ -153,16 +141,12 @@ def _register_and_login(email: str, invite_code: str) -> str:
 @pytest.mark.regression
 def test_jwt_secret_is_not_the_committed_constant():
     """The signing secret must be a per-install random value, not the committed placeholder."""
-    conn = connect(settings.database_target)
-    try:
-        row = conn.execute(
-            "SELECT value FROM app_settings WHERE key = 'jwt_secret_key'"
-        ).fetchone()
-    finally:
-        conn.close()
-    assert row is not None
-    assert row["value"]
-    assert not str(row["value"]).startswith("scholar-docx-secure personal workspace")
+    from app.core.config import get_settings
+    from app.db.connection import COMPROMISED_JWT_SECRET_PREFIX
+    secret = get_settings().jwt_secret_key
+    assert secret is not None
+    assert secret != ""
+    assert not str(secret).startswith(COMPROMISED_JWT_SECRET_PREFIX)
 
 
 @pytest.mark.regression
@@ -176,7 +160,7 @@ def test_forged_token_with_committed_constant_is_rejected():
 
     forged = create_token(
         {
-            "id": 1,
+            "id": ADMIN_USER_ID,
             "email": "admin@localhost",
             "display_name": "Forged",
             "roles": ["super_admin"],
@@ -208,14 +192,14 @@ def test_news_bookmarks_are_scoped_per_user():
     conn = connect(settings.database_target)
     try:
         conn.execute(
-            "INSERT INTO invite_codes (code, max_uses, used_count, created_by) "
-            "VALUES ('INVITE_IDOR_A', 5, 0, 1) "
+            f"INSERT INTO invite_codes (code, max_uses, used_count, created_by) "
+            f"VALUES ('INVITE_IDOR_A', 5, 0, '{ADMIN_USER_ID}') "
             "ON CONFLICT (code) DO UPDATE SET max_uses = EXCLUDED.max_uses, "
             "used_count = EXCLUDED.used_count, created_by = EXCLUDED.created_by"
         )
         conn.execute(
-            "INSERT INTO invite_codes (code, max_uses, used_count, created_by) "
-            "VALUES ('INVITE_IDOR_B', 5, 0, 1) "
+            f"INSERT INTO invite_codes (code, max_uses, used_count, created_by) "
+            f"VALUES ('INVITE_IDOR_B', 5, 0, '{ADMIN_USER_ID}') "
             "ON CONFLICT (code) DO UPDATE SET max_uses = EXCLUDED.max_uses, "
             "used_count = EXCLUDED.used_count, created_by = EXCLUDED.created_by"
         )

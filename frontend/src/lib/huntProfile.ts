@@ -56,7 +56,7 @@ export function isHuntProfileComplete(profile: HuntProfile | null | undefined): 
 
 /** Loads the current user's Hunt Profile from their local profile row (creating
  * the row first if none exists yet, mirroring ProfileView.tsx's pattern). */
-export async function getHuntProfile(): Promise<{ profileId: number; profile: HuntProfile }> {
+export async function getHuntProfile(): Promise<{ profileId: string; profile: HuntProfile }> {
   const rows = await api.get<RecordMap[]>("/local_profiles");
   if (rows.length === 0) {
     const created = await api.post<RecordMap>("/local_profiles", { data: {} });
@@ -65,7 +65,7 @@ export async function getHuntProfile(): Promise<{ profileId: number; profile: Hu
   return { profileId: rows[0].id, profile: parseHuntProfile(rows[0].hunt_profile_json) };
 }
 
-export async function saveHuntProfile(profileId: number, profile: HuntProfile): Promise<void> {
+export async function saveHuntProfile(profileId: string, profile: HuntProfile): Promise<void> {
   await api.patch(`/local_profiles/${profileId}`, {
     data: { hunt_profile_json: JSON.stringify(profile) },
   });

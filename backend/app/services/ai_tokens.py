@@ -30,6 +30,15 @@ DEFAULT_TOKEN_RATE = 10000
 TAVILY_COST_SETTING = "tavily_call_cost_usd"
 DEFAULT_TAVILY_COST = 0.01
 
+# SCHOLARDOCX-0140: monthly AI credit allowance now lives in app_settings,
+# keyed per user tier (managed in Settings → Plan Pricing, not Role Limits).
+_ROLE_CREDIT_SETTING = {
+    "free_user": "plan_ai_credits_free",
+    "general_user": "plan_ai_credits_general",
+    "pro_user": "plan_ai_credits_pro",
+    "max_user": "plan_ai_credits_max",
+}
+
 
 class OutOfTokens(HTTPException):
     """Raised when a user has no tokens left to spend. HTTP 402 Payment Required."""
@@ -59,7 +68,7 @@ def allowance_role(user: dict) -> Optional[str]:
     return None
 
 
-def load_user_dict(user_id: int, session: Session) -> dict:
+def load_user_dict(user_id: str, session: Session) -> dict:
     """Build a minimal user dict ({id, roles, plan_started_at}) for billing from the users table.
 
     Used by background tasks (e.g. Advisor Atlas runs) that only carry a
@@ -107,15 +116,24 @@ def get_tavily_call_cost_usd(session: Session) -> float:
 
 
 def get_role_monthly_allowance(user: dict, session: Session) -> int:
-    """Monthly AI-token allowance for the user's tier. -1 means unlimited."""
+    """Monthly AI-token allowance for the user's tier. -1 means unlimited.
+
+    SCHOLARDOCX-0140: the monthly AI credit allowance moved from ``role_limits``
+    (feature ``ai_tokens_per_month``) to ``app_settings`` keys
+    ``plan_ai_credits_<tier>`` so it is managed alongside plan pricing in the
+    admin Settings → Plan Pricing table rather than in Role Limits.
+    """
     role = allowance_role(user)
     if role is None:
         return 0
+    setting_key = _ROLE_CREDIT_SETTING.get(role)
+    if not setting_key:
+        return 0
     row = session.execute(
-        text("SELECT limit_count FROM role_limits WHERE role = :r AND feature = :f"),
-        {"r": role, "f": AI_TOKENS_FEATURE},
+        text("SELECT value FROM app_settings WHERE key = :k"),
+        {"k": setting_key},
     ).mappings().fetchone()
-    return int(row["limit_count"]) if row else 0
+    return int(row["value"]) if row and str(row["value"]).strip() != "" else 0
 
 
 def can_purchase_packs(user: dict, session: Session) -> bool:
@@ -310,7 +328,7 @@ def compute_cost(
 def _ledger(
     session: Session,
     *,
-    user_id: int,
+    user_id: str,
     model_id: Optional[str],
     provider: Optional[str],
     input_tokens: int,
@@ -570,7 +588,7 @@ def charge_flat_fee(
 
 
 def grant_purchased(
-    user_id: int,
+    user_id: str,
     tokens: int,
     *,
     session: Session,
@@ -641,7 +659,7 @@ _PACK_SELECT = (
 
 def _pack_row(row) -> dict:
     return {
-        "id": int(row["id"]),
+        "id": str(row["id"]),
         "code": row["code"],
         "display_name": row["display_name"],
         "token_amount": int(row["token_amount"]),
@@ -736,7 +754,7 @@ def _request_select(alias_user: bool = False) -> str:
 
 
 def submit_purchase_request(
-    user_id: int, pack_code: str, session: Session
+    user_id: str, pack_code: str, session: Session
 ) -> dict:
     """Create a Pending purchase request for an active pack.
 
@@ -779,7 +797,7 @@ def submit_purchase_request(
     return dict(row) if row else {}
 
 
-def list_my_purchase_requests(user_id: int, session: Session) -> list[dict]:
+def list_my_purchase_requests(user_id: str, session: Session) -> list[dict]:
     rows = session.execute(
         text(_request_select() + " WHERE r.user_id = :uid ORDER BY r.requested_at DESC"),
         {"uid": user_id},
@@ -805,8 +823,8 @@ def list_purchase_requests(
 
 
 def resolve_purchase_request(
-    request_id: int,
-    admin_id: int,
+    request_id: str,
+    admin_id: str,
     action: str,
     *,
     session: Session,
@@ -857,7 +875,7 @@ def resolve_purchase_request(
 
     if action == "approve":
         grant_purchased(
-            int(row["user_id"]),
+            str(row["user_id"]),
             int(row["token_amount"] or 0),
             session=session,
             source="pack_purchase",
@@ -880,7 +898,7 @@ def resolve_purchase_request(
 
 def _model_row(row) -> dict:
     return {
-        "id": int(row["id"]),
+        "id": str(row["id"]),
         "provider": row["provider"],
         "model_id": row["model_id"],
         "display_name": row["display_name"],
@@ -903,7 +921,7 @@ def list_models(session: Session) -> list[dict]:
 
 
 def update_model(
-    model_pk: int,
+    model_pk: str,
     *,
     session: Session,
     input_price_per_1m: Optional[float] = None,
@@ -953,7 +971,7 @@ def update_model(
     ).mappings().fetchone()
     return _model_row(row) if row else None
 
-def cancel_purchase_request(request_id: int, user_id: int, session: Session) -> None:
+def cancel_purchase_request(request_id: str, user_id: str, session: Session) -> None:
     """Cancel a pending purchase request by the user who created it."""
     row = session.execute(
         text("SELECT status FROM ai_token_purchase_requests WHERE id = :id AND user_id = :uid"),

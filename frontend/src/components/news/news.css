@@ -638,7 +638,6 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 100%;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   box-shadow: 0 10px 30px rgba(31, 79, 90, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
@@ -979,11 +978,53 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
-  color: #65756d;
+  font-size: 0.82rem;
+  color: #55665e;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  line-height: 1;
+}
+
+.review-query-toggle input[type="checkbox"] {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1.5px solid #aebcb6;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.review-query-toggle input[type="checkbox"]::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border: solid #ffffff;
+  border-width: 0 0 1.8px 1.8px;
+  transform: rotate(-45deg) scale(0);
+  margin-top: -2px;
+  transition: transform 140ms ease;
+}
+
+.review-query-toggle input[type="checkbox"]:checked {
+  background: #2f9b78;
+  border-color: #2f9b78;
+  box-shadow: 0 0 0 3px rgba(47, 155, 120, 0.13);
+}
+
+.review-query-toggle input[type="checkbox"]:checked::after {
+  transform: rotate(-45deg) scale(1);
+}
+
+.review-query-toggle input[type="checkbox"]:focus-visible {
+  outline: 3px solid rgba(56, 163, 127, 0.25);
+  outline-offset: 2px;
 }
 
 .news-subnav {

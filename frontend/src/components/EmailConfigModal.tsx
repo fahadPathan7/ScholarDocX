@@ -50,7 +50,7 @@ export function EmailConfigModal({
   const initialBody = config?.bodyColumn !== undefined ? config.bodyColumn : defaultBody;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
       <form className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="modal-header">
           <h2>Email Configuration</h2>

@@ -73,7 +73,7 @@ export function RowPeekPanel({
   if (!mount) return null;
 
   return createPortal(
-    <div className="modal-backdrop" onClick={onClose} style={{
+    <div className="modal-backdrop modal-backdrop-main" onClick={onClose} style={{
       position: 'absolute', inset: 0,
       backgroundColor: 'rgba(0,0,0,0.35)',
       backdropFilter: 'blur(6px)',

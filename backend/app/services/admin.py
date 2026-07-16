@@ -10,6 +10,15 @@ from app.auth.password import hash_password
 from app.core.notifications import ADMIN_NOTIFICATION_KEYS, is_notification_enabled
 from app.db.legacy_db import LegacyConnection
 
+# SCHOLARDOCX-0140: reverse map of plan_ai_credits_* setting key -> tier role,
+# used to force-reset balances when an admin edits a plan's monthly credits.
+_CREDIT_SETTING_TO_ROLE = {
+    "plan_ai_credits_free": "free_user",
+    "plan_ai_credits_general": "general_user",
+    "plan_ai_credits_pro": "pro_user",
+    "plan_ai_credits_max": "max_user",
+}
+
 DEFAULT_ROLE_LIMITS = {
     'free_user': [
         ('ai_messages_per_session', 0, 'per_session'),
@@ -29,7 +38,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 5242880, 'never'),
         ('total_sticky_notes', 3, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('ai_tokens_per_month', 0, 'monthly'),
     ],
     'general_user': [
         ('ai_messages_per_session', 10, 'per_session'),
@@ -49,7 +57,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 31457280, 'never'),
         ('total_sticky_notes', 5, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('ai_tokens_per_month', 500000, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
         ('can_use_purchased_tokens', 0, 'never'),
     ],
@@ -71,7 +78,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 104857600, 'never'),
         ('total_sticky_notes', 20, 'never'),
         ('total_whiteboards', 3, 'never'),
-        ('ai_tokens_per_month', 2000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
         ('can_use_purchased_tokens', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
@@ -94,7 +100,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 314572800, 'never'),
         ('total_sticky_notes', 50, 'never'),
         ('total_whiteboards', 10, 'never'),
-        ('ai_tokens_per_month', 5000000, 'monthly'),
         ('can_purchase_token_packs', 1, 'never'),
         ('can_use_purchased_tokens', 1, 'never'),
         ('can_use_advisor_atlas', 1, 'never'),
@@ -114,11 +119,14 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_manage_role_limits', 1, 'never'),
         ('admin_manage_notification_texts', 1, 'never'),
         ('admin_view_audit_logs', 0, 'never'),
+        ('admin_manage_requests', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
         ('admin_manage_password_resets', 1, 'never'),
         ('admin_send_notifications', 1, 'never'),
+        ('admin_manage_settings', 0, 'never'),
         ('admin_view_info', 1, 'never'),
+        ('can_use_agents', 1, 'never'),
     ],
     'super_admin': [
         ('admin_view_dashboard', 1, 'never'),
@@ -135,11 +143,14 @@ DEFAULT_ROLE_LIMITS = {
         ('admin_manage_role_limits', 1, 'never'),
         ('admin_manage_notification_texts', 1, 'never'),
         ('admin_view_audit_logs', 1, 'never'),
+        ('admin_manage_requests', 1, 'never'),
         ('admin_manage_plan_requests', 1, 'never'),
         ('admin_manage_token_requests', 1, 'never'),
         ('admin_manage_password_resets', 1, 'never'),
         ('admin_send_notifications', 1, 'never'),
+        ('admin_manage_settings', 1, 'never'),
         ('admin_view_info', 1, 'never'),
+        ('can_use_agents', 1, 'never'),
     ],
     'free_user': [
         ('ai_messages_per_session', 0, 'per_session'),
@@ -159,7 +170,6 @@ DEFAULT_ROLE_LIMITS = {
         ('total_documents_bytes', 5242880, 'never'),
         ('total_sticky_notes', 3, 'never'),
         ('total_whiteboards', 1, 'never'),
-        ('ai_tokens_per_month', 0, 'monthly'),
         ('can_purchase_token_packs', 0, 'never'),
         ('can_use_purchased_tokens', 0, 'never'),
     ]
@@ -202,7 +212,7 @@ class AdminService:
         new_end = base_dt + timedelta(days=duration_days)
         return start_dt.isoformat(), new_end.isoformat()
 
-    def log_audit_action(self, user_id: int, action: str, target_type: str, target_id: Optional[str] = None, details: Optional[dict] = None) -> None:
+    def log_audit_action(self, user_id: str, action: str, target_type: str, target_id: Optional[str] = None, details: Optional[dict] = None) -> None:
         details_json = json.dumps(details) if details else None
         self.connection.execute(
             """
@@ -269,7 +279,7 @@ class AdminService:
         import datetime
         today = datetime.date.today()
         date_list = [(today - datetime.timedelta(days=x)).isoformat() for x in range(9, -1, -1)]
-        usage_map = {row["day"]: row["tokens"] for row in ai_usage_10d_rows}
+        usage_map = {str(row["day"]): row["tokens"] for row in ai_usage_10d_rows}
         ai_usage_10d = [{"date": d, "tokens": usage_map.get(d, 0)} for d in date_list]
 
         return {
@@ -317,13 +327,13 @@ class AdminService:
 
     def send_notifications(
         self,
-        admin_id: int,
+        admin_id: str,
         *,
         title: str,
         body: str,
         category: str,
         send_to_all: bool = False,
-        recipient_user_ids: Optional[list[int]] = None,
+        recipient_user_ids: Optional[list[str]] = None,
     ) -> dict:
         cleaned_title = (title or "").strip()
         cleaned_body = (body or "").strip()
@@ -337,7 +347,7 @@ class AdminService:
         explicit_ids = sorted({user_id for user_id in (recipient_user_ids or []) if user_id})
         if send_to_all:
             recipient_rows = self.connection.execute("SELECT id FROM users ORDER BY id ASC").fetchall()
-            target_user_ids = [int(row["id"]) for row in recipient_rows]
+            target_user_ids = [str(row["id"]) for row in recipient_rows]
         else:
             if not explicit_ids:
                 raise ValueError("At least one recipient is required")
@@ -346,7 +356,7 @@ class AdminService:
                 f"SELECT id FROM users WHERE id IN ({placeholders}) ORDER BY id ASC",
                 explicit_ids,
             ).fetchall()
-            target_user_ids = [int(row["id"]) for row in recipient_rows]
+            target_user_ids = [str(row["id"]) for row in recipient_rows]
 
         if not target_user_ids:
             raise ValueError("No matching recipients found")
@@ -357,12 +367,12 @@ class AdminService:
             target_user_ids,
         ).fetchall()
         settings_by_user_id = {
-            int(row["user_id"]): row["notification_settings"]
+            str(row["user_id"]): row["notification_settings"]
             for row in profile_rows
         }
 
-        delivered_user_ids: list[int] = []
-        skipped_user_ids: list[int] = []
+        delivered_user_ids: list[str] = []
+        skipped_user_ids: list[str] = []
         for user_id in target_user_ids:
             if not is_notification_enabled(settings_by_user_id.get(user_id), category):
                 skipped_user_ids.append(user_id)
@@ -399,7 +409,7 @@ class AdminService:
             "skipped_user_ids": skipped_user_ids,
         }
 
-    def get_user_details(self, user_id: int) -> dict:
+    def get_user_details(self, user_id: str) -> dict:
         user = self.connection.execute(
             "SELECT id, email, display_name, roles, is_active, is_blocked, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
         ).fetchone()
@@ -417,7 +427,7 @@ class AdminService:
         d["usage"] = [dict(u) for u in usage]
         return d
 
-    def update_user_roles(self, admin_id: int, user_id: int, roles: list[str], plan_duration_days: Optional[int] = None, plan_start_date: Optional[str] = None, plan_end_date: Optional[str] = None) -> dict:
+    def update_user_roles(self, admin_id: str, user_id: str, roles: list[str], plan_duration_days: Optional[int] = None, plan_start_date: Optional[str] = None, plan_end_date: Optional[str] = None) -> dict:
         roles_json = json.dumps(roles)
 
         # Only set plan dates for user-level roles (free_user, general_user, pro_user, max_user)
@@ -460,7 +470,7 @@ class AdminService:
 
         return self.get_user_details(user_id)
 
-    def toggle_user_status(self, admin_id: int, user_id: int, is_active: bool) -> dict:
+    def toggle_user_status(self, admin_id: str, user_id: str, is_active: bool) -> dict:
         self.connection.execute(
             "UPDATE users SET is_active = ?, token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (1 if is_active else 0, user_id)
@@ -468,7 +478,7 @@ class AdminService:
         self.log_audit_action(admin_id, "toggle_status", "users", str(user_id), {"is_active": is_active})
         return self.get_user_details(user_id)
 
-    def toggle_user_block(self, admin_id: int, user_id: int, is_blocked: bool) -> dict:
+    def toggle_user_block(self, admin_id: str, user_id: str, is_blocked: bool) -> dict:
         self.connection.execute(
             "UPDATE users SET is_blocked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (1 if is_blocked else 0, user_id)
@@ -476,7 +486,7 @@ class AdminService:
         self.log_audit_action(admin_id, "toggle_block", "users", str(user_id), {"is_blocked": is_blocked})
         return self.get_user_details(user_id)
 
-    def revoke_tokens(self, admin_id: int, user_id: int) -> dict:
+    def revoke_tokens(self, admin_id: str, user_id: str) -> dict:
         self.connection.execute(
             "UPDATE users SET token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (user_id,)
@@ -490,7 +500,7 @@ class AdminService:
         ).fetchall()
         return [dict(c) for c in codes]
 
-    def create_invite_code(self, admin_id: int, max_uses: int, expires_at: Optional[str] = None) -> dict:
+    def create_invite_code(self, admin_id: str, max_uses: int, expires_at: Optional[str] = None) -> dict:
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
         cursor = self.connection.execute(
             """
@@ -508,7 +518,7 @@ class AdminService:
             raise LookupError("Failed to fetch created invite code")
         return dict(row)
 
-    def get_invite_usages(self, admin_id: int, code: str) -> list[dict]:
+    def get_invite_usages(self, admin_id: str, code: str) -> list[dict]:
         invite = self.connection.execute("SELECT id FROM invite_codes WHERE code = ?", (code,)).fetchone()
         if not invite:
             raise LookupError("Invite code not found")
@@ -519,7 +529,7 @@ class AdminService:
         ).fetchall()
         return [dict(u) for u in users]
 
-    def delete_invite_code(self, admin_id: int, code: str) -> None:
+    def delete_invite_code(self, admin_id: str, code: str) -> None:
         row = self.connection.execute("SELECT id FROM invite_codes WHERE code = ?", (code,)).fetchone()
         if not row:
             raise LookupError("Invite code not found")
@@ -533,7 +543,7 @@ class AdminService:
         ).fetchall()
         return [dict(r) for r in requests]
 
-    def resolve_invite_request(self, admin_id: int, request_id: int, action: str) -> dict:
+    def resolve_invite_request(self, admin_id: str, request_id: str, action: str) -> dict:
         req = self.connection.execute(
             "SELECT * FROM invite_requests WHERE id = ?", (request_id,)
         ).fetchone()
@@ -567,7 +577,7 @@ class AdminService:
         ).fetchall()
         return [dict(a) for a in appeals]
 
-    def resolve_suspension_appeal(self, admin_id: int, appeal_id: int, action: str) -> dict:
+    def resolve_suspension_appeal(self, admin_id: str, appeal_id: str, action: str) -> dict:
         appeal = self.connection.execute(
             "SELECT * FROM suspension_appeals WHERE id = ?", (appeal_id,)
         ).fetchone()
@@ -591,7 +601,7 @@ class AdminService:
         self.log_audit_action(admin_id, "resolve_suspension_appeal", "suspension_appeals", str(appeal_id), {"action": action})
         self.connection.commit()
         return {"status": "success"}
-    def create_user(self, admin_id: int, email: str, password_hash: str, display_name: str, roles: list[str], plan_duration: str = "1_month") -> dict:
+    def create_user(self, admin_id: str, email: str, password_hash: str, display_name: str, roles: list[str], plan_duration: str = "1_month") -> dict:
         # Check if email already exists
         existing_user = self.connection.execute(
             "SELECT id FROM users WHERE email = ?", (email,)
@@ -657,7 +667,7 @@ class AdminService:
         limits = self.connection.execute("SELECT * FROM role_limits ORDER BY role, feature").fetchall()
         return [dict(l) for l in limits]
 
-    def update_role_limit(self, admin_id: int, role: str, feature: str, limit_count: int, reset_period: Optional[str] = None) -> dict:
+    def update_role_limit(self, admin_id: str, role: str, feature: str, limit_count: int, reset_period: Optional[str] = None) -> dict:
         if reset_period is not None:
             self.connection.execute(
                 """
@@ -702,7 +712,7 @@ class AdminService:
             raise LookupError(f"Failed to fetch updated role limit for {role}:{feature}")
         return dict(row)
 
-    def reset_role_limits(self, admin_id: int, role: str) -> list[dict]:
+    def reset_role_limits(self, admin_id: str, role: str) -> list[dict]:
         if role not in DEFAULT_ROLE_LIMITS:
             raise ValueError("Invalid role for reset")
             
@@ -778,7 +788,7 @@ class AdminService:
             ).fetchall()
         return [dict(r) for r in requests]
 
-    def resolve_plan_request(self, admin_id: int, request_id: int, action: str) -> dict:
+    def resolve_plan_request(self, admin_id: str, request_id: str, action: str) -> dict:
         req = self.connection.execute(
             "SELECT * FROM plan_upgrade_requests WHERE id = ?", (request_id,)
         ).fetchone()
@@ -871,7 +881,7 @@ class AdminService:
             ).fetchall()
         return [dict(r) for r in requests]
 
-    def resolve_password_reset_request(self, admin_id: int, request_id: int, action: str, new_password: Optional[str] = None) -> dict:
+    def resolve_password_reset_request(self, admin_id: str, request_id: str, action: str, new_password: Optional[str] = None) -> dict:
         req = self.connection.execute(
             "SELECT * FROM password_reset_requests WHERE id = ?", (request_id,)
         ).fetchone()
@@ -923,18 +933,37 @@ class AdminService:
         settings = self.connection.execute("SELECT key, value FROM app_settings").fetchall()
         return {row["key"]: row["value"] for row in settings}
 
-    def update_app_setting(self, admin_id: int, key: str, value: str) -> dict:
+    def update_app_setting(self, admin_id: str, key: str, value: str) -> dict:
         """Update a specific app setting"""
+        if key == "jwt_secret_key":
+            raise ValueError("JWT signing secret key cannot be modified dynamically.")
         self.connection.execute(
             """
-            INSERT INTO app_settings (key, value, updated_at) 
+            INSERT INTO app_settings (key, value, updated_at)
             VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(key) DO UPDATE SET 
-            value = excluded.value, 
+            ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
             updated_at = excluded.updated_at
-            """, 
+            RETURNING key
+            """,
             (key, value)
         )
+        # SCHOLARDOCX-0140: when a plan_ai_credits_* setting changes, force every
+        # user on that tier to re-seed their monthly balance so the new allowance
+        # applies immediately (mirrors the old update_role_limit FORCE_RESET).
+        tier = _CREDIT_SETTING_TO_ROLE.get(key)
+        if tier:
+            self.connection.execute(
+                """
+                UPDATE ai_token_balances
+                SET subscription_period = 'FORCE_RESET'
+                WHERE user_id IN (
+                    SELECT id FROM users
+                    WHERE roles ILIKE ?
+                )
+                """,
+                (f'%"{tier}"%',),
+            )
         self.connection.commit()
         self.log_audit_action(admin_id, "update_app_setting", "app_settings", key, {"new_value": value})
         return {"status": "success", "message": f"Setting {key} updated successfully."}

@@ -217,7 +217,7 @@ _USAGE_COUNT_QUERIES = {
 }
 
 
-def resync_usage_counts(user_id: int, session: Session, features=None) -> None:
+def resync_usage_counts(user_id: str, session: Session, features=None) -> None:
     """Recompute count-based usage counters from live data.
 
     Deletes (and failed writes) would otherwise leave counters inflated until

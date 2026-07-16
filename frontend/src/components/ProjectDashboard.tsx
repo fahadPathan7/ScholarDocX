@@ -37,7 +37,7 @@ export function ProjectDashboard({
       </Section>
 
       {isCalendarOpen ? (
-        <div className="modal-backdrop" onClick={() => setIsCalendarOpen(false)}>
+        <div className="modal-backdrop modal-backdrop-main" onClick={() => setIsCalendarOpen(false)}>
           <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2>Project Calendar</h2>

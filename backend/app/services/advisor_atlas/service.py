@@ -75,7 +75,7 @@ class AdvisorAtlasService:
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
 
-    async def run(self, run_id: int, user_id: int) -> None:
+    async def run(self, run_id: str, user_id: str) -> None:
         run = self.repository.get_run(run_id, user_id, include_candidates=False)
         billing_session = None
         try:
@@ -200,7 +200,7 @@ class AdvisorAtlasService:
             if billing_session is not None:
                 billing_session.close()
 
-    async def refresh_candidate(self, candidate_id: int, user_id: int) -> dict[str, Any]:
+    async def refresh_candidate(self, candidate_id: str, user_id: str) -> dict[str, Any]:
         candidate = self.repository.get_candidate(candidate_id, user_id)
         run = self.repository.get_run(candidate["run_id"], user_id, include_candidates=False)
         # A refresh is an explicit, token-metered user action: always use the
@@ -211,8 +211,8 @@ class AdvisorAtlasService:
     async def _deep_research_discovery(
         self,
         run: dict[str, Any],
-        run_id: int,
-        user_id: int,
+        run_id: str,
+        user_id: str,
         discovery_sources: list[dict[str, Any]],
     ) -> None:
         stored = self.repository.get_run(run_id, user_id)
@@ -349,7 +349,7 @@ class AdvisorAtlasService:
     async def _process_candidate(
         self,
         run: dict[str, Any],
-        user_id: int,
+        user_id: str,
         candidate: dict[str, Any],
         discovery_sources: list[dict[str, Any]],
         deep: bool = False,
@@ -538,7 +538,7 @@ class AdvisorAtlasService:
         normalized_candidate["intelligence"] = intelligence
         evidence = self._evidence_from_sources(candidate_sources, normalized_candidate)
         return self.repository.replace_candidate_data(
-            int(run["id"]),
+            str(run["id"]),
             user_id,
             normalized_candidate,
             evidence,

@@ -379,7 +379,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       </section>
 
       {isModalOpen ? (
-        <div className="modal-backdrop" onClick={resetDraft}>
+        <div className="modal-backdrop modal-backdrop-main" onClick={resetDraft}>
           <form className={`modal-panel sticky-note-modal color-${draft.color || "sun"} font-${draft.font || "caveat"} size-${draft.font_size || "medium"}`} onClick={(event) => event.stopPropagation()} onSubmit={saveNote}>
             <div className="modal-header">
               <div>
@@ -497,7 +497,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       ) : null}
 
       {viewingNote ? (
-        <div className="modal-backdrop" onClick={() => setViewingNote(null)}>
+        <div className="modal-backdrop modal-backdrop-main" onClick={() => setViewingNote(null)}>
           <div className={`modal-panel sticky-view-modal color-${viewingNote.color || "sun"} font-${viewingNote.font || "caveat"} size-${viewingNote.font_size || "medium"}`} onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>

@@ -2,26 +2,45 @@ import pytest
 from sqlalchemy import text
 
 from app.api import scholarship_opportunities as opp_api
-from app.db.connection import get_engine
+from app.db.connection import connect, get_engine
 from app.services.store import Store
 
-from tests.helpers import make_settings
+from tests.helpers import cleanup_user_records, make_settings
 
 
-def _store(tmp_path, user_id=1):
+# SCHOLARDOCX-0140: primary keys are UUID strings. Fixed UUIDs let the test
+# fixture seed a real user row and reference it consistently.
+_TEST_USER_UUID = "00000000-0000-0000-0000-0000000000f1"
+
+
+def _store(tmp_path, user_id=_TEST_USER_UUID):
     settings = make_settings(tmp_path)
+    email = f"max-{user_id}@test.local"
+    with connect(settings.database_target) as db:
+        cleanup_user_records(db, user_id, email)
+        db.commit()
     from sqlalchemy.orm import sessionmaker
 
     engine = get_engine(settings.database_target)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = SessionLocal()
+    # Seed the user so FK constraints on scholarship_opportunities.user_id hold.
+    session.execute(
+        text(
+            "INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked) "
+            "VALUES (:uid, :email, 'x', 'Test', '[\"max_user\"]', 1, 0) "
+            "ON CONFLICT (id) DO NOTHING"
+        ),
+        {"uid": user_id, "email": email},
+    )
+    session.commit()
     store = Store(session)
     store.current_user_id = user_id
     return session, store
 
 
-FREE_USER = {"id": 1, "roles": ["free_user"]}
-MAX_USER = {"id": 1, "roles": ["max_user"]}
+FREE_USER = {"id": _TEST_USER_UUID, "roles": ["free_user"]}
+MAX_USER = {"id": _TEST_USER_UUID, "roles": ["max_user"]}
 
 
 # --- Catalog -----------------------------------------------------------
@@ -141,7 +160,7 @@ async def test_analyze_charges_tokens_exactly_once_and_creates_opportunity(tmp_p
             user=MAX_USER,
             store=store,
         )
-        assert spend_calls == [1]
+        assert spend_calls == [_TEST_USER_UUID]
         assert result["canonical_name"] == "Example Scholarship"
         assert result["funding"] == {"coverage": "full", "notes": None}
         assert result["status"] == "Found"
@@ -261,14 +280,19 @@ async def test_update_and_delete_opportunity(tmp_path, monkeypatch):
             user=MAX_USER,
             store=store,
         )
+        project = store.create_record("projects", {"name": "Scholarship Tracker Project"})
+        sheet = store.create_record(
+            "project_sheets",
+            {"project_id": project["id"], "name": "Scholarship Tracker"},
+        )
         updated = await opp_api.update_scholarship_opportunity(
             created["id"],
-            opp_api.Payload(data={"status": "Applying", "linked_sheet_id": 7}),
+            opp_api.Payload(data={"status": "Applying", "linked_sheet_id": sheet["id"]}),
             user=MAX_USER,
             store=store,
         )
         assert updated["status"] == "Applying"
-        assert updated["linked_sheet_id"] == 7
+        assert updated["linked_sheet_id"] == sheet["id"]
 
         await opp_api.delete_scholarship_opportunity(created["id"], user=MAX_USER, store=store)
         remaining = await opp_api.list_scholarship_opportunities(user=MAX_USER, store=store)
@@ -304,6 +328,6 @@ async def test_update_accepts_last_deadline_notified_at_for_radar_dedupe(tmp_pat
             user=MAX_USER,
             store=store,
         )
-        assert updated["last_deadline_notified_at"] == "2026-07-03 00:00:00"
+        assert str(updated["last_deadline_notified_at"]).startswith("2026-07-03 00:00:00")
     finally:
         store.db.close()

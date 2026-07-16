@@ -10,13 +10,10 @@ import { DeepHuntView } from "./news/DeepHuntView";
 import { AddToTrackerModal } from "./news/AddToTrackerModal";
 import { HuntProfileModal } from "./news/HuntProfileModal";
 import {
-  addBookmark,
-  getBookmarkedNews,
   NewsArticle,
   NewsQueryPreview,
   NewsSearchParams,
   previewNewsQuery,
-  removeBookmark,
   searchNews,
   saveQuery,
   updateSavedQuery,
@@ -40,7 +37,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   // Deep Hunt now shares the single Scholarship Hunt permission (SCHOLARDOCX-0136).
   const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_hunt ?? 0) === 1;
   const [articles, setArticles] = useState<NewsArticle[]>([]);
-  const [bookmarks, setBookmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const isLoadingRef = React.useRef(false);
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
@@ -54,7 +50,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   }, [isFilterOpen]);
 
   const [filters, setFilters] = useState<NewsSearchParams>({});
-  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
   const [isPreparingQuery, setIsPreparingQuery] = useState(false);
   const [searchFlow, setSearchFlow] = useState<SearchFlowState>("idle");
   const [pendingFilters, setPendingFilters] = useState<NewsSearchParams | null>(null);
@@ -64,7 +59,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     searchedAt: string;
   } | null>(null);
   const [queryPreview, setQueryPreview] = useState<{
-    previewFeedbackId: number;
+    previewFeedbackId: string;
     initialQuery: string;
     maxLength: number;
     generationSource: "openrouter" | "fallback";
@@ -122,22 +117,12 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
 
   const hasFiltersSelected = hasAnyFilter(filters);
 
-  const fetchBookmarks = async () => {
-    try {
-      const data = await getBookmarkedNews();
-      setBookmarks(data);
-    } catch (error) {
-      console.error("Failed to fetch bookmarks:", error);
-    }
-  };
-
   const fetchNews = async (
     currentFilters: NewsSearchParams,
-    previewFeedbackId: number,
+    previewFeedbackId: string,
     approvedQuery: string,
     append = false,
   ): Promise<NewsArticle[]> => {
-    if (showBookmarksOnly) return []; // Don't fetch from API when viewing bookmarks
     if (!hasAnyFilter(currentFilters) && !approvedQuery) {
       setArticles([]);
       setSearchFlow("idle");
@@ -182,7 +167,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   };
 
   useEffect(() => {
-    fetchBookmarks();
     const handleResize = () => {
       if (window.innerWidth > 768 && !isFilterOpen) setIsFilterOpen(true);
     };
@@ -192,10 +176,8 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
 
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      if (showBookmarksOnly) {
-        fetchBookmarks();
-      } else if (latestSearch?.approvedQuery) {
-        fetchNews(filters, 0, latestSearch.approvedQuery, false);
+      if (latestSearch?.approvedQuery) {
+        fetchNews(filters, "0", latestSearch.approvedQuery, false);
       }
     }
   }, [refreshTrigger]);
@@ -239,7 +221,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
         setSearchFlow("review");
       } else {
         setFilters(newFilters);
-        setShowBookmarksOnly(false);
         setSearchFlow("searching");
         await fetchNews(newFilters, preview.preview_feedback_id, preview.initial_query, false);
       }
@@ -277,7 +258,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
         setSearchFlow("review");
       } else {
         setFilters(payload);
-        setShowBookmarksOnly(false);
         setSearchFlow("searching");
         await fetchNews(payload, preview.preview_feedback_id, preview.initial_query, false);
       }
@@ -299,7 +279,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     const confirmedFilters = pendingFilters;
     const previewFeedbackId = queryPreview.previewFeedbackId;
     setFilters(confirmedFilters);
-    setShowBookmarksOnly(false);
     setSearchFlow("searching");
     setQueryPreview(null);
     
@@ -318,7 +297,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
   const handleRunSavedQuery = async (
     queryString: string,
     filtersJson: string,
-    savedQuery?: { id: number; seen_article_ids_json?: string },
+    savedQuery?: { id: string; seen_article_ids_json?: string },
   ) => {
     let parsedFilters = {};
     try {
@@ -327,12 +306,11 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
 
     setFilters(parsedFilters);
     setPendingFilters(parsedFilters);
-    setShowBookmarksOnly(false);
     setSearchFlow("searching");
     setNewArticleIds(new Set());
 
-    // Use 0 or null equivalent for preview feedback since it's pre-approved
-    const results = await fetchNews(parsedFilters, 0, queryString, false);
+    // Use "0" or null equivalent for preview feedback since it's pre-approved
+    const results = await fetchNews(parsedFilters, "0", queryString, false);
 
     // Watchlist diff (FR-8.41): mark results not seen on the previous run,
     // then persist the full current set as "seen" for next time.
@@ -353,46 +331,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
     }
   };
 
-  const handleToggleBookmark = async (article: NewsArticle) => {
-    const isBookmarked = bookmarks.some(b => b.article_id === article.article_id);
-    try {
-      if (isBookmarked) {
-        await removeBookmark(article.article_id);
-        onToast("Bookmark removed");
-        if (showBookmarksOnly) {
-           setBookmarks(prev => prev.filter(b => b.article_id !== article.article_id));
-        } else {
-           fetchBookmarks();
-        }
-      } else {
-        await addBookmark(article);
-        onToast("Article bookmarked");
-        fetchBookmarks();
-      }
-    } catch (error) {
-      onToast("Failed to update bookmark");
-    }
-  };
 
-  const toggleBookmarksView = () => {
-    setShowBookmarksOnly(!showBookmarksOnly);
-    if (window.innerWidth <= 768 && isFilterOpen) {
-       setIsFilterOpen(false);
-    }
-  };
-
-  const displayedArticles = showBookmarksOnly 
-    ? bookmarks.map(b => ({
-        article_id: b.article_id,
-        title: b.title,
-        link: b.link,
-        source_name: b.source_name,
-        pubDate: b.pub_date,
-        image_url: b.image_url,
-        description: b.description,
-        country: b.country ? [b.country] : undefined
-      }))
-    : articles;
 
 
   const latestQueryPreview = latestSearch?.approvedQuery
@@ -457,12 +396,6 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
                 />
                 Review query before search
               </label>
-              <button
-                className={`button-secondary ${showBookmarksOnly ? 'active' : ''}`}
-                onClick={toggleBookmarksView}
-              >
-                <span className="hidden sm:inline">{showBookmarksOnly ? "Feed" : "Saved"}</span>
-              </button>
             </div>
           )}
           <button
@@ -582,7 +515,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
       {subTab === "hunt" && (
         <>
           <div className="news-layout">
-            {!showBookmarksOnly && !isFilterOpen && (
+            {!isFilterOpen && (
               <button
                 className="filter-panel-expand-button"
                 onClick={() => setIsFilterOpen(true)}
@@ -592,18 +525,16 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
                 <ChevronRight size={20} />
               </button>
             )}
-            {!showBookmarksOnly && (
-              <FilterPanel
-                isOpen={isFilterOpen}
-                onClose={() => setIsFilterOpen(false)}
-                onApplyFilters={handleApplyFilters}
-                isPreparingQuery={isPreparingQuery}
-                onRunSavedQuery={handleRunSavedQuery}
-              />
-            )}
+            <FilterPanel
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+              onApplyFilters={handleApplyFilters}
+              isPreparingQuery={isPreparingQuery}
+              onRunSavedQuery={handleRunSavedQuery}
+            />
 
-            <main className="news-main">
-              {!showBookmarksOnly && searchStatus && (
+            <div className="news-main">
+              {searchStatus && (
                 <section className={`news-search-status news-search-status--${searchStatus.tone}`} aria-live="polite">
                   <p className="news-search-status-label">{searchStatus.label}</p>
                   {searchStatus.detail && (
@@ -612,17 +543,15 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
                 </section>
               )}
               <NewsFeed
-                articles={displayedArticles}
-                bookmarks={bookmarks}
+                articles={articles}
                 isLoading={isLoading}
                 isRefreshing={isPreparingQuery || isLoading}
                 refreshMessage={isPreparingQuery
                   ? "Preparing a fresh Scholarship Hunt query..."
                   : "Running your approved Scholarship Hunt query..."}
                 hasMore={false}
-                hasFilters={showBookmarksOnly || hasFiltersSelected || !!latestSearch}
+                hasFilters={hasFiltersSelected || !!latestSearch}
                 onLoadMore={() => undefined}
-                onToggleBookmark={handleToggleBookmark}
                 onAnalyze={handleAnalyze}
                 analyzingUrl={analyzingUrl}
                 opportunitiesByUrl={opportunitiesByUrl}
@@ -630,7 +559,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
                 huntProfile={huntProfile}
                 newArticleIds={newArticleIds}
               />
-            </main>
+            </div>
           </div>
           {queryPreview && (
             <QueryReviewDialog

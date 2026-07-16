@@ -25,7 +25,7 @@ type Pack = {
 };
 
 type MyRequest = {
-  id: number;
+  id: string;
   status: string;
   pack_name: string;
   pack_code: string;
@@ -101,7 +101,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
     }
   };
 
-  const cancelRequest = async (id: number) => {
+  const cancelRequest = async (id: string) => {
     try {
       await api.post(`/ai-tokens/purchase-requests/${id}/cancel`, {});
       setRequests((prev) => prev.filter((req) => req.id !== id));

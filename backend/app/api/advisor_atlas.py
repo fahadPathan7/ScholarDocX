@@ -169,10 +169,10 @@ async def create_run(
     verify_model_permission(settings.advisor_atlas_glm_model, user, store.db)
     
     run = service.repository.create_run(
-        int(user["id"]),
+        str(user["id"]),
         payload.model_dump(),
     )
-    background_tasks.add_task(service.run, int(run["id"]), int(user["id"]))
+    background_tasks.add_task(service.run, str(run["id"]), str(user["id"]))
     return run
 
 
@@ -181,47 +181,47 @@ def list_runs(
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
-    return service.repository.list_runs(int(user["id"]))
+    return service.repository.list_runs(str(user["id"]))
 
 
 @router.get("/runs/{run_id}")
 def get_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
     try:
-        return service.repository.get_run(run_id, int(user["id"]))
+        return service.repository.get_run(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.delete("/runs/{run_id}", status_code=204)
 def delete_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
-    success = service.repository.delete_run(run_id, int(user["id"]))
+    success = service.repository.delete_run(run_id, str(user["id"]))
     if not success:
         raise HTTPException(status_code=404, detail="Run not found.")
 
 
 @router.post("/runs/{run_id}/cancel")
 def cancel_run(
-    run_id: int,
+    run_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
     try:
-        return service.repository.cancel_run(run_id, int(user["id"]))
+        return service.repository.cancel_run(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.post("/runs/{run_id}/resume", status_code=202)
 def resume_run(
-    run_id: int,
+    run_id: str,
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
@@ -229,30 +229,30 @@ def resume_run(
 ):
     _require_advisor_atlas_access(user, store.db)
     try:
-        run = service.repository.prepare_resume(run_id, int(user["id"]))
+        run = service.repository.prepare_resume(run_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    background_tasks.add_task(service.run, run_id, int(user["id"]))
+    background_tasks.add_task(service.run, run_id, str(user["id"]))
     return run
 
 
 @router.get("/candidates/{candidate_id}")
 def get_candidate(
-    candidate_id: int,
+    candidate_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
     try:
-        return service.repository.get_candidate(candidate_id, int(user["id"]))
+        return service.repository.get_candidate(candidate_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.patch("/candidates/{candidate_id}")
 def update_candidate(
-    candidate_id: int,
+    candidate_id: str,
     payload: CandidateUpdateRequest,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
@@ -260,7 +260,7 @@ def update_candidate(
     try:
         return service.repository.update_candidate(
             candidate_id,
-            int(user["id"]),
+            str(user["id"]),
             payload.model_dump(exclude_none=True),
         )
     except LookupError as exc:
@@ -269,8 +269,8 @@ def update_candidate(
 
 @router.patch("/candidates/{candidate_id}/publications/{publication_id}")
 def update_publication(
-    candidate_id: int,
-    publication_id: int,
+    candidate_id: str,
+    publication_id: str,
     payload: PublicationUpdateRequest,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
@@ -279,7 +279,7 @@ def update_publication(
         return service.repository.update_publication(
             publication_id,
             candidate_id,
-            int(user["id"]),
+            str(user["id"]),
             payload.model_dump(exclude_none=True),
         )
     except LookupError as exc:
@@ -288,7 +288,7 @@ def update_publication(
 
 @router.post("/candidates/{candidate_id}/refresh")
 async def refresh_candidate(
-    candidate_id: int,
+    candidate_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
     store: Store = Depends(get_store),
@@ -296,14 +296,14 @@ async def refresh_candidate(
     # Rate limit first: 5 refreshes per user per 10 minutes, before any work.
     rate_limiter.check_and_record("advisor_atlas_candidate_refresh", user_identity(user))
     try:
-        service.repository.get_candidate(candidate_id, int(user["id"]))
+        service.repository.get_candidate(candidate_id, str(user["id"]))
         # Plan gate (Pro/Max) before any token spend on the refresh.
         _require_advisor_atlas_access(user, store.db)
         # Metered by AI tokens: gate here, then charge via the service's
         # AiService for each call made during the refresh.
         ai_tokens.ensure_can_spend(user, store.db)
         service.ai_service.set_billing(user, store.db)
-        return await service.refresh_candidate(candidate_id, int(user["id"]))
+        return await service.refresh_candidate(candidate_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except (httpx.HTTPError, ValueError) as exc:  # type: ignore[name-defined]
@@ -312,11 +312,11 @@ async def refresh_candidate(
 
 @router.post("/candidates/{candidate_id}/save")
 def save_candidate(
-    candidate_id: int,
+    candidate_id: str,
     user: dict = Depends(get_current_user),
     service: AdvisorAtlasService = Depends(_service),
 ):
     try:
-        return service.repository.save_to_professors(candidate_id, int(user["id"]))
+        return service.repository.save_to_professors(candidate_id, str(user["id"]))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

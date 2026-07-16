@@ -11,7 +11,7 @@ export type CreateDeepHuntRunRequest = {
 };
 
 export type DeepHuntRun = {
-  id: number;
+  id: string;
   goal: string;
   degree_level: string | null;
   destinations: string[];
@@ -34,10 +34,10 @@ export const scholarshipDeepHuntApi = {
   createRun: (payload: CreateDeepHuntRunRequest) =>
     api.post<DeepHuntRun>("/scholarship-deep-hunt/runs", payload),
   listRuns: () => api.get<DeepHuntRun[]>("/scholarship-deep-hunt/runs"),
-  getRun: (runId: number) => api.get<DeepHuntRun>(`/scholarship-deep-hunt/runs/${runId}`),
-  cancelRun: (runId: number) =>
+  getRun: (runId: string) => api.get<DeepHuntRun>(`/scholarship-deep-hunt/runs/${runId}`),
+  cancelRun: (runId: string) =>
     api.post<DeepHuntRun>(`/scholarship-deep-hunt/runs/${runId}/cancel`, {}),
-  resumeRun: (runId: number) =>
+  resumeRun: (runId: string) =>
     api.post<DeepHuntRun>(`/scholarship-deep-hunt/runs/${runId}/resume`, {}),
-  deleteRun: (runId: number) => api.delete(`/scholarship-deep-hunt/runs/${runId}`),
+  deleteRun: (runId: string) => api.delete(`/scholarship-deep-hunt/runs/${runId}`),
 };

@@ -370,7 +370,8 @@
 .date-colors-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 20, 0.45);
+  background: radial-gradient(circle, rgba(15, 23, 20, 0.5) 0%, rgba(15, 23, 20, 0.7) 100%);
+  backdrop-filter: blur(10px) saturate(120%);
   display: flex;
   align-items: center;
   justify-content: center;

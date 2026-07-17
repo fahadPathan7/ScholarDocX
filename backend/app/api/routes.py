@@ -11,12 +11,11 @@ from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.categories import normalize_media_category
 from app.core.config import Settings, get_settings
 from app.core.workspace import ensure_workspace, save_upload, workspace_status
-from app.db.connection import initialize_database
 from app.services.ai import AiService
 from app.services.ai_actions import AiActionService
 from app.services.store import Store
 from app.auth.dependencies import get_current_user
-from app.api.dependencies import get_store
+from app.api.dependencies import ensure_db_initialized, get_store
 from app.auth.dependencies import get_user_store
 
 
@@ -125,7 +124,11 @@ def health(settings: Settings = Depends(get_settings)) -> dict:
 @router.post("/workspace/init")
 def init_workspace(settings: Settings = Depends(get_settings)) -> dict:
     status = ensure_workspace(settings)
-    initialize_database(settings.database_target)
+    # Funnel through the memoized init helper so DDL (create_all + seeding)
+    # runs at most once per process. Without this, repeated refreshes re-ran
+    # initialize_database concurrently with dashboard reads, exhausting the
+    # connection pool and stalling the app.
+    ensure_db_initialized(settings)
     return status
 
 

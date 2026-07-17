@@ -85,7 +85,8 @@ class Users(Base):
     __table_args__ = (
         Index('idx_users_email', 'email'),
         Index('idx_users_is_active', 'is_active'),
-        Index('idx_users_token_version', 'token_version')
+        Index('idx_users_token_version', 'token_version'),
+        Index('idx_users_created_at', 'created_at')
     )
 
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)

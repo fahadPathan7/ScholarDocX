@@ -224,57 +224,88 @@ class AdminService:
         self.connection.commit()
 
     def get_dashboard_stats(self) -> dict:
-        def _get_count(query: str) -> int:
-            row = self.connection.execute(query).fetchone()
-            return row[0] if row and row[0] is not None else 0
+        # SCHOLARDOCX-0147: collapse the dashboard's many independent
+        # COUNT/SUM queries into as few round-trips as possible. On Supabase's
+        # pooled Postgres each round-trip is tens of ms, so query COUNT
+        # dominates latency more than query weight. Three queries total:
+        #
+        # 1) all scalar counts in ONE wide row (platform counts + pending
+        #    counts + AI-token sums/counts). Every subselect is independent,
+        #    so Postgres evaluates them together.
+        counts_row = self.connection.execute(
+            """
+            SELECT
+              (SELECT COUNT(*) FROM users) AS total_users,
+              (SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days') AS active_users,
+              (SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days') AS active_users_7d,
+              (SELECT COUNT(*) FROM projects) AS total_projects,
+              (SELECT COUNT(*) FROM project_sheets) AS total_sheets,
+              (SELECT COUNT(*) FROM documents) AS total_documents,
+              (SELECT COUNT(*) FROM sticky_notes) AS total_sticky_notes,
+              (SELECT COUNT(*) FROM whiteboards) AS total_whiteboards,
+              (SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages) AS total_records,
+              (SELECT COALESCE(SUM(size_bytes), 0) FROM static_files) AS storage_bytes,
+              (SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending') AS pending_invite_requests,
+              (SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending') AS pending_appeals,
+              (SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending') AS pending_plan_requests,
+              (SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending') AS pending_credit_requests,
+              (SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending') AS pending_password_resets,
+              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0) AS total_ai_tokens,
+              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days') AS ai_tokens_30d,
+              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days') AS ai_tokens_7d,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')) AS tavily_total,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search') AS tavily_web_search,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt') AS tavily_scholarship_hunt,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas
+            """
+        ).fetchone()
+        c = dict(counts_row) if counts_row else {}
 
-        total_users = _get_count("SELECT COUNT(*) FROM users")
-        active_users = _get_count("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days'")
-        active_users_7d = _get_count("SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days'")
-        total_projects = _get_count("SELECT COUNT(*) FROM projects")
-        total_sheets = _get_count("SELECT COUNT(*) FROM project_sheets")
-        total_documents = _get_count("SELECT COUNT(*) FROM documents")
-        total_sticky_notes = _get_count("SELECT COUNT(*) FROM sticky_notes")
-        total_whiteboards = _get_count("SELECT COUNT(*) FROM whiteboards")
-        # rows_json is TEXT holding a JSON array; cast to jsonb for array length.
-        # NULLIF guards against empty-string values (invalid json syntax).
-        total_records = _get_count("SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages")
-        storage_bytes = _get_count("SELECT SUM(size_bytes) FROM static_files")
+        # 2) recent activity (registrations + logins) in ONE UNION query, each
+        #    half bounded at LIMIT 5. Tagged with `kind` so the caller can split
+        #    them back into the two lists the response shape expects.
+        activity_rows = self.connection.execute(
+            """
+            (SELECT 'registration' AS kind, id, email, display_name,
+                    created_at AS occurred_at, NULL::timestamp AS last_login_at
+             FROM users ORDER BY created_at DESC LIMIT 5)
+            UNION ALL
+            (SELECT 'login' AS kind, id, email, display_name,
+                    NULL::timestamp AS occurred_at, last_login_at
+             FROM users WHERE last_login_at IS NOT NULL
+             ORDER BY last_login_at DESC LIMIT 5)
+            """
+        ).fetchall()
+        recent_registrations = []
+        recent_logins = []
+        for row in activity_rows:
+            d = dict(row)
+            kind = d.pop("kind", None)
+            # Normalize each list to the shape it had pre-batch.
+            if kind == "registration":
+                recent_registrations.append({
+                    "id": d.get("id"),
+                    "email": d.get("email"),
+                    "display_name": d.get("display_name"),
+                    "created_at": d.get("occurred_at"),
+                })
+            elif kind == "login":
+                recent_logins.append({
+                    "id": d.get("id"),
+                    "email": d.get("email"),
+                    "display_name": d.get("display_name"),
+                    "last_login_at": d.get("last_login_at"),
+                })
 
-        # Fetch recent activity
-        recent_registrations = [
-            dict(row) for row in self.connection.execute(
-                "SELECT id, email, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5"
-            ).fetchall()
-        ]
-
-        recent_logins = [
-            dict(row) for row in self.connection.execute(
-                "SELECT id, email, display_name, last_login_at FROM users WHERE last_login_at IS NOT NULL ORDER BY last_login_at DESC LIMIT 5"
-            ).fetchall()
-        ]
-
-        pending_invite_requests = _get_count("SELECT COUNT(*) FROM invite_requests WHERE status = 'Pending'")
-        pending_appeals = _get_count("SELECT COUNT(*) FROM suspension_appeals WHERE status = 'Pending'")
-        pending_plan_requests = _get_count("SELECT COUNT(*) FROM plan_upgrade_requests WHERE status = 'Pending'")
-        pending_credit_requests = _get_count("SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending'")
-        pending_password_resets = _get_count("SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending'")
-
-        total_ai_tokens = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0")
-        ai_tokens_30d = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days'")
-        ai_tokens_7d = _get_count("SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days'")
-        tavily_total = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')")
-        tavily_web_search = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search'")
-        tavily_scholarship_hunt = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt'")
-        tavily_advisor_atlas = _get_count("SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search'")
-
+        # 3) 10-day usage chart (grouped query, kept separate since it returns
+        #    multiple rows by day).
         ai_usage_10d_rows = self.connection.execute(
             "SELECT created_at::timestamp::date as day, SUM(-tokens_delta) as tokens "
             "FROM ai_token_ledger "
             "WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '10 days' "
             "GROUP BY day ORDER BY day ASC"
         ).fetchall()
-        
+
         # Fill in missing dates for the last 10 days to ensure a continuous chart
         import datetime
         today = datetime.date.today()
@@ -282,34 +313,38 @@ class AdminService:
         usage_map = {str(row["day"]): row["tokens"] for row in ai_usage_10d_rows}
         ai_usage_10d = [{"date": d, "tokens": usage_map.get(d, 0)} for d in date_list]
 
+        def _count(key: str) -> int:
+            v = c.get(key)
+            return (v or 0)
+
         return {
             "counts": {
-                "total_users": total_users,
-                "active_users": active_users,
-                "active_users_7d": active_users_7d,
-                "total_projects": total_projects,
-                "total_sheets": total_sheets,
-                "total_documents": total_documents,
-                "total_sticky_notes": total_sticky_notes,
-                "total_whiteboards": total_whiteboards,
-                "total_records": total_records,
-                "storage_bytes": storage_bytes,
-                "pending_invite_requests": pending_invite_requests,
-                "pending_appeals": pending_appeals,
-                "pending_plan_requests": pending_plan_requests,
-                "pending_credit_requests": pending_credit_requests,
-                "pending_password_resets": pending_password_resets,
-                "total_ai_tokens": total_ai_tokens,
-                "ai_tokens_30d": ai_tokens_30d,
-                "ai_tokens_7d": ai_tokens_7d,
-                "tavily_total": tavily_total,
-                "tavily_web_search": tavily_web_search,
-                "tavily_scholarship_hunt": tavily_scholarship_hunt,
-                "tavily_advisor_atlas": tavily_advisor_atlas
+                "total_users": _count("total_users"),
+                "active_users": _count("active_users"),
+                "active_users_7d": _count("active_users_7d"),
+                "total_projects": _count("total_projects"),
+                "total_sheets": _count("total_sheets"),
+                "total_documents": _count("total_documents"),
+                "total_sticky_notes": _count("total_sticky_notes"),
+                "total_whiteboards": _count("total_whiteboards"),
+                "total_records": _count("total_records"),
+                "storage_bytes": _count("storage_bytes"),
+                "pending_invite_requests": _count("pending_invite_requests"),
+                "pending_appeals": _count("pending_appeals"),
+                "pending_plan_requests": _count("pending_plan_requests"),
+                "pending_credit_requests": _count("pending_credit_requests"),
+                "pending_password_resets": _count("pending_password_resets"),
+                "total_ai_tokens": _count("total_ai_tokens"),
+                "ai_tokens_30d": _count("ai_tokens_30d"),
+                "ai_tokens_7d": _count("ai_tokens_7d"),
+                "tavily_total": _count("tavily_total"),
+                "tavily_web_search": _count("tavily_web_search"),
+                "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
+                "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,
-            "ai_usage_10d": ai_usage_10d
+            "ai_usage_10d": ai_usage_10d,
         }
 
     def list_users(self) -> list[dict]:

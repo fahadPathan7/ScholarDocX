@@ -18,6 +18,21 @@ development.
 - Ask user confirmation before AI saves or document overwrites.
 - Convert API authorization/limit failures into user-friendly alerts through a
   centralized UI-error mapping layer instead of component-by-component parsing.
+- Login path must stay non-blocking (SCHOLARDOCX-0146): the `/auth/login`
+  response already returns the full `user` object, so the frontend hydrates
+  auth state synchronously from it and navigates client-side (`navigate`),
+  never via `window.location.href` (which forces a full SPA re-bootstrap).
+  `GET /auth/me` runs only as a background refresh for latest plan/role fields
+  and must not gate `isLoading`. `initAuth` must also be defensive: a null/
+  undecodable token payload must not throw out of the bootstrap (wrap in
+  try/catch and always release `isLoading`), otherwise the SplashScreen hangs
+  on refresh and the app never mounts. Dashboard data fetches fan out with
+  `Promise.all` but must start **after** `POST /workspace/init` resolves — init
+  and `get_store` both call `initialize_database`, so firing them concurrently
+  risks DDL/connection-pool contention. No client-imposed minimum-delay floors
+  on the login-to-dashboard path. On the backend, `/workspace/init` and
+  `get_store` share one memoized `ensure_db_initialized` so DDL runs at most
+  once per process regardless of how many refreshes occur.
 
 ## Backend Responsibilities
 

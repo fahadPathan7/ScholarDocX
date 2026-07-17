@@ -27,18 +27,22 @@ If a task has an associated Jira story, include the ticket identifier right afte
 
 When starting a new story or task:
 
-1. **Update Local `main`**: Ensure you have the latest source from the remote origin:
+1. **Switch to `main`**:
    ```bash
    git checkout main
+   ```
+
+2. **Update Local `main`**: Ensure you have the latest source from the remote origin:
+   ```bash
    git pull origin main
    ```
 
-2. **Create the Branch**: Switch to the branch using a descriptive, ticket-prefixed name:
+3. **Create the Branch**: Switch to the branch using a descriptive, ticket-prefixed name:
    ```bash
    git checkout -b <type>/SCHOLARDOCX-[number]-[slug]
    ```
 
-3. **Verify Setup**: Confirm that the workspace compiles and runs on the new branch before writing code:
+4. **Verify Setup**: Confirm that the workspace compiles and runs on the new branch before writing code:
    ```bash
    # Frontend
    npm run build

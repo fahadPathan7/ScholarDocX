@@ -145,7 +145,6 @@ export function App() {
 
   const refresh = async () => {
     setIsRefreshing(true);
-    const startTime = Date.now();
     try {
       const [
         workspaceStatus,
@@ -182,10 +181,6 @@ export function App() {
       setNotifications(notificationRows);
       setMessage("Ready.");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1000) {
-        await new Promise(r => setTimeout(r, 1000 - elapsed));
-      }
       setIsRefreshing(false);
     }
   };
@@ -245,10 +240,17 @@ export function App() {
   };
 
   useEffect(() => {
+    // Ensure the backend workspace + DB schema exist before reading dashboard
+    // data. This MUST stay sequential: /workspace/init calls initialize_database
+    // directly (bypassing the get_store memoization flag), and the dashboard
+    // reads route through get_store which would otherwise race to re-run DDL
+    // against the same tables. Concurrent DDL + reads exhaust the connection
+    // pool and stall the app (observed as a hang on repeated refreshes).
     api
       .post<RecordMap>("/workspace/init", {})
       .then(refresh)
       .catch((error) => setMessage(error.message));
+
 
     // Global instant custom tooltips replacing browser-native title delay
     const handleMouseOver = (e: any) => {

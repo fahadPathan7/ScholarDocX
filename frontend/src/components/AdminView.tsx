@@ -820,7 +820,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
         {activeTab === "limits" && <RoleLimitsTab onLimitsUpdated={fetchAdminPermissions} />}
         {activeTab === "notification_texts" && adminPermissions["admin_manage_notification_texts"] && <NotificationTextsTab />}
         {activeTab === "requests" && hasAnyRequestPermission && (
-          <div className="flex flex-col h-full w-full">
+          <div className="flex flex-col h-full w-full animate-in fade-in duration-300">
             <div className="admin-tab-strip" style={{ marginBottom: "24px" }}>
               {adminPermissions["admin_manage_plan_requests"] && (
                 <button

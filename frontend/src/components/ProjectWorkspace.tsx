@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState, useRef } from "react";
 import { ChevronLeft, Edit, LayoutDashboard, Pin, Plus, Trash2, X } from "lucide-react";
 import { Field } from "./Field";
+import { Modal } from "./Modal";
 
 import { PinActions } from "./PinActions";
 import { Section } from "./Section";
@@ -459,7 +460,7 @@ export function ProjectWorkspace({
     return (
       <div className="project-home">
         {showCreateProject ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateProject(false)}>
+          <Modal onClose={() => setShowCreateProject(false)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createProject}>
               <div className="modal-header">
                 <div>
@@ -482,11 +483,11 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit"><Plus size={16} /> Create project</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         {editingProject ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingProject(null)}>
+          <Modal onClose={() => setEditingProject(null)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveProjectEdit}>
               <div className="modal-header">
                 <div>
@@ -509,7 +510,7 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit">Save changes</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         <Section
@@ -967,7 +968,7 @@ export function ProjectWorkspace({
         }
       >
         {showCreateSheet ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateSheet(false)}>
+          <Modal onClose={() => setShowCreateSheet(false)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createSheet}>
               <div className="modal-header">
                 <h2>Create Sheet</h2>
@@ -1016,11 +1017,11 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit"><Plus size={16} /> Create sheet</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         {editingSheet ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingSheet(null)}>
+          <Modal onClose={() => setEditingSheet(null)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveSheetEdit}>
               <div className="modal-header">
                 <h2>Edit columns</h2>
@@ -1036,7 +1037,7 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit">Save changes</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         <div className="sheet-card-grid">

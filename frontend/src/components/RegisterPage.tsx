@@ -135,9 +135,15 @@ export function RegisterPage() {
           </button>
         </form>
 
-        <div className="auth-switch-row">
-          Already have an account?{" "}
-          <Link to="/login" className="auth-link-btn">Log in</Link>
+        <div className="auth-switch-row col">
+          <div>
+            Already have an account?{" "}
+            <Link to="/login" className="auth-link-btn">Log in</Link>
+          </div>
+          <div>
+            Need an invite code?{" "}
+            <Link to="/login" state={{ requestInvite: true }} className="auth-link-btn">Request one here</Link>
+          </div>
         </div>
       </div>
     </div>

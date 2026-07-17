@@ -41,13 +41,18 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load saved credentials on mount
+  // Load saved credentials on mount. Also honor a `requestInvite` flag passed
+  // via router state (e.g. from the register page's "Need an invite code?"
+  // link) to auto-open the invite-request view.
   useEffect(() => {
     const saved = loadSavedCredentials();
     if (saved) {
       setEmail(saved.email);
       setPassword(saved.password);
       setSaveCredentials(true);
+    }
+    if (location.state?.requestInvite) {
+      setShowInviteRequest(true);
     }
   }, []);
 

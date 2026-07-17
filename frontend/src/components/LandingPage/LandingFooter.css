@@ -1,0 +1,24 @@
+/* Landing page footer. */
+
+.lp-footer {
+  background: rgba(35, 58, 55, 0.03);
+  border-top: 1px solid rgba(35, 58, 55, 0.05);
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ui-muted);
+}
+
+.lp-footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.lp-footer-logo {
+  font-weight: 800;
+  color: var(--ui-ink-soft);
+  margin-bottom: 12px;
+  display: inline-block;
+  font-size: 18px;
+}
+
+.lp-footer-copy { font-size: 12px; }

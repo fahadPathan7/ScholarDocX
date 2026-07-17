@@ -1,0 +1,109 @@
+/* ScholarDocX Landing Page — shared reveal animations & section primitives.
+   Imported once by index.tsx so all sections share the same motion language.
+   Relies on design tokens defined in visual-refresh.css (--ui-*). */
+
+/* ---------- Page shell ----------
+   The global stylesheet locks `body` to `height: 100vh; overflow: hidden`
+   (workspace-shell behavior). That clips any taller top-level route, so the
+   landing page owns its own viewport-sized scroll surface here — mirroring
+   what `.app-shell` does for the authenticated workspace. */
+.lp-container {
+  height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(52, 127, 120, 0.06) 0%, transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(71, 126, 165, 0.055) 0%, transparent 42%),
+    linear-gradient(180deg, #fbfdf9 0%, #eff6f3 50%, #f6f8f1 100%);
+  color: var(--ui-ink);
+  font-family: var(--font-body);
+  scroll-behavior: smooth;
+}
+
+/* Override global workspace `main` styles which restrict height to 100vh and hide overflow */
+.lp-container main {
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+  display: block;
+  background: none;
+}
+
+/* ---------- Section titles ---------- */
+.lp-section-title {
+  font-size: clamp(26px, 3.4vw, 34px);
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+  color: var(--ui-ink);
+}
+
+.lp-section-subtitle {
+  font-size: 15px;
+  color: var(--ui-muted);
+  text-align: center;
+  margin-bottom: 50px;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* ---------- Scroll-reveal system ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- Soft floating glow orbs (decorative) ---------- */
+.lp-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes lp-float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(0.5deg); }
+}
+
+@keyframes lp-pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes lp-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Reduced motion: disable all decorative animation ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .lp-container { scroll-behavior: auto; }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .lp-float, .lp-float-slow { animation: none !important; }
+}

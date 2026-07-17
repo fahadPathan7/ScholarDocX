@@ -314,7 +314,23 @@ class AdminService:
 
     def list_users(self) -> list[dict]:
         users = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, is_blocked, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users ORDER BY created_at DESC"
+            """
+            SELECT 
+                u.id, 
+                u.email, 
+                COALESCE(lp.display_name, u.display_name) as display_name, 
+                u.roles, 
+                u.is_active, 
+                u.is_blocked, 
+                u.last_login_at, 
+                u.plan_started_at, 
+                u.plan_ends_at, 
+                u.created_at, 
+                u.token_version 
+            FROM users u
+            LEFT JOIN local_profiles lp ON u.id = lp.user_id
+            ORDER BY u.created_at DESC
+            """
         ).fetchall()
         
         results = []
@@ -411,7 +427,24 @@ class AdminService:
 
     def get_user_details(self, user_id: str) -> dict:
         user = self.connection.execute(
-            "SELECT id, email, display_name, roles, is_active, is_blocked, last_login_at, plan_started_at, plan_ends_at, created_at, token_version FROM users WHERE id = ?", (user_id,)
+            """
+            SELECT 
+                u.id, 
+                u.email, 
+                COALESCE(lp.display_name, u.display_name) as display_name, 
+                u.roles, 
+                u.is_active, 
+                u.is_blocked, 
+                u.last_login_at, 
+                u.plan_started_at, 
+                u.plan_ends_at, 
+                u.created_at, 
+                u.token_version 
+            FROM users u
+            LEFT JOIN local_profiles lp ON u.id = lp.user_id
+            WHERE u.id = ?
+            """, 
+            (user_id,)
         ).fetchone()
         
         if not user:
@@ -919,6 +952,12 @@ class AdminService:
             (new_status, admin_id, request_id)
         )
         self.connection.commit()
+
+        # Clear the IP rate limit for this user's IP so they can request again if needed
+        from app.auth.rate_limit import rate_limiter
+        if req.get("ip_address"):
+            rate_limiter.clear_attempts("auth_forgot_password", req["ip_address"])
+
         self.log_audit_action(
             admin_id,
             f"resolve_password_reset_{new_status.lower()}",

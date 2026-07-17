@@ -6,7 +6,7 @@ import {
   notificationPreferenceTabs,
   normalizeNotificationSettings
 } from "../config/notificationLabels";
-import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown } from "lucide-react";
+import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown, Star, Leaf } from "lucide-react";
 import { AiTokenWidget } from "./AiTokenWidget";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
@@ -104,7 +104,27 @@ export function ProfileView({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+
+  const handleForgotPassword = async () => {
+    if (!user?.email) return;
+    setForgotLoading(true);
+    setPasswordError("");
+    try {
+      await api.post<any>("/auth/forgot-password", { email: user.email });
+      setShowPasswordModal(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      if (onToast) onToast("Reset request sent to admin!");
+    } catch (e: any) {
+      setPasswordError(e.message || "Failed to send password reset link");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const planStatus = getUserPlanStatus(user?.plan_ends_at);
   const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
@@ -344,8 +364,11 @@ export function ProfileView({
             <span>{saved.email || user?.email || "No email set"}</span>
             {user?.roles && user.roles.length > 0 && (
               <div className="profile-role-tags profile-role-tags-split">
-                <div className={`profile-plan-badge tier-${tierKey}${isTopTier ? " premium" : ""}`}>
-                  {isTopTier ? <Crown size={13} /> : <Sparkles size={13} />}
+                <div className={`profile-plan-badge tier-${tierKey}`}>
+                  {tierKey === "max_user" ? <Crown size={13} /> : 
+                   tierKey === "pro_user" ? <Zap size={13} /> : 
+                   tierKey === "general_user" ? <Star size={13} /> : 
+                   <Leaf size={13} />}
                   <span>{tierLabel}</span>
                 </div>
               </div>
@@ -535,7 +558,17 @@ export function ProfileView({
                 )}
                 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5 uppercase tracking-wide">Current Password</label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-medium text-slate-700 uppercase tracking-wide">Current Password</label>
+                    <button 
+                      type="button" 
+                      onClick={handleForgotPassword} 
+                      disabled={forgotLoading}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                    >
+                      {forgotLoading ? "Sending..." : "Forgot password?"}
+                    </button>
+                  </div>
                   <input
                     type="password"
                     placeholder="Enter your current password"

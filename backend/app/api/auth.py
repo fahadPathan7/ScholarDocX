@@ -300,6 +300,27 @@ def get_usage(store: Store = Depends(get_store), current_user: dict = Depends(ge
 
 @router.get("/plans")
 def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    # Auth-gated variant for logged-in users (e.g. PlanComparisonView). The
+    # payload is identical to the public endpoint — both go through the same
+    # assembly helper so there is a single source of truth.
+    return _assemble_public_plans(store)
+
+
+@router.get("/plans/public")
+def get_public_plans(store: Store = Depends(get_store)):
+    # Anonymous-safe variant for the public landing page. No auth dependency.
+    # Returns only marketing-safe data: plan limits + prices + active flags.
+    # No per-user or private configuration is exposed.
+    return _assemble_public_plans(store)
+
+
+def _assemble_public_plans(store: Store) -> dict:
+    """Build the {plans, pricing} payload shared by /plans and /plans/public.
+
+    Joins role_limits (per-tier feature quotas) with app_settings (prices,
+    monthly AI credits, and active flags) into a single marketing-safe shape
+    consumed by PlanComparisonView (authed) and the landing PricingSection.
+    """
     # Returns the limits for all tiers
     limits = store.legacy_connection.execute(
         "SELECT role, feature, limit_count, reset_period FROM role_limits ORDER BY role, feature"
@@ -350,20 +371,13 @@ def get_plans(store: Store = Depends(get_store), current_user: dict = Depends(ge
         "max_user": "plan_is_active_max",
     }
     active_flags = {row["key"]: row["value"] for row in active_settings}
-    
-    # Debug: print what we got
-    print(f"[DEBUG] Active flags from DB: {active_flags}")
-    
-    # Remove inactive plans from the response
+
+    # Remove inactive plans from the response (default to active if not set)
     filtered_plans = {}
     for role, setting_key in active_by_role.items():
-        is_active = active_flags.get(setting_key, "1") == "1"  # Default to active if not set
-        print(f"[DEBUG] {role}: is_active={is_active} (setting_key={setting_key}, value={active_flags.get(setting_key, 'NOT_FOUND')})")
+        is_active = active_flags.get(setting_key, "1") == "1"
         if is_active and role in plans:
             filtered_plans[role] = plans[role]
-    
-    print(f"[DEBUG] Original plans: {list(plans.keys())}")
-    print(f"[DEBUG] Filtered plans: {list(filtered_plans.keys())}")
 
     settings_rows = store.legacy_connection.execute(
         "SELECT key, value FROM app_settings WHERE key ILIKE 'plan_price_%'"
@@ -396,7 +410,7 @@ def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict 
 
 @router.post("/invite-request")
 def request_invite(payload: InviteRequestPayload, request: Request, store: Store = Depends(get_store)):
-    # Rate limiting: 1 per IP per 30 minutes. Check first; only record once the
+    # Rate limiting: 1 per IP per 24 hours. Check first; only record once the
     # request is actually accepted (validation failures below do not consume
     # the budget).
     client_ip = client_ip_from_request(request)

@@ -125,11 +125,11 @@ export function isAdmin(): boolean {
 }
 
 export function isUser(): boolean {
-  return hasRole("general_user") || hasRole("pro_user") || hasRole("max_user");
+  return hasRole("free_user") || hasRole("general_user") || hasRole("pro_user") || hasRole("max_user");
 }
 
 export function hasUserTierRole(roles: string[] | undefined | null): boolean {
-  return (roles || []).some((role) => ["general_user", "pro_user", "max_user"].includes(role));
+  return (roles || []).some((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role));
 }
 
 export function hasAdminRole(roles: string[] | undefined | null): boolean {

@@ -14,9 +14,9 @@ export function ProtectedRoute({ roles }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated || !user) {
-    // Phase 1: Not fully implemented login yet, but we will redirect to /login
-    // For now it will render the login page placeholder or the actual one once Phase 2 is done.
-    return <Navigate to="/login" replace />;
+    // Not authenticated — send anonymous visitors to the public landing page
+    // (which hosts the login/register entry points) instead of straight to /login.
+    return <Navigate to="/" replace />;
   }
 
   if (roles && roles.length > 0) {

@@ -158,6 +158,13 @@ development.
   `request_type` field
 - `/auth/plans/requests` returns the current user's submitted plan requests so
   the plan UI can show request history and statuses
+- `/auth/plans/public` (GET, **anonymous**) returns the admin-configured
+  plans + pricing (limits per tier, monthly/yearly prices, monthly AI credits,
+  active flags) with **no** `get_current_user` dependency. It is the public
+  source of truth the landing page `PricingSection` renders. It shares one
+  assembly helper (`_assemble_public_plans`) with the auth-gated `/auth/plans`
+  so the two endpoints can never drift. Exposes only marketing-safe data
+  (plan limits/prices) — no per-user or private config.
 - `/admin/plan-requests` returns both replacement upgrades and renewal
   requests and should support filtering by request type so admin permission
   checks can differ between upgrade review and extension review tabs

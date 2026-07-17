@@ -1,0 +1,73 @@
+/* Capability stats band — honest product counters (no fabricated user numbers). */
+
+.lp-stats-band {
+  max-width: 1100px;
+  margin: 24px auto 0;
+  padding: 28px 24px;
+}
+
+.lp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  background: rgba(255, 255, 252, 0.6);
+  border: 1px solid rgba(35, 58, 55, 0.07);
+  border-radius: 22px;
+  padding: 32px 24px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.lp-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 10px;
+  position: relative;
+}
+
+/* Subtle divider between items on desktop */
+.lp-stat-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  top: 20%;
+  bottom: 20%;
+  width: 1px;
+  background: rgba(35, 58, 55, 0.08);
+}
+
+.lp-stat-value {
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 850;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--ui-primary) 0%, var(--ui-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.lp-stat-label {
+  font-size: 12.5px;
+  color: var(--ui-ink-soft);
+  line-height: 1.45;
+  max-width: 180px;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .lp-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px 12px;
+    padding: 24px 16px;
+  }
+  .lp-stat-item:nth-child(2)::after { display: none; }
+}
+
+@media (max-width: 380px) {
+  .lp-stats-grid { grid-template-columns: 1fr; }
+  .lp-stat-item:not(:last-child)::after { display: none; }
+}

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LogIn, Mail, Loader2, ArrowRight } from "lucide-react";
+import { LogIn, Mail, ArrowLeft } from "lucide-react";
 import { api } from "../lib/api";
 import { setToken, saveLoginCredentials, loadSavedCredentials, clearSavedCredentials } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
+import { PasswordField } from "./PasswordField";
+import "./LoginPage.css";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,7 +20,7 @@ export function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
-  
+
   // Invite Request State
   const [showInviteRequest, setShowInviteRequest] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -56,7 +58,7 @@ export function LoginPage() {
     setInviteSuccess(false);
 
     try {
-      const response = await api.post<any>("/auth/invite-request", { 
+      const response = await api.post<any>("/auth/invite-request", {
         name: inviteName,
         email: inviteEmail,
         phone: invitePhone,
@@ -136,30 +138,43 @@ export function LoginPage() {
     }
   };
 
+  const heading = showInviteRequest
+    ? "Request Invite"
+    : showForgotPassword
+    ? "Forgot Password"
+    : "Welcome Back";
+  const subheading = showInviteRequest
+    ? "Tell us about yourself to get an invite code"
+    : showForgotPassword
+    ? "Enter your email to request a password reset"
+    : "Log in to your ScholarDocX account";
+
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-zinc-950">
-      <div className="w-full max-w-md rounded-lg border border-zinc-800 bg-zinc-900 p-8 shadow-xl">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-500">
+    <div className="auth-page">
+      <div className="auth-card">
+        {/* Back to home + back navigation row */}
+        <div className="auth-topnav">
+          <Link to="/" className="auth-back-home">
+            <ArrowLeft size={14} />
+            Back to home
+          </Link>
+        </div>
+
+        <div className="auth-header">
+          <div className="auth-logo-mark">
             <LogIn size={24} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-100">
-            {showInviteRequest ? "Request Invite" : showForgotPassword ? "Forgot Password" : "Welcome Back"}
-          </h1>
-          <p className="mt-2 text-sm text-zinc-400 text-center">
-            {showInviteRequest ? "Tell us about yourself to get an invite code" : showForgotPassword ? "Enter your email to request a password reset" : "Log in to your ScholarDocX account"}
-          </p>
+          <h1 className="auth-title">{heading}</h1>
+          <p className="auth-subtitle">{subheading}</p>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-md bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
-            {error}
-          </div>
+          <div className="auth-alert error">{error}</div>
         )}
 
         {inviteSuccess ? (
-          <div className="text-center">
-            <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+          <div className="auth-feedback">
+            <div className="auth-alert success">
               Your request has been submitted successfully. We will review it shortly.
             </div>
             <button
@@ -167,50 +182,40 @@ export function LoginPage() {
                 setShowInviteRequest(false);
                 setInviteSuccess(false);
               }}
-              className="font-medium text-emerald-500 hover:text-emerald-400"
+              className="auth-link-btn"
             >
               Back to login
             </button>
           </div>
         ) : showInviteRequest ? (
-          <form onSubmit={handleRequestInvite} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteName">Full Name</label>
-              <input id="inviteName" type="text" required className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={inviteName} onChange={(e) => setInviteName(e.target.value)} />
+          <form onSubmit={handleRequestInvite} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="inviteName">Full Name</label>
+              <input id="inviteName" type="text" required className="auth-input" value={inviteName} onChange={(e) => setInviteName(e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteEmail">Email Address</label>
-              <input id="inviteEmail" type="email" required className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="inviteEmail">Email Address</label>
+              <input id="inviteEmail" type="email" required className="auth-input" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="invitePhone">Phone Number (Optional)</label>
-              <input id="invitePhone" type="tel" className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} />
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="invitePhone">Phone Number (Optional)</label>
+              <input id="invitePhone" type="tel" className="auth-input" value={invitePhone} onChange={(e) => setInvitePhone(e.target.value)} />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="inviteDesc">Why do you want to join? (Optional)</label>
-              <textarea id="inviteDesc" rows={3} maxLength={500} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="inviteDesc">Why do you want to join? (Optional)</label>
+              <textarea id="inviteDesc" rows={3} maxLength={500} className="auth-input auth-textarea" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
             </div>
-            <button type="submit" disabled={inviteLoading} className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6">
-              {inviteLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <span>Submit Request</span>
-                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-                </>
-              )}
+            <button type="submit" disabled={inviteLoading} className="auth-submit">
+              {inviteLoading ? "Submitting..." : "Submit Request"}
             </button>
-            <div className="mt-4 text-center text-sm">
-              <button type="button" onClick={() => setShowInviteRequest(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
+            <div className="auth-switch-row">
+              <button type="button" onClick={() => setShowInviteRequest(false)} className="auth-link-btn muted">Back to login</button>
             </div>
           </form>
         ) : showForgotPassword ? (
           forgotSuccess ? (
-            <div className="text-center">
-              <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+            <div className="auth-feedback">
+              <div className="auth-alert success">
                 If an account exists for this email, your request has been submitted to the administrator. They will contact you shortly.
               </div>
               <button
@@ -219,95 +224,76 @@ export function LoginPage() {
                   setForgotSuccess(false);
                   setForgotEmail("");
                 }}
-                className="font-medium text-emerald-500 hover:text-emerald-400"
+                className="auth-link-btn"
               >
                 Back to login
               </button>
             </div>
           ) : (
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="forgotEmail">Email Address</label>
+            <form onSubmit={handleForgotPassword} className="auth-form">
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="forgotEmail">Email Address</label>
                 <input
                   id="forgotEmail"
                   type="email"
                   required
                   autoComplete="email"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="auth-input"
                   placeholder="you@example.com"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                 />
               </div>
-              <button type="submit" disabled={forgotLoading} className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6">
-                {forgotLoading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Submitting...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Submit Request</span>
-                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-                  </>
-                )}
+              <button type="submit" disabled={forgotLoading} className="auth-submit">
+                {forgotLoading ? "Submitting..." : "Submit Request"}
               </button>
-              <div className="mt-4 text-center text-sm">
-                <button type="button" onClick={() => setShowForgotPassword(false)} className="font-medium text-zinc-400 hover:text-zinc-300">Back to login</button>
+              <div className="auth-switch-row">
+                <button type="button" onClick={() => setShowForgotPassword(false)} className="auth-link-btn muted">Back to login</button>
               </div>
             </form>
           )
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="email">
-                  Email Address
-                </label>
+            <form onSubmit={handleSubmit} className="auth-form" autoComplete="on">
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="email">Email Address</label>
                 <input
                   id="email"
                   name="email"
                   type="email"
                   required
                   autoComplete="username"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="auth-input"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-300" htmlFor="password">
-                  Password
-                </label>
-                <input
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="password">Password</label>
+                <PasswordField
                   id="password"
                   name="password"
-                  type="password"
                   required
                   autoComplete="current-password"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
+              <div className="auth-form-row">
+                <div className="auth-check-wrap">
                   <input
                     id="saveCredentials"
                     name="saveCredentials"
                     type="checkbox"
                     checked={saveCredentials}
                     onChange={(e) => setSaveCredentials(e.target.checked)}
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                    className="auth-checkbox"
                   />
-                  <label
-                    htmlFor="saveCredentials"
-                    className="ml-2 block text-sm text-zinc-300 cursor-pointer select-none"
-                  >
+                  <label htmlFor="saveCredentials" className="auth-check-label">
                     Save credentials
                   </label>
                 </div>
@@ -318,43 +304,25 @@ export function LoginPage() {
                     setError("");
                     setForgotSuccess(false);
                   }}
-                  className="text-sm font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors"
+                  className="auth-link-btn"
                 >
                   Forgot password?
                 </button>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="group w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-lg shadow-emerald-900/30 text-sm font-semibold text-white bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 focus:ring-offset-zinc-900 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-6"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Logging in...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Log In</span>
-                    <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-                  </>
-                )}
+              <button type="submit" disabled={loading} className="auth-submit">
+                {loading ? "Logging in..." : "Log In"}
               </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-zinc-400 space-y-2 flex flex-col">
+            <div className="auth-switch-row col">
               <div>
                 Don't have an account?{" "}
-                <Link to="/register" className="font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors">
-                  Sign up with invite code
-                </Link>
+                <Link to="/register" className="auth-link-btn">Sign up with invite code</Link>
               </div>
               <div>
                 Need an invite code?{" "}
-                <button type="button" onClick={() => setShowInviteRequest(true)} className="font-medium text-emerald-500 hover:text-emerald-400 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-colors">
-                  Request one here
-                </button>
+                <button type="button" onClick={() => setShowInviteRequest(true)} className="auth-link-btn">Request one here</button>
               </div>
             </div>
           </>
@@ -362,19 +330,16 @@ export function LoginPage() {
       </div>
 
       {isSuspendedModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-lg border border-red-500/20 bg-zinc-900 p-6 shadow-2xl">
-            <h3 className="mb-2 text-xl font-semibold text-red-500">Account Suspended</h3>
+        <div className="auth-modal-backdrop">
+          <div className="auth-modal">
+            <h3 className="auth-modal-title danger">Account Suspended</h3>
             {appealSuccess ? (
               <>
-                <div className="mb-6 rounded-md bg-emerald-500/10 p-4 text-sm text-emerald-500 border border-emerald-500/20">
+                <div className="auth-alert success">
                   Your message has been sent to the administrator. They will review your appeal shortly.
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setIsSuspendedModalOpen(false)}
-                    className="rounded bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
-                  >
+                <div className="auth-modal-actions">
+                  <button onClick={() => setIsSuspendedModalOpen(false)} className="auth-ghost-btn">
                     Close
                   </button>
                 </div>
@@ -382,9 +347,7 @@ export function LoginPage() {
             ) : showAppealForm ? (
               <form onSubmit={handleAppealSubmit}>
                 {appealError && (
-                  <div className="mb-4 rounded-md bg-red-500/10 p-3 text-sm text-red-500 border border-red-500/20">
-                    {appealError}
-                  </div>
+                  <div className="auth-alert error">{appealError}</div>
                 )}
                 <textarea
                   value={appealMessage}
@@ -392,42 +355,28 @@ export function LoginPage() {
                   onChange={(e) => setAppealMessage(e.target.value)}
                   placeholder="Explain why you think this suspension is a mistake..."
                   required
-                  className="w-full h-32 mb-4 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                  className="auth-input auth-textarea tall"
                 />
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAppealForm(false)}
-                    className="rounded px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors"
-                  >
+                <div className="auth-modal-actions">
+                  <button type="button" onClick={() => setShowAppealForm(false)} className="auth-ghost-btn">
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    disabled={appealLoading}
-                    className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 focus:outline-none disabled:opacity-50 transition-colors"
-                  >
+                  <button type="submit" disabled={appealLoading} className="auth-submit slim">
                     {appealLoading ? "Sending..." : "Send Message"}
                   </button>
                 </div>
               </form>
             ) : (
               <>
-                <p className="mb-6 text-sm text-zinc-300 leading-relaxed">
+                <p className="auth-modal-body">
                   Your account has been suspended from ScholarDocX. If you think this was a mistake, please contact an administrator.
                 </p>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowAppealForm(true)}
-                    className="inline-flex items-center gap-2 rounded bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
-                  >
+                <div className="auth-modal-actions">
+                  <button onClick={() => setShowAppealForm(true)} className="auth-ghost-btn">
                     <Mail size={16} />
                     Contact Admin
                   </button>
-                  <button
-                    onClick={() => setIsSuspendedModalOpen(false)}
-                    className="rounded bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors"
-                  >
+                  <button onClick={() => setIsSuspendedModalOpen(false)} className="auth-danger-btn">
                     Close
                   </button>
                 </div>

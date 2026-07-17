@@ -3,8 +3,10 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
+  Crown,
   FileText,
   FolderOpen,
+  Leaf,
   PencilLine,
   GraduationCap,
   Info,
@@ -12,8 +14,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
+  Sparkles,
+  Star,
   StickyNote,
   User,
+  Zap,
   Upload,
   Edit,
   Trash2,
@@ -32,6 +37,7 @@ import {
   Plus
 } from "lucide-react";
 import DeepSpaceBanner from "./components/DeepSpaceBanner";
+import { ScholarDocXMark } from "./components/ScholarDocXMark";
 
 function getCategoryIcon(slug: string) {
   const c = slug.toLowerCase();
@@ -111,52 +117,7 @@ const emptyDashboard: Dashboard = {
   calendar_items: []
 };
 
-function ScholarDocXMark() {
-  return (
-    <svg
-      width="52"
-      height="52"
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="scholarMark"
-    >
-      <path
-        d="M11 50L18 31L45 7L55 17L30 43L11 50Z"
-        fill="#F59E0B"
-        stroke="#F4FAF8"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M11 50L18 31L30 43L11 50Z"
-        fill="#FF5FA2"
-        stroke="#F4FAF8"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M45 7L55 17L59 5L45 7Z"
-        fill="#F59E0B"
-        stroke="#F4FAF8"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M24 29L36 17"
-        stroke="#0B2A27"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M17 52C27 46 41 43 55 44"
-        stroke="#6BC7BD"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+
 
 export function App() {
   const { showAlert, showConfirm } = useDialog();
@@ -402,6 +363,16 @@ export function App() {
     ? (usageData.limits?.can_use_advisor_atlas ?? 0) === 1
     : isProOrMaxRole;
 
+  const planTier = (Array.isArray(atlasRoles) ? atlasRoles.find(r => ["max_user", "pro_user", "general_user", "free_user"].includes(r)) : "free_user") || "free_user";
+  const PLAN_LABELS: Record<string, string> = {
+    free_user: "Free",
+    general_user: "General",
+    pro_user: "Pro",
+    max_user: "Max",
+  };
+  const tierLabel = PLAN_LABELS[planTier] || "Member";
+  const isTopTier = planTier === "max_user" || planTier === "pro_user";
+
   const canUseScholarshipHunt = usageData
     ? (usageData.limits?.can_use_scholarship_hunt ?? 0) === 1
     : isProOrMaxRole;
@@ -524,7 +495,18 @@ export function App() {
           <DeepSpaceBanner />
           <header className="topbar" style={{ position: 'relative', zIndex: 1001 }}>
             <div className="banner-content">
-              <p className="eyebrow" style={{ color: '#94a3b8' }}>Your Academic Journey Companion</p>
+              <p className="eyebrow" style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Your Academic Journey Companion
+                {currentHasUserPlan && (
+                  <span className={`profile-plan-badge tier-${planTier}`} style={{ transform: 'scale(0.85)', transformOrigin: 'left center', padding: '2px 10px', marginTop: 0 }}>
+                    {planTier === "max_user" ? <Crown size={12} /> : 
+                     planTier === "pro_user" ? <Zap size={12} /> : 
+                     planTier === "general_user" ? <Star size={12} /> : 
+                     <Leaf size={12} />}
+                    <span>{tierLabel}</span>
+                  </span>
+                )}
+              </p>
               <h1 style={{ color: '#f8fafc' }}>Built for the scholars who refuse to settle.</h1>
             </div>
             <div className="top-actions">

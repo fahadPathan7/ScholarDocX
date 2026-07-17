@@ -92,7 +92,7 @@ def get_current_user(
                 
             if end_dt.date() < datetime.utcnow().date():
                 user_roles = user_dict["roles"]
-                user_roles = [r for r in user_roles if r not in ["max_user", "pro_user", "general_user"]]
+                user_roles = [r for r in user_roles if r not in ["max_user", "pro_user", "general_user", "free_user"]]
                 if "free_user" not in user_roles:
                     user_roles.append("free_user")
                 user_dict["roles"] = user_roles

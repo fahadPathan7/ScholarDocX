@@ -1,0 +1,196 @@
+/* Pricing section — 4 tiers, monthly/yearly toggle, popular + premium-dark. */
+
+.lp-pricing-section {
+  background: rgba(52, 127, 120, 0.02);
+  border-top: 1px solid rgba(35, 58, 55, 0.05);
+  border-bottom: 1px solid rgba(35, 58, 55, 0.05);
+  padding: 88px 24px;
+}
+
+.lp-pricing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.lp-pricing-toggle-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.lp-pricing-toggle-track {
+  background: rgba(35, 58, 55, 0.06);
+  padding: 4px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+}
+
+.lp-pricing-toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-ink-soft);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lp-pricing-toggle-btn.active {
+  background: white;
+  color: var(--ui-ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.lp-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 22px;
+  align-items: stretch;
+}
+
+.lp-pricing-card {
+  background: var(--ui-paper);
+  border: 1px solid rgba(35, 58, 55, 0.08);
+  border-radius: 24px;
+  padding: 34px 26px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+  overflow: hidden;
+  /* Default accent; overridden per-tier via inline --tier-accent */
+  --tier-accent: #6b7c8a;
+}
+
+/* Tier accent strip along the top edge of each card */
+.lp-pricing-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--tier-accent) 0%, color-mix(in srgb, var(--tier-accent) 55%, white) 100%);
+  opacity: 0.85;
+}
+
+.lp-pricing-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(52, 127, 120, 0.25);
+  box-shadow: var(--ui-shadow);
+}
+
+.lp-pricing-card.popular {
+  border-color: var(--tier-accent);
+  background: rgba(255, 255, 252, 0.98);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.lp-pricing-card.popular .lp-pricing-card-glow {
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--tier-accent) 18%, transparent) 0%, transparent 60%);
+}
+
+.lp-pricing-card.premium-dark {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.lp-pricing-card.premium-dark h3,
+.lp-pricing-card.premium-dark .lp-pricing-price {
+  color: white;
+}
+
+.lp-pricing-card.premium-dark .lp-pricing-desc,
+.lp-pricing-card.premium-dark .lp-pricing-price-period,
+.lp-pricing-card.premium-dark .lp-pricing-feature-item {
+  color: #94a3b8;
+}
+
+.lp-pricing-card-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(52, 127, 120, 0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.lp-pricing-badge-popular {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--tier-accent);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Premium-dark badge keeps its indigo gradient (set inline in markup) */
+
+.lp-pricing-card h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.lp-pricing-desc {
+  font-size: 13px;
+  color: var(--ui-muted);
+  margin-bottom: 24px;
+  line-height: 1.45;
+  min-height: 36px;
+}
+
+.lp-pricing-price-row {
+  margin-bottom: 26px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.lp-pricing-price {
+  font-size: 38px;
+  font-weight: 900;
+  color: var(--ui-ink);
+  letter-spacing: -0.02em;
+}
+
+.lp-pricing-price-period {
+  font-size: 14px;
+  color: var(--ui-muted);
+  font-weight: 500;
+}
+
+.lp-pricing-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.lp-pricing-feature-item {
+  font-size: 13px;
+  color: var(--ui-ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.lp-pricing-feature-icon {
+  color: var(--tier-accent);
+  flex-shrink: 0;
+}
+
+.lp-pricing-card.premium-dark .lp-pricing-feature-icon {
+  color: #818cf8;
+}

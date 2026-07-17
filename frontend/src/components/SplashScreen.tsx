@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { api, RecordMap } from "../lib/api";
-import { avatarImageSrc, getAvatarById } from "../data/avatars";
+import { ScholarDocXMark } from "./ScholarDocXMark";
 
 const TIPS_AND_QUOTES = [
-  "ScholarDocX stores files securely in Supabase Storage with local control.",
   "Use Advisor Atlas to search, filter, and organize prospective graduate advisors.",
   "Categorize application files in the Documents tab for structured storage.",
   "Track deadline status and priorities dynamically using the Tracker grid view.",
@@ -43,56 +42,42 @@ export function SplashScreen({ message }: { message: string }) {
     return () => clearInterval(interval);
   }, []);
 
-  const avatar = profile?.avatar ? getAvatarById(profile.avatar) : null;
-  const initials = profile?.display_name
-    ? profile.display_name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
-    : "SD";
 
   return (
     <div className="splash-screen">
-      <div className="splash-content">
-        <div className="splash-brand">
-          <div className="splash-icon">
-            {avatar ? (
-              <img
-                className="splash-icon-avatar"
-                src={avatarImageSrc(avatar)}
-                alt={avatar.label}
-              />
-            ) : (
-              <div className="splash-icon-initials">{initials}</div>
-            )}
-            <Sparkles size={20} className="splash-sparkle" />
+      <div className="splash-background">
+        <div className="splash-orb orb-1" />
+        <div className="splash-orb orb-2" />
+        <div className="splash-orb orb-3" />
+      </div>
+
+      <div className="splash-container-horizontal">
+        <div className="splash-col-left">
+          <div className="splash-brand-horizontal">
+            <div className="splash-icon">
+              <ScholarDocXMark size={90} className="splash-logo-mark" />
+            </div>
+            <div className="splash-brand-text-left">
+              <h1>ScholarDocX</h1>
+              <p className="splash-tagline">Application planning workspace</p>
+            </div>
           </div>
-          <h1>ScholarDocX</h1>
-          <p className="splash-tagline">Application planning workspace</p>
         </div>
 
-        {profile?.display_name && showProfile && (
-          <div className="splash-profile">
-            <p className="splash-welcome">
-              Welcome back, <strong>{profile.display_name}</strong>
+        <div className="splash-col-right">
+          <div className="splash-loader-container">
+            <div className="splash-loader">
+              <div className="splash-loader-bar" />
+            </div>
+            <p className="splash-message">{message}</p>
+          </div>
+
+          <div className="splash-tips-container">
+            <span className="splash-tips-label">Tip</span>
+            <p className={`splash-tip-text ${fadeClass}`}>
+              {TIPS_AND_QUOTES[tipIndex]}
             </p>
           </div>
-        )}
-
-        <div className="splash-loader">
-          <div className="splash-loader-bar" />
-        </div>
-        <p className="splash-message">{message}</p>
-
-        <div className="splash-render-warning">
-          <span className="splash-warning-pulsar" />
-          <p>
-            <strong>Waking up server...</strong> ScholarDocX is hosted on Render's free tier, which sleeps after inactivity. Initial wakeup takes <strong>1–2 minutes</strong>. Please stay with us!
-          </p>
-        </div>
-
-        <div className="splash-tips-container">
-          <span className="splash-tips-label">Did you know?</span>
-          <p className={`splash-tip-text ${fadeClass}`}>
-            {TIPS_AND_QUOTES[tipIndex]}
-          </p>
         </div>
       </div>
     </div>

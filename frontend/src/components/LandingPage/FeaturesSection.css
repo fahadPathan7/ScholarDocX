@@ -1,0 +1,65 @@
+/* Features grid — reveal-animated, glassmorphic cards. */
+
+.lp-features-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 72px 24px;
+}
+
+.lp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 22px;
+}
+
+.lp-feature-card {
+  background: rgba(255, 255, 252, 0.6);
+  border: 1px solid rgba(35, 58, 55, 0.08);
+  border-radius: 20px;
+  padding: 30px;
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.lp-feature-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 252, 0.92);
+  border-color: rgba(52, 127, 120, 0.22);
+  box-shadow: var(--ui-shadow-soft);
+}
+
+.lp-feature-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--ui-mint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-primary);
+  margin-bottom: 18px;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.lp-feature-card:hover .lp-feature-icon-wrapper {
+  transform: scale(1.06);
+  background: rgba(52, 127, 120, 0.14);
+}
+
+.lp-feature-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--ui-ink);
+}
+
+.lp-feature-card p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ui-ink-soft);
+}

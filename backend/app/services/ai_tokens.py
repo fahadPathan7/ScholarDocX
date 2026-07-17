@@ -54,13 +54,13 @@ def _has_role(user: dict, role: str) -> bool:
 def allowance_role(user: dict) -> Optional[str]:
     """Resolve the role used to look up the monthly AI-token allowance.
 
-    Priority: max_user → pro_user → general_user → general_admin.
+    Priority: max_user → pro_user → general_user → free_user → general_admin.
     
     Admin roles (super_admin, general_admin) do NOT bypass or elevate token
     limits. Admins must have explicit user roles to access AI features.
     Returns None if the user has no qualifying role.
     """
-    for role in ("max_user", "pro_user", "general_user"):
+    for role in ("max_user", "pro_user", "general_user", "free_user"):
         if _has_role(user, role):
             return role
     if _has_role(user, "general_admin"):
@@ -188,8 +188,8 @@ def is_unlimited(user: dict) -> bool:
     """Check if user has unlimited AI tokens.
     
     Admin roles (super_admin, general_admin) do NOT grant unlimited tokens.
-    Admins must have explicit user roles (max_user, pro_user, general_user)
-    to use AI features, and their token limits follow their user role tier.
+    Admins must have explicit user roles (max_user, pro_user, general_user, free_user)
+    to receive token allowances. Super-admin does not automatically grant max tokens. limits follow their user role tier.
     
     Currently, no role grants unlimited tokens. This function is kept for
     future extensibility (e.g., a theoretical "unlimited_ai" role).

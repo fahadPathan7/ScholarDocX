@@ -1,0 +1,119 @@
+/* How it works — numbered 3-step block with connectors. */
+
+.lp-how-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.lp-how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  position: relative;
+}
+
+.lp-how-timeline-line {
+  position: absolute;
+  top: 40px; /* Center of the 80px node */
+  left: 16.6%;
+  width: 66.6%;
+  height: 3px;
+  background: rgba(52, 127, 120, 0.2);
+  z-index: 1;
+}
+
+.lp-how-step {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.lp-how-step:hover {
+  transform: translateY(-4px);
+}
+
+.lp-how-node {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid rgba(52, 127, 120, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ui-primary);
+  margin-bottom: 24px;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.lp-how-step:hover .lp-how-node {
+  border-color: var(--ui-primary);
+  box-shadow: 0 12px 32px rgba(52, 127, 120, 0.15);
+}
+
+.lp-how-number {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ui-primary);
+  color: white;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #f8fbfb;
+  box-shadow: 0 4px 10px rgba(52, 127, 120, 0.2);
+}
+
+.lp-how-text h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ui-ink);
+  margin-bottom: 12px;
+}
+
+.lp-how-text p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ui-ink-soft);
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+@media (max-width: 860px) {
+  .lp-how-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+  .lp-how-timeline-line {
+    top: 0;
+    left: 40px; /* Center of the 80px node */
+    width: 3px;
+    height: 100%;
+  }
+  .lp-how-step {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+  }
+  .lp-how-node {
+    margin-bottom: 0;
+    margin-right: 24px;
+    flex-shrink: 0;
+  }
+  .lp-how-text p {
+    max-width: none;
+    margin: 0;
+  }
+}

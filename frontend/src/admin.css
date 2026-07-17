@@ -476,7 +476,7 @@
   display: inline-block;
   flex: 1;
   height: 0;
-  border-top: 2px dashed rgba(71, 85, 105, 0.25);
+  border-top: 2px solid rgba(71, 85, 105, 0.08);
 }
 
 .admin-dashboard-stat-group__label::after {
@@ -484,7 +484,7 @@
   display: inline-block;
   flex: 1;
   height: 0;
-  border-top: 2px dashed rgba(71, 85, 105, 0.25);
+  border-top: 2px solid rgba(71, 85, 105, 0.08);
 }
 
 .admin-dashboard-stat-group__badge {

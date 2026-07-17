@@ -23,7 +23,7 @@ Before writing or changing product code:
 ### STRICT ENFORCEMENTS
 - **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
 - **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (for example `technical/frontend-visual-system.md`, `technical/api-boundaries.md`, `technical/project-structure.md`, or `technical/security-privacy.md`) with any new architectural or design decisions. Do not end the session without updating the context.
-
+- **NO INFRASTRUCTURE EXPOSURE TO USERS**: Never display internal backend technology or infrastructure service names (e.g., Supabase, Render, PostgreSQL) to users in the frontend UI or user-facing copy. Always use domain-appropriate abstractions (e.g., "cloud storage" instead of "Supabase storage buckets").
 ## Repo-Carried Agent Skills
 
 ScholarDocX keeps project-specific `SKILL.md` files natively integrated in `.agents/skills`, `.claude/skills`, and `.codex/skills`. These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.

@@ -97,6 +97,31 @@ interactive, and polished without becoming decorative marketing UI.
 - Avoid external font/CDN dependencies to preserve secure personal workspace expectations.
 - Prefer additive override styles in focused CSS files rather than expanding
   oversized global CSS.
+- The public landing page (`frontend/src/components/LandingPage/`) is split into
+  a colocated component directory (one file per section + colocated CSS + an
+  `index.tsx` barrel) rather than a single component, to respect the file-size
+  rule as the page grew. `main.tsx` imports it as `./components/LandingPage` and
+  resolves to the barrel with no router change.
+- Landing-page motion is dependency-free: a `useReveal()` hook wraps
+  `IntersectionObserver` and toggles a shared `.reveal` → `.in-view` CSS
+  transition (staggered via a `--reveal-delay` custom property). It honors
+  `prefers-reduced-motion` by revealing content immediately. The same hook
+  powers a count-up `StatsBand` (capability numbers only, never fabricated user
+  counts). No framer-motion or animation library is added.
+- The hero uses a pure CSS/SVG mock of the workspace (`ProductPreview`) — no
+  external screenshots or CDN assets — built from the existing `--ui-*` tokens.
+- The landing FAQ is an accessible accordion (single-open, `aria-expanded`,
+  height animated via a `grid-template-rows: 0fr → 1fr` transition rather than
+  JS-measured heights).
+- The public auth pages (`LoginPage.tsx`, `RegisterPage.tsx`) use a shared set of
+  `auth-*` visual primitives in one `LoginPage.css` (imported by both pages),
+  built from the `--ui-*` tokens — light canvas gradient, white paper card, mint
+  logo mark, muted-teal primary button/links, teal focus rings. This replaces a
+  prior dark `bg-zinc-*` / `bg-emerald-*` Tailwind palette that clashed with the
+  system. Every auth view (login, register, forgot password, request invite,
+  success states) renders a "Back to home" `Link` to `/` as a pill at the
+  top-left of the card, placed above the conditional view block so it is always
+  visible. Auth logic, API calls, and routing are unchanged by the restyle.
 
 ## Implementation Notes
 

@@ -320,7 +320,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const handleSaveRoles = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const hasUserRole = editingUser.roles.some((r: string) => ["general_user", "pro_user", "max_user"].includes(r));
+      const hasUserRole = editingUser.roles.some((r: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(r));
       const payload: any = { roles: editingUser.roles };
 
       if (hasUserRole && editingMode === "user") {
@@ -365,7 +365,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const hasUserRole = createRoles.some((role) => ["general_user", "pro_user", "max_user"].includes(role));
+      const hasUserRole = createRoles.some((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role));
       const payload: any = {
         email: createEmail,
         password: createPassword,
@@ -989,7 +989,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                         </label>
                       ))}
                     </div>
-                    {createRoles.some((role) => ["general_user", "pro_user", "max_user"].includes(role)) && (
+                    {createRoles.some((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && (
                       <div className="pt-3 border-t border-indigo-200">
                         <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                         <div className="flex gap-2">

@@ -87,9 +87,9 @@ RATE_LIMIT_RULES: list[dict[str, Any]] = [
         "method": "POST",
         "path": "/auth/invite-request",
         "max_requests": 1,
-        "window_seconds": 1800,
+        "window_seconds": 86400,
         "scope": "ip",
-        "message": "You can only request one invite code every 30 minutes. Please try again later.",
+        "message": "You can only request one invite code every 24 hours. Please try again later.",
     },
     {
         # forgot-password never raises 429 (returns a generic 200 to avoid
@@ -373,6 +373,11 @@ class RateLimiter:
                 }
             )
         return result
+
+    def clear_attempts(self, key: str, identity: str) -> None:
+        """Clear all attempts for a specific key and identity."""
+        with self._lock:
+            self._buckets.pop((key, identity), None)
 
     # ----------------------------------------------------------- test convenience
     def reset(self) -> None:

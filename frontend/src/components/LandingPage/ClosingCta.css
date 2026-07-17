@@ -1,0 +1,77 @@
+/* Closing conversion banner — full-width gradient with soft glow. */
+
+.lp-closing-cta-section {
+  max-width: 1200px;
+  margin: 24px auto 80px;
+  padding: 0 24px;
+}
+
+.lp-closing-cta {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 64px 32px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(71, 126, 165, 0.35) 0%, transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(52, 127, 120, 0.4) 0%, transparent 55%),
+    linear-gradient(135deg, #0f2b27 0%, #143a35 100%);
+  color: white;
+  box-shadow: 0 24px 60px rgba(15, 43, 39, 0.25);
+}
+
+.lp-closing-glow {
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(125, 194, 144, 0.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.lp-closing-cta h2 {
+  position: relative;
+  font-size: clamp(26px, 3.6vw, 36px);
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  margin-bottom: 14px;
+}
+
+.lp-closing-cta p {
+  position: relative;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 520px;
+  margin: 0 auto 30px;
+}
+
+.lp-closing-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: #0f2b27;
+  padding: 14px 30px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lp-closing-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
+.lp-closing-btn svg { transition: transform 0.2s ease; }
+.lp-closing-btn:hover svg { transform: translateX(3px); }
+
+@media (max-width: 600px) {
+  .lp-closing-cta { padding: 48px 22px; border-radius: 22px; }
+}

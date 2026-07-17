@@ -265,7 +265,7 @@ export const SHEET_TEMPLATES: SheetTemplate[] = [
   {
     id: "prof_outreach",
     name: "Professor Outreach",
-    description: "Track emails and meetings with prospective advisors.",
+    description: "Track professor contacts with columns for Name, University, Research Area, Status, Website, Last Contact, and Notes.",
     columns: [
       { name: "Professor Name", type: "text", width: 150 },
       { name: "University", type: "text", width: 150 },
@@ -279,7 +279,7 @@ export const SHEET_TEMPLATES: SheetTemplate[] = [
   {
     id: "univ_shortlist",
     name: "University Shortlist",
-    description: "Compare universities, programs, and deadlines.",
+    description: "Compare universities and programs with columns for University, Program, Deadline, Application Fee, GRE Required, Status, and Portal Link.",
     columns: [
       { name: "University", type: "text", width: 150 },
       { name: "Program", type: "text", width: 150 },
@@ -293,7 +293,7 @@ export const SHEET_TEMPLATES: SheetTemplate[] = [
   {
     id: "scholarship_tracker",
     name: "Scholarship Tracker",
-    description: "Manage funding opportunities and applications.",
+    description: "Monitor funding opportunities with columns for Scholarship Name, Sponsor, Amount, Coverage, Deadline, Status, Eligible Countries, Requirements, and URL.",
     columns: [
       { name: "Scholarship Name", type: "text", width: 200 },
       { name: "Sponsor", type: "text", width: 160 },
@@ -309,7 +309,7 @@ export const SHEET_TEMPLATES: SheetTemplate[] = [
   {
     id: "doc_checklist",
     name: "Document Checklist",
-    description: "Keep track of transcripts, SOPs, and LORs.",
+    description: "Organize application materials with columns for Document Type, Target, Status, File attachment, and Notes.",
     columns: [
       { name: "Document Type", type: "select", options: ["SOP", "Resume", "Transcript", "LOR", "Passport", "Test Score"], width: 150 },
       { name: "Target", type: "text", width: 150 },

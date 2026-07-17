@@ -114,6 +114,74 @@ For every new feature or feature modification:
 - Provide visual feedback for success and error states.
 - Use consistent styling for validation errors, success messages, and empty states.
 
+### Preventing Race Conditions in Async Form Submissions
+
+**Problem**: Multiple rapid clicks on submit buttons can trigger duplicate API calls, creating duplicate records or inconsistent state.
+
+**Solution Pattern**: Implement submission state tracking with button disabling and visual feedback.
+
+**Required Implementation Steps**:
+
+1. **Add submission state**: Create a boolean state variable (e.g., `isCreatingSheet`, `isCreatingProject`, `isSaving`)
+2. **Guard the handler**: Check the state at the start of the async handler and return early if already in progress
+3. **Wrap in try-finally**: Set state to `true` at start, `false` in finally block (ensures cleanup on error)
+4. **Disable buttons**: Disable both submit and cancel buttons during submission using the state
+5. **Update button text**: Change button text to show progress (e.g., "Creating...", "Saving...")
+6. **Add error handling**: Catch errors, log them, show user feedback, and ensure state resets
+
+**Code Example**:
+
+```typescript
+// 1. Add state
+const [isCreating, setIsCreating] = useState(false);
+
+// 2. Update async handler
+const handleSubmit = async (event: FormEvent) => {
+  event.preventDefault();
+  if (isCreating) return; // Guard against duplicate calls
+  
+  setIsCreating(true);
+  try {
+    await api.post('/endpoint', data);
+    // Success handling
+    onToast?.("Created successfully.");
+    closeModal();
+  } catch (error) {
+    console.error("Error creating:", error);
+    onToast?.("Failed to create. Please try again.");
+  } finally {
+    setIsCreating(false); // Always reset state
+  }
+};
+
+// 3. Update button UI
+<button 
+  type="submit" 
+  disabled={isCreating}
+  className="primary"
+>
+  {isCreating ? "Creating..." : "Create"}
+</button>
+
+<button 
+  type="button" 
+  disabled={isCreating}
+  onClick={closeModal}
+  className="secondary"
+>
+  Cancel
+</button>
+```
+
+**When to Apply**:
+- All form submission handlers that perform async operations (POST, PUT, PATCH, DELETE)
+- Any user-triggered action that modifies server state or creates/updates records
+- Modal forms, inline editors, and any UI that allows rapid repeated clicks
+
+**Applied Examples in Codebase**:
+- `ProjectWorkspace.tsx`: `createProject()`, `createSheet()`
+- Pattern should be used for: creating records, updating data, deleting items, uploading files
+
 ### Visual Design and Symmetry
 
 - **Form layouts must be symmetric and visually balanced**

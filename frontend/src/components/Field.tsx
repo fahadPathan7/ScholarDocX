@@ -43,7 +43,6 @@ export function Field({
           }
           return (
             <select name={name} value={selectedValue} required={required} onChange={handleChange}>
-              <option value="">Select</option>
               {options.map((opt) => {
                 const isObj = typeof opt !== "string";
                 const val = isObj ? opt.value : opt;

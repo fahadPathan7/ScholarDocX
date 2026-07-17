@@ -67,7 +67,9 @@ export function ProjectWorkspace({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [customTemplates, setCustomTemplates] = useState(() => getCustomTemplates());
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
 
   /* Edit project/sheet state */
   const [editingProject, setEditingProject] = useState<RecordMap | null>(null);
@@ -266,12 +268,22 @@ export function ProjectWorkspace({
 
   const createProject = async (event: FormEvent) => {
     event.preventDefault();
-    const project = await createRecord<RecordMap>("projects", projectForm);
-    await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
-    setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
-    onToast?.("Project created.");
-    setShowCreateProject(false);
-    await refreshProjects();
+    if (isCreatingProject) return;
+    
+    setIsCreatingProject(true);
+    try {
+      const project = await createRecord<RecordMap>("projects", projectForm);
+      await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
+      setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
+      onToast?.("Project created.");
+      setShowCreateProject(false);
+      await refreshProjects();
+    } catch (error) {
+      console.error("Error creating project:", error);
+      onToast?.("Failed to create project. Please try again.");
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   const startEditProject = (project: RecordMap) => {
@@ -301,29 +313,38 @@ export function ProjectWorkspace({
 
   const createSheet = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedProjectId) return;
-    const cleanName = sheetName.trim() || "Application sheet";
+    if (!selectedProjectId || isCreatingSheet) return;
+    
+    setIsCreatingSheet(true);
+    try {
+      const cleanName = sheetName.trim() || "Application sheet";
 
-    // 1. Create the sheet (creates a page with default columns in backend)
-    const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
+      // 1. Create the sheet (creates a page with default columns in backend)
+      const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
 
-    // 2. If a template is selected, immediately patch the new page with template columns
-    if (selectedTemplateId !== "default") {
-      const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
-      if (template && result.page?.id) {
-        await api.patch(`/project_pages/${result.page.id}`, {
-          data: { columns_json: template.columns, rows_json: [] }
-        });
+      // 2. If a template is selected, immediately patch the new page with template columns
+      if (selectedTemplateId !== "default") {
+        const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
+        if (template && result.page?.id) {
+          await api.patch(`/project_pages/${result.page.id}`, {
+            data: { columns_json: template.columns, rows_json: [] }
+          });
+        }
       }
-    }
 
-    await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
-    onToast?.(`Sheet created: ${result.sheet.name}.`);
-    setSheetName("");
-    setSelectedTemplateId("default");
-    setShowCreateSheet(false);
-    const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/summary`);
-    setSummary(data);
+      await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
+      onToast?.(`Sheet created: ${result.sheet.name}.`);
+      setSheetName("");
+      setSelectedTemplateId("default");
+      setShowCreateSheet(false);
+      const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/summary`);
+      setSummary(data);
+    } catch (error) {
+      console.error("Error creating sheet:", error);
+      onToast?.("Failed to create sheet. Please try again.");
+    } finally {
+      setIsCreatingSheet(false);
+    }
   };
 
   const startEditSheet = (sheet: RecordMap) => {
@@ -479,8 +500,10 @@ export function ProjectWorkspace({
                 <Field label="Description" name="description" value={projectForm.description} rows={3} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
               </div>
               <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateProject(false)}>Cancel</button>
-                <button className="primary" type="submit"><Plus size={16} /> Create project</button>
+                <button className="secondary" type="button" onClick={() => setShowCreateProject(false)} disabled={isCreatingProject}>Cancel</button>
+                <button className="primary" type="submit" disabled={isCreatingProject}>
+                  <Plus size={16} /> {isCreatingProject ? "Creating..." : "Create project"}
+                </button>
               </div>
             </form>
           </Modal>
@@ -971,50 +994,85 @@ export function ProjectWorkspace({
           <Modal onClose={() => setShowCreateSheet(false)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createSheet}>
               <div className="modal-header">
-                <h2>Create Sheet</h2>
+                <div>
+                  <h2>Create Sheet</h2>
+                  <p className="eyebrow" style={{ marginTop: '4px' }}>Choose a template to get started with pre-configured columns</p>
+                </div>
                 <button className="icon-button" type="button" onClick={() => setShowCreateSheet(false)} title="Close form">
                   <X size={20} />
                 </button>
               </div>
-              <div className="modal-content form-grid" style={{ gap: '16px' }}>
-                <Field label="Sheet name" name="sheet_name" value={sheetName} required onChange={(_, value) => {
-                  setSheetName(value);
-                  if (selectedTemplateId === "default") {
-                    const lower = value.toLowerCase();
-                    if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
-                      setSelectedTemplateId("prof_outreach");
-                    } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
-                      setSelectedTemplateId("univ_shortlist");
-                    } else if (lower.includes("scholarship") || lower.includes("funding")) {
-                      setSelectedTemplateId("scholarship_tracker");
-                    } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
-                      setSelectedTemplateId("doc_checklist");
+              <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+                  <Field 
+                    label="Sheet name" 
+                    name="sheet_name" 
+                    value={sheetName} 
+                    required 
+                    placeholder="e.g., My Applications"
+                    onChange={(_, value) => {
+                      setSheetName(value);
+                      if (selectedTemplateId === "default") {
+                        const lower = value.toLowerCase();
+                        if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
+                          setSelectedTemplateId("prof_outreach");
+                        } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
+                          setSelectedTemplateId("univ_shortlist");
+                        } else if (lower.includes("scholarship") || lower.includes("funding")) {
+                          setSelectedTemplateId("scholarship_tracker");
+                        } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
+                          setSelectedTemplateId("doc_checklist");
+                        }
+                      }
+                    }} 
+                  />
+                  <Field
+                    label="Template"
+                    name="template_id"
+                    value={selectedTemplateId}
+                    options={[
+                      { value: "default", label: "Default App Tracker" },
+                      { label: "--- Standard Templates ---", value: "", disabled: true },
+                      ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
+                      ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
+                      ...customTemplates.map(t => ({ value: t.id, label: t.name }))
+                    ]}
+                    onChange={(_, value) => setSelectedTemplateId(value)}
+                  />
+                </div>
+                <div style={{ 
+                  padding: '12px 14px', 
+                  backgroundColor: 'rgba(47, 109, 122, 0.06)',
+                  borderRadius: '6px',
+                  borderLeft: '3px solid var(--accent-teal, #2f6d7a)'
+                }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
+                    {selectedTemplateId === "default" 
+                      ? "Basic application tracker with University, Program, Status, Deadline, and Notes."
+                      : (SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
+                          customTemplates.find(t => t.id === selectedTemplateId)?.description)
                     }
-                  }
-                }} />
-                <Field
-                  label="Template"
-                  name="template_id"
-                  value={selectedTemplateId}
-                  options={[
-                    { value: "default", label: "Default App Tracker" },
-                    { label: "--- Standard Templates ---", value: "", disabled: true },
-                    ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
-                    ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
-                    ...customTemplates.map(t => ({ value: t.id, label: t.name }))
-                  ]}
-                  onChange={(_, value) => setSelectedTemplateId(value)}
-                />
-                {selectedTemplateId !== "default" && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '-8px 0 0 0' }}>
-                    {SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
-                      customTemplates.find(t => t.id === selectedTemplateId)?.description}
                   </p>
-                )}
+                </div>
+                <div style={{ 
+                  padding: '10px 12px', 
+                  backgroundColor: 'rgba(217, 154, 61, 0.08)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontSize: '14px', lineHeight: '1.4' }}>💡</span>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    You can add, remove, or modify columns anytime after creating the sheet.
+                  </p>
+                </div>
               </div>
               <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)}>Cancel</button>
-                <button className="primary" type="submit"><Plus size={16} /> Create sheet</button>
+                <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)} disabled={isCreatingSheet}>Cancel</button>
+                <button className="primary" type="submit" disabled={isCreatingSheet}>
+                  <Plus size={16} /> {isCreatingSheet ? "Creating..." : "Create sheet"}
+                </button>
               </div>
             </form>
           </Modal>

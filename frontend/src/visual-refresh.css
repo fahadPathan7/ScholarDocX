@@ -100,7 +100,7 @@ h2,
   height: 100dvh;
   overflow: hidden;
   position: relative;
-  z-index: 1000;
+  z-index: 1100;
 }
 
 .sidebar::before {
@@ -333,6 +333,8 @@ main {
 .topbar {
   align-items: center;
   margin-bottom: 6px;
+  position: relative;
+  z-index: 1100;
 }
 
 .topbar h1 {
@@ -912,18 +914,36 @@ main {
 .modal-backdrop,
 .file-picker-backdrop {
   animation: fade-in 160ms ease both;
-  backdrop-filter: blur(10px);
-  background: rgba(30, 41, 37, 0.22);
+  backdrop-filter: blur(8px) saturate(110%);
+  background: radial-gradient(circle, rgba(15, 23, 20, 0.4) 0%, rgba(15, 23, 20, 0.55) 100%);
   min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
 }
 
-/* Main-content scoped backdrop — blurs right panel only, not the sidebar */
+/* Main-content scoped backdrop — covers everything but navbar and sidebar stay on top with higher z-index */
 .modal-backdrop-main {
-  position: absolute;
-  inset: 0;
-  min-height: 100%;
-  height: 100%;
-  padding-top: 160px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100vh;
+  backdrop-filter: blur(8px) saturate(110%);
+  background: radial-gradient(circle, rgba(15, 23, 20, 0.4) 0%, rgba(15, 23, 20, 0.55) 100%);
+  z-index: 1050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
 }
 
 /* Nested modal - lighter blur to show depth */

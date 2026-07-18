@@ -964,7 +964,7 @@ main {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 160px;
+  padding-top: 80px;
 }
 
 .modal-backdrop-main.modal-backdrop-compact {

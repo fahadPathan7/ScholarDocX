@@ -35,15 +35,19 @@ def make_settings(tmp_path: Path) -> Settings:
 import uuid
 
 def make_user(settings: Settings, roles: list, email: str | None = None) -> dict:
+    user_email = email or f"{'-'.join(roles)}-{uuid.uuid4().hex[:8]}@test.local"
     with connect(settings.database_target) as db:
+        # Pre-clean so the function is idempotent on repeated runs.
+        from tests.helpers import cleanup_user_records
+        cleanup_user_records(db, email=user_email)
         cur = db.execute(
             "INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked) "
             "VALUES (?, 'x', 'Test', ?, 1, 0)",
-            (email or f"{'-'.join(roles)}-{uuid.uuid4().hex[:8]}@test.local", json.dumps(roles)),
+            (user_email, json.dumps(roles)),
         )
         db.commit()
         uid = cur.lastrowid
-    return {"id": uid, "roles": roles}
+    return {"id": uid, "email": user_email, "roles": roles}
 
 
 def get_session(settings: Settings):

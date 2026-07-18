@@ -100,7 +100,12 @@ def cleanup_user_records(connection, user_id: str | None = None, email: str | No
 
 
 def make_user(settings: Settings, roles: list, email: str = None) -> dict[str, Any]:
-    """Insert a user row and return a minimal user dict for auth/token code."""
+    """Insert a user row and return a minimal user dict for auth/token code.
+
+    Always pre-cleans any existing row for the same email so the function is
+    idempotent across repeated runs against the shared Postgres DB.  The email
+    is included in the returned dict so callers can target cleanup.
+    """
     user_email = email or f"{roles[0]}-{roles[-1]}-{uuid.uuid4().hex[:8]}@test.local"
     with connect(settings.database_target) as db:
         cleanup_user_records(db, email=user_email)
@@ -111,7 +116,7 @@ def make_user(settings: Settings, roles: list, email: str = None) -> dict[str, A
         )
         db.commit()
         uid = cur.lastrowid
-    return {"id": uid, "roles": roles}
+    return {"id": uid, "email": user_email, "roles": roles}
 
 
 def set_model_price(settings: Settings, model_id: str, input_price: float, output_price: float) -> None:

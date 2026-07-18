@@ -98,6 +98,17 @@ development.
   with `0` for every known project before the fetch resolves, as a defensive
   guard against pre-fetch flashes and future regressions.
 
+  **Refresh button must reload everything visible (SCHOLARDOCX-0152):** the
+  top-bar "Refresh data" button (`App.tsx:refreshActiveTab`) bumps
+  `refreshTrigger`, and `ProjectWorkspace`'s `refreshTrigger` effect must
+  reload (1) the project list, (2) the per-project sheet-count badges, (3)
+  the open project's `/meta` stubs, AND (4) the open sheet's full
+  rows/columns via `getSelectedPageData`. Previously it skipped (2) and (4),
+  so Refresh visibly spun but left the open grid and the "X / Y" counters
+  stale. The `useSheetPage` contentSignature guard intentionally skips
+  applying an identical payload (prevents our own save echo from clobbering
+  local edits) — that guard is correct and must be preserved.
+
 ## Backend Responsibilities
 
 - Initialize workspace.

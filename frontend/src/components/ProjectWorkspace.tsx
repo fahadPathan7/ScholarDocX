@@ -214,10 +214,20 @@ export function ProjectWorkspace({
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       refreshProjects();
+      // SCHOLARDOCX-0152: a Refresh click must also reload the per-project
+      // sheet-count badges (they only re-fetch on projects.length change,
+      // so without this they go stale after add/remove sheet) and the open
+      // sheet's actual rows/columns (selectedPageData). Previously this only
+      // hit /meta stubs, so the open grid stayed stale even after Refresh.
+      loadProjectSheetCounts();
       if (selectedProjectId) {
         refreshSummary(selectedProjectId);
       }
+      if (selectedPageId) {
+        getSelectedPageData(selectedPageId);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   useEffect(() => {

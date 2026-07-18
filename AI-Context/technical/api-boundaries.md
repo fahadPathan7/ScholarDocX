@@ -66,7 +66,25 @@ development.
 - `/settings`
 - `/degree-workspaces`
 - `/projects`
-- `/projects/{project_id}/summary`
+- `/projects/{project_id}/summary` (full pages with rows; heavy — used only by
+  legacy/AI paths that need every sheet's rows)
+- `/projects/{project_id}/meta?include_calendar=true|false` — lightweight
+  project metadata for the project/dashboard/sheet-list views. Ships page
+  STUBS only (`id, sheet_id, name, project_id, updated_at, row_count`) plus
+  per-project aggregates (`sheet_count`, `row_count`, `notification_count`),
+  sheets, and notifications — never the full `rows`/`columns`.
+  `include_calendar=false` skips the dashboard calendar scan and omits
+  `calendar_items`; the post-save refresh path uses this since it does not
+  redraw the calendar. Replaced `/summary` as the default open-project call.
+  (SCHOLARDOCX-0121)
+- `/project_pages/{page_id}` (GET) — one fully decoded page (the open sheet's
+  full `columns`/`rows`/`email_config`). The frontend fetches this on demand
+  for the single open sheet instead of pulling every sheet's rows via
+  `/summary`. Distinct from the generic CRUD `GET /project_pages` (list) and
+  `PATCH/DELETE /project_pages/{record_id}` by HTTP method. (SCHOLARDOCX-0121)
+- `/projects/sheet_counts` (GET) — `{ "<project_id>": <int> }` in one grouped,
+  user-scoped query. Kills the Projects-list N+1 where the UI previously fired
+  one `/summary` per project just to show sheet counts. (SCHOLARDOCX-0121)
 - `/projects/{project_id}/sheets`
 - `/project_sheets`
 - `/project_pages`

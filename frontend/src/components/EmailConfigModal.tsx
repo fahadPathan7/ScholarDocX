@@ -1,5 +1,6 @@
 import { FormEvent } from "react";
 import { X, Save } from "lucide-react";
+import { Modal } from "./Modal";
 import { ColumnDef } from "./sheet/sheetModel";
 
 export interface EmailConfig {
@@ -50,7 +51,7 @@ export function EmailConfigModal({
   const initialBody = config?.bodyColumn !== undefined ? config.bodyColumn : defaultBody;
 
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <Modal onClose={onClose}>
       <form className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className="modal-header">
           <h2>Email Configuration</h2>
@@ -92,6 +93,6 @@ export function EmailConfigModal({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

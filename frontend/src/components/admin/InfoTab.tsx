@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
-import { Info, ShieldAlert, RefreshCw } from "lucide-react";
+import { ShieldAlert, RefreshCw, Upload } from "lucide-react";
 
 type RateLimitRule = {
   rule_key: string;
@@ -57,21 +57,34 @@ export function InfoTab() {
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-300">
-      {/* Info banner */}
+      {/* Upload limits */}
       <div className="shrink-0 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <h3 className="text-base font-semibold text-slate-800 mb-2 flex items-center gap-2">
-          <Info size={18} className="text-indigo-500" />
-          Rate Limits
+        <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <Upload size={18} className="text-indigo-500" />
+          Document Upload Limits
         </h3>
-        <p className="text-sm text-slate-500 leading-relaxed">
-          These are the active request rate limits enforced across the application.
-          Limits throttle rapid or abusive requests before any token or database
-          work happens. Values are read-only backend constants maintained in
-          <code className="mx-1 px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-700">
-            backend/app/auth/rate_limit.py
-          </code>
-          and surfaced here for visibility.
-        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border border-slate-200 rounded-lg">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Constraint</th>
+                <th className="px-4 py-3 font-semibold">Value</th>
+                <th className="px-4 py-3 font-semibold">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Max file size</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    10 MB
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Per document upload</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Rules table */}

@@ -83,11 +83,16 @@ export function ProjectWorkspace({
 
   const selectedProject = projects.find((item) => String(item.id) === selectedProjectId);
   const sheets = summary?.sheets || [];
-  const pages: SheetPage[] = summary?.pages || [];
+  // Page stubs from /meta — lightweight (id, sheet_id, name, updated_at, row_count).
+  // Full row/column data for the ONE open sheet lives in `selectedPageData`.
+  const pages: SheetPage[] = summary?.page_stubs || [];
   const selectedSheet = sheets.find((item: RecordMap) => String(item.id) === selectedSheetId);
-  const selectedPage = selectedSheetId
+  const selectedStub = selectedSheetId
     ? pages.find((item) => String(item.sheet_id) === selectedSheetId)
     : pages.find((item) => String(item.id) === selectedPageId);
+  // Full page data — fetched on demand for the open sheet only.
+  const [selectedPageData, setSelectedPageData] = useState<SheetPage | null>(null);
+  const selectedPage = selectedPageData ?? undefined;
 
   /* CSV Import State */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,11 +131,37 @@ export function ProjectWorkspace({
 
   const refreshSummary = async (projectId = selectedProjectId) => {
     if (!projectId) return;
-    const data = await api.get<RecordMap>(`/projects/${projectId}/summary`);
+    // /meta returns lightweight stubs + aggregates + calendar. Full row data for
+    // the open sheet is fetched separately via getSelectedPageData().
+    const data = await api.get<RecordMap>(`/projects/${projectId}/meta?include_calendar=true`);
     setSummary(data);
     if (selectedSheetId) {
-      const nextPage = data.pages?.find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
-      setSelectedPageId(nextPage ? String(nextPage.id) : "");
+      const nextStub = (data.page_stubs || []).find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
+      setSelectedPageId(nextStub ? String(nextStub.id) : "");
+    }
+  };
+
+  // Post-save refresh: re-fetch lightweight metadata WITHOUT the calendar scan.
+  // The open sheet's own rows are kept in local state; only sidebar/dashboard
+  // stubs + notifications need to resync. Used by useSheetPage persist handlers.
+  const refreshMeta = async () => {
+    if (!selectedProjectId) return;
+    const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/meta?include_calendar=false`);
+    setSummary(data);
+  };
+
+  // Fetch the ONE open sheet's full columns/rows. Called when the selected page
+  // changes, or when its stub's updated_at changes (external edit / save by an
+  // agent in another tab). Our own saves are no-oped by the contentSignature
+  // guard inside useSheetPage, so this resync only applies to real changes.
+  const getSelectedPageData = async (pageId: string): Promise<void> => {
+    if (!pageId) { setSelectedPageData(null); return; }
+    try {
+      const page = await api.get<SheetPage>(`/project_pages/${pageId}`);
+      setSelectedPageData(page);
+    } catch (err) {
+      console.error("Failed to load sheet page:", err);
+      setSelectedPageData(null);
     }
   };
 
@@ -140,6 +171,7 @@ export function ProjectWorkspace({
     selectedProjectId,
     onToast,
     refreshSummary,
+    refreshMeta,
     files,
     onFilesChanged,
     recordsPerSheetLimit,
@@ -153,19 +185,16 @@ export function ProjectWorkspace({
     setProjects(await listRecords<RecordMap>("projects"));
   };
 
+  // Load per-project sheet counts for the Projects list in ONE grouped request,
+  // instead of one /summary call per project (N+1). The endpoint returns
+  // { "<project_id>": <count> } for the current user.
   const loadProjectSheetCounts = async () => {
-    const counts: Record<string, number> = {};
-    await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const summary = await api.get<RecordMap>(`/projects/${project.id}/summary`);
-          counts[String(project.id)] = (summary.sheets || []).length;
-        } catch {
-          counts[String(project.id)] = 0;
-        }
-      })
-    );
-    setProjectSheetCounts(counts);
+    try {
+      const counts = await api.get<Record<string, number>>(`/projects/sheet_counts`);
+      setProjectSheetCounts(counts);
+    } catch (err) {
+      console.error("Failed to load project sheet counts:", err);
+    }
   };
 
   useEffect(() => {
@@ -192,9 +221,24 @@ export function ProjectWorkspace({
       setSummary(null);
       setSelectedSheetId("");
       setSelectedPageId("");
+      setSelectedPageData(null);
       refreshSummary(selectedProjectId);
     }
   }, [selectedProjectId]);
+
+  // Fetch the open sheet's full columns/rows on demand. Re-fetches when the
+  // stub's updated_at changes (external edit) so the open sheet stays fresh.
+  // Our own saves are no-oped inside useSheetPage via contentSignature, so this
+  // only triggers real re-syncs, not echoes of our edits.
+  const selectedStubUpdatedAt = selectedStub?.updated_at;
+  useEffect(() => {
+    if (selectedPageId) {
+      getSelectedPageData(selectedPageId);
+    } else {
+      setSelectedPageData(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPageId, selectedStubUpdatedAt]);
 
   useEffect(() => {
     if (!navigationTarget || navigationTarget.token === lastHandledToken) return;
@@ -337,7 +381,7 @@ export function ProjectWorkspace({
       setSheetName("");
       setSelectedTemplateId("default");
       setShowCreateSheet(false);
-      const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/summary`);
+      const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/meta?include_calendar=true`);
       setSummary(data);
     } catch (error) {
       console.error("Error creating sheet:", error);
@@ -845,6 +889,7 @@ export function ProjectWorkspace({
               rows={sheet.rows}
               viewRows={sheet.viewRows}
               rowIndexMap={sheet.rowIndexMap}
+              duplicateRowIndices={sheet.duplicateRowIndices}
               searchQuery={sheet.searchQuery}
               groupBy={sheet.groupBy}
               files={files}
@@ -1105,7 +1150,7 @@ export function ProjectWorkspace({
                 <div className="sheet-card-title-row">
                   <strong>{sheetItem.name}</strong>
                   {(() => {
-                    const used = (getSheetPage(sheetItem)?.rows || []).length;
+                    const used = (getSheetPage(sheetItem)?.row_count as number) || 0;
                     const max = recordsPerSheetLimit;
                     const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
                     const isNear = pct >= 80;

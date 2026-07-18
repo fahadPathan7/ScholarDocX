@@ -19,6 +19,7 @@ export interface UseSheetPageParams {
   selectedProjectId: string;
   onToast?: (message: string) => void;
   refreshSummary: () => Promise<void>;
+  refreshMeta: () => Promise<void>;
   files: RecordMap[];
   onFilesChanged?: () => Promise<void>;
   recordsPerSheetLimit?: number;
@@ -30,6 +31,7 @@ export function useSheetPage({
   selectedProjectId,
   onToast,
   refreshSummary,
+  refreshMeta,
   files,
   recordsPerSheetLimit = -1,
 }: UseSheetPageParams) {
@@ -67,6 +69,26 @@ export function useSheetPage({
     () => applyViewState(rows, searchQuery, filters, sortState, groupBy, columns),
     [rows, searchQuery, filters, sortState, groupBy, columns]
   );
+
+  // Duplicate row detection — computes which row indices violate the unique combo check
+  const duplicateRowIndices = useMemo<Set<number>>(() => {
+    const uniqueCols = columns.filter(c => c.unique).map(c => c.name);
+    if (uniqueCols.length === 0) return new Set();
+    const allEmpty = "|".repeat(uniqueCols.length - 1);
+    const seen = new Map<string, number>(); // combo → first row index
+    const dupes = new Set<number>();
+    rows.forEach((row, idx) => {
+      const combo = uniqueCols.map(col => (row[col] || "").trim().toLowerCase()).join("|");
+      if (!combo || combo === allEmpty) return;
+      if (seen.has(combo)) {
+        dupes.add(seen.get(combo)!);
+        dupes.add(idx);
+      } else {
+        seen.set(combo, idx);
+      }
+    });
+    return dupes;
+  }, [rows, columns]);
 
   // Row object → index in `rows`, so the table never does O(n²) indexOf
   const rowIndexMap = useMemo(() => {
@@ -240,32 +262,7 @@ export function useSheetPage({
   /*  Persist helpers                                                  */
   /* ---------------------------------------------------------------- */
 
-  const persistPage = async (nextColumns: ColumnDef[], nextRows: Record<string, string>[], silent = false) => {
-    // Unique combination check
-    if (!silent) {
-      const uniqueCols = nextColumns.filter(c => c.unique).map(c => c.name);
-      if (uniqueCols.length > 0) {
-        const combinations = new Set<string>();
-        let hasDuplicate = false;
-
-        for (const row of nextRows) {
-          const combo = uniqueCols.map(col => (row[col] || "").trim().toLowerCase()).join("|");
-          if (combo && combo !== "|".repeat(uniqueCols.length - 1)) {
-            if (combinations.has(combo)) {
-              hasDuplicate = true;
-              break;
-            }
-            combinations.add(combo);
-          }
-        }
-
-        if (hasDuplicate) {
-          await showAlert(`Warning: This combination of ${uniqueCols.join(" and ")} already exists in the sheet.`, "Duplicate Found");
-        }
-      }
-    }
-
-    if (!selectedPageId || isSaving) return;
+  const persistPage = async (nextColumns: ColumnDef[], nextRows: Record<string, string>[], silent = false) => {    if (!selectedPageId || isSaving) return;
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(nextColumns, nextRows);
     try {
@@ -275,7 +272,7 @@ export function useSheetPage({
       if (!silent) {
         onToast?.("Saved.");
       }
-      await refreshSummary();
+      await refreshMeta();
     } catch (error) {
       if (!silent) onToast?.("Save failed. Please try again.");
       console.error("Save error:", error);
@@ -293,7 +290,7 @@ export function useSheetPage({
       });
       onToast?.("Email configuration saved.");
       setIsEmailConfigOpen(false);
-      await refreshSummary();
+      await refreshMeta();
     } catch (error) {
       console.error(error);
       onToast?.("Failed to save email config.");
@@ -621,7 +618,7 @@ export function useSheetPage({
       });
       record({ columns, rows: nextRows });
       onToast?.("Cell saved.");
-      await refreshSummary();
+      await refreshMeta();
     } catch (error) {
       setRows(rows);
       lastSyncedRef.current = contentSignature(columns, rows);
@@ -1069,6 +1066,7 @@ export function useSheetPage({
     rows, setRows,
     viewRows,
     rowIndexMap,
+    duplicateRowIndices,
     totalCount,
     filteredCount,
     isSaving,

@@ -5,6 +5,26 @@
 PostgreSQL stores structured metadata (SCHOLARDOCX-0139; previously SQLite).
 Secure files store binary and rich media artifacts on the local workspace.
 
+## Document Size Limit
+
+**Maximum document size: 10 MB per file**
+
+All document uploads are validated both client-side (for immediate user feedback)
+and server-side (for security enforcement). Files exceeding 10 MB are rejected
+with a clear error message showing the actual file size.
+
+This limit applies to all user-uploaded documents including:
+- CV PDFs
+- Transcripts
+- Certificates
+- Test score reports
+- Proposals
+- Other document types
+
+The limit is enforced in:
+- Backend: `app/core/workspace.py` (`save_upload` function)
+- Frontend: `FilePickerField.tsx` and `App.tsx` (upload handlers)
+
 ## Workspace
 
 Initial workspace path:

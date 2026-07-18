@@ -127,7 +127,7 @@ export function InviteRequestsTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-500">
-                      {new Date(r.created_at + 'Z').toLocaleDateString("en-GB")}
+                      {new Date(r.created_at).toLocaleDateString("en-GB")}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'Pending' && (

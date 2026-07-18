@@ -236,11 +236,11 @@ class AdminService:
             """
             SELECT
               (SELECT COUNT(*) FROM users) AS total_users,
-              (SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '30 days') AS active_users,
-              (SELECT COUNT(*) FROM users WHERE last_login_at::timestamp >= now() - interval '7 days') AS active_users_7d,
+              (SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '30 days') AS active_users,
+              (SELECT COUNT(*) FROM users WHERE last_login_at >= now() - interval '7 days') AS active_users_7d,
               (SELECT COUNT(*) FROM projects) AS total_projects,
               (SELECT COUNT(*) FROM project_sheets) AS total_sheets,
-              (SELECT COUNT(*) FROM documents) AS total_documents,
+              (SELECT COUNT(*) FROM static_files) AS total_documents,
               (SELECT COUNT(*) FROM sticky_notes) AS total_sticky_notes,
               (SELECT COUNT(*) FROM whiteboards) AS total_whiteboards,
               (SELECT COALESCE(SUM(jsonb_array_length(COALESCE(NULLIF(rows_json, ''), '[]')::jsonb)), 0) FROM project_pages) AS total_records,
@@ -251,11 +251,12 @@ class AdminService:
               (SELECT COUNT(*) FROM ai_token_purchase_requests WHERE status = 'Pending') AS pending_credit_requests,
               (SELECT COUNT(*) FROM password_reset_requests WHERE status = 'Pending') AS pending_password_resets,
               (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0) AS total_ai_tokens,
-              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '30 days') AS ai_tokens_30d,
-              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '7 days') AS ai_tokens_7d,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'advisor_atlas_search')) AS tavily_total,
+              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '30 days') AS ai_tokens_30d,
+              (SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger WHERE tokens_delta < 0 AND created_at >= now() - interval '7 days') AS ai_tokens_7d,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'scholarship_deep_hunt_search', 'advisor_atlas_search')) AS tavily_total,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search') AS tavily_web_search,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_hunt') AS tavily_scholarship_hunt,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('scholarship_hunt', 'scholarship_deep_hunt_search')) AS tavily_scholarship_hunt,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_deep_hunt_search') AS tavily_deep_hunt,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas
             """
         ).fetchone()
@@ -267,11 +268,11 @@ class AdminService:
         activity_rows = self.connection.execute(
             """
             (SELECT 'registration' AS kind, id, email, display_name,
-                    created_at AS occurred_at, NULL::timestamp AS last_login_at
+                    created_at AS occurred_at, NULL AS last_login_at
              FROM users ORDER BY created_at DESC LIMIT 5)
             UNION ALL
             (SELECT 'login' AS kind, id, email, display_name,
-                    NULL::timestamp AS occurred_at, last_login_at
+                    NULL AS occurred_at, last_login_at
              FROM users WHERE last_login_at IS NOT NULL
              ORDER BY last_login_at DESC LIMIT 5)
             """
@@ -300,9 +301,9 @@ class AdminService:
         # 3) 10-day usage chart (grouped query, kept separate since it returns
         #    multiple rows by day).
         ai_usage_10d_rows = self.connection.execute(
-            "SELECT created_at::timestamp::date as day, SUM(-tokens_delta) as tokens "
+            "SELECT created_at::date as day, SUM(-tokens_delta) as tokens "
             "FROM ai_token_ledger "
-            "WHERE tokens_delta < 0 AND created_at::timestamp >= now() - interval '10 days' "
+            "WHERE tokens_delta < 0 AND created_at >= now() - interval '10 days' "
             "GROUP BY day ORDER BY day ASC"
         ).fetchall()
 
@@ -340,6 +341,7 @@ class AdminService:
                 "tavily_total": _count("tavily_total"),
                 "tavily_web_search": _count("tavily_web_search"),
                 "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
+                "tavily_deep_hunt": _count("tavily_deep_hunt"),
                 "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
             },
             "recent_registrations": recent_registrations,

@@ -337,3 +337,115 @@ def test_document_category_rename_and_delete_removes_files(tmp_path):
         assert all(item["slug"] != "writing-samples" for item in store.document_categories())
     finally:
         store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_meta_is_lightweight_with_row_counts(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Finland PhD", "degree_type": "phd"})
+        store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Professors",
+                "columns_json": ["University", "Professor email", "Follow-up date"],
+                "rows_json": [
+                    {"University": "Aalto", "Professor email": "prof@example.edu", "Follow-up date": "2026-06-04"},
+                    {"University": "Helsinki", "Professor email": "prof2@example.edu", "Follow-up date": "2026-06-10"},
+                ],
+            },
+        )
+
+        meta = store.project_meta(project["id"])
+
+        # Stubs must NOT ship decoded rows or columns (the whole point of /meta).
+        stub = meta["page_stubs"][0]
+        assert "rows" not in stub
+        assert "columns" not in stub
+        assert stub["row_count"] == 2
+        for key in ("id", "sheet_id", "name", "updated_at", "row_count"):
+            assert key in stub
+
+        # Aggregates
+        assert meta["row_count"] == 2
+        assert meta["page_count"] == 1
+        assert "calendar_items" in meta
+        assert meta["calendar_items"][0]["date_key"] == "2026-06-04"
+        assert meta["calendar_items"][0]["project_id"] == project["id"]
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_meta_skips_calendar_when_requested(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "P2", "degree_type": "phd"})
+        store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Dates",
+                "columns_json": ["Deadline"],
+                "rows_json": [{"Deadline": "2026-06-04"}],
+            },
+        )
+
+        meta = store.project_meta(project["id"], include_calendar=False)
+        assert "calendar_items" not in meta
+        # row_count is still derived server-side
+        assert meta["page_stubs"][0]["row_count"] == 1
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_get_project_page_returns_decoded_page(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "P3", "degree_type": "phd"})
+        page = store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Sheet",
+                "columns_json": ["University", "Professor email"],
+                "rows_json": [{"University": "Aalto", "Professor email": "x@example.edu"}],
+                "email_config_json": {"toColumn": "Professor email"},
+            },
+        )
+
+        decoded = store.get_project_page(page["id"])
+        # Legacy string[] columns are migrated to {name, type}.
+        assert decoded["columns"] == [
+            {"name": "University", "type": "text"},
+            {"name": "Professor email", "type": "text"},
+        ]
+        assert decoded["rows"] == [{"University": "Aalto", "Professor email": "x@example.edu"}]
+        assert decoded["email_config"] == {"toColumn": "Professor email"}
+
+        # Unknown id raises LookupError (404 at the route layer).
+        import uuid as _uuid
+        with pytest.raises(LookupError):
+            store.get_project_page(str(_uuid.uuid4()))
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_sheet_counts_groups_by_project(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        p1 = store.create_record("projects", {"name": "A", "degree_type": "phd"})
+        p2 = store.create_record("projects", {"name": "B", "degree_type": "phd"})
+
+        store.create_sheet_with_defaults(p1["id"], "s1")
+        store.create_sheet_with_defaults(p1["id"], "s2")
+        store.create_sheet_with_defaults(p2["id"], "s3")
+
+        counts = store.project_sheet_counts()
+        assert counts[str(p1["id"])] == 2
+        assert counts[str(p2["id"])] == 1
+    finally:
+        store.db.close()

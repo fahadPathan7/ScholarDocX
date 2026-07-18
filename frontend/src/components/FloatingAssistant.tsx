@@ -198,6 +198,13 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     localStorage.setItem("scholarDocX_webSearchEnabled", String(webSearchEnabled));
   }, [webSearchEnabled]);
 
+  // Reset textarea height when input is cleared
+  useEffect(() => {
+    if (inputRef.current && input === "") {
+      inputRef.current.style.height = 'auto';
+    }
+  }, [input]);
+
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
   const allowedProviders = new Set(
     (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
@@ -978,7 +985,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
               ref={inputRef}
               className="chat-input"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-resize textarea
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();

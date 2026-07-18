@@ -62,6 +62,81 @@ Use this order when resolving conflicts:
 - Prefer cohesive modules over large mixed-purpose files.
 - Before editing a large file, check line count and consider extracting helpers, components, schemas, routes, or services.
 
+## Non-Negotiable UI Rules
+
+These are recurring regressions. Violating them breaks the visual system and
+must be caught before opening a PR.
+
+### Modal backdrop blur (regressed 3+ times — read before touching modals)
+
+**Intended look:** blur covers the full `.main-content` work surface (breadcrumbs,
+view headers, toolbar, table) but the global TopBar and left Sidebar stay crisp.
+
+**Why agents keep breaking it**
+
+1. **Copy-paste trap** — `rg modal-backdrop-main` returns ~10 files. Most still
+   use a legacy inline `<div className="modal-backdrop modal-backdrop-main">`.
+   Agents copy that pattern and miss the portal step. **Do not copy those files.**
+2. **CSS “simplification”** — `.modal-backdrop` (base) is `position: fixed`.
+   Agents merge or “unify” it with `.modal-backdrop-main` and switch to fixed
+   viewport positioning, blurring the sidebar and TopBar.
+3. **Two bugs, opposite symptoms** — under-blur (inline div in `.section-body`)
+   vs over-blur (`position: fixed` on `.modal-backdrop-main`). Fixing one often
+   reintroduces the other.
+4. **“Use existing patterns” misfires** — legacy inline backdrops are wrong
+   patterns. The only approved implementation is `<Modal>` from `Modal.tsx`.
+5. **Inline styles override CSS** — custom `position`/`backdropFilter` inline
+   (e.g. `RowPeekPanel.tsx`) bypass the canonical rule.
+
+| Symptom | Cause | Fix |
+|--------|-------|-----|
+| Sidebar/TopBar blurred | `.modal-backdrop-main` uses `position: fixed` | Restore `position: absolute; inset: 0` |
+| Only table area blurred; breadcrumbs sharp | Inline backdrop, no portal | Wrap in `<Modal onClose={…}>` |
+| Modal flush to top | `padding-top` changed from `160px` | Restore `padding-top: 160px` |
+
+**Required pattern for every main-content modal**
+
+```tsx
+import { Modal } from "./Modal"; // or "../Modal"
+
+export function MyModal({ onClose, … }) {
+  return (
+    <Modal onClose={onClose}>          {/* nested: zIndex={1060} */}
+      <form className="modal-panel" onClick={(e) => e.stopPropagation()} …>
+        …
+      </form>
+    </Modal>
+  );
+}
+```
+
+`<Modal scope="main">` (default) portals into `.main-content` and applies
+`.modal-backdrop-main`. That is the entire backdrop implementation — do not
+add your own backdrop div.
+
+**Forbidden**
+
+- Inline `<div className="modal-backdrop modal-backdrop-main">` anywhere except
+  inside `Modal.tsx`.
+- Changing `.modal-backdrop-main` to `position: fixed` / `min-height: 100vh`.
+- Custom portals to `#sheet-work-surface` or `.section-body` for standard modals.
+- Copying modal markup from: `RecordFormModal.tsx`, `CsvImportModal.tsx`,
+  `StickyNotesView.tsx`, `RowPeekPanel.tsx`, `HuntProfileModal.tsx`,
+  `AddToTrackerModal.tsx`, `ProjectDashboard.tsx`, `AboutView.tsx` — these
+  are legacy; migrate to `<Modal>` when touched.
+
+**Before shipping modal work — visual check**
+
+- [ ] Sidebar icons/text are sharp (not blurred).
+- [ ] Global TopBar (“ScholarDocX”, Ask AI) is sharp.
+- [ ] Breadcrumbs and view header ARE blurred.
+- [ ] Panel sits ~160px below the top of the work surface.
+
+Canonical CSS and full spec:
+`AI-Context/technical/frontend-visual-system.md` (“Modal backdrop blur scoping”).
+
+- **Never expose infrastructure names in UI copy.** (See STRICT ENFORCEMENTS above.)
+
 ## Expected Agent Behavior
 
 - Keep changes scoped to the active Jira task.

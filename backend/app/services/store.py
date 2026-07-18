@@ -336,14 +336,21 @@ class Store:
     def document_categories(self) -> list[dict]:
         uid = self.current_user_id
         params = {"uid": uid} if uid else {}
-        where_clause = "WHERE (:uid IS NULL OR dc.user_id = :uid) AND (:uid IS NULL OR sf.user_id = :uid)" if uid else ""
+        
+        # Build the query to return ALL categories for the user, regardless of whether they have files
+        if uid:
+            where_dc = "WHERE dc.user_id = :uid"
+            join_condition = f"ON sf.file_type = dc.slug AND sf.user_id = :uid"
+        else:
+            where_dc = ""
+            join_condition = "ON sf.file_type = dc.slug"
         
         rows = self.db.execute(text(
             f"""
             SELECT dc.*, COUNT(sf.id) AS document_count, MAX(sf.created_at) AS latest_document_at
             FROM document_categories dc
-            LEFT JOIN static_files sf ON sf.file_type = dc.slug {("AND sf.user_id = :uid" if uid else "")}
-            {("WHERE dc.user_id = :uid" if uid else "")}
+            LEFT JOIN static_files sf {join_condition}
+            {where_dc}
             GROUP BY dc.id
             ORDER BY dc.sort_order ASC, dc.display_name ASC
             """), params
@@ -468,6 +475,37 @@ class Store:
 
         self.db.commit()
         return {**category, "deleted_document_count": len(files)}
+
+    def restore_default_categories(self) -> int:
+        """Restore missing default document categories for the current user."""
+        from app.core.categories import DEFAULT_MEDIA_CATEGORIES
+        
+        uid = self.current_user_id
+        if not uid:
+            raise ValueError("User authentication required")
+        
+        # Get existing category slugs for this user
+        model = models.DocumentCategories
+        stmt = select(model.slug).where(model.user_id == uid)
+        existing_slugs = set(self.db.scalars(stmt).all())
+        
+        # Insert missing default categories
+        restored_count = 0
+        for index, (slug, display_name) in enumerate(DEFAULT_MEDIA_CATEGORIES):
+            if slug not in existing_slugs:
+                category = model(
+                    slug=slug,
+                    display_name=display_name,
+                    sort_order=index,
+                    user_id=uid
+                )
+                self.db.add(category)
+                restored_count += 1
+        
+        if restored_count > 0:
+            self.db.commit()
+        
+        return restored_count
 
     def dashboard_summary(self) -> dict:
         uid = self.current_user_id
@@ -686,6 +724,111 @@ class Store:
             "notifications": notifications,
             "calendar_items": self._calendar_items(pages),
         }
+
+    def project_meta(self, project_id: str, include_calendar: bool = True) -> dict:
+        """Lightweight project metadata for project/dashboard/sheet-list views.
+
+        Ships ONLY stubs (id, sheet_id, name, updated_at, row_count) — never the
+        full `rows`/`columns`. Per-stub `row_count` and the total `row_count` are
+        computed server-side. `calendar_items` is computed server-side too and is
+        optional so the post-save refresh (which does not redraw the dashboard
+        calendar) can skip the scan.
+
+        The open sheet's full rows/columns are fetched separately via
+        `get_project_page` / `GET /project_pages/{page_id}`.
+        """
+        project = self.get_record("projects", project_id)
+        uid = self.current_user_id
+        params = {"pid": project_id, "uid": uid} if uid else {"pid": project_id}
+        uid_clause = "AND user_id = :uid" if uid else ""
+
+        sheets = [
+            dict(row)
+            for row in self.db.execute(text(
+                f"SELECT * FROM project_sheets WHERE project_id = :pid {uid_clause} ORDER BY is_pinned DESC, created_at DESC"
+            ), params).mappings().all()
+        ]
+        # Pull columns_json/rows_json ONLY to derive counts + calendar locally;
+        # the decoded rows are never put on the returned stubs.
+        raw_pages = self.db.execute(text(
+            f"SELECT id, sheet_id, name, project_id, updated_at, columns_json, rows_json "
+            f"FROM project_pages WHERE project_id = :pid {uid_clause} "
+            f"ORDER BY sheet_id DESC, updated_at DESC"
+        ), params).mappings().all()
+
+        page_stubs: list[dict] = []
+        decoded_pages: list[dict] = []
+        total_row_count = 0
+        for row in raw_pages:
+            decoded = self._decode_page(row)
+            row_count = len(decoded["rows"])
+            total_row_count += row_count
+            # Preserve project_name on calendar items (matches project_summary).
+            decoded["project_name"] = project.get("name")
+            decoded_pages.append(decoded)
+            page_stubs.append({
+                "id": decoded["id"],
+                "sheet_id": decoded["sheet_id"],
+                "name": decoded["name"],
+                "project_id": decoded.get("project_id"),
+                "updated_at": decoded.get("updated_at"),
+                "row_count": row_count,
+            })
+
+        notifications = [
+            dict(row)
+            for row in self.db.execute(text(
+                f"SELECT * FROM notifications WHERE project_id = :pid {uid_clause} AND read_at IS NULL ORDER BY COALESCE(due_at, created_at) ASC"
+            ), params).mappings().all()
+        ]
+
+        result = {
+            "project": project,
+            "sheet_count": len(sheets),
+            "page_count": len(page_stubs),
+            "row_count": total_row_count,
+            "notification_count": len(notifications),
+            "sheets": sheets,
+            "page_stubs": page_stubs,
+            "notifications": notifications,
+        }
+        if include_calendar:
+            result["calendar_items"] = self._calendar_items(decoded_pages)
+        return result
+
+    def get_project_page(self, page_id: str) -> dict:
+        """Return one fully decoded project page (columns, rows, email_config).
+
+        Used by the frontend to load the one open sheet's full data without
+        transferring every other sheet's rows. User-scoped like get_record.
+        """
+        uid = self.current_user_id
+        params = {"pid": page_id, "uid": uid} if uid else {"pid": page_id}
+        uid_clause = "AND user_id = :uid" if uid else ""
+        row = self.db.execute(text(
+            f"SELECT * FROM project_pages WHERE id = :pid {uid_clause}"
+        ), params).mappings().first()
+        if row is None:
+            raise LookupError(f"project_pages record not found: {page_id}")
+        return self._decode_page(row)
+
+    def project_sheet_counts(self) -> dict[str, int]:
+        """Sheet counts for every project owned by the current user, in one query.
+
+        Replaces the frontend's per-project `/summary` loop on the Projects list.
+        Returns ``{ "<project_id>": <int> }``.
+        """
+        uid = self.current_user_id
+        if uid:
+            rows = self.db.execute(text(
+                "SELECT project_id, COUNT(*) AS n FROM project_sheets "
+                "WHERE user_id = :uid GROUP BY project_id"
+            ), {"uid": uid}).mappings().all()
+        else:
+            rows = self.db.execute(text(
+                "SELECT project_id, COUNT(*) AS n FROM project_sheets GROUP BY project_id"
+            )).mappings().all()
+        return {str(row["project_id"]): int(row["n"]) for row in rows}
 
     def create_sheet_with_defaults(self, project_id: str, name: str) -> dict:
         project = self.get_record("projects", project_id)

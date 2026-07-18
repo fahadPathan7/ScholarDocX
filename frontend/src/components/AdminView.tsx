@@ -40,7 +40,8 @@ import {
   ChevronRight,
   Zap,
   Lock,
-  Compass
+  Compass,
+  Layers
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
@@ -129,7 +130,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       key: "documents",
       label: "Documents & Storage",
       cards: [
-        { label: "Total Documents", value: stats.counts.total_documents || 0, icon: FileText, tone: "indigo", infoText: "Total number of text documents created." },
+        { label: "Uploaded Files", value: stats.counts.total_documents || 0, icon: FileText, tone: "indigo", infoText: "Total number of uploaded files (PDFs, documents, etc.) across all users." },
         {
           label: "Storage Used",
           value: (
@@ -148,7 +149,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       key: "canvas",
       label: "Notes & Boards",
       cards: [
-        { label: "Total Sticky Notes", value: stats.counts.total_sticky_notes || 0, icon: StickyNote, tone: "amber", infoText: "Total number of sticky note boards created." },
+        { label: "Total Sticky Notes", value: stats.counts.total_sticky_notes || 0, icon: StickyNote, tone: "amber", infoText: "Total number of sticky notes created." },
         { label: "Total Whiteboards", value: stats.counts.total_whiteboards || 0, icon: Presentation, tone: "rose", infoText: "Total number of drawing whiteboards created." },
       ],
     },
@@ -165,10 +166,11 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       key: "tavily",
       label: "Tavily Usage",
       cards: [
-        { label: "Total Usage", value: stats.counts.tavily_total || 0, icon: Globe, tone: "indigo", infoText: "Total number of Tavily search API requests made." },
-        { label: "Web Search", value: stats.counts.tavily_web_search || 0, icon: Search, tone: "blue", infoText: "Total number of general web searches performed." },
-        { label: "Scholarship Hunt", value: stats.counts.tavily_scholarship_hunt || 0, icon: GraduationCap, tone: "purple", infoText: "Total number of scholarship-specific searches performed." },
-        { label: "Advisor Atlas", value: stats.counts.tavily_advisor_atlas || 0, icon: Compass, tone: "amber", infoText: "Total number of academic advisor searches performed." },
+        { label: "Total Usage", value: stats.counts.tavily_total || 0, icon: Globe, tone: "indigo", infoText: "Total number of Tavily search API requests made across all features." },
+        { label: "Web Search", value: stats.counts.tavily_web_search || 0, icon: Search, tone: "blue", infoText: "Total number of general web searches performed via the chat web search feature." },
+        { label: "Scholarship Hunt", value: stats.counts.tavily_scholarship_hunt || 0, icon: GraduationCap, tone: "purple", infoText: "Total number of Tavily searches from the Scholarship Hunt and Deep Hunt features combined." },
+        { label: "Deep Hunt", value: stats.counts.tavily_deep_hunt || 0, icon: Layers, tone: "rose", infoText: "Total number of Tavily searches made specifically by the Deep Hunt feature." },
+        { label: "Advisor Atlas", value: stats.counts.tavily_advisor_atlas || 0, icon: Compass, tone: "amber", infoText: "Total number of academic advisor searches performed via Advisor Atlas." },
       ],
     },
   ];
@@ -357,7 +359,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                         <tr key={u.id}>
                           <td>{u.email}</td>
                           <td className="text-right">
-                            <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.created_at + 'Z').toLocaleString("en-GB")}</span>
+                            <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.created_at).toLocaleString("en-GB")}</span>
                           </td>
                         </tr>
                       ))}
@@ -392,7 +394,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
                         <tr key={u.id}>
                           <td>{u.email}</td>
                           <td className="text-right">
-                            <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at + 'Z').toLocaleString("en-GB")}</span>
+                            <span className="admin-dashboard-time"><Clock size={14} /> {new Date(u.last_login_at).toLocaleString("en-GB")}</span>
                           </td>
                         </tr>
                       ))}

@@ -62,6 +62,9 @@ def save_upload(settings: Settings, category: str, filename: str, source_file) -
     """
     from app.core.storage import upload_file
 
+    # 10MB maximum document size limit
+    MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
     safe_category = normalize_media_category(category)
     cleaned_name = Path(filename).name.strip()
     if not cleaned_name:
@@ -77,6 +80,11 @@ def save_upload(settings: Settings, category: str, filename: str, source_file) -
     body = source_file.read()
     import io
     size_bytes = len(body)
+    
+    # Enforce maximum document size limit
+    if size_bytes > MAX_DOCUMENT_SIZE_BYTES:
+        raise ValueError(f"Document size ({size_bytes / (1024 * 1024):.2f} MB) exceeds the maximum allowed size of 10 MB")
+    
     upload_file(object_key, io.BytesIO(body))
     return {
         "relative_path": relative_path,

@@ -101,10 +101,11 @@
 }
 
 .csb-btn.active {
-  background: var(--ui-mint, #e4f2ed);
+  background: rgba(52, 127, 120, 0.15);
   color: var(--ui-primary, #347f78);
-  border-color: rgba(52, 127, 120, 0.25);
-  box-shadow: 0 1px 2px rgba(52, 127, 120, 0.05);
+  border-color: rgba(52, 127, 120, 0.45);
+  box-shadow: inset 0 1px 3px rgba(52, 127, 120, 0.15), 0 0 0 1px rgba(52, 127, 120, 0.1);
+  font-weight: 600;
 }
 
 .csb-clear {
@@ -154,9 +155,11 @@
 }
 
 .csb-dropdown-btn.active {
-  background: var(--ui-mint, #e4f2ed);
+  background: rgba(52, 127, 120, 0.15);
   color: var(--ui-primary, #347f78);
-  border-color: rgba(52, 127, 120, 0.4);
+  border-color: rgba(52, 127, 120, 0.45);
+  box-shadow: inset 0 1px 3px rgba(52, 127, 120, 0.15);
+  font-weight: 600;
 }
 
 .csb-dropdown-label {
@@ -237,19 +240,19 @@
 
 .csb-swatch {
   border: 1px solid var(--ui-line, rgba(35, 58, 55, 0.12));
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
-  height: 18px;
+  height: 22px;
   padding: 0;
-  width: 18px;
-  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1), border-color 120ms ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  width: 22px;
+  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1), border-color 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .csb-swatch:hover {
   border-color: var(--ui-primary, #347f78);
-  transform: scale(1.15);
-  box-shadow: 0 2px 4px rgba(24, 37, 35, 0.1);
+  transform: scale(1.18);
+  box-shadow: 0 2px 6px rgba(24, 37, 35, 0.15);
 }
 
 /* ---- Custom color picker row --------------------------------------- */
@@ -376,7 +379,7 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: csbPopoverFadeIn 0.05s ease-out;
+  animation: dateColorsFadeIn 0.18s ease-out;
 }
 
 .date-colors-panel {
@@ -387,7 +390,23 @@
   width: 440px;
   max-width: 90%;
   padding: 24px;
-  animation: csbPopoverFadeIn 0.05s ease-out;
+  animation: dateColorsPanelIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dateColorsFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes dateColorsPanelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .date-colors-header {

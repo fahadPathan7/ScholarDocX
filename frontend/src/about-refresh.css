@@ -891,6 +891,7 @@ tr.rank-lowest td {
   display: flex;
   flex-direction: column;
   border-radius: 20px;
+  margin-left: 150px; /* offset for sidebar width so modal centers in content area */
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow:
     0 32px 64px rgba(15, 30, 25, 0.2),

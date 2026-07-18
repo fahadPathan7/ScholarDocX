@@ -159,6 +159,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasAdjustedRestrictedModelsRef = useRef(false);
+  // SCHOLARDOCX-0150: when a scholardocx:open-ai event requests an auto-send
+  // (optionally on a fresh chat), we cannot call sendMessage() inline because
+  // startNewChat()/setInput are async state updates. We stash the text here
+  // and a dedicated effect fires sendMessage(text) once state has settled.
+  const pendingSendRef = useRef<string | null>(null);
 
   // Auto-scroll to bottom and auto-focus
   useEffect(() => {
@@ -176,15 +181,42 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   // Persist settings
   useEffect(() => {
     const handleOpenAi = ((e: CustomEvent) => {
+      const detail = (e.detail || {}) as {
+        contextMessage?: string;
+        autoSend?: boolean;
+        newChat?: boolean;
+      };
       setOpen(true);
-      if (e.detail && e.detail.contextMessage) {
-        setInput(e.detail.contextMessage);
-        // We'll focus in the auto-scroll/auto-focus effect since open changes
+
+      // SCHOLARDOCX-0150: auto-send path (used by the sheet Ask AI menu).
+      // When autoSend is requested, optionally roll the session over to a
+      // fresh chat, then queue the send. We cannot call sendMessage() inline
+      // because startNewChat()/setInput are async; pendingSendRef + the
+      // effect below fire the actual send once state settles.
+      if (detail.autoSend && detail.contextMessage) {
+        if (detail.newChat) {
+          // Save the current session if it has real content, then reset.
+          if (currentSession.messages.length > 1) {
+            saveCurrentSession();
+          }
+          setCurrentSession({
+            id: Date.now().toString(),
+            messages: [createInitialGreeting()],
+            title: "New Chat",
+            timestamp: Date.now(),
+          });
+        }
+        pendingSendRef.current = detail.contextMessage;
+        setInput(detail.contextMessage); // shown in the composer while sending
+      } else if (detail.contextMessage) {
+        // Legacy pre-fill-only path (no auto-send).
+        setInput(detail.contextMessage);
       }
+      // Focus is handled by the auto-scroll/auto-focus effect.
     }) as EventListener;
     window.addEventListener("scholardocx:open-ai", handleOpenAi);
     return () => window.removeEventListener("scholardocx:open-ai", handleOpenAi);
-  }, []);
+  }, [currentSession.messages.length]);
 
   useEffect(() => {
     localStorage.setItem("scholarDocX_webSearchCount", String(webSearchCount));
@@ -204,6 +236,19 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       inputRef.current.style.height = 'auto';
     }
   }, [input]);
+
+  // SCHOLARDOCX-0150: drain a pending auto-send queued by the open-ai event.
+  // Fires once the assistant is open, not loading, and (if a new chat was
+  // requested) the fresh session has mounted. Uses the override-text path so
+  // it does not depend on `input` state having flushed.
+  useEffect(() => {
+    if (!open || loading) return;
+    const text = pendingSendRef.current;
+    if (!text) return;
+    pendingSendRef.current = null;
+    void sendMessage(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, loading, currentSession.id]);
 
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
   const allowedProviders = new Set(
@@ -394,17 +439,24 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   };
 
   // Send message
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (overrideText?: unknown) => {
+    // SCHOLARDOCX-0150: overrideText lets callers (e.g. the sheet Ask AI
+    // menu) send immediately without waiting for the async setInput state
+    // to flush. When omitted (or when React passes a MouseEvent from the
+    // Send button / Enter handler), behaves exactly as before (reads `input`).
+    const override =
+      typeof overrideText === "string" ? overrideText : undefined;
+    const text = (override ?? input).trim();
+    if (!text || loading) return;
 
     const userMessageCount = currentSession.messages.filter(m => m.role === "user").length;
     if (userMessageCount >= 30) {
       const lastMsg = currentSession.messages[currentSession.messages.length - 1];
       if (lastMsg?.role === "assistant" && lastMsg.content.includes("Chat Limit Reached")) {
         setInput(""); // Clear input if they try again
-        return; 
+        return;
       }
-      
+
       const limitMessage: Message = {
         role: "assistant",
         content: "⚠️ **Chat Limit Reached**\n\nYou have reached the maximum limit of 30 messages per session. Please click the **New Chat** icon (🤖) in the header to start a fresh session.",
@@ -417,19 +469,19 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
     const lastMessage = currentSession.messages[currentSession.messages.length - 1];
     if (lastMessage?.actionState === "pending" && lastMessage.actionPlan) {
-      const isConfirm = /^(yes|sure|do it|execute|confirm|ok|okay|y|yeah)$/i.test(input.trim());
-      const isCancel = /^(no|cancel|stop|don't|abort|n|nope)$/i.test(input.trim());
-      
+      const isConfirm = /^(yes|sure|do it|execute|confirm|ok|okay|y|yeah)$/i.test(text);
+      const isCancel = /^(no|cancel|stop|don't|abort|n|nope)$/i.test(text);
+
       if (isConfirm || isCancel) {
         const userMessage: Message = {
           role: "user",
-          content: input.trim(),
+          content: text,
           timestamp: Date.now()
         };
         const updatedMessages = [...currentSession.messages, userMessage];
         setCurrentSession(prev => ({ ...prev, messages: updatedMessages }));
         setInput("");
-        
+
         if (isConfirm) {
           confirmActionPlan(currentSession.messages.length - 1, lastMessage.actionPlan);
         } else {
@@ -441,7 +493,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
     const userMessage: Message = {
       role: "user",
-      content: input.trim(),
+      content: text,
       timestamp: Date.now()
     };
 

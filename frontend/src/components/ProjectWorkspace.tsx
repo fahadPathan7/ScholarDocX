@@ -188,10 +188,20 @@ export function ProjectWorkspace({
   // Load per-project sheet counts for the Projects list in ONE grouped request,
   // instead of one /summary call per project (N+1). The endpoint returns
   // { "<project_id>": <count> } for the current user.
+  //
+  // SCHOLARDOCX-0150: seed every known project with 0 BEFORE the fetch so a
+  // project with no sheets never gets stuck on the card's "loading" state.
+  // The card treats a missing key as isLoading=true; without this seed, a
+  // zero-sheet project (which the backend now correctly returns as 0) would
+  // still flash "..." until the network round-trip completes, and any future
+  // endpoint change that omits a key would regress to the perpetual spinner.
   const loadProjectSheetCounts = async () => {
+    const seeded: Record<string, number> = {};
+    for (const p of projects) seeded[String(p.id)] = 0;
+    setProjectSheetCounts(seeded);
     try {
       const counts = await api.get<Record<string, number>>(`/projects/sheet_counts`);
-      setProjectSheetCounts(counts);
+      setProjectSheetCounts({ ...seeded, ...counts });
     } catch (err) {
       console.error("Failed to load project sheet counts:", err);
     }
@@ -738,11 +748,16 @@ export function ProjectWorkspace({
                 fullScreenMode={fullScreenMode}
                 selectedProjectId={selectedProjectId}
                 selectedPageId={selectedPageId}
-                onAskAI={() => {
-                  const sheetName = selectedSheet?.name || selectedPage?.name || "Sheet";
-                  const projName = selectedProject?.name || "Project";
+                selectedSheetId={selectedSheetId || undefined}
+                projectName={selectedProject?.name || "Project"}
+                sheetName={selectedSheet?.name || selectedPage?.name || "Sheet"}
+                degreeType={selectedProject?.degree_type as string | undefined}
+                onAskAi={(message) => {
+                  // SCHOLARDOCX-0150: send the built prompt straight to Lumi on a
+                  // fresh chat (no manual Send click needed). Action-oriented
+                  // prompts still route through /ai/actions/plan with Confirm/Cancel.
                   window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
-                    detail: { contextMessage: `I'm looking at sheet "${sheetName}" in project "${projName}". Can you help me analyze it?` }
+                    detail: { contextMessage: message, autoSend: true, newChat: true }
                   }));
                 }}
                 onExportCsv={sheet.handleExportCsv}

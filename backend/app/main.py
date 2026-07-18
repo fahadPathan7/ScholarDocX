@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.dependencies import ensure_db_initialized
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.workspace import ensure_workspace
-from app.db.connection import initialize_database
 
 # Load .env from project root if it exists, or fallback to default
 env_path = Path(__file__).resolve().parents[2] / ".env"
@@ -18,8 +18,11 @@ else:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    ensure_workspace(settings)
-    initialize_database(settings.database_target)
+    # SCHOLARDOCX-0149: boot init must go through ensure_db_initialized so the
+    # _db_initialized memo flag is set. Calling initialize_database directly
+    # left the flag False, so the first request's get_store -> ensure_db_initialized
+    # re-ran the entire DDL + seed pass (~160 round-trips) a second time.
+    ensure_db_initialized(settings)
 
     app = FastAPI(title="ScholarDocX API", version="0.1.0")
     app.add_middleware(

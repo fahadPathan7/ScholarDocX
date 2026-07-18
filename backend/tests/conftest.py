@@ -50,6 +50,10 @@ def _reset_rate_limiter():
 # Tables that can accumulate NULL user_id orphans from tests that insert rows
 # without a real user row (e.g. create_record called with no user in context).
 # Order matters: children before parents to satisfy FK constraints.
+# SCHOLARDOCX-0150: added the record-domain tables (document_versions,
+# applications, professors, programs, universities) — previously missing, so
+# stale rows from test_ai_actions_records.py accumulated across runs and made
+# count/[0]-index assertions flake on the shared Supabase DB.
 _NULLABLE_USER_TABLES = [
     "notifications",
     "project_pages",
@@ -58,19 +62,23 @@ _NULLABLE_USER_TABLES = [
     "sticky_notes",
     "static_files",
     "whiteboards",
+    "document_versions",  # child of documents/applications
     "documents",
     "scholarship_deep_hunt_runs",
     "advisor_atlas_runs",
     "saved_scholarship_queries",
     "scholarship_opportunities",
     "bookmarked_news",
-    "outreach_logs",
-    "email_drafts",
+    "outreach_logs",  # references email_drafts, applications, professors
+    "email_drafts",   # references email_templates, applications, professors
     "email_templates",
-    "research_notes",
-    "reminders",
-    "deadlines",
-    "applications",
+    "research_notes",  # references applications, professors, universities
+    "reminders",       # references applications, outreach_logs
+    "deadlines",       # references applications
+    "applications",    # references universities, programs, professors
+    "professors",      # references universities, programs
+    "programs",        # references universities
+    "universities",
 ]
 
 # Test-email patterns whose users (and all their FK-cascading rows) should be

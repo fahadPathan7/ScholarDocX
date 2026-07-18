@@ -28,11 +28,75 @@ development.
   try/catch and always release `isLoading`), otherwise the SplashScreen hangs
   on refresh and the app never mounts. Dashboard data fetches fan out with
   `Promise.all` but must start **after** `POST /workspace/init` resolves — init
-  and `get_store` both call `initialize_database`, so firing them concurrently
+  and `get_store` both touch `initialize_database`, so firing them concurrently
   risks DDL/connection-pool contention. No client-imposed minimum-delay floors
-  on the login-to-dashboard path. On the backend, `/workspace/init` and
-  `get_store` share one memoized `ensure_db_initialized` so DDL runs at most
-  once per process regardless of how many refreshes occur.
+  on the login-to-dashboard path. On the backend, the boot path (`create_app`),
+  `/workspace/init`, and `get_store` all funnel through one memoized
+  `ensure_db_initialized` so DDL + seeding runs at most once per process
+  regardless of how many refreshes occur. The memo flag is guarded by a
+  `threading.Lock` so a concurrent cold-start burst cannot both run DDL
+  (SCHOLARDOCX-0149).
+
+  **Boot-init rule (SCHOLARDOCX-0149):** `create_app()` MUST call
+  `ensure_db_initialized(settings)`, never `initialize_database(...)` directly.
+  Calling it directly leaves the `_db_initialized` flag unset, so the first
+  request's `get_store` re-runs the entire DDL + ~160-row seed pass a second
+  time — the dominant cause of slow `/workspace/init` on Render cold starts.
+  The seed helpers (`_seed_role_limits`, `_seed_ai_token_defaults`) must use
+  batched `executemany`-style inserts (one round-trip per table), not per-row
+  loops.
+
+  **Sheet Ask AI prompt catalog (SCHOLARDOCX-0150):** the sheet "Ask AI"
+  button is a dropdown of context-aware, metric-driven prompts
+  (`askAiPrompts.ts`), not a single canned question. Each prompt has a full,
+  always-visible description (never hover-only) and builds a message that
+  targets the **exact sheet by ID** (`project_id` + `sheet_id`), with names
+  kept only as human-readable labels. Names are NOT used for resolution — a
+  user can have multiple projects/sheets with the same name, so name-based
+  targeting would mis-target. The backend action planner already resolves
+  `project_id`/`sheet_id` before names (`ai_actions_workspace.py:45-65`,
+  `ai_actions_execute.py:27-60`) and the workspace snapshot already exposes
+  the IDs to the model. Every write-action prompt appends an explicit
+  instruction to emit `project_id`/`sheet_id` in the plan.
+
+  Picking a prompt (or writing a custom one) dispatches `scholardocx:open-ai`
+  with `{ contextMessage, autoSend: true, newChat: true }` — Lumi opens on a
+  fresh chat and sends immediately (no manual Send click). Prompts are
+  concrete ("application status breakdown with conversion rate", "funding
+  totals and biggest award", "deadline risk for the next 45 days", "outreach
+  response rate and non-responders", "score every row by priority 1–5") and
+  phrased as imperative action requests so FloatingAssistant's
+  `looksLikeWorkspaceAction` detector routes them to `/ai/actions/plan` →
+  `/ai/actions/execute`, giving the AI real data/action control (`add_rows`,
+  `bulk_update_rows`, `add_column`, `filter_rows`, `analyze_sheet`, …). The
+  auto-send path uses `sendMessage(overrideText)` + a `pendingSendRef` in
+  FloatingAssistant; the legacy pre-fill-only path (no `autoSend`) is
+  preserved for other callers. No cell values are sent in context — only
+  schema + IDs + selection/focus, matching the action planner's design (it
+  uses read actions to inspect values).
+
+  **Action planner ID rule (SCHOLARDOCX-0150 rev 3):** `ACTION_PLANNER_SYSTEM_PROMPT`
+  and `_build_planner_prompt` (`backend/app/services/ai_actions.py`) MUST
+  document `project_id`/`sheet_id` as accepted fields on every workspace
+  action and MUST instruct the model to prefer them over names whenever the
+  user's message includes IDs. The executor already resolved IDs first
+  (`ai_actions_workspace.py:45-65`, `ai_actions_execute.py:27-60`), but if
+  the prompt schema only shows `project_name`/`sheet_name`, the model never
+  emits IDs and name collisions cause mis-targeting or `needs_info` failures.
+  The prompt must also state that a single plan may chain multiple actions
+  (read-then-write), which transform prompts like "add a column and fill it"
+  require.
+
+  **Bulk count endpoints must include zero rows (SCHOLARDOCX-0151):** any
+  endpoint that aggregates per-entity counts (e.g.
+  `Store.project_sheet_counts` → `/projects/sheet_counts`) MUST emit an entry
+  for every entity the user owns, including those with zero children. A plain
+  `GROUP BY child.project_id` on the child table silently omits parents with
+  no children, which left the project card's "X / Y sheets" counter stuck on
+  its loading state. Use `LEFT JOIN parent → child` with `COUNT(child.id)`
+  and `GROUP BY parent.id`. The frontend additionally seeds the counts map
+  with `0` for every known project before the fetch resolves, as a defensive
+  guard against pre-fetch flashes and future regressions.
 
 ## Backend Responsibilities
 

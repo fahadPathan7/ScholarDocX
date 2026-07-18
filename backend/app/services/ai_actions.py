@@ -90,7 +90,22 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
     "9. ADMIN EXCLUSION: NEVER plan admin or account-management actions — "
     "managing users, suspensions, roles, plans, role limits, invites, token "
     "grants, app settings, or AI model management. For such requests return "
-    "status no_action.\n\n"
+    "status no_action.\n"
+    "10. ID-BASED TARGETING (SCHOLARDOCX-0150): Every workspace action that "
+    "takes a project or sheet reference accepts `project_id` and `sheet_id` "
+    "INSTEAD of `project_name` / `sheet_name`. When the user's message "
+    "includes a project_id or sheet_id (e.g. '(project_id: \"abc-123\")' or "
+    "'(sheet_id: \"def-456\")'), you MUST use those IDs in the action object "
+    "and MUST NOT fall back to names — names can be ambiguous because "
+    "multiple projects/sheets may share a name. Emit them as top-level fields: "
+    '{"type":"add_rows","project_id":"abc-123","sheet_id":"def-456","rows":[...]}. '
+    "The CURRENT WORKSPACE payload below lists the `id` of every project and "
+    "sheet alongside its name, so you always have the IDs available.\n"
+    "11. MULTI-ACTION PLANS: a single plan may contain MULTIPLE actions in "
+    "sequence. Use this to read-then-write: e.g. emit `get_rows` first to "
+    "inspect data, then `add_column` + `bulk_update_rows` to fill it. Each "
+    "action in the array executes in order and shares the same sheet "
+    "reference.\n\n"
 
     "SUPPORTED ACTIONS:\n\n"
     "CREATE:\n"
@@ -337,6 +352,15 @@ class AiActionService:
             '{"type":"create_sticky_note","note":{"title":"Todo","body":"Finish SOP","color":"sun","is_checklist":false}}\n'
             '{"type":"update_sticky_note","note_title":"Todo","updates":{"body":"Updated body"}}\n'
             '{"type":"delete_sticky_note","note_title":"Todo"}\n\n'
+            "ACTION EXAMPLES (ID-BASED TARGETING — prefer these when the user "
+            "supplies project_id/sheet_id, because names can collide):\n"
+            '{"type":"add_column","project_id":"<id>","sheet_id":"<id>","column":{"name":"Priority","type":"number"}}\n'
+            '{"type":"add_rows","project_id":"<id>","sheet_id":"<id>","rows":[{"University name":"MIT","Status":"Applied"}]}\n'
+            '{"type":"update_row","project_id":"<id>","sheet_id":"<id>","row_index":0,"updates":{"Status":"Offer"}}\n'
+            '{"type":"bulk_update_rows","project_id":"<id>","sheet_id":"<id>","filter_column":"Status","filter_value":"Applied","updates":{"Stage":"In Progress"}}\n'
+            '{"type":"get_rows","project_id":"<id>","sheet_id":"<id>"}\n'
+            '{"type":"filter_rows","project_id":"<id>","sheet_id":"<id>","column_query":"Status","operator":"is_not_empty"}\n'
+            '{"type":"analyze_sheet","project_id":"<id>","sheet_id":"<id>","focus_column":"Deadline"}\n\n'
             "ACTION EXAMPLES (READ — Basic):\n"
             '{"type":"get_projects"}\n'
             '{"type":"get_sheets","project_name":"Canada PhD 2027"}\n'
@@ -393,7 +417,20 @@ class AiActionService:
             "12. For 'overdue' → use get_overdue_rows\n"
             "13. For 'find X' or 'search X' → use search_rows with query=X\n"
             "14. Resolve relative dates ('in 3 days', 'next Friday') to YYYY-MM-DD using CURRENT_DATE\n"
-            "15. NEVER plan admin/account-management actions; return no_action for those\n\n"
+            "15. NEVER plan admin/account-management actions; return no_action for those\n"
+            "16. ID PREFERENCE (SCHOLARDOCX-0150): if the user's message contains "
+            "a project_id or sheet_id (look for '(project_id: \"...\")' / "
+            "'(sheet_id: \"...\")'), you MUST include those IDs as top-level "
+            "fields in EVERY action in the plan and MUST NOT use project_name / "
+            "sheet_name for resolution. This is mandatory because names are not "
+            "unique. Read IDs from the user's message verbatim.\n"
+            "17. MULTI-ACTION: for 'add a column and fill it', 'categorize every "
+            "row', 'score rows', or similar read-then-write requests, emit "
+            "multiple actions in the `actions` array in order — typically a "
+            "read (`get_rows` / `filter_rows`) is NOT needed before writes "
+            "because you can reason from the column schema in CURRENT WORKSPACE. "
+            "For fills, emit `add_column` (if the column is new) followed by "
+            "`bulk_update_rows` per group, or `update_row` per row.\n\n"
             "DECISION LOGIC:\n"
             "- If user is just chatting/asking questions → status: no_action\n"
             "- If critical info is missing and cannot be inferred from CONTEXT → status: needs_info, list missing fields\n"

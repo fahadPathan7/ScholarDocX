@@ -1,4 +1,7 @@
+import uuid
+
 import pytest
+from sqlalchemy import text
 
 from app.core.config import Settings
 from app.db.connection import get_engine
@@ -59,28 +62,52 @@ def test_document_lifecycle_with_versions(tmp_path):
 
 def test_academic_catalog_chain_resolves_names(tmp_path):
     store, session = make_store(tmp_path)
+    # Unique per-run names: "MIT" is reused across runs/tests, and the shared
+    # Supabase DB accumulates stale rows that would otherwise make [0] / name
+    # lookups ambiguous. Tag everything this run creates and clean up after.
+    run_tag = uuid.uuid4().hex[:8]
+    uni_name = f"MIT-{run_tag}"
+    prog_name = f"PhD CS-{run_tag}"
+    prof_name = f"Prof. Chen-{run_tag}"
     try:
         service = make_service(store)
         response = execute(service, [
-            {"type": "create_university", "name": "MIT", "country": "USA"},
-            {"type": "create_program", "name": "PhD CS", "university_name": "MIT", "degree_type": "phd"},
-            {"type": "create_professor", "name": "Prof. Chen", "university_name": "MIT", "email": "chen@mit.edu"},
-            {"type": "create_application", "university_name": "MIT", "status": "Preparing"},
+            {"type": "create_university", "name": uni_name, "country": "USA"},
+            {"type": "create_program", "name": prog_name, "university_name": uni_name, "degree_type": "phd"},
+            {"type": "create_professor", "name": prof_name, "university_name": uni_name, "email": f"chen-{run_tag}@mit.edu"},
+            {"type": "create_application", "university_name": uni_name, "status": "Preparing"},
         ])
         assert response["status"] == "done"
-        university = store.list_records("universities")[0]
-        program = store.list_records("programs")[0]
-        professor = store.list_records("professors")[0]
-        application = store.list_records("applications")[0]
+
+        # Find this run's rows by their unique names, not by [0] indexing.
+        university = next(u for u in store.list_records("universities") if u["name"] == uni_name)
+        program = next(p for p in store.list_records("programs") if p["name"] == prog_name)
+        professor = next(p for p in store.list_records("professors") if p["name"] == prof_name)
+        application = next(
+            a for a in store.list_records("applications")
+            if str(a.get("university_id")) == str(university["id"])
+        )
         assert program["university_id"] == university["id"]
         assert professor["university_id"] == university["id"]
         assert application["university_id"] == university["id"]
 
         execute(service, [
-            {"type": "update_application", "university_name": "MIT", "updates": {"status": "Submitted"}},
+            {"type": "update_application", "university_name": uni_name, "updates": {"status": "Submitted"}},
         ])
-        assert store.list_records("applications")[0]["status"] == "Submitted"
+        # Re-read this run's application and assert its own status (not [0]).
+        apps = [a for a in store.list_records("applications")
+                if str(a.get("university_id")) == str(university["id"])]
+        assert apps[0]["status"] == "Submitted"
     finally:
+        # Delete in child-first order to satisfy FK constraints.
+        try:
+            session.execute(text("DELETE FROM applications WHERE university_id = (SELECT id FROM universities WHERE name = :n)"), {"n": uni_name})
+            session.execute(text("DELETE FROM professors WHERE name = :p"), {"p": prof_name})
+            session.execute(text("DELETE FROM programs WHERE name = :p"), {"p": prog_name})
+            session.execute(text("DELETE FROM universities WHERE name = :n"), {"n": uni_name})
+            session.commit()
+        except Exception:
+            session.rollback()
         session.close()
 
 
@@ -194,23 +221,36 @@ def test_research_note_and_notifications(tmp_path):
 def test_normalized_plan_round_trips_through_execute(tmp_path):
     """The frontend sends the planner's normalized plan back to execute."""
     store, session = make_store(tmp_path)
+    # Unique per-run names to avoid collisions with prior runs on the shared
+    # Supabase DB. Cleaned up in finally.
+    run_tag = uuid.uuid4().hex[:8]
+    uni_name = f"MIT-{run_tag}"
+    reminder_title = f"Email Prof. Chen-{run_tag}"
     try:
         service = make_service(store)
         planned = service._normalize_plan(
             {"actions": [
-                {"type": "create_university", "name": "MIT", "country": "USA"},
-                {"type": "create_reminder", "title": "Email Prof. Chen", "due_at": "2026-07-05"},
+                {"type": "create_university", "name": uni_name, "country": "USA"},
+                {"type": "create_reminder", "title": reminder_title, "due_at": "2026-07-05"},
             ]},
-            "add MIT as a university and remind me to email Prof. Chen",
+            f"add {uni_name} as a university and remind me to email Prof. Chen",
         )
         assert planned["status"] == "needs_confirmation"
-        assert planned["summary"] == ["Create university: MIT", "Create reminder: Email Prof. Chen"]
+        assert planned["summary"] == [f"Create university: {uni_name}", f"Create reminder: {reminder_title}"]
 
         response = service.execute(planned)
         assert response["status"] == "done"
-        assert store.list_records("universities")[0]["name"] == "MIT"
-        assert store.list_records("reminders")[0]["title"] == "Email Prof. Chen"
+        unis = [u for u in store.list_records("universities") if u["name"] == uni_name]
+        reminders = [r for r in store.list_records("reminders") if r["title"] == reminder_title]
+        assert len(unis) == 1 and unis[0]["name"] == uni_name
+        assert len(reminders) == 1 and reminders[0]["title"] == reminder_title
     finally:
+        try:
+            session.execute(text("DELETE FROM reminders WHERE title = :t"), {"t": reminder_title})
+            session.execute(text("DELETE FROM universities WHERE name = :n"), {"n": uni_name})
+            session.commit()
+        except Exception:
+            session.rollback()
         session.close()
 
 
@@ -289,14 +329,32 @@ def test_execute_enforces_role_limits(tmp_path):
 
 def test_execute_without_user_skips_limit_checks(tmp_path):
     store, session = make_store(tmp_path)
+    # Unique per-run names so this test never collides with its own prior runs
+    # (shared Supabase DB). Cleaned up in finally.
+    run_tag = uuid.uuid4().hex[:8]
+    names = [f"P{run_tag}-{i}" for i in range(3)]
     try:
         service = make_service(store)
         plan = {"status": "needs_confirmation", "actions": [
-            {"type": "create_project", "project": {"name": f"P{i}", "degree_type": "phd"}}
+            {"type": "create_project", "project": {"name": names[i], "degree_type": "phd"}}
             for i in range(3)
         ]}
         response = service.execute(plan)
         assert response["status"] == "done"
-        assert len(store.list_records("projects")) == 3
+        # Assert only the rows this run created (not the whole table — stale
+        # rows from other tests/runs in the shared DB make total counts flaky).
+        created = [
+            p for p in store.list_records("projects") if p["name"] in names
+        ]
+        assert len(created) == 3
     finally:
+        for name in names:
+            try:
+                session.execute(
+                    text("DELETE FROM projects WHERE name = :n"),
+                    {"n": name},
+                )
+                session.commit()
+            except Exception:
+                session.rollback()
         session.close()

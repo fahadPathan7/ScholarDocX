@@ -816,17 +816,29 @@ class Store:
         """Sheet counts for every project owned by the current user, in one query.
 
         Replaces the frontend's per-project `/summary` loop on the Projects list.
-        Returns ``{ "<project_id>": <int> }``.
+        Returns ``{ "<project_id>": <int> }`` with an entry for EVERY project
+        the user owns — including projects with zero sheets (count 0). A plain
+        ``GROUP BY project_id`` on ``project_sheets`` would silently omit
+        empty projects, leaving their card's "X / Y sheets" counter stuck on
+        "loading..." in the UI (SCHOLARDOCX-0150).
         """
         uid = self.current_user_id
         if uid:
             rows = self.db.execute(text(
-                "SELECT project_id, COUNT(*) AS n FROM project_sheets "
-                "WHERE user_id = :uid GROUP BY project_id"
+                # LEFT JOIN from the user's projects so empty projects still
+                # emit a row with COUNT(sheets.id) = 0.
+                "SELECT p.id AS project_id, COUNT(s.id) AS n "
+                "FROM projects p "
+                "LEFT JOIN project_sheets s ON s.project_id = p.id AND s.user_id = :uid "
+                "WHERE p.user_id = :uid "
+                "GROUP BY p.id"
             ), {"uid": uid}).mappings().all()
         else:
             rows = self.db.execute(text(
-                "SELECT project_id, COUNT(*) AS n FROM project_sheets GROUP BY project_id"
+                "SELECT p.id AS project_id, COUNT(s.id) AS n "
+                "FROM projects p "
+                "LEFT JOIN project_sheets s ON s.project_id = p.id "
+                "GROUP BY p.id"
             )).mappings().all()
         return {str(row["project_id"]): int(row["n"]) for row in rows}
 

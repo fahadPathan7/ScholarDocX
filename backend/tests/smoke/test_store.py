@@ -449,3 +449,34 @@ def test_project_sheet_counts_groups_by_project(tmp_path):
         assert counts[str(p2["id"])] == 1
     finally:
         store.db.close()
+
+
+def test_project_sheet_counts_includes_empty_projects(tmp_path):
+    """SCHOLARDOCX-0150: a project with NO sheets must still appear in the
+    counts dict with value 0. Previously the GROUP BY on project_sheets
+    silently omitted empty projects, which left the project card's "X / Y
+    sheets" counter stuck on its loading state in the UI.
+    """
+    store, connection = make_store(tmp_path)
+    try:
+        # Three projects: one with two sheets, one with one sheet, one EMPTY.
+        p_full = store.create_record("projects", {"name": "Full", "degree_type": "phd"})
+        p_one = store.create_record("projects", {"name": "One", "degree_type": "phd"})
+        p_empty = store.create_record("projects", {"name": "Empty", "degree_type": "phd"})
+
+        store.create_sheet_with_defaults(p_full["id"], "s1")
+        store.create_sheet_with_defaults(p_full["id"], "s2")
+        store.create_sheet_with_defaults(p_one["id"], "s3")
+        # NOTE: no sheets added to p_empty.
+
+        counts = store.project_sheet_counts()
+
+        # The empty project MUST be a key with value 0 — not missing.
+        assert str(p_empty["id"]) in counts, (
+            "empty project must appear in sheet_counts (was omitted by GROUP BY)"
+        )
+        assert counts[str(p_empty["id"])] == 0
+        assert counts[str(p_full["id"])] == 2
+        assert counts[str(p_one["id"])] == 1
+    finally:
+        store.db.close()

@@ -137,6 +137,10 @@ def _seed_role_limits(conn) -> None:
     authoritative source; the schema.py role_limits block was removed and this
     helper seeds every role/feature idempotently on init. ON CONFLICT DO NOTHING
     preserves any limit an admin has already customized.
+
+    SCHOLARDOCX-0149: batched into a single executemany round-trip (was one
+    INSERT per role/feature row — ~140 round-trips to Supabase's pooler).
+    psycopg3 applies the ON CONFLICT clause per row within the batch.
     """
     from app.services.admin import DEFAULT_ROLE_LIMITS
 
@@ -145,17 +149,18 @@ def _seed_role_limits(conn) -> None:
         "VALUES (:role, :feature, :limit_count, :reset_period) "
         "ON CONFLICT (role, feature) DO NOTHING"
     )
-    for role, features in DEFAULT_ROLE_LIMITS.items():
-        for feature, limit_count, reset_period in features:
-            conn.execute(
-                stmt,
-                {
-                    "role": role,
-                    "feature": feature,
-                    "limit_count": limit_count,
-                    "reset_period": reset_period,
-                },
-            )
+    rows = [
+        {
+            "role": role,
+            "feature": feature,
+            "limit_count": limit_count,
+            "reset_period": reset_period,
+        }
+        for role, features in DEFAULT_ROLE_LIMITS.items()
+        for feature, limit_count, reset_period in features
+    ]
+    if rows:
+        conn.execute(stmt, rows)
 
 
 def _split_sql_script(script: str) -> list[str]:
@@ -210,6 +215,10 @@ def _seed_ai_token_defaults(conn) -> None:
         "VALUES (:provider, :model_id, :display_name, :in_price, :out_price, 1, :order) "
         "ON CONFLICT (provider, model_id) DO NOTHING"
     )
+    # SCHOLARDOCX-0149: collect all model rows then one batched executemany
+    # (was one INSERT per model — ~17 round-trips). sort_order keeps the
+    # provider/model ordering stable across the flattened list.
+    model_rows = []
     order = 0
     for provider, model_ids in (
         ("glm", DEFAULT_GLM_MODELS),
@@ -220,8 +229,7 @@ def _seed_ai_token_defaults(conn) -> None:
     ):
         for model_id in model_ids:
             in_price, out_price = prices.get(model_id, (0.0, 0.0))
-            conn.execute(
-                model_stmt,
+            model_rows.append(
                 {
                     "provider": provider,
                     "model_id": model_id,
@@ -229,9 +237,11 @@ def _seed_ai_token_defaults(conn) -> None:
                     "in_price": in_price,
                     "out_price": out_price,
                     "order": order,
-                },
+                }
             )
             order += 1
+    if model_rows:
+        conn.execute(model_stmt, model_rows)
 
     pack_stmt = text(
         "INSERT INTO ai_token_packs "
@@ -245,14 +255,15 @@ def _seed_ai_token_defaults(conn) -> None:
         ("large", "Large", 1500000, 100, 3),
         ("extra_large", "Extra Large", 5000000, 300, 4),
     )
-    for code, display_name, token_amount, price_usd, sort_order in packs:
-        conn.execute(
-            pack_stmt,
-            {
-                "code": code,
-                "display_name": display_name,
-                "token_amount": token_amount,
-                "price_usd": price_usd,
-                "sort_order": sort_order,
-            },
-        )
+    pack_rows = [
+        {
+            "code": code,
+            "display_name": display_name,
+            "token_amount": token_amount,
+            "price_usd": price_usd,
+            "sort_order": sort_order,
+        }
+        for code, display_name, token_amount, price_usd, sort_order in packs
+    ]
+    if pack_rows:
+        conn.execute(pack_stmt, pack_rows)

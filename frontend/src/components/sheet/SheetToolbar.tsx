@@ -3,11 +3,12 @@
 /* ------------------------------------------------------------------ */
 
 import { useState, useRef, useEffect } from "react";
-import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Sparkles, Info } from "lucide-react";
+import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Info } from "lucide-react";
 import type { ColumnDef, CellStyle } from "./sheetModel";
 import type { SheetView } from "./sheetFilters";
 import { useDialog } from "../DialogProvider";
 import { CellStyleBar } from "./CellStyleBar";
+import { AskAiMenuFromSheet } from "./AskAiMenu";
 import type { RecordMap } from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -19,7 +20,11 @@ export function SheetToolbarActions({
   fullScreenMode,
   selectedProjectId,
   selectedPageId,
-  onAskAI,
+  selectedSheetId,
+  projectName,
+  sheetName,
+  degreeType,
+  onAskAi,
   onExportCsv,
   onImportCsv,
   onSaveTemplate,
@@ -35,7 +40,13 @@ export function SheetToolbarActions({
   fullScreenMode: boolean;
   selectedProjectId: string;
   selectedPageId: string;
-  onAskAI: () => void;
+  /** SCHOLARDOCX-0150: project_sheets.id, so prompts target the exact sheet by ID. */
+  selectedSheetId?: string;
+  projectName: string;
+  sheetName: string;
+  degreeType?: string;
+  /** SCHOLARDOCX-0150: receives the built prompt message. */
+  onAskAi: (message: string) => void;
   onExportCsv: () => void;
   onImportCsv: () => void;
   onSaveTemplate: () => void;
@@ -149,10 +160,20 @@ export function SheetToolbarActions({
         )}
       </div>
 
-      {/* Ask AI */}
-      <button className="secondary" onClick={onAskAI} style={{ ...btnStyle, color: 'var(--ui-brand)' }}>
-        <Sparkles size={12} /> Ask AI
-      </button>
+      {/* Ask AI — SCHOLARDOCX-0150: dropdown of context-aware prompts */}
+      <AskAiMenuFromSheet
+        projectId={selectedProjectId}
+        sheetId={selectedSheetId}
+        projectName={projectName}
+        sheetName={sheetName}
+        degreeType={degreeType}
+        columns={columns}
+        rows={rows}
+        selectedRows={selectedRows}
+        focusedCell={focusedCell}
+        onPick={onAskAi}
+        btnStyle={btnStyle}
+      />
 
       {/* Full Screen */}
       <button

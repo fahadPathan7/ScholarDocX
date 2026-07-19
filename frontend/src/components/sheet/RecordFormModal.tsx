@@ -4,6 +4,7 @@
 
 import { FormEvent } from "react";
 import { Plus, X } from "lucide-react";
+import { Modal } from "../Modal";
 import { TypedRecordField } from "../SheetRecordFields";
 import type { ColumnDef } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
@@ -32,7 +33,7 @@ export function RecordFormModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onCancel}>
+    <Modal onClose={onCancel}>
       <form className="modal-panel record-form" onClick={(e) => e.stopPropagation()} onSubmit={onSave} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -64,6 +65,6 @@ export function RecordFormModal({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

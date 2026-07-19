@@ -216,9 +216,9 @@ export function SettingsTab() {
       )}
 
       {showPricingModal && (
-        <Modal onClose={() => setShowPricingModal(false)} zIndex={999}>
+        <Modal onClose={() => setShowPricingModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">
@@ -255,9 +255,9 @@ export function SettingsTab() {
       )}
 
       {showModelPricingModal && (
-        <Modal onClose={() => setShowModelPricingModal(false)} zIndex={999}>
+        <Modal onClose={() => setShowModelPricingModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">
@@ -345,9 +345,9 @@ export function SettingsTab() {
       )}
 
       {showTokenPacksModal && (
-        <Modal onClose={() => setShowTokenPacksModal(false)} zIndex={999}>
+        <Modal onClose={() => setShowTokenPacksModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[85vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">

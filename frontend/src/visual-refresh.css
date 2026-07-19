@@ -100,7 +100,7 @@ h2,
   height: 100dvh;
   overflow: hidden;
   position: relative;
-  z-index: 1000;
+  z-index: 1100;
 }
 
 .sidebar::before {
@@ -333,6 +333,8 @@ main {
 .topbar {
   align-items: center;
   margin-bottom: 6px;
+  position: relative;
+  z-index: 1100;
 }
 
 .topbar h1 {
@@ -708,7 +710,6 @@ main {
   box-sizing: border-box;
 }
 
-.sheet-card-actions,
 .card-actions,
 .sheet-card-main-actions {
   align-items: center;
@@ -716,6 +717,16 @@ main {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+/* Sheet cards mirror project cards: pins on the left, main actions on the
+   right (space-between). The base styles.css rule already sets this; this
+   re-declaration keeps it stable even if the shared rule above is edited. */
+.sheet-card-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
 }
 
 .project-card-pins {
@@ -912,22 +923,57 @@ main {
 .modal-backdrop,
 .file-picker-backdrop {
   animation: fade-in 160ms ease both;
-  backdrop-filter: blur(10px);
-  background: rgba(30, 41, 37, 0.22);
+  backdrop-filter: blur(8px) saturate(110%);
+  background: radial-gradient(circle, rgba(15, 23, 20, 0.4) 0%, rgba(15, 23, 20, 0.55) 100%);
   min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
 }
 
-/* Main-content scoped backdrop — blurs right panel only, not the sidebar */
+/* ================================================================ */
+/* MODAL BACKDROP BLUR RULE — DO NOT REGRESS (see AGENTS.md)         */
+/*                                                                  */
+/* `.modal-backdrop-main` MUST stay scoped to the `.main-content`    */
+/* work surface. `.main-content` is `position: relative`, so the     */
+/* backdrop uses `position: absolute; inset: 0` to cover ONLY the    */
+/* main work surface — it blurs the dashboard/breadcrumbs/headers    */
+/* but MUST NOT blur the global TopBar or the left Sidebar.          */
+/*                                                                  */
+/* DO NOT change this to `position: fixed` / `top/left/right/bottom: */
+/* 0` / `min-height: 100vh` — that bleeds the blur over the whole    */
+/* viewport (sidebar + topbar), which is the recurring regression.   */
+/* The Portal target is `.main-content` (see Modal.tsx), and only     */
+/* `.modal-backdrop` (scope="body") is allowed to be fixed/viewport. */
+/* Vertical position: padding-top 160px (lowered, not flush to top). */
+/* ================================================================ */
 .modal-backdrop-main {
   position: absolute;
   inset: 0;
   min-height: 100%;
-  height: 100%;
-  padding-top: 24px;
+  backdrop-filter: blur(8px) saturate(110%);
+  background: radial-gradient(circle, rgba(15, 23, 20, 0.4) 0%, rgba(15, 23, 20, 0.55) 100%);
+  z-index: 1050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.modal-backdrop-main.modal-backdrop-compact {
+  padding-top: 48px;
 }
 
 /* Nested modal - lighter blur to show depth */
-.modal-backdrop[style*="zIndex: 1010"] {
+.modal-backdrop[style*="zIndex: 1010"],
+.modal-backdrop[style*="zIndex: 1060"] {
   backdrop-filter: blur(6px);
   background: rgba(30, 41, 37, 0.15);
 }

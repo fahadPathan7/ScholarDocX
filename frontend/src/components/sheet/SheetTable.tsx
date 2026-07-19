@@ -73,6 +73,7 @@ export function SheetTable({
   rows,
   viewRows,
   rowIndexMap,
+  duplicateRowIndices,
   files,
   fullScreenMode,
   collapsedGroups,
@@ -112,6 +113,7 @@ export function SheetTable({
   rows: Record<string, string>[];
   viewRows: Record<string, string>[];
   rowIndexMap: Map<Record<string, string>, number>;
+  duplicateRowIndices?: Set<number>;
   files: RecordMap[];
   fullScreenMode: boolean;
   collapsedGroups: Record<string, boolean>;
@@ -177,6 +179,29 @@ export function SheetTable({
     }
     return true;
   }, [viewRows, rowIndexMap, selectedRows]);
+
+  // Maps each duplicate rowIndex → sorted list of sibling rowIndices sharing the same unique-combo
+  const duplicateSiblingMap = useMemo<Map<number, number[]>>(() => {
+    if (!duplicateRowIndices || duplicateRowIndices.size === 0) return new Map();
+    const uniqueCols = columns.filter(c => c.unique).map(c => c.name);
+    if (uniqueCols.length === 0) return new Map();
+    const comboToIndices = new Map<string, number[]>();
+    rows.forEach((row, idx) => {
+      const combo = uniqueCols.map(col => (row[col] || "").trim().toLowerCase()).join("|");
+      if (!combo || combo === "|".repeat(uniqueCols.length - 1)) return;
+      if (!comboToIndices.has(combo)) comboToIndices.set(combo, []);
+      comboToIndices.get(combo)!.push(idx);
+    });
+    const result = new Map<number, number[]>();
+    comboToIndices.forEach((indices) => {
+      if (indices.length > 1) {
+        indices.forEach(idx => {
+          result.set(idx, indices.filter(i => i !== idx));
+        });
+      }
+    });
+    return result;
+  }, [duplicateRowIndices, rows, columns]);
 
   /* -------------------- header filter menu state -------------------- */
 
@@ -629,6 +654,8 @@ export function SheetTable({
                     fullScreenMode={fullScreenMode}
                     isSelected={selectedRows.has(rowIndex)}
                     isNavFocused={focusedRowIndex === rowIndex}
+                    isDuplicate={duplicateRowIndices?.has(rowIndex) ?? false}
+                    duplicateSiblings={duplicateSiblingMap.get(rowIndex)}
                     focusedColName={isRowFocused ? focusedCell!.colName : null}
                     editingColName={editingCell?.rowIndex === rowIndex ? editingCell.colName : null}
                     editingSeed={editingCell?.rowIndex === rowIndex ? editingCell.seed : undefined}

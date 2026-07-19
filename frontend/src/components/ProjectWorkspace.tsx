@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState, useRef } from "react";
 import { ChevronLeft, Edit, LayoutDashboard, Pin, Plus, Trash2, X } from "lucide-react";
 import { Field } from "./Field";
+import { Modal } from "./Modal";
 
 import { PinActions } from "./PinActions";
 import { Section } from "./Section";
@@ -66,7 +67,9 @@ export function ProjectWorkspace({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [customTemplates, setCustomTemplates] = useState(() => getCustomTemplates());
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [isCreatingSheet, setIsCreatingSheet] = useState(false);
 
   /* Edit project/sheet state */
   const [editingProject, setEditingProject] = useState<RecordMap | null>(null);
@@ -80,11 +83,16 @@ export function ProjectWorkspace({
 
   const selectedProject = projects.find((item) => String(item.id) === selectedProjectId);
   const sheets = summary?.sheets || [];
-  const pages: SheetPage[] = summary?.pages || [];
+  // Page stubs from /meta — lightweight (id, sheet_id, name, updated_at, row_count).
+  // Full row/column data for the ONE open sheet lives in `selectedPageData`.
+  const pages: SheetPage[] = summary?.page_stubs || [];
   const selectedSheet = sheets.find((item: RecordMap) => String(item.id) === selectedSheetId);
-  const selectedPage = selectedSheetId
+  const selectedStub = selectedSheetId
     ? pages.find((item) => String(item.sheet_id) === selectedSheetId)
     : pages.find((item) => String(item.id) === selectedPageId);
+  // Full page data — fetched on demand for the open sheet only.
+  const [selectedPageData, setSelectedPageData] = useState<SheetPage | null>(null);
+  const selectedPage = selectedPageData ?? undefined;
 
   /* CSV Import State */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,11 +131,37 @@ export function ProjectWorkspace({
 
   const refreshSummary = async (projectId = selectedProjectId) => {
     if (!projectId) return;
-    const data = await api.get<RecordMap>(`/projects/${projectId}/summary`);
+    // /meta returns lightweight stubs + aggregates + calendar. Full row data for
+    // the open sheet is fetched separately via getSelectedPageData().
+    const data = await api.get<RecordMap>(`/projects/${projectId}/meta?include_calendar=true`);
     setSummary(data);
     if (selectedSheetId) {
-      const nextPage = data.pages?.find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
-      setSelectedPageId(nextPage ? String(nextPage.id) : "");
+      const nextStub = (data.page_stubs || []).find((page: RecordMap) => String(page.sheet_id) === selectedSheetId);
+      setSelectedPageId(nextStub ? String(nextStub.id) : "");
+    }
+  };
+
+  // Post-save refresh: re-fetch lightweight metadata WITHOUT the calendar scan.
+  // The open sheet's own rows are kept in local state; only sidebar/dashboard
+  // stubs + notifications need to resync. Used by useSheetPage persist handlers.
+  const refreshMeta = async () => {
+    if (!selectedProjectId) return;
+    const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/meta?include_calendar=false`);
+    setSummary(data);
+  };
+
+  // Fetch the ONE open sheet's full columns/rows. Called when the selected page
+  // changes, or when its stub's updated_at changes (external edit / save by an
+  // agent in another tab). Our own saves are no-oped by the contentSignature
+  // guard inside useSheetPage, so this resync only applies to real changes.
+  const getSelectedPageData = async (pageId: string): Promise<void> => {
+    if (!pageId) { setSelectedPageData(null); return; }
+    try {
+      const page = await api.get<SheetPage>(`/project_pages/${pageId}`);
+      setSelectedPageData(page);
+    } catch (err) {
+      console.error("Failed to load sheet page:", err);
+      setSelectedPageData(null);
     }
   };
 
@@ -137,6 +171,7 @@ export function ProjectWorkspace({
     selectedProjectId,
     onToast,
     refreshSummary,
+    refreshMeta,
     files,
     onFilesChanged,
     recordsPerSheetLimit,
@@ -150,19 +185,26 @@ export function ProjectWorkspace({
     setProjects(await listRecords<RecordMap>("projects"));
   };
 
+  // Load per-project sheet counts for the Projects list in ONE grouped request,
+  // instead of one /summary call per project (N+1). The endpoint returns
+  // { "<project_id>": <count> } for the current user.
+  //
+  // SCHOLARDOCX-0150: seed every known project with 0 BEFORE the fetch so a
+  // project with no sheets never gets stuck on the card's "loading" state.
+  // The card treats a missing key as isLoading=true; without this seed, a
+  // zero-sheet project (which the backend now correctly returns as 0) would
+  // still flash "..." until the network round-trip completes, and any future
+  // endpoint change that omits a key would regress to the perpetual spinner.
   const loadProjectSheetCounts = async () => {
-    const counts: Record<string, number> = {};
-    await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const summary = await api.get<RecordMap>(`/projects/${project.id}/summary`);
-          counts[String(project.id)] = (summary.sheets || []).length;
-        } catch {
-          counts[String(project.id)] = 0;
-        }
-      })
-    );
-    setProjectSheetCounts(counts);
+    const seeded: Record<string, number> = {};
+    for (const p of projects) seeded[String(p.id)] = 0;
+    setProjectSheetCounts(seeded);
+    try {
+      const counts = await api.get<Record<string, number>>(`/projects/sheet_counts`);
+      setProjectSheetCounts({ ...seeded, ...counts });
+    } catch (err) {
+      console.error("Failed to load project sheet counts:", err);
+    }
   };
 
   useEffect(() => {
@@ -172,10 +214,20 @@ export function ProjectWorkspace({
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       refreshProjects();
+      // SCHOLARDOCX-0152: a Refresh click must also reload the per-project
+      // sheet-count badges (they only re-fetch on projects.length change,
+      // so without this they go stale after add/remove sheet) and the open
+      // sheet's actual rows/columns (selectedPageData). Previously this only
+      // hit /meta stubs, so the open grid stayed stale even after Refresh.
+      loadProjectSheetCounts();
       if (selectedProjectId) {
         refreshSummary(selectedProjectId);
       }
+      if (selectedPageId) {
+        getSelectedPageData(selectedPageId);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   useEffect(() => {
@@ -189,9 +241,24 @@ export function ProjectWorkspace({
       setSummary(null);
       setSelectedSheetId("");
       setSelectedPageId("");
+      setSelectedPageData(null);
       refreshSummary(selectedProjectId);
     }
   }, [selectedProjectId]);
+
+  // Fetch the open sheet's full columns/rows on demand. Re-fetches when the
+  // stub's updated_at changes (external edit) so the open sheet stays fresh.
+  // Our own saves are no-oped inside useSheetPage via contentSignature, so this
+  // only triggers real re-syncs, not echoes of our edits.
+  const selectedStubUpdatedAt = selectedStub?.updated_at;
+  useEffect(() => {
+    if (selectedPageId) {
+      getSelectedPageData(selectedPageId);
+    } else {
+      setSelectedPageData(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPageId, selectedStubUpdatedAt]);
 
   useEffect(() => {
     if (!navigationTarget || navigationTarget.token === lastHandledToken) return;
@@ -265,12 +332,22 @@ export function ProjectWorkspace({
 
   const createProject = async (event: FormEvent) => {
     event.preventDefault();
-    const project = await createRecord<RecordMap>("projects", projectForm);
-    await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
-    setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
-    onToast?.("Project created.");
-    setShowCreateProject(false);
-    await refreshProjects();
+    if (isCreatingProject) return;
+    
+    setIsCreatingProject(true);
+    try {
+      const project = await createRecord<RecordMap>("projects", projectForm);
+      await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
+      setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
+      onToast?.("Project created.");
+      setShowCreateProject(false);
+      await refreshProjects();
+    } catch (error) {
+      console.error("Error creating project:", error);
+      onToast?.("Failed to create project. Please try again.");
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   const startEditProject = (project: RecordMap) => {
@@ -300,29 +377,38 @@ export function ProjectWorkspace({
 
   const createSheet = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedProjectId) return;
-    const cleanName = sheetName.trim() || "Application sheet";
+    if (!selectedProjectId || isCreatingSheet) return;
+    
+    setIsCreatingSheet(true);
+    try {
+      const cleanName = sheetName.trim() || "Application sheet";
 
-    // 1. Create the sheet (creates a page with default columns in backend)
-    const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
+      // 1. Create the sheet (creates a page with default columns in backend)
+      const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
 
-    // 2. If a template is selected, immediately patch the new page with template columns
-    if (selectedTemplateId !== "default") {
-      const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
-      if (template && result.page?.id) {
-        await api.patch(`/project_pages/${result.page.id}`, {
-          data: { columns_json: template.columns, rows_json: [] }
-        });
+      // 2. If a template is selected, immediately patch the new page with template columns
+      if (selectedTemplateId !== "default") {
+        const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
+        if (template && result.page?.id) {
+          await api.patch(`/project_pages/${result.page.id}`, {
+            data: { columns_json: template.columns, rows_json: [] }
+          });
+        }
       }
-    }
 
-    await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
-    onToast?.(`Sheet created: ${result.sheet.name}.`);
-    setSheetName("");
-    setSelectedTemplateId("default");
-    setShowCreateSheet(false);
-    const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/summary`);
-    setSummary(data);
+      await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
+      onToast?.(`Sheet created: ${result.sheet.name}.`);
+      setSheetName("");
+      setSelectedTemplateId("default");
+      setShowCreateSheet(false);
+      const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/meta?include_calendar=true`);
+      setSummary(data);
+    } catch (error) {
+      console.error("Error creating sheet:", error);
+      onToast?.("Failed to create sheet. Please try again.");
+    } finally {
+      setIsCreatingSheet(false);
+    }
   };
 
   const startEditSheet = (sheet: RecordMap) => {
@@ -459,7 +545,7 @@ export function ProjectWorkspace({
     return (
       <div className="project-home">
         {showCreateProject ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateProject(false)}>
+          <Modal onClose={() => setShowCreateProject(false)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createProject}>
               <div className="modal-header">
                 <div>
@@ -478,15 +564,17 @@ export function ProjectWorkspace({
                 <Field label="Description" name="description" value={projectForm.description} rows={3} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
               </div>
               <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateProject(false)}>Cancel</button>
-                <button className="primary" type="submit"><Plus size={16} /> Create project</button>
+                <button className="secondary" type="button" onClick={() => setShowCreateProject(false)} disabled={isCreatingProject}>Cancel</button>
+                <button className="primary" type="submit" disabled={isCreatingProject}>
+                  <Plus size={16} /> {isCreatingProject ? "Creating..." : "Create project"}
+                </button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         {editingProject ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingProject(null)}>
+          <Modal onClose={() => setEditingProject(null)}>
             <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveProjectEdit}>
               <div className="modal-header">
                 <div>
@@ -509,7 +597,7 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit">Save changes</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         <Section
@@ -670,11 +758,16 @@ export function ProjectWorkspace({
                 fullScreenMode={fullScreenMode}
                 selectedProjectId={selectedProjectId}
                 selectedPageId={selectedPageId}
-                onAskAI={() => {
-                  const sheetName = selectedSheet?.name || selectedPage?.name || "Sheet";
-                  const projName = selectedProject?.name || "Project";
+                selectedSheetId={selectedSheetId || undefined}
+                projectName={selectedProject?.name || "Project"}
+                sheetName={selectedSheet?.name || selectedPage?.name || "Sheet"}
+                degreeType={selectedProject?.degree_type as string | undefined}
+                onAskAi={(message) => {
+                  // SCHOLARDOCX-0150: send the built prompt straight to Lumi on a
+                  // fresh chat (no manual Send click needed). Action-oriented
+                  // prompts still route through /ai/actions/plan with Confirm/Cancel.
                   window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
-                    detail: { contextMessage: `I'm looking at sheet "${sheetName}" in project "${projName}". Can you help me analyze it?` }
+                    detail: { contextMessage: message, autoSend: true, newChat: true }
                   }));
                 }}
                 onExportCsv={sheet.handleExportCsv}
@@ -821,6 +914,7 @@ export function ProjectWorkspace({
               rows={sheet.rows}
               viewRows={sheet.viewRows}
               rowIndexMap={sheet.rowIndexMap}
+              duplicateRowIndices={sheet.duplicateRowIndices}
               searchQuery={sheet.searchQuery}
               groupBy={sheet.groupBy}
               files={files}
@@ -967,60 +1061,95 @@ export function ProjectWorkspace({
         }
       >
         {showCreateSheet ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setShowCreateSheet(false)}>
+          <Modal onClose={() => setShowCreateSheet(false)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createSheet}>
               <div className="modal-header">
-                <h2>Create Sheet</h2>
+                <div>
+                  <h2>Create Sheet</h2>
+                  <p className="eyebrow" style={{ marginTop: '4px' }}>Choose a template to get started with pre-configured columns</p>
+                </div>
                 <button className="icon-button" type="button" onClick={() => setShowCreateSheet(false)} title="Close form">
                   <X size={20} />
                 </button>
               </div>
-              <div className="modal-content form-grid" style={{ gap: '16px' }}>
-                <Field label="Sheet name" name="sheet_name" value={sheetName} required onChange={(_, value) => {
-                  setSheetName(value);
-                  if (selectedTemplateId === "default") {
-                    const lower = value.toLowerCase();
-                    if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
-                      setSelectedTemplateId("prof_outreach");
-                    } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
-                      setSelectedTemplateId("univ_shortlist");
-                    } else if (lower.includes("scholarship") || lower.includes("funding")) {
-                      setSelectedTemplateId("scholarship_tracker");
-                    } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
-                      setSelectedTemplateId("doc_checklist");
+              <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+                  <Field 
+                    label="Sheet name" 
+                    name="sheet_name" 
+                    value={sheetName} 
+                    required 
+                    placeholder="e.g., My Applications"
+                    onChange={(_, value) => {
+                      setSheetName(value);
+                      if (selectedTemplateId === "default") {
+                        const lower = value.toLowerCase();
+                        if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
+                          setSelectedTemplateId("prof_outreach");
+                        } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
+                          setSelectedTemplateId("univ_shortlist");
+                        } else if (lower.includes("scholarship") || lower.includes("funding")) {
+                          setSelectedTemplateId("scholarship_tracker");
+                        } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
+                          setSelectedTemplateId("doc_checklist");
+                        }
+                      }
+                    }} 
+                  />
+                  <Field
+                    label="Template"
+                    name="template_id"
+                    value={selectedTemplateId}
+                    options={[
+                      { value: "default", label: "Default App Tracker" },
+                      { label: "--- Standard Templates ---", value: "", disabled: true },
+                      ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
+                      ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
+                      ...customTemplates.map(t => ({ value: t.id, label: t.name }))
+                    ]}
+                    onChange={(_, value) => setSelectedTemplateId(value)}
+                  />
+                </div>
+                <div style={{ 
+                  padding: '12px 14px', 
+                  backgroundColor: 'rgba(47, 109, 122, 0.06)',
+                  borderRadius: '6px',
+                  borderLeft: '3px solid var(--accent-teal, #2f6d7a)'
+                }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
+                    {selectedTemplateId === "default" 
+                      ? "Basic application tracker with University, Program, Status, Deadline, and Notes."
+                      : (SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
+                          customTemplates.find(t => t.id === selectedTemplateId)?.description)
                     }
-                  }
-                }} />
-                <Field
-                  label="Template"
-                  name="template_id"
-                  value={selectedTemplateId}
-                  options={[
-                    { value: "default", label: "Default App Tracker" },
-                    { label: "--- Standard Templates ---", value: "", disabled: true },
-                    ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
-                    ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
-                    ...customTemplates.map(t => ({ value: t.id, label: t.name }))
-                  ]}
-                  onChange={(_, value) => setSelectedTemplateId(value)}
-                />
-                {selectedTemplateId !== "default" && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '-8px 0 0 0' }}>
-                    {SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
-                      customTemplates.find(t => t.id === selectedTemplateId)?.description}
                   </p>
-                )}
+                </div>
+                <div style={{ 
+                  padding: '10px 12px', 
+                  backgroundColor: 'rgba(217, 154, 61, 0.08)',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontSize: '14px', lineHeight: '1.4' }}>💡</span>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    You can add, remove, or modify columns anytime after creating the sheet.
+                  </p>
+                </div>
               </div>
               <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)}>Cancel</button>
-                <button className="primary" type="submit"><Plus size={16} /> Create sheet</button>
+                <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)} disabled={isCreatingSheet}>Cancel</button>
+                <button className="primary" type="submit" disabled={isCreatingSheet}>
+                  <Plus size={16} /> {isCreatingSheet ? "Creating..." : "Create sheet"}
+                </button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         {editingSheet ? (
-          <div className="modal-backdrop modal-backdrop-main" onClick={() => setEditingSheet(null)}>
+          <Modal onClose={() => setEditingSheet(null)}>
             <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveSheetEdit}>
               <div className="modal-header">
                 <h2>Edit columns</h2>
@@ -1036,7 +1165,7 @@ export function ProjectWorkspace({
                 <button className="primary" type="submit">Save changes</button>
               </div>
             </form>
-          </div>
+          </Modal>
         ) : null}
 
         <div className="sheet-card-grid">
@@ -1046,7 +1175,7 @@ export function ProjectWorkspace({
                 <div className="sheet-card-title-row">
                   <strong>{sheetItem.name}</strong>
                   {(() => {
-                    const used = (getSheetPage(sheetItem)?.rows || []).length;
+                    const used = (getSheetPage(sheetItem)?.row_count as number) || 0;
                     const max = recordsPerSheetLimit;
                     const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
                     const isNear = pct >= 80;

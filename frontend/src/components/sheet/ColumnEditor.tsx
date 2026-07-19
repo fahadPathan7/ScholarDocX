@@ -4,6 +4,7 @@
 
 import { FormEvent, useState } from "react";
 import { ChevronUp, ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Modal } from "../Modal";
 import { ColumnDef, ColumnType, GROUP_COLORS, COLUMN_TYPES } from "./sheetModel";
 
 /* ------------------------------------------------------------------ */
@@ -84,7 +85,7 @@ export function AddColumnModal({
   onClose: () => void;
 }) {
   return (
-    <div className="modal-backdrop modal-backdrop-main" style={{ zIndex: 1010 }} onClick={onClose}>
+    <Modal onClose={onClose} zIndex={1060}>
       <form className="modal-panel column-form" onClick={(e) => e.stopPropagation()} onSubmit={onSubmit} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -188,7 +189,7 @@ export function AddColumnModal({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
@@ -224,7 +225,7 @@ export function EditColumnsModal({
   onAddGroup: () => void;
 }) {
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <Modal onClose={onClose}>
       <form className={`modal-panel column-form edit-columns-form${showColumnForm ? ' blurred' : ''}`} onClick={(e) => e.stopPropagation()} onSubmit={onSave} onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -327,6 +328,6 @@ export function EditColumnsModal({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

@@ -49,6 +49,8 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   fullScreenMode,
   isSelected,
   isNavFocused,
+  isDuplicate,
+  duplicateSiblings,
   focusedColName,
   editingColName,
   editingSeed,
@@ -64,6 +66,8 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   fullScreenMode: boolean;
   isSelected: boolean;
   isNavFocused: boolean;
+  isDuplicate: boolean;
+  duplicateSiblings?: number[];
   focusedColName: string | null;
   editingColName: string | null;
   editingSeed?: string;
@@ -79,7 +83,7 @@ export const SheetTableRow = React.memo(function SheetTableRow({
 
   return (
     <tr
-      className={`sheet-table-row ${rowClass(row)} ${isSelected ? "row-selected" : ""} ${isNavFocused ? "row-focused" : ""}`}
+      className={`sheet-table-row ${rowClass(row)} ${isSelected ? "row-selected" : ""} ${isNavFocused ? "row-focused" : ""} ${isDuplicate ? "row-duplicate" : ""}`}
       data-row-index={rowIndex}
       style={rowStyleBg ? { backgroundColor: rowStyleBg } : undefined}
     >
@@ -106,7 +110,17 @@ export const SheetTableRow = React.memo(function SheetTableRow({
               style={{ width: '13px', height: '13px', margin: 0, padding: 0, pointerEvents: 'none' }}
             />
           ) : (
-            rowIndex + 1
+            <span className="row-index-inner">
+              {rowIndex + 1}
+              {isDuplicate && duplicateSiblings && duplicateSiblings.length > 0 && (
+                <span
+                  className="row-duplicate-badge"
+                  title={`Duplicate of row${duplicateSiblings.length > 1 ? "s" : ""} ${duplicateSiblings.map(i => i + 1).join(", ")}`}
+                >
+                  !
+                </span>
+              )}
+            </span>
           )}
         </span>
         <div

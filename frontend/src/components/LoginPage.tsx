@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { LogIn, Mail, ArrowLeft } from "lucide-react";
 import { api } from "../lib/api";
-import { setToken, saveLoginCredentials, loadSavedCredentials, clearSavedCredentials } from "../lib/auth";
+import { saveLoginCredentials, loadSavedCredentials, clearSavedCredentials } from "../lib/auth";
+import type { User } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
 import { PasswordField } from "./PasswordField";
 import "./LoginPage.css";
@@ -37,7 +38,7 @@ export function LoginPage() {
   const [appealLoading, setAppealLoading] = useState(false);
   const [appealError, setAppealError] = useState("");
 
-  const { refreshUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -107,16 +108,29 @@ export function LoginPage() {
     try {
       const response = await api.post<{ token: string, user: any }>("/auth/login", { email, password });
       if (response && response.token) {
-        setToken(response.token, saveCredentials);
         // Save or clear credentials based on the checkbox
         if (saveCredentials) {
           saveLoginCredentials(email, password);
         } else {
           clearSavedCredentials();
         }
-        // Use window.location for redirect so browser recognizes successful login for password saving
-        const from = location.state?.from?.pathname || "/";
-        window.location.href = from === "/login" ? "/" : from;
+        // Hydrate auth state synchronously from the login response and navigate
+        // client-side. This avoids a full-page reload, which was the dominant
+        // cause of perceived login slowness (full SPA re-bootstrap).
+        const loggedInUser: User = {
+          id: response.user.id,
+          email: response.user.email,
+          display_name: response.user.display_name,
+          roles: response.user.roles || [],
+          is_active: response.user.is_active,
+          is_blocked: response.user.is_blocked,
+        };
+        login(response.token, loggedInUser, saveCredentials);
+        // Prefer the originally requested protected route; otherwise go to the
+        // dashboard. Avoid looping back onto /login or the public landing "/".
+        const from = location.state?.from?.pathname;
+        const dest = from && from !== "/login" && from !== "/" ? from : "/dashboard";
+        navigate(dest, { replace: true });
       }
     } catch (err: any) {
       if (err.message === "user_suspended" || err.message === "user_blocked") {

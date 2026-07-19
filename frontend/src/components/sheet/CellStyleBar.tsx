@@ -20,8 +20,8 @@ const COLOR_SWATCHES = [
 ];
 
 const BG_SWATCHES = [
-  "#fff3bf", "#ffe3e3", "#d3f9d8", "#c5f6fa",
-  "#d0ebff", "#e5dafc", "#f1f3f5", "#ffffff",
+  "#ffe066", "#ff8787", "#8ce99a", "#74c0fc",
+  "#a5d8ff", "#d0bfff", "#ced4da", "#ffffff",
 ];
 
 const SIZE_LABELS: Record<NonNullable<CellStyle["fontSize"]>, string> = {
@@ -119,6 +119,7 @@ export function CellStyleBar({
           value={style.bg || "#ffffff"}
           onPick={(bg) => onChange({ bg })}
           clearValue="#ffffff"
+          variant="bg"
         />
       </div>
 
@@ -224,7 +225,7 @@ function Divider() {
 }
 
 /** Native color picker with a preset-swatch popover. */
-function ColorButton({ title, active, icon, swatch, swatches, value, onPick, clearValue }: {
+function ColorButton({ title, active, icon, swatch, swatches, value, onPick, clearValue, variant = "text" }: {
   title: string;
   active: boolean;
   icon: React.ReactNode;
@@ -234,6 +235,8 @@ function ColorButton({ title, active, icon, swatch, swatches, value, onPick, cle
   onPick: (color: string) => void;
   /** When the native picker returns this value, clear the key instead. */
   clearValue?: string;
+  /** "text" shows underline indicator; "bg" shows filled square behind icon */
+  variant?: "text" | "bg";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -262,11 +265,12 @@ function ColorButton({ title, active, icon, swatch, swatches, value, onPick, cle
             className="csb-color-underline"
             style={{
               background: swatch || "transparent",
-              width: "14px",
-              height: "3px",
+              width: (variant === "bg" && swatch) ? "16px" : "14px",
+              height: (variant === "bg" && swatch) ? "5px" : "3px",
               marginTop: "1.5px",
-              borderRadius: "1px",
-              border: swatch ? "none" : "1px dashed rgba(35, 58, 55, 0.3)"
+              borderRadius: "2px",
+              border: swatch ? (variant === "bg" ? "1px solid rgba(0,0,0,0.18)" : "none") : "1px dashed rgba(35, 58, 55, 0.3)",
+              boxShadow: (variant === "bg" && swatch) ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
             }}
           />
         </div>

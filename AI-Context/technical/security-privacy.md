@@ -29,6 +29,9 @@ remain explicit user actions behind backend services.
 - Validate paths before file reads and writes.
 - Keep files inside the configured workspace.
 - Use allowlists for upload categories and supported file types where possible.
+- **Enforce maximum document size limit of 10 MB per file** to prevent resource
+  exhaustion, storage abuse, and excessive bandwidth usage. This limit is
+  validated both client-side and server-side.
 
 ## External API Rules
 

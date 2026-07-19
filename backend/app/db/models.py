@@ -85,7 +85,8 @@ class Users(Base):
     __table_args__ = (
         Index('idx_users_email', 'email'),
         Index('idx_users_is_active', 'is_active'),
-        Index('idx_users_token_version', 'token_version')
+        Index('idx_users_token_version', 'token_version'),
+        Index('idx_users_created_at', 'created_at')
     )
 
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
@@ -241,7 +242,7 @@ class Documents(Base):
     owner_id: Mapped[Optional[str]] = mapped_column(String(36))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='documents')
-    document_versions: Mapped[list['DocumentVersions']] = relationship('DocumentVersions', back_populates='document')
+    document_versions: Mapped[list['DocumentVersions']] = relationship('DocumentVersions', back_populates='document', cascade="all")
 
 
 class EmailTemplates(Base):
@@ -334,8 +335,8 @@ class Projects(Base):
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='projects')
     notifications: Mapped[list['Notifications']] = relationship('Notifications', back_populates='project')
-    project_sheets: Mapped[list['ProjectSheets']] = relationship('ProjectSheets', back_populates='project')
-    project_pages: Mapped[list['ProjectPages']] = relationship('ProjectPages', back_populates='project')
+    project_sheets: Mapped[list['ProjectSheets']] = relationship('ProjectSheets', back_populates='project', cascade="all")
+    project_pages: Mapped[list['ProjectPages']] = relationship('ProjectPages', back_populates='project', cascade="all")
 
 
 class ScholarshipSearchFeedback(Base):
@@ -392,7 +393,7 @@ class Universities(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='universities')
-    programs: Mapped[list['Programs']] = relationship('Programs', back_populates='university')
+    programs: Mapped[list['Programs']] = relationship('Programs', back_populates='university', cascade="all")
     professors: Mapped[list['Professors']] = relationship('Professors', back_populates='university')
     applications: Mapped[list['Applications']] = relationship('Applications', back_populates='university')
     research_notes: Mapped[list['ResearchNotes']] = relationship('ResearchNotes', back_populates='university')

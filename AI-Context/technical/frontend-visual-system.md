@@ -90,8 +90,94 @@ interactive, and polished without becoming decorative marketing UI.
 - Use motion for state changes, panel entry, card hover, and focus feedback.
 - Keep floating panels visually separate from page content through depth,
   backdrop blur, and clear headers.
-- Modals within the main content area should blur only the main work surface and MUST NOT blur the app's TopBar or the left Sidebar. 
-- To achieve a full-surface blur without leaving empty margin space, use a Portal (like `AdminPortal`) to render the modal backdrop into a full-width/height `relative` root container (e.g., `<div id="view-root" className="w-full min-h-full flex flex-col relative">`). Do NOT use `position: fixed` or `.modal-backdrop` if it bleeds over the sidebar, and do NOT constrain the blur inside `max-w` containers or `animate-in` blocks.
+- **Modal backdrop blur scoping — NON-NEGOTIABLE (regressed 3+ times).**
+  Read this entire block before creating or editing any modal.
+
+  **Design intent**
+
+  | Region | Blurred when modal open? |
+  |--------|--------------------------|
+  | Left Sidebar | No — stays crisp |
+  | Global TopBar | No — stays crisp |
+  | Breadcrumbs, view headers, toolbar, table | Yes |
+  | Modal panel | No — stays sharp |
+
+  **Architecture (two pieces that must work together)**
+
+  1. **Portal target** — `<Modal>` (`frontend/src/components/Modal.tsx`) uses
+     `createPortal(…, document.querySelector(".main-content"))`. The backdrop
+     must be a direct child of `.main-content` (`position: relative`).
+  2. **CSS positioning** — `.modal-backdrop-main` uses `position: absolute;
+     inset: 0` so it fills `.main-content` only. The base `.modal-backdrop`
+     class is `position: fixed` (for `scope="body"` modals in `App.tsx`);
+     `.modal-backdrop-main` overrides that — do not merge or remove the override.
+
+  **Why agents regress this (do not repeat)**
+
+  - Grep for `modal-backdrop-main` and copy a legacy inline div from another file
+    → blur scoped to `.section-body` only (breadcrumbs stay sharp). **Wrong.**
+  - “Simplify” modal CSS by making `.modal-backdrop-main` fixed like `.modal-backdrop`
+    → blur bleeds over sidebar and TopBar. **Wrong.**
+  - Follow “use existing patterns” and copy `RecordFormModal`, `CsvImportModal`,
+    `StickyNotesView`, etc. → all legacy inline backdrops. **Wrong pattern.**
+
+  **Only approved implementation**
+
+  ```tsx
+  import { Modal } from "../Modal";
+
+  return (
+    <Modal onClose={onClose} zIndex={1060 /* optional, for nested modals */}>
+      <form className="modal-panel" onClick={(e) => e.stopPropagation()} …>
+        …panel content only — no backdrop div…
+      </form>
+    </Modal>
+  );
+  ```
+
+  Canonical reference: Create Project modal in `ProjectWorkspace.tsx`.
+
+  **Forbidden markup**
+
+  ```tsx
+  // NEVER — missing portal; blur trapped in nearest positioned ancestor
+  <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <form className="modal-panel">…</form>
+  </div>
+  ```
+
+  **Canonical CSS** (mirror in `styles.css` and `visual-refresh.css`; do not edit
+  without reading AGENTS.md modal table):
+
+  ```css
+  .modal-backdrop-main {
+    position: absolute;                 /* NOT fixed — scopes to .main-content */
+    inset: 0;
+    min-height: 100%;
+    backdrop-filter: blur(8px) saturate(110%);
+    background: radial-gradient(circle, rgba(15,23,20,0.4) 0%, rgba(15,23,20,0.55) 100%);
+    z-index: 1050;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 160px;                 /* lowered, not flush to top */
+  }
+  ```
+
+  **Legacy inline backdrops to migrate (do not copy from these)**
+
+  - `RecordFormModal.tsx`, `CsvImportModal.tsx`, `RowPeekPanel.tsx`
+  - `StickyNotesView.tsx`, `HuntProfileModal.tsx`, `AddToTrackerModal.tsx`
+  - `ProjectDashboard.tsx`, `AboutView.tsx`
+
+  When editing any of the above, convert to `<Modal>` in the same change.
+
+  **Already migrated to `<Modal>`:** Email Configuration, Edit columns, Add column,
+  Create Project, Create Sheet (via `ProjectWorkspace.tsx`).
+
+  **Admin/settings dense dialogs:** pass `<Modal compact>` for `padding-top: 48px`
+  instead of the default `160px` (sheet/project modals with breadcrumbs).
+- Modals within the main content area should blur only the main work surface and MUST NOT blur the app's TopBar or the left Sidebar.
 - The view's own headers (like "Admin Dashboard") SHOULD be blurred when a modal is open. Only the global app TopBar remains unblurred.
 - All new modal creations must keep appropriate space from the edges (e.g., use `items-start justify-center pt-24` or `items-center p-4 sm:p-8` depending on layout).
 - Avoid external font/CDN dependencies to preserve secure personal workspace expectations.

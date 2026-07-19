@@ -6,13 +6,14 @@ concurrent fetches.
 """
 
 import asyncio
+import uuid
 from pathlib import Path
 
 import pytest
 
 import app.services.advisor_atlas.crawler as crawler_module
 from app.core.config import Settings
-from app.db.connection import initialize_database
+from app.db.connection import connect, initialize_database
 from app.services.advisor_atlas.crawler import PublicCrawler
 from app.services.advisor_atlas.research_pipeline import (
     DEEP_DISCOVERY_LIMIT,
@@ -20,6 +21,10 @@ from app.services.advisor_atlas.research_pipeline import (
     select_deep_candidates,
 )
 from app.services.advisor_atlas.service import AdvisorAtlasService
+
+
+# Fixed UUID for the synthetic user created in tests that need a real DB row.
+_DEEP_TEST_USER_ID = "00000000-0000-0000-0000-000000000de9"
 
 
 def make_settings(tmp_path: Path) -> Settings:
@@ -32,9 +37,25 @@ def make_settings(tmp_path: Path) -> Settings:
     return settings
 
 
-def make_department_run(service: AdvisorAtlasService, interests: list[str]) -> dict:
+def _ensure_test_user(settings: Settings) -> str:
+    """Insert (or re-use) a fixed-UUID user for deep tests that need a real FK."""
+    with connect(settings.database_target) as db:
+        db.execute(
+            "DELETE FROM users WHERE id = ?",
+            (_DEEP_TEST_USER_ID,),
+        )
+        db.execute(
+            "INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked) "
+            "VALUES (?, ?, 'x', 'Deep Test User', '[\"max_user\"]', 1, 0)",
+            (_DEEP_TEST_USER_ID, f"advisor-atlas-deep-{_DEEP_TEST_USER_ID}@test.local"),
+        )
+        db.commit()
+    return _DEEP_TEST_USER_ID
+
+
+def make_department_run(service: AdvisorAtlasService, interests: list[str], user_id: str) -> dict:
     return service.repository.create_run(
-        1,
+        user_id,
         {
             "mode": "department",
             "university_name": "Example University",
@@ -71,8 +92,9 @@ def test_deep_candidate_selection_breaks_score_ties_by_confidence():
 @pytest.mark.asyncio
 async def test_discovery_run_deep_researches_matching_candidates(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
+    user_id = _ensure_test_user(settings)
     service = AdvisorAtlasService(settings)
-    run = make_department_run(service, ["machine learning"])
+    run = make_department_run(service, ["machine learning"], user_id)
 
     async def fake_discovery(_run, _usage):
         return (
@@ -115,9 +137,9 @@ async def test_discovery_run_deep_researches_matching_candidates(tmp_path, monke
     monkeypatch.setattr(service, "_discover_candidates", fake_discovery)
     monkeypatch.setattr(service, "_tavily_search", fake_search)
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    completed = service.repository.get_run(run["id"], 1)
+    completed = service.repository.get_run(run["id"], user_id)
     assert completed["status"] == "completed"
     by_name = {item["display_name"]: item for item in completed["candidates"]}
 
@@ -136,8 +158,9 @@ async def test_discovery_run_deep_researches_matching_candidates(tmp_path, monke
 @pytest.mark.asyncio
 async def test_deep_phase_failure_keeps_run_and_screened_result(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
+    user_id = _ensure_test_user(settings)
     service = AdvisorAtlasService(settings)
-    run = make_department_run(service, ["machine learning"])
+    run = make_department_run(service, ["machine learning"], user_id)
 
     async def fake_discovery(_run, _usage):
         return (
@@ -172,9 +195,9 @@ async def test_deep_phase_failure_keeps_run_and_screened_result(tmp_path, monkey
     monkeypatch.setattr(service, "_tavily_search", no_search)
     monkeypatch.setattr(service, "_process_candidate", flaky_process)
 
-    await service.run(run["id"], 1)
+    await service.run(run["id"], user_id)
 
-    completed = service.repository.get_run(run["id"], 1)
+    completed = service.repository.get_run(run["id"], user_id)
     assert completed["status"] == "completed"
     candidate = completed["candidates"][0]
     assert candidate["display_name"] == "Ada Match"
@@ -184,11 +207,12 @@ async def test_deep_phase_failure_keeps_run_and_screened_result(tmp_path, monkey
 @pytest.mark.asyncio
 async def test_candidate_refresh_always_uses_deep_pipeline(tmp_path, monkeypatch):
     settings = make_settings(tmp_path)
+    user_id = _ensure_test_user(settings)
     service = AdvisorAtlasService(settings)
-    run = make_department_run(service, ["machine learning"])
+    run = make_department_run(service, ["machine learning"], user_id)
     candidate_id = service.repository.replace_candidate_data(
         run["id"],
-        1,
+        user_id,
         {
             "display_name": "Ada Match",
             "institution": "Example University",
@@ -210,7 +234,7 @@ async def test_candidate_refresh_always_uses_deep_pipeline(tmp_path, monkeypatch
 
     monkeypatch.setattr(service, "_tavily_search", fake_search)
 
-    refreshed = await service.refresh_candidate(candidate_id, 1)
+    refreshed = await service.refresh_candidate(candidate_id, user_id)
 
     assert refreshed["intelligence"]["research_depth"] == "deep"
     assert refreshed["intelligence"]["research_metrics"]["tavily_searches"] == 8

@@ -21,7 +21,10 @@ wc -l path/to/file
 - Preserve secure personal workspace behavior: SQLite and secure files for user data.
 - Keep external AI/search calls behind backend services.
 - Do not add telemetry, analytics, cloud persistence, remote databases, or required paid infrastructure.
-- Use existing project patterns before adding abstractions.
+- Use existing project patterns before adding abstractions **except modals** — always
+  use `<Modal>` from `frontend/src/components/Modal.tsx` for main-content dialogs.
+  Never copy inline `<div className="modal-backdrop modal-backdrop-main">` from other
+  files (legacy debt). See AGENTS.md "Modal backdrop blur".
 - Keep API routes thin, validation explicit, and persistence logic in repositories or services.
 - Keep React components focused; extract components/hooks/helpers when a file is near the size limit.
 - Never commit real secrets or API keys.

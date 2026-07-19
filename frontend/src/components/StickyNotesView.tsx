@@ -166,6 +166,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemText, setItemText] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [isSaving, setIsSaving] = useState(false);
 
   const sortedNotes = useMemo(() => {
     let filtered = notes;
@@ -254,6 +255,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
 
   const saveNote = async (event: FormEvent) => {
     event.preventDefault();
+    if (isSaving) return;
     let finalBody = draft.body.trim();
     if (draft.is_sketch && draft.sketch_paths && draft.sketch_paths.length > 0) {
       if (finalBody) {
@@ -276,17 +278,25 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
       font: draft.font,
       font_size: draft.font_size
     };
-    if (editingNote) {
-      await api.patch(`/sticky_notes/${editingNote.id}`, { data });
-      await notify("sticky_note_update", { sheetName: title });
-      onToast("Sticky note updated.");
-    } else {
-      await api.post("/sticky_notes", { data });
-      await notify("sticky_note_create", { sheetName: title });
-      onToast("Sticky note created.");
+    setIsSaving(true);
+    try {
+      if (editingNote) {
+        await api.patch(`/sticky_notes/${editingNote.id}`, { data });
+        await notify("sticky_note_update", { sheetName: title });
+        onToast("Sticky note updated.");
+      } else {
+        await api.post("/sticky_notes", { data });
+        await notify("sticky_note_create", { sheetName: title });
+        onToast("Sticky note created.");
+      }
+      resetDraft();
+      await loadNotes();
+    } catch (error) {
+      console.error("Error saving sticky note:", error);
+      onToast("Failed to save note. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
-    resetDraft();
-    await loadNotes();
   };
 
   const deleteNote = async (note: RecordMap) => {
@@ -486,10 +496,10 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
               ) : null}
             </div>
             <div className="modal-footer">
-              <button className="secondary" type="button" onClick={resetDraft}>Cancel</button>
-              <button className="primary" type="submit">
+              <button className="secondary" type="button" onClick={resetDraft} disabled={isSaving}>Cancel</button>
+              <button className="primary" type="submit" disabled={isSaving}>
                 {editingNote ? <Check size={16} /> : <Plus size={16} />}
-                {editingNote ? "Save note" : "Create note"}
+                {isSaving ? (editingNote ? "Saving..." : "Creating...") : (editingNote ? "Save note" : "Create note")}
               </button>
             </div>
           </form>

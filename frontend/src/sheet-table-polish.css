@@ -688,6 +688,40 @@
   background-color: #f0f7f4; /* light green tint */
 }
 
+/* Duplicate row highlight — row violates the unique combination check */
+.sheet-table-row.row-duplicate > td:first-child {
+  border-left: 2px solid rgba(220, 80, 80, 0.4);
+}
+
+/* Row number + duplicate badge wrapper */
+.row-index-inner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Superscript-style ! badge */
+.row-duplicate-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #e53935;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  letter-spacing: 0;
+  cursor: default;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(229, 57, 53, 0.4);
+  pointer-events: auto;
+}
+
 .row-checkbox {
   margin-left: 6px;
   cursor: pointer;

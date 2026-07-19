@@ -55,6 +55,16 @@ export function FilePickerField({
   const uploadFile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const file = form.get("file") as File | null;
+    
+    // Client-side validation: enforce 10MB maximum document size
+    const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+    if (file && file.size > MAX_DOCUMENT_SIZE_BYTES) {
+      setUploadMessage(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the maximum allowed size of 10 MB.`);
+      setTimeout(() => setUploadMessage(""), 4000);
+      return;
+    }
+    
     const result = await api.upload<RecordMap>("/files/upload", form);
     setUploadMessage("Uploaded.");
     event.currentTarget.reset();

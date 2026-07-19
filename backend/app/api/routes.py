@@ -11,12 +11,11 @@ from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.categories import normalize_media_category
 from app.core.config import Settings, get_settings
 from app.core.workspace import ensure_workspace, save_upload, workspace_status
-from app.db.connection import initialize_database
 from app.services.ai import AiService
 from app.services.ai_actions import AiActionService
 from app.services.store import Store
 from app.auth.dependencies import get_current_user
-from app.api.dependencies import get_store
+from app.api.dependencies import ensure_db_initialized, get_store
 from app.auth.dependencies import get_user_store
 
 
@@ -125,7 +124,11 @@ def health(settings: Settings = Depends(get_settings)) -> dict:
 @router.post("/workspace/init")
 def init_workspace(settings: Settings = Depends(get_settings)) -> dict:
     status = ensure_workspace(settings)
-    initialize_database(settings.database_target)
+    # Funnel through the memoized init helper so DDL (create_all + seeding)
+    # runs at most once per process. Without this, repeated refreshes re-ran
+    # initialize_database concurrently with dashboard reads, exhausting the
+    # connection pool and stalling the app.
+    ensure_db_initialized(settings)
     return status
 
 
@@ -143,6 +146,38 @@ def dashboard_summary(store: Store = Depends(get_user_store)) -> dict:
 def project_summary(project_id: str, store: Store = Depends(get_user_store)) -> dict:
     try:
         return store.project_summary(project_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/projects/{project_id}/meta")
+def project_meta(
+    project_id: str,
+    include_calendar: bool = True,
+    store: Store = Depends(get_user_store),
+) -> dict:
+    """Lightweight metadata — sheets + notifications + page stubs (no row data).
+
+    `include_calendar=false` skips the dashboard calendar scan; used by the
+    post-save refresh path which does not redraw the calendar.
+    """
+    try:
+        return store.project_meta(project_id, include_calendar=include_calendar)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/projects/sheet_counts")
+def project_sheet_counts(store: Store = Depends(get_user_store)) -> dict[str, int]:
+    """Per-project sheet counts for the current user, in one grouped query."""
+    return store.project_sheet_counts()
+
+
+@router.get("/project_pages/{page_id}")
+def get_project_page(page_id: str, store: Store = Depends(get_user_store)) -> dict:
+    """One fully decoded project page (the open sheet's full rows/columns)."""
+    try:
+        return store.get_project_page(page_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -209,6 +244,16 @@ def delete_document_category(
         return store.delete_document_category(category_id, settings.workspace_path, settings.media_path)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/document_categories/restore_defaults")
+def restore_default_categories(store: Store = Depends(get_user_store)) -> dict:
+    """Restore missing default document categories for the current user."""
+    try:
+        count = store.restore_default_categories()
+        return {"restored": count, "message": f"Restored {count} default categories"}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # Deleting from these tables frees plan quota; the affected count-based

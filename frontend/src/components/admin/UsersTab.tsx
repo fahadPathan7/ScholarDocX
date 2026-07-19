@@ -132,8 +132,18 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [notificationBody, setNotificationBody] = useState("");
   const [isSendingNotification, setIsSendingNotification] = useState(false);
 
+  // SCHOLARDOCX-0147: fetch the full user list once per mount/refresh. No
+  // cache-buster query param — admin data is authed and short-lived enough
+  // that the default fetch behavior is fine; the `?t=` suffix only defeated
+  // caching between mounts.
   const fetchUsers = () => {
-    api.get<UserRecord[]>(`/admin/users?t=${Date.now()}`).then(setUsers).catch(console.error);
+    api.get<UserRecord[]>(`/admin/users`).then(setUsers).catch(console.error);
+  };
+
+  // Patch a single user in the local list after a mutation, instead of
+  // refetching the entire list (which re-downloads + re-renders every row).
+  const upsertUser = (updated: any) => {
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
   };
 
   useEffect(() => {
@@ -212,6 +222,12 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     [users, roleFilter, planStatusFilter, statusFilter, searchQuery]
   );
 
+  // Render guard (not pagination): cap how many heavy rows the DOM holds at
+  // once. The full filtered set stays in memory for counts and for the
+  // notification recipient list; only the rendered slice is bounded.
+  const RENDER_CAP = 100;
+  const cappedRender = filteredUsers.length > RENDER_CAP;
+
   const openBroadcastNotificationModal = () => {
     setNotificationModalMode("broadcast");
     setNotificationTargetUser(null);
@@ -275,7 +291,6 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
         recipient_user_ids: recipientIds,
       });
       closeNotificationModal();
-      fetchUsers();
       const label = getNotificationSettingLabel(notificationCategory);
       showAlert(
         <p className="text-sm text-slate-600">
@@ -296,8 +311,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     );
     if (!confirmed) return;
     try {
-      await api.post(`/admin/users/${user.id}/toggle-status`, { is_active: !user.is_active });
-      fetchUsers();
+      const updated = await api.post<UserRecord>(`/admin/users/${user.id}/toggle-status`, { is_active: !user.is_active });
+      upsertUser(updated);
     } catch {
       emitUiError({ title: "Action failed", message: "Failed to toggle status.", kind: "general" });
     }
@@ -310,8 +325,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     );
     if (!confirmed) return;
     try {
-      await api.post(`/admin/users/${user.id}/revoke`, {});
-      fetchUsers();
+      const updated = await api.post<UserRecord>(`/admin/users/${user.id}/revoke`, {});
+      upsertUser(updated);
     } catch {
       emitUiError({ title: "Action failed", message: "Failed to revoke tokens.", kind: "general" });
     }
@@ -342,13 +357,13 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
         }
       }
 
-      await api.patch(`/admin/users/${editingUser.id}/roles`, payload);
+      const updated = await api.patch<UserRecord>(`/admin/users/${editingUser.id}/roles`, payload);
+      upsertUser(updated);
       setEditingUser(null);
       setEditingMode(null);
       setEditPlanDuration("1_month");
       setCustomStartDate("");
       setCustomEndDate("");
-      fetchUsers();
     } catch {
       emitUiError({ title: "Permission denied", message: "Failed to update roles. You might not have super_admin permissions.", kind: "permission" });
     }
@@ -390,7 +405,10 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
           payload.plan_duration = planDuration;
         }
       }
-      await api.post("/admin/users", payload);
+      const created = await api.post<UserRecord>("/admin/users", payload);
+      // New users sort to the top by created_at DESC; prepend locally instead
+      // of refetching the whole list.
+      setUsers((prev) => [{ ...created }, ...prev]);
       setCreatingUser(false);
       setCreateEmail("");
       setCreatePassword("");
@@ -399,7 +417,6 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       setPlanDuration("1_month");
       setCreateCustomStart("");
       setCreateCustomEnd("");
-      fetchUsers();
     } catch (err: any) {
       const message = err?.response?.data?.detail || "Failed to create user";
       emitUiError({ title: "Action failed", message: String(message), kind: "general" });
@@ -545,7 +562,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUsers.map((user) => {
+              {filteredUsers.slice(0, RENDER_CAP).map((user) => {
                 const planStatus = getPlanStatus(user);
                 return (
                   <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
@@ -697,6 +714,11 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
               })}
             </tbody>
           </table>
+          {cappedRender && (
+            <div className="px-6 py-3 text-xs text-slate-500 bg-slate-50/50 border-t border-slate-200/50">
+              Showing the first {RENDER_CAP} of {filteredUsers.length} matching users. Refine the search or filters above to narrow the list.
+            </div>
+          )}
         </div>
       </div>
 

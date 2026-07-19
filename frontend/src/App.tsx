@@ -145,7 +145,6 @@ export function App() {
 
   const refresh = async () => {
     setIsRefreshing(true);
-    const startTime = Date.now();
     try {
       const [
         workspaceStatus,
@@ -182,10 +181,6 @@ export function App() {
       setNotifications(notificationRows);
       setMessage("Ready.");
     } finally {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1000) {
-        await new Promise(r => setTimeout(r, 1000 - elapsed));
-      }
       setIsRefreshing(false);
     }
   };
@@ -245,10 +240,17 @@ export function App() {
   };
 
   useEffect(() => {
+    // Ensure the backend workspace + DB schema exist before reading dashboard
+    // data. This MUST stay sequential: /workspace/init calls initialize_database
+    // directly (bypassing the get_store memoization flag), and the dashboard
+    // reads route through get_store which would otherwise race to re-run DDL
+    // against the same tables. Concurrent DDL + reads exhaust the connection
+    // pool and stall the app (observed as a hang on repeated refreshes).
     api
       .post<RecordMap>("/workspace/init", {})
       .then(refresh)
       .catch((error) => setMessage(error.message));
+
 
     // Global instant custom tooltips replacing browser-native title delay
     const handleMouseOver = (e: any) => {
@@ -944,6 +946,7 @@ function DocumentView(props: {
   const [categoryName, setCategoryName] = useState("");
   const [editFileForm, setEditFileForm] = useState({ display_name: "", file_type: "", notes: "" });
   const [pinningFileKey, setPinningFileKey] = useState<string | null>(null);
+  const [showAllDocsModal, setShowAllDocsModal] = useState(false);
 
   const openUploadModalForCategory = (categorySlug: string) => {
     setDefaultCategorySlug(categorySlug);
@@ -963,11 +966,20 @@ function DocumentView(props: {
     if (!form.get("file_type") || form.get("file_type") === "") {
       form.set("file_type", form.get("category") as string);
     }
+    
+    // Client-side validation: enforce 10MB maximum document size
+    const file = form.get("file") as File | null;
+    const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+    if (file && file.size > MAX_DOCUMENT_SIZE_BYTES) {
+      props.onToast(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the maximum allowed size of 10 MB.`);
+      return;
+    }
+    
     await api.upload<RecordMap>("/files/upload", form);
-    props.onToast("Document uploaded.");
     formEl.reset();
     closeUploadModal();
     await props.onChanged();
+    props.onToast("Document uploaded.");
   };
 
   const deleteDocument = async (fileId: string) => {
@@ -1143,7 +1155,7 @@ function DocumentView(props: {
           className={`icon-button compact doc-pin-action ${file.is_pinned ? "active" : ""}`}
           disabled={pinningFileKey === `${file.id}-is_pinned`}
           onClick={() => updateDocPin(file, { is_pinned: !file.is_pinned }, file.is_pinned ? "Document unpinned." : "Document pinned.")}
-          title={file.is_pinned ? "Unpin from this view" : "Pin to this view"} aria-label={file.is_pinned ? `Unpin ${file.display_name} from documents` : `Pin ${file.display_name} in documents`}
+          title={file.is_pinned ? "Unpin from this view" : "Pin to this view"}
         >
           <Pin size={15} />
         </button>
@@ -1152,7 +1164,7 @@ function DocumentView(props: {
           className={`icon-button compact doc-pin-action dashboard-pin-action ${file.pinned_to_dashboard ? "active" : ""}`}
           disabled={pinningFileKey === `${file.id}-pinned_to_dashboard`}
           onClick={() => updateDocPin(file, { pinned_to_dashboard: !file.pinned_to_dashboard }, file.pinned_to_dashboard ? "Removed from dashboard." : "Pinned to dashboard.")}
-          title={file.pinned_to_dashboard ? "Remove from dashboard" : "Pin to dashboard"} aria-label={file.pinned_to_dashboard ? `Remove ${file.display_name} from dashboard` : `Pin ${file.display_name} to dashboard`}
+          title={file.pinned_to_dashboard ? "Remove from dashboard" : "Pin to dashboard"}
         >
           <LayoutDashboard size={15} />
         </button>
@@ -1175,6 +1187,65 @@ function DocumentView(props: {
       </div>
     </div>
   );
+
+  const renderDocumentFileWithCategory = (file: RecordMap) => {
+    const categoryName = categoryEntries.find(entry => entry.slug === file.file_type)?.title || formatCategoryTitle(file.file_type || "other");
+    return (
+      <div key={file.id} className="doc-file-row">
+        <FileText size={15} className="doc-file-icon" />
+        <div className="doc-file-info">
+          <a
+            href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
+            target="_blank"
+            rel="noreferrer"
+            className="doc-file-name"
+          >
+            {file.display_name}
+          </a>
+          <span className="doc-file-path">
+            {categoryName} • {formatUploadedTime(file.created_at)}
+          </span>
+          {file.notes ? <p className="doc-file-notes">{file.notes}</p> : null}
+        </div>
+        <div className="doc-file-actions" style={{ display: "flex", gap: "6px" }}>
+          <button
+            type="button"
+            className={`icon-button compact doc-pin-action ${file.is_pinned ? "active" : ""}`}
+            disabled={pinningFileKey === `${file.id}-is_pinned`}
+            onClick={() => updateDocPin(file, { is_pinned: !file.is_pinned }, file.is_pinned ? "Document unpinned." : "Document pinned.")}
+            title={file.is_pinned ? "Unpin from this view" : "Pin to this view"}
+          >
+            <Pin size={15} />
+          </button>
+          <button
+            type="button"
+            className={`icon-button compact doc-pin-action dashboard-pin-action ${file.pinned_to_dashboard ? "active" : ""}`}
+            disabled={pinningFileKey === `${file.id}-pinned_to_dashboard`}
+            onClick={() => updateDocPin(file, { pinned_to_dashboard: !file.pinned_to_dashboard }, file.pinned_to_dashboard ? "Removed from dashboard." : "Pinned to dashboard.")}
+            title={file.pinned_to_dashboard ? "Remove from dashboard" : "Pin to dashboard"}
+          >
+            <LayoutDashboard size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-button compact"
+            onClick={() => startEditFile(file)}
+            title="Edit document info"
+          >
+            <Edit size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-button compact danger"
+            onClick={() => deleteDocument(file.id)}
+            title="Delete document"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="page-grid doc-grid">
@@ -1244,6 +1315,33 @@ function DocumentView(props: {
         <div className="doc-action-row">
           <button className="secondary" type="button" onClick={() => openCategoryEditor("create")}>
             <Plus size={16} /> New category
+          </button>
+          <button 
+            className="secondary" 
+            type="button" 
+            onClick={() => setShowAllDocsModal(true)}
+            title="View all documents"
+          >
+            <FileText size={16} /> View all documents
+          </button>
+          <button 
+            className="secondary" 
+            type="button" 
+            onClick={async () => {
+              try {
+                const result = await api.post<{ restored: number; message: string }>("/document_categories/restore_defaults", {});
+                props.onToast(result.message);
+                if (result.restored > 0) {
+                  await props.onChanged();
+                }
+              } catch (err: any) {
+                props.onToast(`Error: ${err.message || "Failed to restore categories"}`);
+              }
+            }}
+            title="Restore missing default categories"
+            style={{ marginLeft: "auto" }}
+          >
+            <RefreshCw size={16} /> Restore defaults
           </button>
         </div>
         {categoryEntries.length ? (
@@ -1420,6 +1518,41 @@ function DocumentView(props: {
               <button className="primary" type="submit">Save changes</button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {showAllDocsModal ? (
+        <div className="modal-backdrop" onClick={() => setShowAllDocsModal(false)}>
+          <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">{props.files.length} document{props.files.length === 1 ? "" : "s"}</p>
+                <h2>All Documents</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setShowAllDocsModal(false)} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-content doc-category-modal-content">
+              <div className="doc-file-list">
+                {props.files.length > 0 ? (
+                  props.files
+                    .sort((a: RecordMap, b: RecordMap) => {
+                      // Sort by pinned first, then by created date (newest first)
+                      if (a.is_pinned !== b.is_pinned) {
+                        return a.is_pinned ? -1 : 1;
+                      }
+                      const dateA = new Date(a.created_at || 0).getTime();
+                      const dateB = new Date(b.created_at || 0).getTime();
+                      return dateB - dateA;
+                    })
+                    .map(renderDocumentFileWithCategory)
+                ) : (
+                  <p className="empty">No documents uploaded yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

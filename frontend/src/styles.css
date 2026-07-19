@@ -1419,11 +1419,12 @@ h2 {
   color: #17201d;
   resize: none;
   padding: 8px 4px;
-  max-height: 120px;
+  max-height: 95px; /* 4 lines: (14px × 1.4 line-height × 4 lines) + 16px padding ≈ 95px */
   min-height: 20px;
   line-height: 1.4;
   outline: none;
   font-family: inherit;
+  overflow-y: auto;
 }
 
 .chat-input:focus-visible {
@@ -2665,12 +2666,22 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding-top: 80px;
 }
 
+/* MODAL BACKDROP BLUR RULE — DO NOT REGRESS (see AGENTS.md).
+   Keep `position: absolute; inset: 0` so the blur is scoped to the
+   `.main-content` work surface only (NOT the global TopBar/Sidebar).
+   Do NOT switch to `position: fixed` — that bleeds over the whole app.
+   padding-top stays 160px (lowered modal, not flush to the top edge). */
 .modal-backdrop-main {
   position: absolute;
   inset: 0;
   min-height: 100%;
   height: 100%;
-  padding-top: 24px;
+  padding-top: 80px;
+}
+
+/* Admin / settings dialogs — less vertical offset than sheet/project modals */
+.modal-backdrop-main.modal-backdrop-compact {
+  padding-top: 48px;
 }
 
 .modal-panel {
@@ -2682,7 +2693,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 20, 0.15), 0 10px 10px -5px rgba(15, 23, 20, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   overflow: hidden;
 }
 
@@ -2705,21 +2716,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   transition: filter 0.2s ease;
 }
 
-.modal-panel {
-  background: #ffffff;
-  border: 1px solid #d8d0c4;
-  border-radius: 8px;
-  width: 600px;
-  max-width: 90vw;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-
 .modal-panel.small-modal-panel {
-  width: 480px;
+  width: 580px;
   max-width: 85vw;
   max-height: 65vh;
 }
@@ -2750,8 +2748,9 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .modal-panel.pricing-modal-panel {
   width: min(1080px, 94vw);
   max-width: 94vw;
-  max-height: calc(90vh - 24px);
+  max-height: calc(80vh - 40px) !important;
   margin-top: 0px;
+  margin-bottom: 40px;
 }
 
 .modal-header {

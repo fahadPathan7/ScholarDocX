@@ -337,3 +337,266 @@ def test_document_category_rename_and_delete_removes_files(tmp_path):
         assert all(item["slug"] != "writing-samples" for item in store.document_categories())
     finally:
         store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_meta_is_lightweight_with_row_counts(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Finland PhD", "degree_type": "phd"})
+        store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Professors",
+                "columns_json": ["University", "Professor email", "Follow-up date"],
+                "rows_json": [
+                    {"University": "Aalto", "Professor email": "prof@example.edu", "Follow-up date": "2026-06-04"},
+                    {"University": "Helsinki", "Professor email": "prof2@example.edu", "Follow-up date": "2026-06-10"},
+                ],
+            },
+        )
+
+        meta = store.project_meta(project["id"])
+
+        # Stubs must NOT ship decoded rows or columns (the whole point of /meta).
+        stub = meta["page_stubs"][0]
+        assert "rows" not in stub
+        assert "columns" not in stub
+        assert stub["row_count"] == 2
+        for key in ("id", "sheet_id", "name", "updated_at", "row_count"):
+            assert key in stub
+
+        # Aggregates
+        assert meta["row_count"] == 2
+        assert meta["page_count"] == 1
+        assert "calendar_items" in meta
+        assert meta["calendar_items"][0]["date_key"] == "2026-06-04"
+        assert meta["calendar_items"][0]["project_id"] == project["id"]
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_meta_skips_calendar_when_requested(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "P2", "degree_type": "phd"})
+        store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Dates",
+                "columns_json": ["Deadline"],
+                "rows_json": [{"Deadline": "2026-06-04"}],
+            },
+        )
+
+        meta = store.project_meta(project["id"], include_calendar=False)
+        assert "calendar_items" not in meta
+        # row_count is still derived server-side
+        assert meta["page_stubs"][0]["row_count"] == 1
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_get_project_page_returns_decoded_page(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "P3", "degree_type": "phd"})
+        page = store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "name": "Sheet",
+                "columns_json": ["University", "Professor email"],
+                "rows_json": [{"University": "Aalto", "Professor email": "x@example.edu"}],
+                "email_config_json": {"toColumn": "Professor email"},
+            },
+        )
+
+        decoded = store.get_project_page(page["id"])
+        # Legacy string[] columns are migrated to {name, type}.
+        assert decoded["columns"] == [
+            {"name": "University", "type": "text"},
+            {"name": "Professor email", "type": "text"},
+        ]
+        assert decoded["rows"] == [{"University": "Aalto", "Professor email": "x@example.edu"}]
+        assert decoded["email_config"] == {"toColumn": "Professor email"}
+
+        # Unknown id raises LookupError (404 at the route layer).
+        import uuid as _uuid
+        with pytest.raises(LookupError):
+            store.get_project_page(str(_uuid.uuid4()))
+    finally:
+        store.db.close()
+
+
+@pytest.mark.smoke
+def test_project_sheet_counts_groups_by_project(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        p1 = store.create_record("projects", {"name": "A", "degree_type": "phd"})
+        p2 = store.create_record("projects", {"name": "B", "degree_type": "phd"})
+
+        store.create_sheet_with_defaults(p1["id"], "s1")
+        store.create_sheet_with_defaults(p1["id"], "s2")
+        store.create_sheet_with_defaults(p2["id"], "s3")
+
+        counts = store.project_sheet_counts()
+        assert counts[str(p1["id"])] == 2
+        assert counts[str(p2["id"])] == 1
+    finally:
+        store.db.close()
+
+
+def test_project_sheet_counts_includes_empty_projects(tmp_path):
+    """SCHOLARDOCX-0150: a project with NO sheets must still appear in the
+    counts dict with value 0. Previously the GROUP BY on project_sheets
+    silently omitted empty projects, which left the project card's "X / Y
+    sheets" counter stuck on its loading state in the UI.
+    """
+    store, connection = make_store(tmp_path)
+    try:
+        # Three projects: one with two sheets, one with one sheet, one EMPTY.
+        p_full = store.create_record("projects", {"name": "Full", "degree_type": "phd"})
+        p_one = store.create_record("projects", {"name": "One", "degree_type": "phd"})
+        p_empty = store.create_record("projects", {"name": "Empty", "degree_type": "phd"})
+
+        store.create_sheet_with_defaults(p_full["id"], "s1")
+        store.create_sheet_with_defaults(p_full["id"], "s2")
+        store.create_sheet_with_defaults(p_one["id"], "s3")
+        # NOTE: no sheets added to p_empty.
+
+        counts = store.project_sheet_counts()
+
+        # The empty project MUST be a key with value 0 — not missing.
+        assert str(p_empty["id"]) in counts, (
+            "empty project must appear in sheet_counts (was omitted by GROUP BY)"
+        )
+        assert counts[str(p_empty["id"])] == 0
+        assert counts[str(p_full["id"])] == 2
+        assert counts[str(p_one["id"])] == 1
+    finally:
+        store.db.close()
+
+
+# ── SCHOLARDOCX-0153: parent delete must cascade to NOT NULL children ──
+#
+# Regression for the NotNullViolation that occurred when deleting a project
+# with sheets/pages: SQLAlchemy's default relationship cascade tried to
+# nullify the child FK, but project_sheets.project_id and
+# project_pages.project_id are NOT NULL. Same latent defect existed for
+# universities→programs and documents→document_versions. Fixed by adding
+# cascade="all" to those four parent→child relationships in app/db/models.py.
+
+
+def test_deleting_project_cascades_to_sheets_and_pages(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Doomed", "degree_type": "phd"})
+        sheet = store.create_record(
+            "project_sheets", {"project_id": project["id"], "name": "Sheet A"}
+        )
+        page = store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "sheet_id": sheet["id"],
+                "name": "Page A",
+                "columns_json": "[]",
+                "rows_json": "[]",
+            },
+        )
+
+        # Sanity: all three rows exist before delete.
+        assert store.get_record("projects", project["id"])["id"] == project["id"]
+        assert store.get_record("project_sheets", sheet["id"])["id"] == sheet["id"]
+        assert store.get_record("project_pages", page["id"])["id"] == page["id"]
+
+        # The delete must not raise NotNullViolation.
+        store.delete_record("projects", project["id"])
+
+        # All three rows must be gone (cascade DELETE, not nullify).
+        with pytest.raises(LookupError):
+            store.get_record("projects", project["id"])
+        with pytest.raises(LookupError):
+            store.get_record("project_sheets", sheet["id"])
+        with pytest.raises(LookupError):
+            store.get_record("project_pages", page["id"])
+    finally:
+        store.db.close()
+
+
+def test_deleting_project_keeps_notifications_with_null_project_id(tmp_path):
+    """Notifications outlive their project — project_id is nullable, so the
+    default nullify behavior is correct and must NOT cascade-delete them."""
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Gone", "degree_type": "phd"})
+        notification = store.create_record(
+            "notifications",
+            {
+                "project_id": project["id"],
+                "title": "Scheduled email",
+                "notification_type": "scheduled-email",
+                "due_at": "2026-06-01T09:00",
+            },
+        )
+
+        store.delete_record("projects", project["id"])
+
+        # Notification row survives, with project_id nullified.
+        surviving = store.get_record("notifications", notification["id"])
+        assert surviving["id"] == notification["id"]
+        assert surviving["project_id"] is None
+    finally:
+        store.db.close()
+
+
+def test_deleting_university_cascades_to_programs(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        university = store.create_record(
+            "universities", {"name": "Aalto University", "country": "Finland"}
+        )
+        program = store.create_record(
+            "programs", {"university_id": university["id"], "name": "CS"}
+        )
+
+        store.delete_record("universities", university["id"])
+
+        with pytest.raises(LookupError):
+            store.get_record("universities", university["id"])
+        with pytest.raises(LookupError):
+            store.get_record("programs", program["id"])
+    finally:
+        store.db.close()
+
+
+def test_deleting_document_cascades_to_versions(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        document = store.create_record(
+            "documents", {"document_type": "sop", "title": "Statement of Purpose"}
+        )
+        version = store.create_record(
+            "document_versions",
+            {
+                "document_id": document["id"],
+                "version_label": "v1",
+                "content_format": "markdown",
+                "content": "First draft",
+            },
+        )
+
+        store.delete_record("documents", document["id"])
+
+        with pytest.raises(LookupError):
+            store.get_record("documents", document["id"])
+        with pytest.raises(LookupError):
+            store.get_record("document_versions", version["id"])
+    finally:
+        store.db.close()
+

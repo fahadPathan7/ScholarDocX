@@ -18,6 +18,96 @@ development.
 - Ask user confirmation before AI saves or document overwrites.
 - Convert API authorization/limit failures into user-friendly alerts through a
   centralized UI-error mapping layer instead of component-by-component parsing.
+- Login path must stay non-blocking (SCHOLARDOCX-0146): the `/auth/login`
+  response already returns the full `user` object, so the frontend hydrates
+  auth state synchronously from it and navigates client-side (`navigate`),
+  never via `window.location.href` (which forces a full SPA re-bootstrap).
+  `GET /auth/me` runs only as a background refresh for latest plan/role fields
+  and must not gate `isLoading`. `initAuth` must also be defensive: a null/
+  undecodable token payload must not throw out of the bootstrap (wrap in
+  try/catch and always release `isLoading`), otherwise the SplashScreen hangs
+  on refresh and the app never mounts. Dashboard data fetches fan out with
+  `Promise.all` but must start **after** `POST /workspace/init` resolves — init
+  and `get_store` both touch `initialize_database`, so firing them concurrently
+  risks DDL/connection-pool contention. No client-imposed minimum-delay floors
+  on the login-to-dashboard path. On the backend, the boot path (`create_app`),
+  `/workspace/init`, and `get_store` all funnel through one memoized
+  `ensure_db_initialized` so DDL + seeding runs at most once per process
+  regardless of how many refreshes occur. The memo flag is guarded by a
+  `threading.Lock` so a concurrent cold-start burst cannot both run DDL
+  (SCHOLARDOCX-0149).
+
+  **Boot-init rule (SCHOLARDOCX-0149):** `create_app()` MUST call
+  `ensure_db_initialized(settings)`, never `initialize_database(...)` directly.
+  Calling it directly leaves the `_db_initialized` flag unset, so the first
+  request's `get_store` re-runs the entire DDL + ~160-row seed pass a second
+  time — the dominant cause of slow `/workspace/init` on Render cold starts.
+  The seed helpers (`_seed_role_limits`, `_seed_ai_token_defaults`) must use
+  batched `executemany`-style inserts (one round-trip per table), not per-row
+  loops.
+
+  **Sheet Ask AI prompt catalog (SCHOLARDOCX-0150):** the sheet "Ask AI"
+  button is a dropdown of context-aware, metric-driven prompts
+  (`askAiPrompts.ts`), not a single canned question. Each prompt has a full,
+  always-visible description (never hover-only) and builds a message that
+  targets the **exact sheet by ID** (`project_id` + `sheet_id`), with names
+  kept only as human-readable labels. Names are NOT used for resolution — a
+  user can have multiple projects/sheets with the same name, so name-based
+  targeting would mis-target. The backend action planner already resolves
+  `project_id`/`sheet_id` before names (`ai_actions_workspace.py:45-65`,
+  `ai_actions_execute.py:27-60`) and the workspace snapshot already exposes
+  the IDs to the model. Every write-action prompt appends an explicit
+  instruction to emit `project_id`/`sheet_id` in the plan.
+
+  Picking a prompt (or writing a custom one) dispatches `scholardocx:open-ai`
+  with `{ contextMessage, autoSend: true, newChat: true }` — Lumi opens on a
+  fresh chat and sends immediately (no manual Send click). Prompts are
+  concrete ("application status breakdown with conversion rate", "funding
+  totals and biggest award", "deadline risk for the next 45 days", "outreach
+  response rate and non-responders", "score every row by priority 1–5") and
+  phrased as imperative action requests so FloatingAssistant's
+  `looksLikeWorkspaceAction` detector routes them to `/ai/actions/plan` →
+  `/ai/actions/execute`, giving the AI real data/action control (`add_rows`,
+  `bulk_update_rows`, `add_column`, `filter_rows`, `analyze_sheet`, …). The
+  auto-send path uses `sendMessage(overrideText)` + a `pendingSendRef` in
+  FloatingAssistant; the legacy pre-fill-only path (no `autoSend`) is
+  preserved for other callers. No cell values are sent in context — only
+  schema + IDs + selection/focus, matching the action planner's design (it
+  uses read actions to inspect values).
+
+  **Action planner ID rule (SCHOLARDOCX-0150 rev 3):** `ACTION_PLANNER_SYSTEM_PROMPT`
+  and `_build_planner_prompt` (`backend/app/services/ai_actions.py`) MUST
+  document `project_id`/`sheet_id` as accepted fields on every workspace
+  action and MUST instruct the model to prefer them over names whenever the
+  user's message includes IDs. The executor already resolved IDs first
+  (`ai_actions_workspace.py:45-65`, `ai_actions_execute.py:27-60`), but if
+  the prompt schema only shows `project_name`/`sheet_name`, the model never
+  emits IDs and name collisions cause mis-targeting or `needs_info` failures.
+  The prompt must also state that a single plan may chain multiple actions
+  (read-then-write), which transform prompts like "add a column and fill it"
+  require.
+
+  **Bulk count endpoints must include zero rows (SCHOLARDOCX-0151):** any
+  endpoint that aggregates per-entity counts (e.g.
+  `Store.project_sheet_counts` → `/projects/sheet_counts`) MUST emit an entry
+  for every entity the user owns, including those with zero children. A plain
+  `GROUP BY child.project_id` on the child table silently omits parents with
+  no children, which left the project card's "X / Y sheets" counter stuck on
+  its loading state. Use `LEFT JOIN parent → child` with `COUNT(child.id)`
+  and `GROUP BY parent.id`. The frontend additionally seeds the counts map
+  with `0` for every known project before the fetch resolves, as a defensive
+  guard against pre-fetch flashes and future regressions.
+
+  **Refresh button must reload everything visible (SCHOLARDOCX-0152):** the
+  top-bar "Refresh data" button (`App.tsx:refreshActiveTab`) bumps
+  `refreshTrigger`, and `ProjectWorkspace`'s `refreshTrigger` effect must
+  reload (1) the project list, (2) the per-project sheet-count badges, (3)
+  the open project's `/meta` stubs, AND (4) the open sheet's full
+  rows/columns via `getSelectedPageData`. Previously it skipped (2) and (4),
+  so Refresh visibly spun but left the open grid and the "X / Y" counters
+  stale. The `useSheetPage` contentSignature guard intentionally skips
+  applying an identical payload (prevents our own save echo from clobbering
+  local edits) — that guard is correct and must be preserved.
 
 ## Backend Responsibilities
 
@@ -37,6 +127,42 @@ development.
 - Outreach logging and reminder creation.
 - AI research orchestration.
 
+## Delete Cascade Semantics
+
+When a parent row is deleted via the generic CRUD `DELETE /{table}/{id}`
+route (`store.delete_record` → `db.delete(obj)`), child rows resolve in two
+ways depending on FK nullability (SCHOLARDOCX-0153):
+
+- **NOT NULL child FK → cascade delete.** The parent relationship in
+  `app/db/models.py` carries `cascade="all"` so SQLAlchemy emits `DELETE`
+  for the children rather than attempting an illegal `UPDATE ... SET
+  fk=NULL`. Applies to:
+  - `Projects.project_sheets` / `Projects.project_pages`
+  - `Universities.programs`
+  - `Documents.document_versions`
+- **Nullable child FK → nullify (default).** No `cascade=` on the
+  relationship; the child row survives with `fk = NULL`. Applies to
+  `Projects.notifications` (notifications outlive their project as
+  historical records), `EmailTemplates.email_drafts`,
+  `Documents.owner_id`, `Applications.degree_workspace_id`, etc.
+
+Quota counters (`total_projects`, `total_sheets`, `total_records`) are
+recomputed from live data by `resync_usage_counts`
+(`app/auth/limits.py`) after the delete via
+`RESYNC_FEATURES_BY_TABLE` (`app/api/routes.py`), so the cascade removal
+of children flows through to the dashboard counts automatically — no
+manual count math in the delete path.
+
+**Why ORM cascade, not `ondelete="CASCADE"`?** `Base.metadata.create_all`
+only creates missing tables; it does not alter FK constraints on existing
+databases. A DB-level change would require a migration script against the
+live Supabase cluster. ORM `cascade="all"` is purely application-side and
+works on day one against the existing schema. The `advisor_atlas_*`
+tables use `ondelete="CASCADE"` at the column level because they were
+introduced after the cascade policy was understood; they are not
+inconsistent — both achieve the same outcome, the ORM form is just the
+no-migration variant for pre-existing tables.
+
 ## Avoid
 
 - Business logic inside UI components.
@@ -51,7 +177,25 @@ development.
 - `/settings`
 - `/degree-workspaces`
 - `/projects`
-- `/projects/{project_id}/summary`
+- `/projects/{project_id}/summary` (full pages with rows; heavy — used only by
+  legacy/AI paths that need every sheet's rows)
+- `/projects/{project_id}/meta?include_calendar=true|false` — lightweight
+  project metadata for the project/dashboard/sheet-list views. Ships page
+  STUBS only (`id, sheet_id, name, project_id, updated_at, row_count`) plus
+  per-project aggregates (`sheet_count`, `row_count`, `notification_count`),
+  sheets, and notifications — never the full `rows`/`columns`.
+  `include_calendar=false` skips the dashboard calendar scan and omits
+  `calendar_items`; the post-save refresh path uses this since it does not
+  redraw the calendar. Replaced `/summary` as the default open-project call.
+  (SCHOLARDOCX-0121)
+- `/project_pages/{page_id}` (GET) — one fully decoded page (the open sheet's
+  full `columns`/`rows`/`email_config`). The frontend fetches this on demand
+  for the single open sheet instead of pulling every sheet's rows via
+  `/summary`. Distinct from the generic CRUD `GET /project_pages` (list) and
+  `PATCH/DELETE /project_pages/{record_id}` by HTTP method. (SCHOLARDOCX-0121)
+- `/projects/sheet_counts` (GET) — `{ "<project_id>": <int> }` in one grouped,
+  user-scoped query. Kills the Projects-list N+1 where the UI previously fired
+  one `/summary` per project just to show sheet counts. (SCHOLARDOCX-0121)
 - `/projects/{project_id}/sheets`
 - `/project_sheets`
 - `/project_pages`

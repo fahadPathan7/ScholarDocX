@@ -1,7 +1,7 @@
 import { AdminPortal } from "./AdminPortal";
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../../lib/api";
-import { hasRole } from "../../lib/auth";
+import { hasRole, formatRoleName } from "../../lib/auth";
 import { emitUiError } from "../../lib/uiError";
 import { useDialog } from "../DialogProvider";
 import { Modal } from "../Modal";
@@ -66,7 +66,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
   const handleResetRoleLimits = async () => {
     if (!selectedRole || isResetting) return;
     const confirmed = await showConfirm(
-      `Reset all limits and permissions for ${selectedRole.replace('_', ' ')} to default values?`,
+      `Reset all limits and permissions for ${formatRoleName(selectedRole)} to default values?`,
       "Confirm Reset"
     );
     if (!confirmed) return;
@@ -168,8 +168,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "AI Credits",
       features: [
-        { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and General. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." },
-        { key: "can_use_purchased_tokens", label: "Can Use Purchased AI Credits", description: "Controls whether users on this plan can consume their purchased extra AI credits. Default ON for Pro and Max, OFF for Free and General. When OFF, purchased credits are locked and unusable until the user upgrades." }
+        { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and Basic. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." },
+        { key: "can_use_purchased_tokens", label: "Can Use Purchased AI Credits", description: "Controls whether users on this plan can consume their purchased extra AI credits. Default ON for Pro and Max, OFF for Free and Basic. When OFF, purchased credits are locked and unusable until the user upgrades." }
       ]
     },
     {
@@ -190,7 +190,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "Advisor Atlas",
       features: [
-        { key: "can_use_advisor_atlas", label: "Can Use Advisor Atlas", description: "Controls whether users can access Advisor Atlas, the supervisor intelligence workspace. Default ON for Pro and Max, OFF for Free and General. Ineligible users see a locked tab that routes to Choose Plan." }
+        { key: "can_use_advisor_atlas", label: "Can Use Advisor Atlas", description: "Controls whether users can access Advisor Atlas, the supervisor intelligence workspace. Default ON for Pro and Max, OFF for Free and Basic. Ineligible users see a locked tab that routes to Choose Plan." }
       ]
     },
     {
@@ -240,8 +240,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       name: "Users",
       features: [
         { key: "admin_create_user", label: "Can Create Users", description: "Allows creating new user accounts with email, password, and assigned roles." },
-        { key: "admin_assign_user_roles", label: "Can Assign User Roles", description: "Allows changing a user's role to user-level roles (Free User, General User, Pro User, Max User)." },
-        { key: "admin_assign_admin_roles", label: "Can Assign Admin Roles", description: "Allows changing a user's role to admin-level roles (General Admin, Super Admin)." },
+        { key: "admin_assign_user_roles", label: "Can Assign User Roles", description: "Allows changing a user's role to user-level roles (Free User, Basic User, Pro User, Max User)." },
+        { key: "admin_assign_admin_roles", label: "Can Assign Admin Roles", description: "Allows changing a user's role to admin-level roles (Basic Admin, Super Admin)." },
         { key: "admin_suspend_user", label: "Can Suspend Users", description: "Allows suspending or activating user accounts to control their access." },
         { key: "admin_revoke_user", label: "Can Revoke User Tokens", description: "Allows revoking all active sessions for a user, forcing them to log in again." },
         { key: "admin_send_notifications", label: "Can Send Notifications To Users", description: "Allows sending categorized notifications to all users, filtered groups, or specific users." }
@@ -271,7 +271,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "Role Limits",
       features: [
-        { key: "admin_manage_user_roles", label: "Can Manage Role Limits", description: "Allows editing limits and quotas for user-level roles (Free User, General User, Pro User, Max User)." },
+        { key: "admin_manage_user_roles", label: "Can Manage Role Limits", description: "Allows editing limits and quotas for user-level roles (Free User, Basic User, Pro User, Max User)." },
         { key: "admin_manage_role_limits", label: "Can View Role Limits", description: "Allows opening the Role Limits section and viewing role-limit settings and admin permission toggles." },
         { key: "admin_manage_admin_roles", label: "Can Manage Admin Roles", description: "Allows editing permissions for admin-level roles." }
       ]
@@ -347,7 +347,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                 <Shield size={24} />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-800 capitalize">{role.replace('_', ' ')}</p>
+                <p className="text-sm font-bold text-slate-800 capitalize">{formatRoleName(role)}</p>
                 <p className="text-xs text-slate-500 mt-0.5">Manage limits for this role</p>
               </div>
             </button>
@@ -369,7 +369,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                   <Shield size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800 capitalize">{role.replace('_', ' ')}</p>
+                  <p className="text-sm font-bold text-slate-800 capitalize">{formatRoleName(role)}</p>
                   <p className="text-xs text-slate-500 mt-0.5">Manage permissions for this role</p>
                 </div>
               </button>
@@ -385,7 +385,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
               <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Role Limits</p>
-                  <h2 className="text-2xl font-bold text-slate-800 capitalize mt-1">{selectedRole.replace('_', ' ')}</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 capitalize mt-1">{formatRoleName(selectedRole)}</h2>
                 </div>
                 <div className="flex items-center gap-2">
                   {!isAdminRole && (
@@ -502,7 +502,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
               <div className="modal-content form-grid">
                 <div className="mb-0.5 p-3 bg-slate-50 rounded-lg border border-slate-100 flex flex-col gap-1" style={{ gridColumn: '1 / -1' }}>
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target</span>
-                  <span className="text-sm font-medium text-slate-700 capitalize">{editingLimit.role.replace('_', ' ')}</span>
+                  <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(editingLimit.role)}</span>
                 </div>
 
                 <div className="mb-0.5 p-3 bg-slate-50 rounded-lg border border-slate-100 flex flex-col gap-1" style={{ gridColumn: '1 / -1' }}>

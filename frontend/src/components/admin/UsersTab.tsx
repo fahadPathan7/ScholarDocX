@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { hasRole, formatRoleName } from "../../lib/auth";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 import { adminNotificationCategories, getNotificationSettingLabel } from "../../config/notificationLabels";
@@ -54,11 +55,11 @@ const roleTabs = [
   { id: "all" as const, label: "All Users" },
   { id: "any_user" as const, label: "Any User" },
   { id: "free_user" as const, label: "Free User" },
-  { id: "general_user" as const, label: "General User" },
+  { id: "general_user" as const, label: "Basic User" },
   { id: "pro_user" as const, label: "Pro User" },
   { id: "max_user" as const, label: "Max User" },
   { id: "any_admin" as const, label: "Any Admin" },
-  { id: "general_admin" as const, label: "General Admin" },
+  { id: "general_admin" as const, label: "Basic Admin" },
   { id: "super_admin" as const, label: "Super Admin" },
 ];
 
@@ -579,7 +580,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                             role === "general_admin" ? "bg-amber-100 text-amber-700" :
                             "bg-indigo-100/50 text-indigo-700"
                           }`}>
-                            {role.replace("_", " ")}
+                            {formatRoleName(role)}
                           </span>
                         ))}
                       </div>
@@ -863,7 +864,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                                 onChange={() => {}}
                                 className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
                               />
-                              <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
+                              <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
                             </label>
                           ))}
                         </div>
@@ -920,7 +921,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                                 onChange={() => {}}
                                 className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                               />
-                              <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
+                              <span className="text-sm font-medium text-rose-700 capitalize">{formatRoleName(role)}</span>
                             </label>
                           ))}
                         </div>
@@ -1007,7 +1008,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                             onChange={() => {}}
                             className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
                           />
-                          <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
+                          <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
                         </label>
                       ))}
                     </div>
@@ -1062,7 +1063,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                               onChange={() => {}}
                               className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                             />
-                            <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
+                            <span className="text-sm font-medium text-rose-700 capitalize">{formatRoleName(role)}</span>
                           </label>
                         ))}
                       </div>

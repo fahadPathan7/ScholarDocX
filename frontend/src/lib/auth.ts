@@ -177,3 +177,9 @@ export function hasActiveUserPlan(user?: Pick<User, "roles" | "plan_ends_at"> | 
   if (!user || !hasUserTierRole(user.roles)) return false;
   return getUserPlanStatus(user.plan_ends_at) !== "expired";
 }
+
+export function formatRoleName(role: string): string {
+  if (role === "general_user") return "Basic User";
+  if (role === "general_admin") return "Basic Admin";
+  return role.replace(/_/g, " ");
+}

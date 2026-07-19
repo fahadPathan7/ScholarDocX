@@ -25,7 +25,7 @@ const PLAN_ROWS: PlanRow[] = [
   },
   {
     tier: "general_user",
-    displayName: "General",
+    displayName: "Basic",
     monthlyKey: "plan_price_general_monthly",
     quarterlyKey: "plan_price_general_quarterly",
     creditsKey: "plan_ai_credits_general",

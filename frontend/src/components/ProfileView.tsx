@@ -51,7 +51,7 @@ const TIMEZONE_OPTIONS = [
 const PLAN_TIERS = ["free_user", "general_user", "pro_user", "max_user"] as const;
 const PLAN_LABELS: Record<string, string> = {
   free_user: "Free",
-  general_user: "General",
+  general_user: "Basic",
   pro_user: "Pro",
   max_user: "Max",
 };

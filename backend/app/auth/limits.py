@@ -254,7 +254,7 @@ def resync_usage_counts(user_id: str, session: Session, features=None) -> None:
 PLAN_TIER_ORDER = ("free_user", "general_user", "pro_user", "max_user")
 PLAN_DISPLAY_NAMES = {
     "free_user": "Free",
-    "general_user": "General",
+    "general_user": "Basic",
     "pro_user": "Pro",
     "max_user": "Max",
 }

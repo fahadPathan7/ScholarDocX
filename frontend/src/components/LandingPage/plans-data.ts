@@ -60,21 +60,21 @@ export const TIER_ORDER: TierKey[] = [
 export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
   free_user: {
     tier: "free_user",
-    name: "Free Plan",
+    name: "Free",
     desc: "Perfect for starting out and trying application tracking features.",
     variant: "default",
     period: { monthly: "/ forever", quarterly: "/ forever" },
   },
   general_user: {
     tier: "general_user",
-    name: "General User",
+    name: "Basic",
     desc: "Great for applicants tracking up to a dozen programs and deadlines.",
     variant: "default",
     period: { monthly: "/ month", quarterly: "/ quarter" },
   },
   pro_user: {
     tier: "pro_user",
-    name: "Pro User",
+    name: "Pro",
     desc: "For candidates applying to multiple top-tier programs.",
     variant: "popular",
     badge: "Popular",
@@ -82,7 +82,7 @@ export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
   },
   max_user: {
     tier: "max_user",
-    name: "Max User",
+    name: "Max",
     desc: "No boundaries. Designed for absolute power-users and collaborative labs.",
     variant: "premium",
     badge: "Ultimate",
@@ -94,12 +94,10 @@ export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
 
 /** A feature row to surface on a pricing card. */
 export type PlanFeature = {
-  /** role_limits / app_settings feature key. */
   key: string;
-  /** Human-readable line; {v} is replaced with the formatted value. */
-  template: (v: string) => string;
-  /** Optional value formatter (e.g. bytes → MB). */
+  label: string;
   format?: (count: number) => string;
+  boolean?: boolean;
 };
 
 /** Format a raw limit_count into a display string. "-1" means unlimited. */
@@ -127,19 +125,13 @@ function formatCredits(v: number): string {
  * in PlanComparisonView so the two surfaces agree.
  */
 export const LANDING_FEATURES: PlanFeature[] = [
-  { key: "total_projects", template: (v) => `${v} Active Project Workspaces` },
-  { key: "sheets_per_project", template: (v) => `${v} Sheets per Project` },
-  { key: "total_whiteboards", template: (v) => `${v} Active Whiteboards` },
-  {
-    key: "total_documents_bytes",
-    template: (v) => `${v} File Storage`,
-    format: formatBytes,
-  },
-  {
-    key: "ai_tokens_per_month",
-    template: (v) => `${v} Monthly AI Credits`,
-    format: formatCredits,
-  },
+  { key: "total_projects", label: "Max Projects" },
+  { key: "total_documents_bytes", label: "Storage Capacity", format: formatBytes },
+  { key: "ai_tokens_per_month", label: "Monthly AI Credits", format: formatCredits },
+  { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", boolean: true },
+  { key: "can_use_agents", label: "AI Agents Usage", boolean: true },
+  { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", boolean: true },
+  { key: "can_use_advisor_atlas", label: "Advisor Atlas", boolean: true },
 ];
 
 /**
@@ -147,13 +139,25 @@ export const LANDING_FEATURES: PlanFeature[] = [
  * Returns the formatted lines in LANDING_FEATURES order, skipping features
  * that are absent from the response.
  */
-export function resolveFeatureLines(limits: PlanLimits): string[] {
-  const lines: string[] = [];
+export type ResolvedFeature = {
+  key: string;
+  label: string;
+  value: string | boolean;
+  isBoolean: boolean;
+};
+
+export function resolveFeatureLines(limits: PlanLimits): ResolvedFeature[] {
+  const lines: ResolvedFeature[] = [];
   for (const f of LANDING_FEATURES) {
-    const entry = limits[f.key];
-    if (!entry) continue;
-    const formatted = formatLimit(entry.limit_count, f.format);
-    lines.push(f.template(formatted));
+    // limits for booleans might be 0 or 1
+    const entry = limits[f.key] || { limit_count: 0, reset_period: "none" };
+    
+    if (f.boolean) {
+      lines.push({ key: f.key, label: f.label, value: entry.limit_count === 1, isBoolean: true });
+    } else {
+      const formatted = formatLimit(entry.limit_count, f.format);
+      lines.push({ key: f.key, label: f.label, value: formatted, isBoolean: false });
+    }
   }
   return lines;
 }

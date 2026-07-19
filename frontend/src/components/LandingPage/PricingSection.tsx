@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useReveal } from "./useReveal";
 import {
   fetchPublicPlans,
@@ -12,6 +12,7 @@ import {
   TIER_PRESENTATION,
   type PublicPlansResponse,
   type TierKey,
+  type ResolvedFeature,
 } from "./plans-data";
 import "./PricingSection.css";
 
@@ -30,7 +31,7 @@ type FallbackPlan = {
   tier: TierKey;
   monthly: string;
   quarterly: string;
-  features: string[];
+  features: ResolvedFeature[];
 };
 
 const FALLBACK_PLANS: FallbackPlan[] = [
@@ -39,10 +40,10 @@ const FALLBACK_PLANS: FallbackPlan[] = [
     monthly: "0 BDT",
     quarterly: "0 BDT",
     features: [
-      "1 Active Project Workspace",
-      "1 Tracker Sheet",
-      "Basic File Storage (50 MB)",
-      "1 Active Whiteboard",
+      { key: "p", label: "Max Projects", value: "1", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "50 MB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "1", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: false, isBoolean: true },
     ],
   },
   {
@@ -50,11 +51,10 @@ const FALLBACK_PLANS: FallbackPlan[] = [
     monthly: "0 BDT",
     quarterly: "0 BDT",
     features: [
-      "3 Active Project Workspaces",
-      "3 Sheets per Project",
-      "Medium File Storage (200 MB)",
-      "2 Active Whiteboards",
-      "25 AI Chat Queries per Session",
+      { key: "p", label: "Max Projects", value: "3", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "200 MB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "2", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
   {
@@ -62,11 +62,10 @@ const FALLBACK_PLANS: FallbackPlan[] = [
     monthly: "50 BDT",
     quarterly: "500 BDT",
     features: [
-      "10 Active Project Workspaces",
-      "10 Sheets per Project",
-      "Generous File Storage (1 GB)",
-      "5 Active Whiteboards",
-      "100 AI Chat Queries per Session",
+      { key: "p", label: "Max Projects", value: "10", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "1 GB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "5", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
   {
@@ -74,11 +73,10 @@ const FALLBACK_PLANS: FallbackPlan[] = [
     monthly: "180 BDT",
     quarterly: "1500 BDT",
     features: [
-      "Unlimited Projects & Sheets",
-      "Unlimited Storage",
-      "Unlimited Whiteboards",
-      "Unlimited AI Queries & Requests",
-      "Priority API limits & Early Access",
+      { key: "p", label: "Max Projects", value: "Unlimited", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "Unlimited", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "Unlimited", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
 ];
@@ -212,7 +210,7 @@ type CardProps = {
   plan: (typeof TIER_PRESENTATION)[TierKey];
   price: string;
   period: string;
-  features: string[];
+  features: ResolvedFeature[];
   index: number;
 };
 
@@ -221,8 +219,8 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
     plan.variant === "premium"
       ? " premium-dark"
       : plan.variant === "popular"
-      ? " popular"
-      : "";
+        ? " popular"
+        : "";
 
   // Per-tier accent color: drives the icon chip, badge, and check icons so each
   // card reads as distinct while staying within the muted system palette.
@@ -264,10 +262,19 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
       </div>
 
       <div className="lp-pricing-features-list">
-        {features.map((f) => (
-          <div className="lp-pricing-feature-item" key={f}>
-            <Check size={16} className="lp-pricing-feature-icon" />
-            <span>{f}</span>
+        {features.map((f, idx) => (
+          <div className="lp-pricing-feature-item justify-between" key={f.key || idx}>
+            <div className="flex items-center gap-2">
+              {f.isBoolean ? (
+                f.value ? <Check size={16} className="lp-pricing-feature-icon" /> : <X size={16} className="text-slate-300" />
+              ) : (
+                <Check size={16} className="lp-pricing-feature-icon" />
+              )}
+              <span className={f.isBoolean && !f.value ? "text-slate-400" : ""}>{f.label}</span>
+            </div>
+            {!f.isBoolean && (
+              <span className="lp-pricing-feature-value font-semibold">{f.value}</span>
+            )}
           </div>
         ))}
       </div>

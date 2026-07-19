@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
@@ -174,8 +174,9 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "total_documents_bytes", label: "Storage Capacity", icon: HardDrive, format: (v: number) => v === -1 ? "Unlimited" : `${Math.round(v / (1024 * 1024))} MB` },
     { key: "ai_tokens_per_month", label: "Monthly AI Credits", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
     { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
-    { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
+    { key: "can_use_agents", label: "AI Agents Usage", icon: Bot, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
+    { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [
@@ -332,7 +333,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     icon: Package
                   },
                   general_user: {
-                    name: 'General',
+                    name: 'Basic',
                     monthlyPrice: pricing?.plan_price_general_monthly || '0',
                     quarterlyPrice: pricing?.plan_price_general_quarterly || '0',
                     description: 'Essential features to get started.',
@@ -489,7 +490,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                             ? "text-indigo-700 bg-indigo-50 border-indigo-200"
                             : "text-slate-700 bg-white border-slate-200"
                         }`}>
-                        {requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "General"}
+                        {requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "Basic"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mb-3">

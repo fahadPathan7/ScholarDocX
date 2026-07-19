@@ -4,7 +4,7 @@ import pytest
 from fastapi import BackgroundTasks
 
 from app.api import advisor_atlas as advisor_atlas_api
-from app.api.advisor_atlas import CreateRunRequest
+from app.api.advisor_atlas import CreateRunRequest, ResearchProfile
 from app.services import ai_tokens
 from app.core.config import Settings
 from app.db.connection import connect, get_db, initialize_database
@@ -27,7 +27,7 @@ def professor_request() -> CreateRunRequest:
         department="Computer Science",
         degree_target="PhD",
         intake_term="Fall 2027",
-        research_profile={"interests": ["Accessible AI"]},
+        research_profile=ResearchProfile(interests=["Accessible AI"]),
     )
 
 
@@ -98,7 +98,7 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
         # Default seed: only pro/max enabled.
         assert feature_plan_phrase("can_use_advisor_atlas", session) == "the Pro and Max plans"
 
-        # Admin enables general_user too -> phrase now leads with General.
+        # Admin enables general_user too -> phrase now leads with Basic.
         session.execute(
             text(
                 "UPDATE role_limits SET limit_count = 1 "
@@ -106,7 +106,7 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
             )
         )
         session.commit()
-        assert feature_plan_phrase("can_use_advisor_atlas", session) == "the General, Pro, and Max plans"
+        assert feature_plan_phrase("can_use_advisor_atlas", session) == "the Basic, Pro, and Max plans"
 
         # Admin disables the feature on every plan -> generic fallback.
         session.execute(
@@ -235,13 +235,13 @@ async def test_owned_candidate_refresh_gates_on_ai_tokens(monkeypatch):
     monkeypatch.setattr(advisor_atlas_api, "_require_advisor_atlas_access", lambda *a, **k: None)
 
     result = await advisor_atlas_api.refresh_candidate(
-        12,
+        "12",
         user={"id": 7, "roles": ["general_user"]},
         service=service,  # type: ignore
         store=FakeStore(),  # type: ignore
     )
 
-    assert result["id"] == 12
+    assert result["id"] == "12"
     assert spend_calls == [(7, 1)]
     # Billing context is attached so the refresh's AI calls are metered.
     assert service.ai_service.billed == ({"id": 7, "roles": ["general_user"]}, FakeStore.db)
@@ -269,7 +269,7 @@ async def test_missing_candidate_is_rejected_before_token_charge(monkeypatch):
 
     with pytest.raises(advisor_atlas_api.HTTPException) as error:
         await advisor_atlas_api.refresh_candidate(
-            999,
+            "999",
             user={"id": 7, "roles": ["general_user"]},
             service=FakeService(),  # type: ignore
             store=FakeStore(),  # type: ignore
@@ -281,7 +281,7 @@ async def test_missing_candidate_is_rejected_before_token_charge(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_create_run_denied_for_non_pro_plan(monkeypatch):
-    """Free/General users are blocked by the plan guard before any run is
+    """Free/Basic users are blocked by the plan guard before any run is
     created or tokens are spent."""
     from app.auth.limits import UsageLimitExceeded
 
@@ -365,7 +365,7 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_refresh_candidate_denied_for_non_pro_plan(monkeypatch):
-    """A Free/General user refreshing an existing candidate is blocked by the
+    """A Free/Basic user refreshing an existing candidate is blocked by the
     plan guard after the existence check but before token spend."""
     from app.auth.limits import UsageLimitExceeded
 
@@ -388,7 +388,7 @@ async def test_refresh_candidate_denied_for_non_pro_plan(monkeypatch):
 
     with pytest.raises(advisor_atlas_api.HTTPException) as error:
         await advisor_atlas_api.refresh_candidate(
-            12,
+            "12",
             user={"id": 7, "roles": ["free_user"]},
             service=FakeService(),  # type: ignore
             store=FakeStore(),  # type: ignore

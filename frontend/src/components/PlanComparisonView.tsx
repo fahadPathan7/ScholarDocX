@@ -407,7 +407,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                       </div>
                       <div>
                         <h3 className={`text-xl font-bold tracking-tight mb-0.5 ${role === 'max_user' ? 'text-white' : 'text-slate-900'}`}>{planConfig.name}</h3>
-                        <p className={`text-[10.5px] font-medium leading-tight max-w-[180px] ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>{planConfig.description}</p>
+                        <p className={`text-[10.5px] font-medium leading-tight ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>{planConfig.description}</p>
                       </div>
                     </div>
 

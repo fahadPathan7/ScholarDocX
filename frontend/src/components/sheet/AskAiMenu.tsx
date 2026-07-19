@@ -10,17 +10,15 @@ import {
   ArrowRight, 
   Sparkles, 
   Search,
-  BarChart3,
   Calendar,
-  DollarSign,
   AlertCircle,
-  Mail,
   Wand2,
-  Target,
-  Layers,
-  TrendingUp,
-  MousePointerClick,
-  Zap
+  Zap,
+  Copy,
+  ClipboardList,
+  PenTool,
+  FileText,
+  GitCompareArrows
 } from "lucide-react";
 import {
   ASK_AI_PROMPTS,
@@ -43,16 +41,14 @@ const GROUP_ORDER: AskAiPromptGroup[] = ["selection", "analyze", "transform"];
 
 // Icon mapping for each prompt
 const PROMPT_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string; color?: string }>> = {
-  "application-summary": BarChart3,
   "deadline-risk": Calendar,
-  "funding-totals": DollarSign,
   "missing-info": AlertCircle,
-  "response-rate": Mail,
+  "find-duplicates": Copy,
+  "daily-action-plan": ClipboardList,
   "draft-emails": Wand2,
-  "priority-score": Target,
-  "categorize-status": Layers,
-  "rank-by-fit": TrendingUp,
-  "act-on-selected": MousePointerClick,
+  "fill-empty-cells": PenTool,
+  "row-summaries": FileText,
+  "compare-selected": GitCompareArrows,
   "fill-cell": Zap,
 };
 
@@ -94,8 +90,7 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
     const trimmed = custom.trim();
     if (!trimmed) return;
     onPick(
-      `In ${target(ctx)}, ${trimmed}. ` +
-        `When you emit any action plan, target this exact sheet using its project_id and sheet_id (not the names), because there may be other sheets with the same name.`
+      `In ${target(ctx)}, ${trimmed}.`
     );
     setOpen(false);
     setCustom("");

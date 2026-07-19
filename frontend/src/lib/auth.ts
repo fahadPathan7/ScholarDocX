@@ -48,6 +48,9 @@ export interface User {
   roles: string[];
   plan_started_at?: string;
   plan_ends_at?: string;
+  plan_renews_at?: string;
+  polar_cancel_at_period_end?: number;
+  polar_subscription_id?: string;
   is_active?: boolean;
   is_blocked?: boolean;
 }

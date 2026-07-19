@@ -149,7 +149,8 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       }
     } catch (e) {
       console.error("Polar checkout error:", e);
-      alert("Failed to initialize checkout session. Please try again.");
+      const detail = e.response?.data?.detail || e.message;
+      alert("Failed to initialize checkout session: " + detail);
       setPolarLoading(false);
     }
   };
@@ -568,14 +569,23 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                           <div className="flex-grow border-t border-slate-200"></div>
                         </div>
 
-                        <button 
-                          type="button"
-                          onClick={() => setRequestMode("admin")}
-                          className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-center"
-                        >
-                          <span className="font-bold text-slate-700 mb-1">Request Manual Upgrade</span>
-                          <span className="text-xs text-slate-500">Manual approval required</span>
-                        </button>
+                        {user?.polar_subscription_id ? (
+                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center">
+                            <span className="font-bold text-slate-700 block mb-2 opacity-50">Request Manual Upgrade</span>
+                            <span className="text-xs text-slate-600 block">
+                              You are currently subscribed online. To switch to manual billing or change your plan manually, please cancel your online subscription and wait for it to expire at the end of the current billing cycle.
+                            </span>
+                          </div>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => setRequestMode("admin")}
+                            className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-center"
+                          >
+                            <span className="font-bold text-slate-700 mb-1">Request Manual Upgrade</span>
+                            <span className="text-xs text-slate-500">Manual approval required</span>
+                          </button>
+                        )}
                       </div>
                     );
                   }

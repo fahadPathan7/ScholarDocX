@@ -464,14 +464,29 @@ export function ProfileView({
                       </span>
                     </div>
                   )}
+                  {planStatus !== "no_plan" && planStatus !== "expired" && (
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="opacity-70 font-medium">Subscription Source:</span>
+                      <span className="font-semibold text-xs tracking-wide uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        {user.polar_subscription_id ? "Online" : "Manual / Admin"}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center mb-1">
                     <span className="opacity-70 font-medium">Plan Started:</span>
                     <span className="font-semibold">{user.plan_started_at ? new Date(user.plan_started_at).toLocaleDateString("en-GB") : 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="opacity-70 font-medium">Plan Ends:</span>
-                    <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
-                  </div>
+                  {user.plan_renews_at && !user.polar_cancel_at_period_end ? (
+                    <div className="flex justify-between items-center">
+                      <span className="opacity-70 font-medium">Next Billing Date:</span>
+                      <span className="font-semibold">{new Date(user.plan_renews_at).toLocaleDateString("en-GB")}</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <span className="opacity-70 font-medium">Plan Ends:</span>
+                      <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
+                    </div>
+                  )}
                   {planStatus === "warning" && planDaysRemaining !== null && (
                     <p className="mt-2 text-xs font-medium">
                       {planDaysRemaining === 0 ? "This plan ends today." : `${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"} remaining.`}
@@ -480,6 +495,11 @@ export function ProfileView({
                   {planStatus === "expired" && (
                     <p className="mt-2 text-xs font-medium">
                       Full workspace access is paused until you renew or change your plan.
+                    </p>
+                  )}
+                  {user.polar_cancel_at_period_end === 1 && planStatus !== "expired" && (
+                    <p className="mt-2 text-xs font-medium text-amber-700">
+                      You have canceled your Polar subscription. You will retain access until the end of the current billing cycle.
                     </p>
                   )}
                 </div>

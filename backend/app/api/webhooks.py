@@ -88,10 +88,24 @@ async def handle_subscription_updated(data: Dict[str, Any], store: Store):
     if user:
         user.roles = json.dumps(plan_roles)
         user.polar_subscription_id = subscription_id
+        
+        # Parse renewal fields
+        current_period_end = data.get("current_period_end")
+        cancel_at_period_end = data.get("cancel_at_period_end", False)
+        
         user.plan_started_at = datetime.now(timezone.utc).isoformat()
-        user.plan_ends_at = None
+        
+        if cancel_at_period_end:
+            user.polar_cancel_at_period_end = 1
+            user.plan_renews_at = None
+            user.plan_ends_at = current_period_end if current_period_end else None
+        else:
+            user.polar_cancel_at_period_end = 0
+            user.plan_renews_at = current_period_end if current_period_end else None
+            user.plan_ends_at = None
+
         store.db.commit()
-        logger.info(f"Updated user {user.id} to plan {plan_roles} from Polar subscription {subscription_id}")
+        logger.info(f"Updated user {user.id} to plan {plan_roles} from Polar subscription {subscription_id} (cancels: {cancel_at_period_end})")
     else:
         logger.warning(f"Could not find user for Polar subscription {subscription_id}")
 
@@ -103,6 +117,8 @@ async def handle_subscription_revoked(data: Dict[str, Any], store: Store):
         user.roles = json.dumps(["free_user"])
         user.polar_subscription_id = None
         user.plan_ends_at = datetime.now(timezone.utc).isoformat()
+        user.plan_renews_at = None
+        user.polar_cancel_at_period_end = 0
         store.db.commit()
         logger.info(f"Revoked subscription {subscription_id} for user {user.id}, fell back to free_user")
 

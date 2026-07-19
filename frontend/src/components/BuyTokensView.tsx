@@ -198,7 +198,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       </div>
 
       {showBalance && canPurchasePacks && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 shrink-0">
           <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50/70 to-white p-5 shadow-sm">
             <div className="flex items-center gap-2 text-emerald-700 mb-2">
               <Sparkles size={15} />
@@ -228,7 +228,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pt-4 pb-12 pr-2">
+      <div className="flex-1 overflow-y-auto pt-2 pb-12 pr-2">
         {!canPurchasePacks ? (
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="max-w-md w-full rounded-3xl border border-indigo-100 bg-gradient-to-b from-indigo-50/70 to-white p-8 text-center shadow-lg">
@@ -302,7 +302,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
             </div>
           </div>
         ) : (
-          <div className="pt-2">
+          <div className="pt-0">
             <div className="mb-7 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-white px-5 py-4 shadow-sm">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
                 <Sparkles size={18} />
@@ -380,7 +380,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                               className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <ShoppingCart size={16} className="mr-2" />
-                              {polarLoading === pack.code ? "Redirecting..." : "Buy via Polar"}
+                              {polarLoading === pack.code ? "Redirecting..." : "Buy Online"}
                             </button>
                             
                             <div className="relative flex py-1 items-center">
@@ -394,7 +394,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                               disabled={submitting === pack.code || justDone}
                               className={`w-full py-2.5 px-4 rounded-xl font-medium transition-all text-sm border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:cursor-not-allowed`}
                             >
-                              {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request from Admin"}
+                              {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Manual Top-up"}
                             </button>
                           </div>
                         );

@@ -430,14 +430,12 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
 
     async with httpx.AsyncClient() as client:
         req_body = {
-            "products": [payload.product_id],
+            "product_id": payload.product_id,
             "success_url": payload.success_url
         }
-        if payload.customer_email:
-            req_body["customer_email"] = payload.customer_email
 
         response = await client.post(
-            f"{polar_api_url}/checkouts/custom/",
+            f"{polar_api_url}/checkouts/",
             json=req_body,
             headers={
                 "Authorization": f"Bearer {polar_token}",
@@ -445,7 +443,7 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
             }
         )
 
-        if response.status_code != 200:
+        if response.status_code not in (200, 201):
             raise HTTPException(status_code=400, detail=f"Failed to create Polar checkout: {response.text}")
 
         data = response.json()

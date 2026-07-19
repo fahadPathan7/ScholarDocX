@@ -349,15 +349,8 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
 
                     {(() => {
-                      // Attempt to find if this pack matches any of the 4 configured slots
-                      let polarId: string | null = null;
-                      for (let i = 1; i <= 4; i++) {
-                        const amtStr = pricing[`polar_extra_credits_amount_${i}`];
-                        if (amtStr && parseInt(amtStr, 10) === pack.token_amount) {
-                          polarId = pricing[`polar_extra_credits_id_${i}`] || null;
-                          break;
-                        }
-                      }
+                      // Use the array index + 1 to map to the 4 configured Polar slots
+                      const polarId = pricing[`polar_extra_credits_id_${idx + 1}`] || null;
                       const polarUrl = polarId && user?.email 
                         ? `https://polar.sh/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
                         : null;

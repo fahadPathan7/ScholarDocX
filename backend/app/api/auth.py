@@ -366,7 +366,8 @@ def _assemble_public_plans(store: Store) -> dict:
         "WHERE key ILIKE 'plan_ai_credits_%' "
         "OR key ILIKE 'plan_is_active_%' "
         "OR key ILIKE 'plan_price_%' "
-        "OR key ILIKE 'polar_product_id_%'"
+        "OR key ILIKE 'polar_product_id_%' "
+        "OR key ILIKE 'polar_extra_credits_id_%'"
     ).fetchall()
     credits: dict[str, str] = {}
     active_flags: dict[str, str] = {}
@@ -377,7 +378,7 @@ def _assemble_public_plans(store: Store) -> dict:
             credits[key] = value
         elif key.startswith("plan_is_active_"):
             active_flags[key] = value
-        elif key.startswith("plan_price_") or key.startswith("polar_product_id_"):
+        elif key.startswith("plan_price_") or key.startswith("polar_product_id_") or key.startswith("polar_extra_credits_id_"):
             pricing[key] = value
 
     for role, setting_key in credit_by_role.items():

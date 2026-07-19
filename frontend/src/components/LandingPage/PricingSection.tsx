@@ -37,8 +37,8 @@ type FallbackPlan = {
 const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "free_user",
-    monthly: "0 BDT",
-    quarterly: "0 BDT",
+    monthly: "0 USD",
+    quarterly: "0 USD",
     features: [
       { key: "p", label: "Max Projects", value: "1", isBoolean: false },
       { key: "s", label: "Storage Capacity", value: "50 MB", isBoolean: false },
@@ -48,8 +48,8 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   },
   {
     tier: "general_user",
-    monthly: "0 BDT",
-    quarterly: "0 BDT",
+    monthly: "0 USD",
+    quarterly: "0 USD",
     features: [
       { key: "p", label: "Max Projects", value: "3", isBoolean: false },
       { key: "s", label: "Storage Capacity", value: "200 MB", isBoolean: false },
@@ -59,8 +59,8 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   },
   {
     tier: "pro_user",
-    monthly: "50 BDT",
-    quarterly: "500 BDT",
+    monthly: "50 USD",
+    quarterly: "500 USD",
     features: [
       { key: "p", label: "Max Projects", value: "10", isBoolean: false },
       { key: "s", label: "Storage Capacity", value: "1 GB", isBoolean: false },
@@ -70,8 +70,8 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   },
   {
     tier: "max_user",
-    monthly: "180 BDT",
-    quarterly: "1500 BDT",
+    monthly: "180 USD",
+    quarterly: "1500 USD",
     features: [
       { key: "p", label: "Max Projects", value: "Unlimited", isBoolean: false },
       { key: "s", label: "Storage Capacity", value: "Unlimited", isBoolean: false },

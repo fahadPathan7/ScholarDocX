@@ -853,23 +853,30 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                     {editingMode === "user" && (
                       <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
                         <label className="block text-sm font-semibold text-indigo-900 mb-3">User Roles &amp; Duration</label>
-                        <div className="space-y-2 mb-4">
-                          {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
-                            <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
-                              <input
-                                type="radio"
-                                name="editUserTier"
-                                checked={editingUser.roles.includes(role)}
-                                onClick={() => toggleRole(role)}
-                                onChange={() => {}}
-                                className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
-                              />
-                              <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
-                            </label>
-                          ))}
-                        </div>
+                        {editingUser.polar_subscription_id ? (
+                          <div className="mb-4 p-3 rounded-lg border border-sky-200 bg-sky-50 flex flex-col gap-1">
+                            <span className="text-sm font-semibold text-sky-800">Plan managed via Polar.sh</span>
+                            <span className="text-xs text-sky-600">Manual plan changes are disabled. Subscription ID: {editingUser.polar_subscription_id}</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 mb-4">
+                            {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
+                              <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
+                                <input
+                                  type="radio"
+                                  name="editUserTier"
+                                  checked={editingUser.roles.includes(role)}
+                                  onClick={() => toggleRole(role)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
 
-                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && (
+                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && !editingUser.polar_subscription_id && (
                           <div className="pt-3 border-t border-indigo-200">
                             <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                             <div className="flex gap-2">

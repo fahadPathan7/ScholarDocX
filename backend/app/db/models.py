@@ -104,6 +104,8 @@ class Users(Base):
     plan_started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     plan_ends_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     registered_with_invite_id: Mapped[Optional[str]] = mapped_column(ForeignKey('invite_codes.id'))
+    polar_customer_id: Mapped[Optional[str]] = mapped_column(Text)
+    polar_subscription_id: Mapped[Optional[str]] = mapped_column(Text)
 
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
@@ -221,6 +223,7 @@ class DocumentCategories(Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    polar_product_id: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
@@ -961,6 +964,7 @@ class AiModels(Base):
     output_price_per_1m: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    polar_product_id: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
@@ -1016,6 +1020,7 @@ class AiTokenPacks(Base):
     price_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    polar_product_id: Mapped[str] = mapped_column(Text, nullable=True)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 

@@ -16,6 +16,7 @@ import { emitUiError } from "../lib/uiError";
 import { emitNavigate } from "../lib/tokenEvents";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { useUsage } from "../contexts/UsageContext";
+import { useAuth } from "../contexts/AuthContext";
 
 type Pack = {
   code: string;
@@ -78,8 +79,10 @@ interface Props {
 export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const { balance, canPurchasePacks, refresh } = useTokenEconomy();
   const { usageData } = useUsage();
+  const { user } = useAuth();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [requests, setRequests] = useState<MyRequest[]>([]);
+  const [pricing, setPricing] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
@@ -88,12 +91,14 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [p, r] = await Promise.all([
+      const [p, r, planRes] = await Promise.all([
         api.get<Pack[]>("/ai-tokens/packs"),
         api.get<MyRequest[]>("/ai-tokens/purchase-requests/me"),
+        api.get<{ pricing: Record<string, string> }>("/auth/plans")
       ]);
       setPacks(p);
       setRequests(r);
+      setPricing(planRes.pricing || {});
     } catch (error: any) {
       emitUiError({ title: "Couldn't load packs", message: error?.message || "Try again later." });
     } finally {
@@ -337,18 +342,58 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed">One-time top-up. Credits never expire.</p>
                   </div>
-                  <div className="mt-auto pt-6 relative z-10">
-                    <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-2xl font-bold text-slate-800">৳{pack.price_usd.toFixed(2)}</span>
-                      <span className="text-slate-400 text-sm">BDT</span>
+                  <div className="mt-auto pt-6 relative z-10 flex flex-col gap-3">
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-2xl font-bold text-slate-800">${pack.price_usd.toFixed(2)}</span>
+                      <span className="text-slate-400 text-sm">USD</span>
                     </div>
-                    <button
-                      onClick={() => handleRequest(pack.code)}
-                      disabled={submitting === pack.code || justDone}
-                      className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : theme.button} ${submitting === pack.code ? "opacity-70" : ""}`}
-                    >
-                      {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Pack"}
-                    </button>
+
+                    {(() => {
+                      // Attempt to find if this pack matches any of the 4 configured slots
+                      let polarId: string | null = null;
+                      for (let i = 1; i <= 4; i++) {
+                        const amtStr = pricing[`polar_extra_credits_amount_${i}`];
+                        if (amtStr && parseInt(amtStr, 10) === pack.token_amount) {
+                          polarId = pricing[`polar_extra_credits_id_${i}`] || null;
+                          break;
+                        }
+                      }
+                      const polarUrl = polarId && user?.email 
+                        ? `https://polar.sh/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
+                        : null;
+
+                      if (polarUrl) {
+                        return (
+                          <>
+                            <a
+                              href={polarUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`w-full py-3 px-4 rounded-xl font-bold transition-all shadow-sm text-center border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-700`}
+                            >
+                              Buy Online via Polar
+                            </a>
+                            <button
+                              onClick={() => handleRequest(pack.code)}
+                              disabled={submitting === pack.code || justDone}
+                              className={`w-full py-2.5 px-4 rounded-xl font-medium transition-all text-sm border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:cursor-not-allowed`}
+                            >
+                              {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request from Admin"}
+                            </button>
+                          </>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={() => handleRequest(pack.code)}
+                          disabled={submitting === pack.code || justDone}
+                          className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : theme.button} ${submitting === pack.code ? "opacity-70" : ""}`}
+                        >
+                          {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Pack"}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );

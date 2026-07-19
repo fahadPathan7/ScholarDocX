@@ -363,7 +363,8 @@ class AdminService:
                 u.plan_started_at, 
                 u.plan_ends_at, 
                 u.created_at, 
-                u.token_version 
+                u.token_version,
+                u.polar_subscription_id
             FROM users u
             LEFT JOIN local_profiles lp ON u.id = lp.user_id
             ORDER BY u.created_at DESC

@@ -198,10 +198,10 @@ export function PlanPricingTable() {
           <Info size={14} className="shrink-0 mt-0.5" />
           <div>
             <p className="mb-1">
-              <strong>Plan Pricing:</strong> Configure monthly/quarterly subscription prices (BDT) and monthly AI credit allowances for each user tier. Free tier is locked at ৳0.
+              <strong>Plan Pricing:</strong> Configure monthly/quarterly subscription prices (USD) and monthly AI credit allowances for each user tier. Free tier is locked at $0.
             </p>
             <p>
-              <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 tokens = $1.00</strong> of API usage. Set pack prices higher than API cost to maintain margin.
+              <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 credits = $1.00</strong> of API usage. Set plan prices higher than API cost to maintain margin.
             </p>
           </div>
         </div>
@@ -221,8 +221,8 @@ export function PlanPricingTable() {
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
               <tr>
                 <th className="px-3 py-3 w-[14%]">Plan</th>
-                <th className="px-3 py-3 w-[18%]">Monthly Price (৳)</th>
-                <th className="px-3 py-3 w-[18%]">Quarterly Price (৳)</th>
+                <th className="px-3 py-3 w-[18%]">Monthly Price ($)</th>
+                <th className="px-3 py-3 w-[18%]">Quarterly Price ($)</th>
                 <th className="px-3 py-3 w-[22%]">Monthly AI Credits</th>
                 <th className="px-3 py-3 w-[8%]">Active</th>
                 <th className="px-3 py-3 w-[20%] text-right">Actions</th>
@@ -253,7 +253,7 @@ export function PlanPricingTable() {
                       </td>
                       <td className="px-3 py-3 min-w-0 align-middle">
                         <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                           <input
                             type="number"
                             min={0}
@@ -267,7 +267,7 @@ export function PlanPricingTable() {
                       </td>
                       <td className="px-3 py-3 min-w-0 align-middle">
                         <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                           <input
                             type="number"
                             min={0}

@@ -169,7 +169,7 @@ export function TokenPurchaseRequestsTab() {
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Pack</th>
                   <th className="px-4 py-3">Credits</th>
-                  <th className="px-4 py-3">Price (BDT)</th>
+                  <th className="px-4 py-3">Price (USD)</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Requested</th>
                   <th className="px-4 py-3 text-right">Actions</th>
@@ -191,7 +191,7 @@ export function TokenPurchaseRequestsTab() {
                         {formatTokens(request.token_amount)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">৳{request.price_usd.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-slate-500">${request.price_usd.toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusTone(request.status)}`}>
                         {request.status}

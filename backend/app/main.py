@@ -50,6 +50,8 @@ def create_app() -> FastAPI:
     app.include_router(scholarship_opportunities_router, prefix="/api")
     from app.api.scholarship_deep_hunt import router as scholarship_deep_hunt_router
     app.include_router(scholarship_deep_hunt_router, prefix="/api")
+    from app.api.webhooks import router as webhooks_router
+    app.include_router(webhooks_router, prefix="/api")
     return app
 
 

@@ -66,6 +66,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const [requests, setRequests] = useState<UserPlanRequest[]>([]);
   const [requestPlan, setRequestPlan] = useState<string | null>(null);
   const [requestType, setRequestType] = useState<PlanRequestType>("upgrade");
+  const [requestMode, setRequestMode] = useState<"choose" | "admin">("choose");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isQuarterly, setIsQuarterly] = useState(false);
@@ -81,6 +82,14 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     setRequestPlan(null);
     setRequestType("upgrade");
     setMessage("");
+    setRequestMode("choose");
+  };
+
+  const getPolarProductId = (plan: string | null) => {
+    if (plan === "general_user") return isQuarterly ? pricing?.polar_product_id_basic_quarterly : pricing?.polar_product_id_basic_monthly;
+    if (plan === "pro_user") return isQuarterly ? pricing?.polar_product_id_pro_quarterly : pricing?.polar_product_id_pro_monthly;
+    if (plan === "max_user") return isQuarterly ? pricing?.polar_product_id_max_quarterly : pricing?.polar_product_id_max_monthly;
+    return null;
   };
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
@@ -407,7 +416,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                         <span className={`text-4xl font-black tracking-tight ${role === 'max_user' ? 'text-white' : planConfig.numericClass}`}>
                           {!isQuarterly ? planConfig.monthlyPrice : planConfig.quarterlyPrice}
                         </span>
-                        <span className={`text-xs font-extrabold uppercase tracking-wide ${role === 'max_user' ? 'text-indigo-400' : 'text-slate-500'}`}>BDT</span>
+                        <span className={`text-xs font-extrabold uppercase tracking-wide ${role === 'max_user' ? 'text-indigo-400' : 'text-slate-500'}`}>USD</span>
                         <span className={`text-xs font-semibold ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>
                           /{!isQuarterly ? "mo" : "qtr"}
                         </span>
@@ -507,39 +516,80 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                       <span className="text-sm font-medium text-slate-600">Total Price</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '0'} BDT` : `${pricing?.plan_price_general_monthly || '0'} BDT`) :
-                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '500'} BDT` : `${pricing?.plan_price_pro_monthly || '50'} BDT`) :
-                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '1500'} BDT` : `${pricing?.plan_price_max_monthly || '180'} BDT`)}
+                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '0'} USD` : `${pricing?.plan_price_general_monthly || '0'} USD`) :
+                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '500'} USD` : `${pricing?.plan_price_pro_monthly || '50'} USD`) :
+                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '1500'} USD` : `${pricing?.plan_price_max_monthly || '180'} USD`)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
-                  <textarea
-                    className="w-full p-3 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    rows={4}
-                    placeholder="E.g., I need more API usage limits for my research project... (Optional)"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  ></textarea>
-                  <div className="flex justify-end gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={closeRequestModal}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                    >
-                      {submitting ? "Submitting..." : requestType === "extension" ? "Submit Renewal Request" : "Submit Request"}
-                    </button>
-                  </div>
-                </form>
+
+                {(() => {
+                  const polarId = getPolarProductId(requestPlan);
+                  const polarUrl = polarId && user?.email 
+                    ? `https://polar.sh/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
+                    : null;
+                  
+                  if (polarUrl && requestMode === "choose") {
+                    return (
+                      <div className="space-y-4">
+                        <a 
+                          href={polarUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 transition-colors group cursor-pointer text-center"
+                        >
+                          <span className="font-bold text-emerald-700 mb-1">Subscribe Online</span>
+                          <span className="text-xs text-emerald-600 font-medium">Instant activation via secure checkout</span>
+                        </a>
+                        
+                        <div className="relative flex py-2 items-center">
+                          <div className="flex-grow border-t border-slate-200"></div>
+                          <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-semibold uppercase tracking-wider">or</span>
+                          <div className="flex-grow border-t border-slate-200"></div>
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => setRequestMode("admin")}
+                          className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-center"
+                        >
+                          <span className="font-bold text-slate-700 mb-1">Request Manual Upgrade</span>
+                          <span className="text-xs text-slate-500">Manual approval required</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4 animate-in fade-in duration-200">
+                      <textarea
+                        className="w-full p-3 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        rows={4}
+                        placeholder="E.g., I need more API usage limits for my research project... (Optional)"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      ></textarea>
+                      <div className="flex justify-end gap-3 mt-2">
+                        <button
+                          type="button"
+                          onClick={closeRequestModal}
+                          className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                          disabled={submitting}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50 shadow-sm hover:shadow"
+                        >
+                          {submitting ? "Submitting..." : requestType === "extension" ? "Submit Renewal Request" : "Submit Request"}
+                        </button>
+                      </div>
+                    </form>
+                  );
+                })()}
               </div>
             </div>
           </div>

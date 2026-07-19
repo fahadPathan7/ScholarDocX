@@ -162,19 +162,19 @@ export function resolveFeatureLines(limits: PlanLimits): ResolvedFeature[] {
   return lines;
 }
 
-/** Read a tier's price (BDT) for the requested billing cycle. */
+/** Read a tier's price (USD) for the requested billing cycle. */
 export function resolvePrice(
   tier: TierKey,
   pricing: PricingResponse,
   cycle: "monthly" | "quarterly"
 ): string {
-  // Free tier is always 0 BDT regardless of admin config (it's "free forever").
-  if (tier === "free_user") return "0 BDT";
+  // Free tier is always 0 USD regardless of admin config (it's "free forever").
+  if (tier === "free_user") return "0 USD";
   const shortTier = tier.replace("_user", ""); // general_user -> general
   const key = `plan_price_${shortTier}_${cycle}`;
   const raw = pricing[key];
   if (raw == null || raw === "") return "—";
-  return `${raw} BDT`;
+  return `${raw} USD`;
 }
 
 // ---- Fetcher ----

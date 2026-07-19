@@ -200,7 +200,7 @@ class AdminService:
         if current_end and current_end.tzinfo is not None:
             now = datetime.now(current_end.tzinfo)
 
-        duration_days = 365 if billing_cycle == "yearly" else 30
+        duration_days = 90 if billing_cycle == "quarterly" else 30
 
         if current_end and current_end > now:
             base_dt = current_end
@@ -363,7 +363,8 @@ class AdminService:
                 u.plan_started_at, 
                 u.plan_ends_at, 
                 u.created_at, 
-                u.token_version 
+                u.token_version,
+                u.polar_subscription_id
             FROM users u
             LEFT JOIN local_profiles lp ON u.id = lp.user_id
             ORDER BY u.created_at DESC
@@ -685,8 +686,8 @@ class AdminService:
         # Calculate plan_ends_at based on plan_duration
         if plan_duration == "1_month":
             plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
-        elif plan_duration == "1_year":
-            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
+        elif plan_duration == "1_quarter":
+            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
         else:
             # Default to 1 month if invalid value
             plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
@@ -758,20 +759,6 @@ class AdminService:
             )
         self.connection.commit()
         invalidate_limits_cache()
-        
-        if feature == "ai_tokens_per_month":
-            self.connection.execute(
-                """
-                UPDATE ai_token_balances 
-                SET subscription_period = 'FORCE_RESET'
-                WHERE user_id IN (
-                    SELECT id FROM users
-                    WHERE roles ILIKE ?
-                )
-                """,
-                (f'%"{role}"%',)
-            )
-            self.connection.commit()
 
         self.log_audit_action(admin_id, "update_limit", "role_limits", f"{role}:{feature}", {"limit_count": limit_count, "reset_period": reset_period})
 
@@ -885,7 +872,7 @@ class AdminService:
             current_roles = user.get("roles", [])
             request_type = req["request_type"] or "upgrade"
             plan_started_at = datetime.now(timezone.utc).isoformat()
-            days_to_add = 365 if req["billing_cycle"] == "yearly" else 30
+            days_to_add = 90 if req["billing_cycle"] == "quarterly" else 30
             audit_details = {
                 "request_type": request_type,
                 "billing_cycle": req["billing_cycle"],

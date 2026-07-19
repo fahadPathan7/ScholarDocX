@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 import app.services.advisor_atlas.analysis as analysis_module
-from app.api.advisor_atlas import CreateRunRequest
+from app.api.advisor_atlas import CreateRunRequest, ResearchProfile
 from app.core.config import Settings
 from app.db.connection import connect, initialize_database
 from app.services.advisor_atlas.analysis import (
@@ -243,7 +243,7 @@ async def test_discovery_crawls_selected_directory_and_preserves_unit_relation()
             ]
 
     candidates, sources = await DiscoveryResearcher(
-        FakeCrawler(),
+        FakeCrawler(),  # type: ignore
         fake_search,
         {},
     ).collect(
@@ -353,7 +353,7 @@ def test_professor_search_requires_research_interest():
             department="Computer Science",
             degree_target="PhD",
             intake_term="Fall 2027",
-            research_profile={"interests": ["   "]},
+            research_profile=ResearchProfile(interests=["   "]),
         )
 
 
@@ -383,7 +383,7 @@ def test_professor_search_requires_strong_identity_and_intake_context(
     }
     payload[field] = value
     with pytest.raises(ValueError, match=expected):
-        CreateRunRequest(**payload)
+        CreateRunRequest(**payload)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("intake", ["Fall", "2027", "Next fall", "September 2027"])
@@ -397,7 +397,7 @@ def test_professor_search_rejects_ambiguous_intake(intake):
             department="Computer Science",
             degree_target="PhD",
             intake_term=intake,
-            research_profile={"interests": ["Accessible AI"]},
+            research_profile=ResearchProfile(interests=["Accessible AI"]),
         )
 
 
@@ -411,7 +411,7 @@ def test_professor_search_rejects_malformed_official_url():
             department="Computer Science",
             degree_target="PhD",
             intake_term="Fall 2027",
-            research_profile={"interests": ["Accessible AI"]},
+            research_profile=ResearchProfile(interests=["Accessible AI"]),
         )
 
 
@@ -425,7 +425,7 @@ def test_professor_search_requires_full_professor_name():
             department="Computer Science",
             degree_target="PhD",
             intake_term="Fall 2027",
-            research_profile={"interests": ["Accessible AI"]},
+            research_profile=ResearchProfile(interests=["Accessible AI"]),
         )
 
 
@@ -439,7 +439,7 @@ def test_professor_search_rejects_too_short_research_interest():
             department="Computer Science",
             degree_target="PhD",
             intake_term="Fall 2027",
-            research_profile={"interests": ["A"]},
+            research_profile=ResearchProfile(interests=["A"]),
         )
 
 
@@ -452,13 +452,13 @@ def test_professor_search_normalizes_research_interests():
         department="  Computer   Science ",
         degree_target="PhD",
         intake_term=" Fall   2027 ",
-        research_profile={
-            "interests": [
+        research_profile=ResearchProfile(
+            interests=[
                 "  Accessible AI  ",
                 "accessible ai",
                 "Human-computer interaction",
             ]
-        },
+        ),
     )
 
     assert request.research_profile.interests == [
@@ -707,7 +707,7 @@ async def test_advisor_analysis_does_not_set_fixed_output_token_limit():
             return {"mode": "glm-GLM-5.1", "answer": "{}"}
 
     await analyze_with_glm(
-        FakeAiService(),
+        FakeAiService(),  # type: ignore
         {"display_name": "Ada Scholar"},
         [{"title": "Profile", "url": "https://example.edu/ada", "content": "AI research."}],
         {"interests": ["accessible AI"]},
@@ -773,7 +773,7 @@ async def test_advisor_vision_does_not_set_fixed_output_token_limit(monkeypatch)
     monkeypatch.setattr(analysis_module.httpx, "AsyncClient", FakeClient)
 
     result = await analyze_visual_source(
-        FakeAiService(),
+        FakeAiService(),  # type: ignore
         {"url": "https://example.edu/recruiting.png"},
         "Ada Scholar",
     )
@@ -845,15 +845,15 @@ def test_repository_persists_dossier_publications_and_save(tmp_path):
             "next_actions": [{"type": "read", "label": "Read the paper"}],
         },
     )
-    detail = repository.get_candidate(candidate_id, TEST_USER_ID)
+    detail = repository.get_candidate(str(candidate_id), TEST_USER_ID)
     assert detail["coverage"]["identity"] == "Strong"
     assert detail["intelligence"]["is_research_match"] is True
     assert detail["publications"][0]["title"] == "Accessible AI Systems"
     assert detail["dossier"]["decision_snapshot"]["why_this_professor"] == "Direct topic match."
 
-    professor = repository.save_to_professors(candidate_id, TEST_USER_ID)
+    professor = repository.save_to_professors(str(candidate_id), TEST_USER_ID)
     assert professor["name"] == "Ada Scholar"
-    assert repository.get_candidate(candidate_id, TEST_USER_ID)["saved_professor_id"] == professor["id"]
+    assert repository.get_candidate(str(candidate_id), TEST_USER_ID)["saved_professor_id"] == professor["id"]
 
 
 def test_repository_enforces_user_scope(tmp_path):
@@ -990,4 +990,4 @@ def test_repository_caps_visible_evidence_at_eight(tmp_path):
         [],
         {},
     )
-    assert len(repository.get_candidate(candidate_id, TEST_USER_ID)["evidence"]) == 8
+    assert len(repository.get_candidate(str(candidate_id), TEST_USER_ID)["evidence"]) == 8

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot } from "lucide-react";
 import { api } from "../lib/api";
+import { emitUiError } from "../lib/uiError";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
 
@@ -66,21 +67,31 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const [requests, setRequests] = useState<UserPlanRequest[]>([]);
   const [requestPlan, setRequestPlan] = useState<string | null>(null);
   const [requestType, setRequestType] = useState<PlanRequestType>("upgrade");
+  const [requestMode, setRequestMode] = useState<"choose" | "admin">("choose");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isYearly, setIsYearly] = useState(false);
+  const [polarLoading, setPolarLoading] = useState(false);
+  const [isQuarterly, setIsQuarterly] = useState(false);
 
   const openRequestModal = (plan: string, type: PlanRequestType) => {
     setRequestPlan(plan);
     setRequestType(type);
     setMessage("");
-    setIsYearly(false);
+    setIsQuarterly(false);
   };
 
   const closeRequestModal = () => {
     setRequestPlan(null);
     setRequestType("upgrade");
     setMessage("");
+    setRequestMode("choose");
+  };
+
+  const getPolarProductId = (plan: string | null) => {
+    if (plan === "general_user") return isQuarterly ? pricing?.polar_product_id_basic_quarterly : pricing?.polar_product_id_basic_monthly;
+    if (plan === "pro_user") return isQuarterly ? pricing?.polar_product_id_pro_quarterly : pricing?.polar_product_id_pro_monthly;
+    if (plan === "max_user") return isQuarterly ? pricing?.polar_product_id_max_quarterly : pricing?.polar_product_id_max_monthly;
+    return null;
   };
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
@@ -91,7 +102,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       const res = await api.post<{ message: string }>("/auth/plans/request", {
         requested_plan: requestPlan,
         request_type: requestType,
-        billing_cycle: isYearly ? "yearly" : "monthly",
+        billing_cycle: isQuarterly ? "quarterly" : "monthly",
         message
       });
       if (onToast) onToast(res.message);
@@ -123,6 +134,24 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       fetchRequests();
     } catch (err) {
       console.error("Failed to cancel plan request", err);
+    }
+  };
+
+  const handlePolarCheckout = async (polarId: string) => {
+    try {
+      setPolarLoading(true);
+      const res = await api.post<{ url: string }>("/auth/plans/checkout", {
+        product_id: polarId,
+        success_url: window.location.href,
+      });
+      if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (e) {
+      console.error("Checkout error:", e);
+      emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+    } finally {
+      setPolarLoading(false);
     }
   };
 
@@ -174,8 +203,9 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "total_documents_bytes", label: "Storage Capacity", icon: HardDrive, format: (v: number) => v === -1 ? "Unlimited" : `${Math.round(v / (1024 * 1024))} MB` },
     { key: "ai_tokens_per_month", label: "Monthly AI Credits", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
     { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
-    { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
+    { key: "can_use_agents", label: "AI Agents Usage", icon: Bot, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
+    { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [
@@ -259,16 +289,16 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
           {activeView === "plans" && (
             <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 shadow-inner">
               <button
-                onClick={() => setIsYearly(false)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${!isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setIsQuarterly(false)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${!isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Monthly
               </button>
               <button
-                onClick={() => setIsYearly(true)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setIsQuarterly(true)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
               >
-                Yearly
+                Quarterly
               </button>
             </div>
           )}
@@ -308,7 +338,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                 type PlanConfigType = {
                   name: string;
                   monthlyPrice: string;
-                  yearlyPrice: string;
+                  quarterlyPrice: string;
                   description: string;
                   colorClass: string;
                   activeColorClass: string;
@@ -322,7 +352,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   free_user: {
                     name: 'Free',
                     monthlyPrice: '0',
-                    yearlyPrice: '0',
+                    quarterlyPrice: '0',
                     description: 'Basic plan to explore features.',
                     colorClass: 'bg-white border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-350 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-white border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -332,9 +362,9 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     icon: Package
                   },
                   general_user: {
-                    name: 'General',
+                    name: 'Basic',
                     monthlyPrice: pricing?.plan_price_general_monthly || '0',
-                    yearlyPrice: pricing?.plan_price_general_yearly || '0',
+                    quarterlyPrice: pricing?.plan_price_general_quarterly || '0',
                     description: 'Essential features to get started.',
                     colorClass: 'bg-[#f4f7ff] border border-blue-200/60 shadow-sm hover:shadow-md hover:border-blue-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f4f7ff] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -346,7 +376,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   pro_user: {
                     name: 'Pro',
                     monthlyPrice: pricing?.plan_price_pro_monthly || '50',
-                    yearlyPrice: pricing?.plan_price_pro_yearly || '500',
+                    quarterlyPrice: pricing?.plan_price_pro_quarterly || '500',
                     description: 'For power users with latest AI.',
                     colorClass: 'bg-[#f2faf5] border border-emerald-200/60 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f2faf5] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -358,7 +388,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   max_user: {
                     name: 'Max',
                     monthlyPrice: pricing?.plan_price_max_monthly || '180',
-                    yearlyPrice: pricing?.plan_price_max_yearly || '1500',
+                    quarterlyPrice: pricing?.plan_price_max_quarterly || '1500',
                     description: 'Unlimited power and maximum storage.',
                     colorClass: 'bg-slate-900 border border-slate-800/80 text-white hover:border-indigo-500/30 shadow-lg transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-400 bg-slate-900 border-transparent scale-[1.02] text-white shadow-2xl shadow-emerald-500/20 transition-all duration-300',
@@ -397,18 +427,18 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                       </div>
                       <div>
                         <h3 className={`text-xl font-bold tracking-tight mb-0.5 ${role === 'max_user' ? 'text-white' : 'text-slate-900'}`}>{planConfig.name}</h3>
-                        <p className={`text-[10.5px] font-medium leading-tight max-w-[180px] ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>{planConfig.description}</p>
+                        <p className={`text-[10.5px] font-medium leading-tight ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>{planConfig.description}</p>
                       </div>
                     </div>
 
                     <div className="relative z-10 mb-4 border-b border-slate-100 dark:border-slate-800/20 pb-3">
                       <div className="flex items-baseline gap-1.5">
                         <span className={`text-4xl font-black tracking-tight ${role === 'max_user' ? 'text-white' : planConfig.numericClass}`}>
-                          {!isYearly ? planConfig.monthlyPrice : planConfig.yearlyPrice}
+                          {!isQuarterly ? planConfig.monthlyPrice : planConfig.quarterlyPrice}
                         </span>
-                        <span className={`text-xs font-extrabold uppercase tracking-wide ${role === 'max_user' ? 'text-indigo-400' : 'text-slate-500'}`}>BDT</span>
+                        <span className={`text-xs font-extrabold uppercase tracking-wide ${role === 'max_user' ? 'text-indigo-400' : 'text-slate-500'}`}>USD</span>
                         <span className={`text-xs font-semibold ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>
-                          /{!isYearly ? "mo" : "yr"}
+                          /{!isQuarterly ? "mo" : "qtr"}
                         </span>
                       </div>
                     </div>
@@ -489,56 +519,106 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                             ? "text-indigo-700 bg-indigo-50 border-indigo-200"
                             : "text-slate-700 bg-white border-slate-200"
                         }`}>
-                        {requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "General"}
+                        {requestPlan === "pro_user" ? "Pro" : requestPlan === "max_user" ? "Max" : "Basic"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-semibold text-slate-700">Billing Cycle</label>
                       <select
-                        value={isYearly ? "yearly" : "monthly"}
-                        onChange={(e) => setIsYearly(e.target.value === "yearly")}
+                        value={isQuarterly ? "quarterly" : "monthly"}
+                        onChange={(e) => setIsQuarterly(e.target.value === "quarterly")}
                         className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block px-3 py-1.5 outline-none"
                       >
                         <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
+                        <option value="quarterly">Quarterly</option>
                       </select>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                       <span className="text-sm font-medium text-slate-600">Total Price</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        {requestPlan === "general_user" ? (isYearly ? `${pricing?.plan_price_general_yearly || '0'} BDT` : `${pricing?.plan_price_general_monthly || '0'} BDT`) :
-                          requestPlan === "pro_user" ? (isYearly ? `${pricing?.plan_price_pro_yearly || '500'} BDT` : `${pricing?.plan_price_pro_monthly || '50'} BDT`) :
-                            (isYearly ? `${pricing?.plan_price_max_yearly || '1500'} BDT` : `${pricing?.plan_price_max_monthly || '180'} BDT`)}
+                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '0'} USD` : `${pricing?.plan_price_general_monthly || '0'} USD`) :
+                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '500'} USD` : `${pricing?.plan_price_pro_monthly || '50'} USD`) :
+                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '1500'} USD` : `${pricing?.plan_price_max_monthly || '180'} USD`)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
-                  <textarea
-                    className="w-full p-3 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    rows={4}
-                    placeholder="E.g., I need more API usage limits for my research project... (Optional)"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  ></textarea>
-                  <div className="flex justify-end gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={closeRequestModal}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                    >
-                      {submitting ? "Submitting..." : requestType === "extension" ? "Submit Renewal Request" : "Submit Request"}
-                    </button>
-                  </div>
-                </form>
+
+                {(() => {
+                  const polarId = getPolarProductId(requestPlan);
+                  if (polarId && requestMode === "choose") {
+                    return (
+                      <div className="space-y-4">
+                        <button 
+                          type="button"
+                          onClick={() => handlePolarCheckout(polarId)}
+                          disabled={polarLoading}
+                          className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 transition-colors group cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="font-bold text-emerald-700 mb-1">
+                            {polarLoading ? "Redirecting to Checkout..." : "Subscribe Online"}
+                          </span>
+                          {!polarLoading && (
+                            <span className="text-xs text-emerald-600 font-medium">Instant activation via secure checkout</span>
+                          )}
+                        </button>
+                        
+                        <div className="relative flex py-2 items-center">
+                          <div className="flex-grow border-t border-slate-200"></div>
+                          <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-semibold uppercase tracking-wider">or</span>
+                          <div className="flex-grow border-t border-slate-200"></div>
+                        </div>
+
+                        {user?.polar_subscription_id ? (
+                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-center">
+                            <span className="font-bold text-slate-700 block mb-2 opacity-50">Request Manual Upgrade</span>
+                            <span className="text-xs text-slate-600 block">
+                              You are currently subscribed online. To switch to manual billing or change your plan manually, please cancel your online subscription and wait for it to expire at the end of the current billing cycle.
+                            </span>
+                          </div>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={() => setRequestMode("admin")}
+                            className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-center"
+                          >
+                            <span className="font-bold text-slate-700 mb-1">Request Manual Upgrade</span>
+                            <span className="text-xs text-slate-500">Manual approval required</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4 animate-in fade-in duration-200">
+                      <textarea
+                        className="w-full p-3 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        rows={4}
+                        placeholder="E.g., I need more API usage limits for my research project... (Optional)"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      ></textarea>
+                      <div className="flex justify-end gap-3 mt-2">
+                        <button
+                          type="button"
+                          onClick={closeRequestModal}
+                          className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                          disabled={submitting}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors disabled:opacity-50 shadow-sm hover:shadow"
+                        >
+                          {submitting ? "Submitting..." : requestType === "extension" ? "Submit Renewal Request" : "Submit Request"}
+                        </button>
+                      </div>
+                    </form>
+                  );
+                })()}
               </div>
             </div>
           </div>

@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { hasRole, formatRoleName } from "../../lib/auth";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
 import { adminNotificationCategories, getNotificationSettingLabel } from "../../config/notificationLabels";
@@ -54,11 +55,11 @@ const roleTabs = [
   { id: "all" as const, label: "All Users" },
   { id: "any_user" as const, label: "Any User" },
   { id: "free_user" as const, label: "Free User" },
-  { id: "general_user" as const, label: "General User" },
+  { id: "general_user" as const, label: "Basic User" },
   { id: "pro_user" as const, label: "Pro User" },
   { id: "max_user" as const, label: "Max User" },
   { id: "any_admin" as const, label: "Any Admin" },
-  { id: "general_admin" as const, label: "General Admin" },
+  { id: "general_admin" as const, label: "Basic Admin" },
   { id: "super_admin" as const, label: "Super Admin" },
 ];
 
@@ -105,7 +106,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editingMode, setEditingMode] = useState<"user" | "admin" | null>(null);
-  const [editPlanDuration, setEditPlanDuration] = useState<"1_month" | "1_year" | "custom">("1_month");
+  const [editPlanDuration, setEditPlanDuration] = useState<"1_month" | "1_quarter" | "custom">("1_month");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
@@ -120,7 +121,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [createPassword, setCreatePassword] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
   const [createRoles, setCreateRoles] = useState<string[]>(["general_user"]);
-  const [planDuration, setPlanDuration] = useState<"1_month" | "1_year" | "custom">("1_month");
+  const [planDuration, setPlanDuration] = useState<"1_month" | "1_quarter" | "custom">("1_month");
   const [createCustomStart, setCreateCustomStart] = useState("");
   const [createCustomEnd, setCreateCustomEnd] = useState("");
 
@@ -353,7 +354,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
           payload.plan_start_date = customStartDate;
           payload.plan_end_date = customEndDate;
         } else {
-          payload.plan_duration_days = editPlanDuration === "1_month" ? 30 : 365;
+          payload.plan_duration_days = editPlanDuration === "1_month" ? 30 : 90;
         }
       }
 
@@ -579,7 +580,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                             role === "general_admin" ? "bg-amber-100 text-amber-700" :
                             "bg-indigo-100/50 text-indigo-700"
                           }`}>
-                            {role.replace("_", " ")}
+                            {formatRoleName(role)}
                           </span>
                         ))}
                       </div>
@@ -852,29 +853,36 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                     {editingMode === "user" && (
                       <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
                         <label className="block text-sm font-semibold text-indigo-900 mb-3">User Roles &amp; Duration</label>
-                        <div className="space-y-2 mb-4">
-                          {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
-                            <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
-                              <input
-                                type="radio"
-                                name="editUserTier"
-                                checked={editingUser.roles.includes(role)}
-                                onClick={() => toggleRole(role)}
-                                onChange={() => {}}
-                                className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
-                              />
-                              <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
-                            </label>
-                          ))}
-                        </div>
+                        {editingUser.polar_subscription_id ? (
+                          <div className="mb-4 p-3 rounded-lg border border-sky-200 bg-sky-50 flex flex-col gap-1">
+                            <span className="text-sm font-semibold text-sky-800">Plan managed via Polar.sh</span>
+                            <span className="text-xs text-sky-600">Manual plan changes are disabled. Subscription ID: {editingUser.polar_subscription_id}</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 mb-4">
+                            {availableRoles.filter((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)).map((role) => (
+                              <label key={role} className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50 cursor-pointer transition-colors">
+                                <input
+                                  type="radio"
+                                  name="editUserTier"
+                                  checked={editingUser.roles.includes(role)}
+                                  onClick={() => toggleRole(role)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
 
-                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && (
+                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && !editingUser.polar_subscription_id && (
                           <div className="pt-3 border-t border-indigo-200">
                             <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                             <div className="flex gap-2">
                               {[
                                 { value: "1_month" as const, label: "1 Month", icon: Clock },
-                                { value: "1_year" as const, label: "1 Year", icon: Calendar },
+                                { value: "1_quarter" as const, label: "1 Quarter", icon: Calendar },
                                 { value: "custom" as const, label: "Custom", icon: Calendar },
                               ].map((option) => (
                                 <label
@@ -920,7 +928,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                                 onChange={() => {}}
                                 className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                               />
-                              <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
+                              <span className="text-sm font-medium text-rose-700 capitalize">{formatRoleName(role)}</span>
                             </label>
                           ))}
                         </div>
@@ -1007,7 +1015,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                             onChange={() => {}}
                             className="w-4 h-4 accent-indigo-600 focus:ring-indigo-500"
                           />
-                          <span className="text-sm font-medium text-slate-700 capitalize">{role.replace("_", " ")}</span>
+                          <span className="text-sm font-medium text-slate-700 capitalize">{formatRoleName(role)}</span>
                         </label>
                       ))}
                     </div>
@@ -1017,7 +1025,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                         <div className="flex gap-2">
                           {[
                             { value: "1_month" as const, label: "1 Month", icon: Clock },
-                            { value: "1_year" as const, label: "1 Year", icon: Calendar },
+                            { value: "1_quarter" as const, label: "1 Quarter", icon: Calendar },
                             { value: "custom" as const, label: "Custom", icon: Calendar },
                           ].map((option) => (
                             <label
@@ -1062,7 +1070,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                               onChange={() => {}}
                               className="w-4 h-4 accent-rose-600 focus:ring-rose-500"
                             />
-                            <span className="text-sm font-medium text-rose-700 capitalize">{role.replace("_", " ")}</span>
+                            <span className="text-sm font-medium text-rose-700 capitalize">{formatRoleName(role)}</span>
                           </label>
                         ))}
                       </div>

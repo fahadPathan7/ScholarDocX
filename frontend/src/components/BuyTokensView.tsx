@@ -10,12 +10,14 @@ import {
   Sparkles,
   Wallet,
   XCircle,
+  ShoppingCart,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
 import { emitNavigate } from "../lib/tokenEvents";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { useUsage } from "../contexts/UsageContext";
+import { useAuth } from "../contexts/AuthContext";
 
 type Pack = {
   code: string;
@@ -78,22 +80,27 @@ interface Props {
 export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const { balance, canPurchasePacks, refresh } = useTokenEconomy();
   const { usageData } = useUsage();
+  const { user } = useAuth();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [requests, setRequests] = useState<MyRequest[]>([]);
+  const [pricing, setPricing] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>("packs");
+  const [polarLoading, setPolarLoading] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [p, r] = await Promise.all([
+      const [p, r, planRes] = await Promise.all([
         api.get<Pack[]>("/ai-tokens/packs"),
         api.get<MyRequest[]>("/ai-tokens/purchase-requests/me"),
+        api.get<{ pricing: Record<string, string> }>("/auth/plans")
       ]);
       setPacks(p);
       setRequests(r);
+      setPricing(planRes.pricing || {});
     } catch (error: any) {
       emitUiError({ title: "Couldn't load packs", message: error?.message || "Try again later." });
     } finally {
@@ -123,6 +130,24 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       emitUiError({ title: "Request failed", message: error?.message || "Couldn't submit request." });
     } finally {
       setSubmitting(null);
+    }
+  };
+
+  const handlePolarCheckout = async (polarId: string, code: string) => {
+    try {
+      setPolarLoading(code);
+      const res = await api.post<{ url: string }>("/auth/plans/checkout", {
+        product_id: polarId,
+        success_url: window.location.href,
+      });
+      if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (e) {
+      console.error("Checkout error:", e);
+      emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+    } finally {
+      setPolarLoading(null);
     }
   };
 
@@ -173,7 +198,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       </div>
 
       {showBalance && canPurchasePacks && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 shrink-0">
           <div className="rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50/70 to-white p-5 shadow-sm">
             <div className="flex items-center gap-2 text-emerald-700 mb-2">
               <Sparkles size={15} />
@@ -203,7 +228,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pt-4 pb-12 pr-2">
+      <div className="flex-1 overflow-y-auto pt-2 pb-12 pr-2">
         {!canPurchasePacks ? (
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="max-w-md w-full rounded-3xl border border-indigo-100 bg-gradient-to-b from-indigo-50/70 to-white p-8 text-center shadow-lg">
@@ -277,7 +302,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
             </div>
           </div>
         ) : (
-          <div className="pt-2">
+          <div className="pt-0">
             <div className="mb-7 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-white px-5 py-4 shadow-sm">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
                 <Sparkles size={18} />
@@ -337,18 +362,54 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed">One-time top-up. Credits never expire.</p>
                   </div>
-                  <div className="mt-auto pt-6 relative z-10">
-                    <div className="flex items-baseline gap-1 mb-4">
-                      <span className="text-2xl font-bold text-slate-800">৳{pack.price_usd.toFixed(2)}</span>
-                      <span className="text-slate-400 text-sm">BDT</span>
+                  <div className="mt-auto pt-6 relative z-10 flex flex-col gap-3">
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-2xl font-bold text-slate-800">${pack.price_usd.toFixed(2)}</span>
+                      <span className="text-slate-400 text-sm">USD</span>
                     </div>
-                    <button
-                      onClick={() => handleRequest(pack.code)}
-                      disabled={submitting === pack.code || justDone}
-                      className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : theme.button} ${submitting === pack.code ? "opacity-70" : ""}`}
-                    >
-                      {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Pack"}
-                    </button>
+
+                    {(() => {
+                      const polarId = pricing[`polar_extra_credits_id_${idx + 1}`];
+                      if (polarId) {
+                        return (
+                          <div className="space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => handlePolarCheckout(polarId, pack.code)}
+                              disabled={polarLoading === pack.code || submitting === pack.code}
+                              className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <ShoppingCart size={16} className="mr-2" />
+                              {polarLoading === pack.code ? "Redirecting..." : "Buy Online"}
+                            </button>
+                            
+                            <div className="relative flex py-1 items-center">
+                              <div className="flex-grow border-t border-slate-200"></div>
+                              <span className="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">or request manual</span>
+                              <div className="flex-grow border-t border-slate-200"></div>
+                            </div>
+
+                            <button
+                              onClick={() => handleRequest(pack.code)}
+                              disabled={submitting === pack.code || justDone}
+                              className={`w-full py-2.5 px-4 rounded-xl font-medium transition-all text-sm border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:cursor-not-allowed`}
+                            >
+                              {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Manual Top-up"}
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={() => handleRequest(pack.code)}
+                          disabled={submitting === pack.code || justDone}
+                          className={`w-full py-3.5 px-4 rounded-xl font-bold transition-all shadow-sm disabled:cursor-not-allowed ${justDone ? "bg-emerald-100 text-emerald-700" : theme.button} ${submitting === pack.code ? "opacity-70" : ""}`}
+                        >
+                          {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request Pack"}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );

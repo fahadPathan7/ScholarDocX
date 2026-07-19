@@ -3,8 +3,9 @@
 Covers the service layer (packs CRUD, purchase submit/list, approve→grant,
 reject, double-review guard) and the router's authorization gating
 (super_admin-only pack config; admin_manage_token_requests for review), plus the
-permission-hygiene fixes (ai_tokens_per_month survives reset_role_limits;
-admin_manage_token_requests is seeded).
+permission-hygiene fixes (ai_tokens_per_month moved to app_settings and purged
+from role_limits per SCHOLARDOCX-0140/0154; admin_manage_token_requests is
+seeded).
 """
 import json
 from pathlib import Path
@@ -494,24 +495,33 @@ def test_admin_manage_token_requests_seeded(tmp_path):
     assert ("super_admin", 1) in rows
 
 
-def test_ai_tokens_per_month_in_canonical_set(tmp_path):
-    """migrate_database must NOT delete ai_tokens_per_month (regression guard
-    for the canonical_features fix)."""
+def test_ai_tokens_per_month_purged_from_role_limits(tmp_path):
+    """SCHOLARDOCX-0140/0154: the monthly AI credit allowance moved from
+    role_limits (ai_tokens_per_month) to app_settings (plan_ai_credits_<tier>).
+    initialize_database must purge any legacy ai_tokens_per_month rows so they
+    do not resurface in the Role Limits admin panel."""
     settings = make_settings(tmp_path)
-    # Re-running initialize_database triggers migrate_database's DELETE of
-    # non-canonical features; ai_tokens_per_month must survive.
+    # Seed a legacy row directly, then re-run initialize_database and confirm
+    # the cleanup migration deletes it.
+    with connect(settings.database_target) as db:
+        db.execute(
+            "INSERT INTO role_limits (role, feature, limit_count, reset_period) "
+            "VALUES ('general_user', 'ai_tokens_per_month', 500000, 'monthly')"
+        )
+        db.commit()
     initialize_database(settings.database_target)
     with connect(settings.database_target) as db:
         count = db.execute(
             "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
         ).fetchone()[0]
-        assert count == 4  # all four user roles (free, general, pro, max)
+        assert count == 0
 
 
-def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
-    """reset_role_limits re-seeds from DEFAULT_ROLE_LIMITS, which must include
-    ai_tokens_per_month — otherwise an admin 'reset to defaults' would wipe the
-    monthly allowance."""
+def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
+    """SCHOLARDOCX-0140: DEFAULT_ROLE_LIMITS no longer includes
+    ai_tokens_per_month, so reset_role_limits (which re-seeds from it) drops the
+    feature. The monthly allowance is now managed in Settings -> Plan Pricing
+    via the plan_ai_credits_<tier> app_settings keys, not in Role Limits."""
     settings = make_settings(tmp_path)
     admin = make_user(settings, ["super_admin"], email="admin@test.local")
     store = make_store(settings)
@@ -522,8 +532,7 @@ def test_reset_role_limits_preserves_ai_tokens_allowance(tmp_path):
                 "SELECT limit_count FROM role_limits "
                 "WHERE role = 'general_user' AND feature = 'ai_tokens_per_month'"
             ).fetchone()
-        assert row is not None
-        assert row["limit_count"] == 500000
+        assert row is None
     finally:
         store.db.close()
         invalidate_limits_cache()

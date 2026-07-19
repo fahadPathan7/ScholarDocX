@@ -48,6 +48,9 @@ export interface User {
   roles: string[];
   plan_started_at?: string;
   plan_ends_at?: string;
+  plan_renews_at?: string;
+  polar_cancel_at_period_end?: number;
+  polar_subscription_id?: string;
   is_active?: boolean;
   is_blocked?: boolean;
 }
@@ -176,4 +179,10 @@ export function getPlanDaysRemaining(planEndsAt?: string): number | null {
 export function hasActiveUserPlan(user?: Pick<User, "roles" | "plan_ends_at"> | null): boolean {
   if (!user || !hasUserTierRole(user.roles)) return false;
   return getUserPlanStatus(user.plan_ends_at) !== "expired";
+}
+
+export function formatRoleName(role: string): string {
+  if (role === "general_user") return "Basic User";
+  if (role === "general_admin") return "Basic Admin";
+  return role.replace(/_/g, " ");
 }

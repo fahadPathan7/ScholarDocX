@@ -26,7 +26,7 @@ interface Props {
 function formatPlanLabel(plan: string) {
   if (plan === "pro_user") return "Pro";
   if (plan === "max_user") return "Max";
-  if (plan === "general_user") return "General";
+  if (plan === "general_user") return "Basic";
   if (plan === "free_user") return "Free";
   return plan;
 }

@@ -229,10 +229,6 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
 
   const handleDeleteBoard = async (e: React.MouseEvent, b: WhiteboardRecord) => {
     e.stopPropagation();
-    if (boards.length <= 1) {
-       await showAlert("Cannot delete the last board.", "Error");
-       return;
-    }
     const confirmed = await showConfirm(`Delete board "${b.name}"?`, "Delete Board");
     if (!confirmed) return;
     try {
@@ -241,7 +237,18 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
       const newBoards = boards.filter(board => board.id !== b.id);
       setBoards(newBoards);
       if (activeBoardId === b.id) {
-         switchBoard(newBoards[0], false);
+        if (newBoards.length > 0) {
+          switchBoard(newBoards[0], false);
+        } else {
+          isLoadedRef.current = false;
+          setActiveBoardId(null);
+          setSelectedId(null);
+          setDraftShape(null);
+          setShapes([]);
+          setHistory([[]]);
+          setHistoryIndex(0);
+          setCamera({ x: 0, y: 0, zoom: 1 });
+        }
       }
       if (onToast) onToast("Board deleted");
     } catch (e) {

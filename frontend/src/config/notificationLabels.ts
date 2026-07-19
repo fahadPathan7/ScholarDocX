@@ -94,7 +94,7 @@ export const adminNotificationCategories: NotificationCategory[] = [
       {
         key: "announcements",
         label: "Announcements",
-        description: "General admin announcements and updates.",
+        description: "Basic admin announcements and updates.",
       },
       {
         key: "billing",

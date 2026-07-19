@@ -178,3 +178,40 @@ Follow-ups:
 
 - Extend the catalog with degree-type-aware prompts (e.g. PhD-specific outreach templates).
 - `ProjectWorkspace.tsx` is near the 1000-line grace limit — a future split is tracked separately.
+
+Revision 5 (2026-07-19, user feedback "can not answer custom queries" + "no need to tell action plan target"):
+
+Two bugs fixed:
+
+1. **Custom queries broken**: the frontend `looksLikeWorkspaceAction()` regex in `FloatingAssistant.tsx` uses a narrow word list (`create|add|get|show|...` + `project|sheet|row|...`). Custom queries from the Ask AI menu like "summarize my data" or "what are the top 3 universities?" failed the regex and fell to `/ai/chat` — which has no workspace context and can't access sheet data. Fix: `ProjectWorkspace.tsx` now emits `forceAction: true` in the `scholardocx:open-ai` event; `FloatingAssistant.tsx` stores this flag and passes it to `sendMessage()`, which bypasses the regex and goes directly to `/ai/actions/plan` when set. The backend regex (`ACTION_TRIGGER_RE`) is much broader and would accept it anyway.
+
+2. **Redundant USE_IDS boilerplate removed**: every transform/selection prompt and every custom query appended `"When you emit the action plan, target this exact sheet using its project_id and sheet_id (not the names)..."` — 52 words of noise visible in the chat bubble. This is redundant because: (a) `target(ctx)` already embeds the IDs in the prompt body, and (b) the backend `ACTION_PLANNER_SYSTEM_PROMPT` already has Critical Rule 10 + Parsing Rule 16 mandating ID preference. Deleted the `USE_IDS` constant and all 8 references.
+
+Changed files (revision 5):
+- `frontend/src/components/sheet/askAiPrompts.ts` — deleted `USE_IDS` constant (was line 86) and removed `${USE_IDS}` suffix from all 8 prompt `build()` functions.
+- `frontend/src/components/sheet/AskAiMenu.tsx` — removed inline USE_IDS equivalent from `submitCustom()`.
+- `frontend/src/components/ProjectWorkspace.tsx` — added `forceAction: true` to `scholardocx:open-ai` event detail.
+- `frontend/src/components/FloatingAssistant.tsx` — added `forceActionRef`, accepted `forceAction` from event detail, passed it through `sendMessage()` to bypass `looksLikeWorkspaceAction()` regex.
+
+Verification (revision 5):
+- `npm run build` → passes (tsc + vite, no TS errors). Only pre-existing chunk-size warnings.
+
+Revision 6 (2026-07-19, user feedback "evaluate sheet and create more practical and beneficial agents"):
+
+Comprehensive redesign of the Ask AI agent catalog based on real student pain points.
+
+1. **Removed 6 low-value agents**: `application-summary`, `funding-totals`, `response-rate`, `priority-score`, `categorize-status`, `rank-by-fit`. These were largely redundant with existing sheet columns (like Status), solved niche late-stage problems, or relied on naive scoring without real student context.
+2. **Simplified 2 existing agents**: `deadline-risk`, `missing-info`. Made their prompt texts simpler and less prescriptive about backend action names.
+3. **Added 5 new high-value agents**:
+   - `find-duplicates`: scans for repeated universities/professors to fix data entry errors.
+   - `daily-action-plan`: generates a plain-English to-do list based on upcoming deadlines and missing follow-ups.
+   - `fill-empty-cells`: infers missing data (statuses, dates, etc.) from other columns.
+   - `row-summaries`: adds a 1-sentence summary column for quick scanning.
+   - `compare-selected`: creates a side-by-side comparison table for selected rows.
+
+Changed files (revision 6):
+- `frontend/src/components/sheet/askAiPrompts.ts` — replaced `ASK_AI_PROMPTS` array with the new 9-agent catalog.
+- `frontend/src/components/sheet/AskAiMenu.tsx` — updated Lucide icon imports and `PROMPT_ICONS` mapping to match the new agent IDs.
+
+Verification (revision 6):
+- `npm run build` → passes (tsc + vite, no TS errors).

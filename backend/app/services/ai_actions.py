@@ -24,6 +24,11 @@ from app.services.ai_actions_catalog import (
     describe_actions,
     execution_message,
 )
+from app.services.ai_actions_analyze import (
+    ACTION_ANALYST_SYSTEM_PROMPT,
+    build_analyst_prompt,
+    serialize_results_for_analysis,
+)
 from app.services.ai_actions_execute import WORKSPACE_EXECUTORS
 from app.services import ai_actions_records as records
 from app.services import ai_actions_workspace as workspace
@@ -105,7 +110,26 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
     "sequence. Use this to read-then-write: e.g. emit `get_rows` first to "
     "inspect data, then `add_column` + `bulk_update_rows` to fill it. Each "
     "action in the array executes in order and shares the same sheet "
-    "reference.\n\n"
+    "reference.\n"
+    "12. ANALYSIS QUESTIONS (SCHOLARDOCX-0156): For requests that ask you to "
+    "find, flag, check, compare, audit, or assess the DATA (duplicates, "
+    "missing values, readiness, follow-ups, funding, priorities, 'what "
+    "should I work on'), DO NOT answer in `message` and DO NOT return "
+    "no_action. Plan the read action that returns the relevant data — "
+    "usually `get_rows` on the target sheet, or the smart read that fits "
+    "(analyze_sheet for dates, filter_rows for a column value, "
+    "get_column_values for distributions). After execution, a separate "
+    "analyst pass reads the FULL results and writes the final answer to the "
+    "user — your job is only to fetch the right data from the right sheet.\n"
+    "13. TARGET SHEET DATA: when the prompt below includes a TARGET SHEET "
+    "DATA block, those are the ACTUAL rows of the sheet the user is asking "
+    "about (row_index is 0-based in the shown order). Use them to make "
+    "writes concrete: emit per-row `update_row` / `add_rows` with real "
+    "content derived from the shown rows, and when the user names specific "
+    "1-based row numbers (e.g. 'rows 2, 3'), act on exactly those rows "
+    "(row_index = number - 1). Cap per-row write actions at 20 per plan; if "
+    "more rows need changes, cover the first 20 and state in `message` that "
+    "the user can ask again for the remaining rows.\n\n"
 
     "SUPPORTED ACTIONS:\n\n"
     "CREATE:\n"
@@ -297,6 +321,47 @@ class AiActionService:
         }
 
     # ------------------------------------------------------------------
+    # Post-execution analysis pass (SCHOLARDOCX-0156)
+    # ------------------------------------------------------------------
+
+    async def analyze_results(
+        self,
+        message: str,
+        results: list[dict[str, Any]],
+        model: str = None,
+        *,
+        user: dict = None,
+        session=None,
+    ) -> str | None:
+        """Second LLM pass: answer the user's question from executed READ results.
+
+        Returns the analysis text, or ``None`` when no provider is configured,
+        the provider failed, or the answer was empty — callers must then fall
+        back to ``execution_message(results)``. Never raises for provider
+        problems; the analysis pass must not break the execute endpoint.
+        """
+        if not self.settings.chat_provider_configured:
+            return None
+        results_json, truncated = serialize_results_for_analysis(results)
+        if not results_json:
+            return None
+        try:
+            response = await AiService(self.settings, user=user, session=session).chat(
+                build_analyst_prompt(message, results_json, truncated),
+                model=model,
+                max_tokens=2048,
+                override_system_prompt=ACTION_ANALYST_SYSTEM_PROMPT,
+                request_label="action_analysis",
+            )
+        except Exception as exc:  # provider/network failure → silent fallback
+            print(f"[AI Actions] Analysis pass failed: {exc}")
+            return None
+        if response.get("mode") in PROVIDER_FAILURE_MODES:
+            return None
+        answer = (response.get("answer") or "").strip()
+        return answer or None
+
+    # ------------------------------------------------------------------
     # Role-limit enforcement (used by executors)
     # ------------------------------------------------------------------
 
@@ -324,6 +389,10 @@ class AiActionService:
 
     def _build_planner_prompt(self, message: str, context: str) -> str:
         workspace_json = json.dumps(self._workspace_snapshot(), ensure_ascii=True)
+        # SCHOLARDOCX-0156: Ask AI prompts carry an exact sheet_id — inject
+        # that sheet's actual rows (bounded) so the planner can build
+        # concrete per-row writes and row-targeted comparisons.
+        target_sheet_block = self._target_sheet_block(message)
         today_str = date.today().isoformat()
         return (
             "Return ONLY valid JSON (no markdown, no code blocks, no explanations).\n\n"
@@ -426,16 +495,19 @@ class AiActionService:
             "unique. Read IDs from the user's message verbatim.\n"
             "17. MULTI-ACTION: for 'add a column and fill it', 'categorize every "
             "row', 'score rows', or similar read-then-write requests, emit "
-            "multiple actions in the `actions` array in order — typically a "
-            "read (`get_rows` / `filter_rows`) is NOT needed before writes "
-            "because you can reason from the column schema in CURRENT WORKSPACE. "
-            "For fills, emit `add_column` (if the column is new) followed by "
-            "`bulk_update_rows` per group, or `update_row` per row.\n\n"
+            "multiple actions in the `actions` array in order. When a TARGET "
+            "SHEET DATA block is present, build the fill values directly from "
+            "those shown rows — no preliminary read action is needed. When it "
+            "is absent and the fill depends on existing cell values, emit a "
+            "read first. For fills, emit `add_column` (if the column is new) "
+            "followed by `update_row` per row (distinct values per row) or "
+            "`bulk_update_rows` per group (same value for a group).\n\n"
             "DECISION LOGIC:\n"
             "- If user is just chatting/asking questions → status: no_action\n"
             "- If critical info is missing and cannot be inferred from CONTEXT → status: needs_info, list missing fields\n"
             "- If you have all required info → status: needs_confirmation, build actions array\n\n"
             f"CURRENT WORKSPACE:\n{workspace_json}\n\n"
+            f"{target_sheet_block}"
             f"CONVERSATION CONTEXT:\n{context or '(none)'}\n\n"
             f"USER REQUEST:\n{message}\n\n"
             "Return JSON now:"

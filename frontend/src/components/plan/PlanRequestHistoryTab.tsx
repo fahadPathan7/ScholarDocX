@@ -22,7 +22,7 @@ interface Props {
 function getPlanLabel(plan: string) {
   if (plan === "pro_user") return "Pro";
   if (plan === "max_user") return "Max";
-  if (plan === "general_user") return "General";
+  if (plan === "general_user") return "Basic";
   return plan;
 }
 

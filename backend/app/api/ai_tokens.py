@@ -199,6 +199,7 @@ class PackUpdatePayload(BaseModel):
     token_amount: Optional[int] = None
     price_usd: Optional[float] = None
     is_active: Optional[bool] = None
+    polar_product_id: Optional[str] = None
 
 
 @router.patch("/admin/packs/{code}")

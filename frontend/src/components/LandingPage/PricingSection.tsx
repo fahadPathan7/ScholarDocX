@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useReveal } from "./useReveal";
 import {
   fetchPublicPlans,
@@ -12,6 +12,7 @@ import {
   TIER_PRESENTATION,
   type PublicPlansResponse,
   type TierKey,
+  type ResolvedFeature,
 } from "./plans-data";
 import "./PricingSection.css";
 
@@ -29,56 +30,53 @@ import "./PricingSection.css";
 type FallbackPlan = {
   tier: TierKey;
   monthly: string;
-  yearly: string;
-  features: string[];
+  quarterly: string;
+  features: ResolvedFeature[];
 };
 
 const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "free_user",
-    monthly: "0 BDT",
-    yearly: "0 BDT",
+    monthly: "0 USD",
+    quarterly: "0 USD",
     features: [
-      "1 Active Project Workspace",
-      "1 Tracker Sheet",
-      "Basic File Storage (50 MB)",
-      "1 Active Whiteboard",
+      { key: "p", label: "Max Projects", value: "1", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "50 MB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "1", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: false, isBoolean: true },
     ],
   },
   {
     tier: "general_user",
-    monthly: "0 BDT",
-    yearly: "0 BDT",
+    monthly: "0 USD",
+    quarterly: "0 USD",
     features: [
-      "3 Active Project Workspaces",
-      "3 Sheets per Project",
-      "Medium File Storage (200 MB)",
-      "2 Active Whiteboards",
-      "25 AI Chat Queries per Session",
+      { key: "p", label: "Max Projects", value: "3", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "200 MB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "2", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
   {
     tier: "pro_user",
-    monthly: "50 BDT",
-    yearly: "500 BDT",
+    monthly: "50 USD",
+    quarterly: "500 USD",
     features: [
-      "10 Active Project Workspaces",
-      "10 Sheets per Project",
-      "Generous File Storage (1 GB)",
-      "5 Active Whiteboards",
-      "100 AI Chat Queries per Session",
+      { key: "p", label: "Max Projects", value: "10", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "1 GB", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "5", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
   {
     tier: "max_user",
-    monthly: "180 BDT",
-    yearly: "1500 BDT",
+    monthly: "180 USD",
+    quarterly: "1500 USD",
     features: [
-      "Unlimited Projects & Sheets",
-      "Unlimited Storage",
-      "Unlimited Whiteboards",
-      "Unlimited AI Queries & Requests",
-      "Priority API limits & Early Access",
+      { key: "p", label: "Max Projects", value: "Unlimited", isBoolean: false },
+      { key: "s", label: "Storage Capacity", value: "Unlimited", isBoolean: false },
+      { key: "w", label: "Active Whiteboards", value: "Unlimited", isBoolean: false },
+      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
     ],
   },
 ];
@@ -86,7 +84,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
 type LoadState = "loading" | "success" | "fallback";
 
 export function PricingSection() {
-  const [isYearly, setIsYearly] = useState(false);
+  const [isQuarterly, setIsQuarterly] = useState(false);
   const headerRef = useReveal<HTMLDivElement>();
   const gridRef = useReveal<HTMLDivElement>();
 
@@ -151,17 +149,17 @@ export function PricingSection() {
           <div className="lp-pricing-toggle-track">
             <button
               type="button"
-              className={`lp-pricing-toggle-btn${!isYearly ? " active" : ""}`}
-              onClick={() => setIsYearly(false)}
+              className={`lp-pricing-toggle-btn${!isQuarterly ? " active" : ""}`}
+              onClick={() => setIsQuarterly(false)}
             >
               Monthly Billing
             </button>
             <button
               type="button"
-              className={`lp-pricing-toggle-btn${isYearly ? " active" : ""}`}
-              onClick={() => setIsYearly(true)}
+              className={`lp-pricing-toggle-btn${isQuarterly ? " active" : ""}`}
+              onClick={() => setIsQuarterly(true)}
             >
-              Yearly Billing (Save up to 30%)
+              Quarterly Billing
             </button>
           </div>
         </div>
@@ -170,7 +168,7 @@ export function PricingSection() {
           {tiers.map((tier, i) => {
             const plan = TIER_PRESENTATION[tier];
             const fallback = FALLBACK_PLANS.find((p) => p.tier === tier);
-            const cycle = isYearly ? "yearly" : "monthly";
+            const cycle = isQuarterly ? "quarterly" : "monthly";
 
             // Live data path
             if (state === "success" && data) {
@@ -190,7 +188,7 @@ export function PricingSection() {
             }
 
             // Fallback path
-            const price = isYearly ? fallback!.yearly : fallback!.monthly;
+            const price = isQuarterly ? fallback!.quarterly : fallback!.monthly;
             return (
               <PricingCard
                 key={tier}
@@ -212,7 +210,7 @@ type CardProps = {
   plan: (typeof TIER_PRESENTATION)[TierKey];
   price: string;
   period: string;
-  features: string[];
+  features: ResolvedFeature[];
   index: number;
 };
 
@@ -221,8 +219,8 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
     plan.variant === "premium"
       ? " premium-dark"
       : plan.variant === "popular"
-      ? " popular"
-      : "";
+        ? " popular"
+        : "";
 
   // Per-tier accent color: drives the icon chip, badge, and check icons so each
   // card reads as distinct while staying within the muted system palette.
@@ -264,10 +262,19 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
       </div>
 
       <div className="lp-pricing-features-list">
-        {features.map((f) => (
-          <div className="lp-pricing-feature-item" key={f}>
-            <Check size={16} className="lp-pricing-feature-icon" />
-            <span>{f}</span>
+        {features.map((f, idx) => (
+          <div className="lp-pricing-feature-item justify-between" key={f.key || idx}>
+            <div className="flex items-center gap-2">
+              {f.isBoolean ? (
+                f.value ? <Check size={16} className="lp-pricing-feature-icon" /> : <X size={16} className="text-slate-300" />
+              ) : (
+                <Check size={16} className="lp-pricing-feature-icon" />
+              )}
+              <span className={f.isBoolean && !f.value ? "text-slate-400" : ""}>{f.label}</span>
+            </div>
+            {!f.isBoolean && (
+              <span className="lp-pricing-feature-value font-semibold">{f.value}</span>
+            )}
           </div>
         ))}
       </div>

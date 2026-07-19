@@ -10,6 +10,7 @@ type Pack = {
   token_amount: number;
   price_usd: number;
   is_active: boolean;
+  polar_product_id?: string;
   sort_order: number;
 };
 
@@ -24,6 +25,7 @@ type Draft = {
   token_amount: string;
   price_usd: string;
   is_active: boolean;
+  polar_product_id: string;
 };
 
 function toDraft(p: Pack): Draft {
@@ -32,6 +34,7 @@ function toDraft(p: Pack): Draft {
     token_amount: String(p.token_amount),
     price_usd: p.price_usd.toFixed(2),
     is_active: p.is_active,
+    polar_product_id: p.polar_product_id || "",
   };
 }
 
@@ -40,7 +43,8 @@ function isSame(p: Pack, d: Draft) {
     p.display_name === d.display_name.trim() &&
     String(p.token_amount) === d.token_amount.trim() &&
     p.price_usd.toFixed(2) === Number(d.price_usd).toFixed(2) &&
-    p.is_active === d.is_active
+    p.is_active === d.is_active &&
+    (p.polar_product_id || "") === d.polar_product_id.trim()
   );
 }
 
@@ -126,7 +130,7 @@ export function TokenPacksTab() {
         <div className="bg-indigo-50/70 text-indigo-700 text-xs px-3 py-2 rounded-md border border-indigo-100/80 flex items-start gap-2 min-w-0 flex-1">
           <Info size={14} className="shrink-0 mt-0.5" />
           <p>
-            <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 tokens = $1.00</strong> of API usage.
+            <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 credits = $1.00</strong> of API usage.
             Set pack prices higher than API cost to maintain margin.
           </p>
         </div>
@@ -148,7 +152,7 @@ export function TokenPacksTab() {
                 <th className="px-3 py-3 w-[18%]">Code</th>
                 <th className="px-3 py-3 w-[24%]">Display Name</th>
                 <th className="px-3 py-3 w-[18%]">Credit Amount</th>
-                <th className="px-3 py-3 w-[14%]">Price (BDT)</th>
+                <th className="px-3 py-3 w-[14%]">Price (USD)</th>
                 <th className="px-3 py-3 w-[8%]">Active</th>
                 <th className="px-3 py-3 w-[22%] text-right">Actions</th>
               </tr>
@@ -172,7 +176,7 @@ export function TokenPacksTab() {
                     <tr key={pack.code} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-3 py-3 min-w-0">
                         <span className="font-mono text-xs text-slate-500 truncate block" title={pack.code}>{pack.code}</span>
-                        <div className="text-[11px] text-slate-400 truncate">{formatTokens(pack.token_amount)} · ৳{pack.price_usd.toFixed(2)}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{formatTokens(pack.token_amount)} · ${pack.price_usd.toFixed(2)}</div>
                       </td>
                       <td className="px-3 py-3 min-w-0">
                         <input
@@ -193,7 +197,7 @@ export function TokenPacksTab() {
                       </td>
                       <td className="px-3 py-3 min-w-0">
                         <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                           <input
                             type="number"
                             min={0}

@@ -368,7 +368,7 @@ export function App() {
   const planTier = (Array.isArray(atlasRoles) ? atlasRoles.find(r => ["max_user", "pro_user", "general_user", "free_user"].includes(r)) : "free_user") || "free_user";
   const PLAN_LABELS: Record<string, string> = {
     free_user: "Free",
-    general_user: "General",
+    general_user: "Basic",
     pro_user: "Pro",
     max_user: "Max",
   };

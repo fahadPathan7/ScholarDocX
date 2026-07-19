@@ -117,7 +117,7 @@ def test_list_my_plan_requests_returns_user_history(tmp_path):
             INSERT INTO plan_upgrade_requests (user_id, request_type, requested_plan, billing_cycle, message, status)
             VALUES
               (?, 'upgrade', 'max_user', 'monthly', 'Need more limits.', 'Pending'),
-              (?, 'extension', 'pro_user', 'yearly', 'Please renew.', 'Approved')
+              (?, 'extension', 'pro_user', 'quarterly', 'Please renew.', 'Approved')
             """,
             (TEST_USER_ID, TEST_USER_ID),
         )
@@ -181,7 +181,7 @@ def test_approve_expired_plan_extension_starts_from_approval_time(tmp_path):
         request_id = connection.execute(
             """
             INSERT INTO plan_upgrade_requests (user_id, request_type, requested_plan, billing_cycle, message)
-            VALUES (?, 'extension', 'pro_user', 'yearly', 'Please renew my pro plan.')
+            VALUES (?, 'extension', 'pro_user', 'quarterly', 'Please renew my pro plan.')
             """,
             (TEST_USER_ID,),
         ).lastrowid
@@ -197,7 +197,7 @@ def test_approve_expired_plan_extension_starts_from_approval_time(tmp_path):
         assert result["status"] == "success"
         assert updated_user["roles"] == '["pro_user"]'
         assert str(updated_user["plan_started_at"]).startswith("2026-06-06 12:00:00")
-        assert str(updated_user["plan_ends_at"]).startswith("2027-06-06 12:00:00")
+        assert str(updated_user["plan_ends_at"]).startswith("2026-09-04 12:00:00")
     finally:
         store.db.close()
 

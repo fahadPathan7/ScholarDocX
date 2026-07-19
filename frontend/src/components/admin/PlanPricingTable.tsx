@@ -7,7 +7,7 @@ type PlanRow = {
   tier: string;
   displayName: string;
   monthlyKey: string;
-  yearlyKey: string;
+  quarterlyKey: string;
   creditsKey: string;
   isActiveKey: string;
   isFree: boolean;
@@ -18,16 +18,16 @@ const PLAN_ROWS: PlanRow[] = [
     tier: "free_user",
     displayName: "Free",
     monthlyKey: "",
-    yearlyKey: "",
+    quarterlyKey: "",
     creditsKey: "plan_ai_credits_free",
     isActiveKey: "plan_is_active_free",
     isFree: true,
   },
   {
     tier: "general_user",
-    displayName: "General",
+    displayName: "Basic",
     monthlyKey: "plan_price_general_monthly",
-    yearlyKey: "plan_price_general_yearly",
+    quarterlyKey: "plan_price_general_quarterly",
     creditsKey: "plan_ai_credits_general",
     isActiveKey: "plan_is_active_general",
     isFree: false,
@@ -36,7 +36,7 @@ const PLAN_ROWS: PlanRow[] = [
     tier: "pro_user",
     displayName: "Pro",
     monthlyKey: "plan_price_pro_monthly",
-    yearlyKey: "plan_price_pro_yearly",
+    quarterlyKey: "plan_price_pro_quarterly",
     creditsKey: "plan_ai_credits_pro",
     isActiveKey: "plan_is_active_pro",
     isFree: false,
@@ -45,7 +45,7 @@ const PLAN_ROWS: PlanRow[] = [
     tier: "max_user",
     displayName: "Max",
     monthlyKey: "plan_price_max_monthly",
-    yearlyKey: "plan_price_max_yearly",
+    quarterlyKey: "plan_price_max_quarterly",
     creditsKey: "plan_ai_credits_max",
     isActiveKey: "plan_is_active_max",
     isFree: false,
@@ -60,7 +60,7 @@ function formatTokens(n: number) {
 
 type Draft = {
   monthly: string;
-  yearly: string;
+  quarterly: string;
   credits: string;
   is_active: boolean;
 };
@@ -68,7 +68,7 @@ type Draft = {
 function toDraft(settings: Record<string, string>, row: PlanRow): Draft {
   return {
     monthly: row.isFree ? "0" : (settings[row.monthlyKey] || "0"),
-    yearly: row.isFree ? "0" : (settings[row.yearlyKey] || "0"),
+    quarterly: row.isFree ? "0" : (settings[row.quarterlyKey] || "0"),
     credits: settings[row.creditsKey] || "0",
     is_active: settings[row.isActiveKey] === "1",
   };
@@ -78,7 +78,7 @@ function isSame(settings: Record<string, string>, row: PlanRow, draft: Draft) {
   const original = toDraft(settings, row);
   return (
     original.monthly === draft.monthly &&
-    original.yearly === draft.yearly &&
+    original.quarterly === draft.quarterly &&
     original.credits === draft.credits &&
     original.is_active === draft.is_active
   );
@@ -139,7 +139,7 @@ export function PlanPricingTable() {
     if (!draft) return;
 
     const monthly = parseFloat(draft.monthly);
-    const yearly = parseFloat(draft.yearly);
+    const quarterly = parseFloat(draft.quarterly);
     const credits = parseInt(draft.credits, 10);
 
     if (!row.isFree) {
@@ -147,8 +147,8 @@ export function PlanPricingTable() {
         emitUiError({ title: "Invalid monthly price", message: "Monthly price cannot be negative." });
         return;
       }
-      if (!Number.isFinite(yearly) || yearly < 0) {
-        emitUiError({ title: "Invalid yearly price", message: "Yearly price cannot be negative." });
+      if (!Number.isFinite(quarterly) || quarterly < 0) {
+        emitUiError({ title: "Invalid quarterly price", message: "Quarterly price cannot be negative." });
         return;
       }
     }
@@ -166,8 +166,8 @@ export function PlanPricingTable() {
         if (draft.monthly !== settings[row.monthlyKey]) {
           updates.push({ key: row.monthlyKey, value: draft.monthly });
         }
-        if (draft.yearly !== settings[row.yearlyKey]) {
-          updates.push({ key: row.yearlyKey, value: draft.yearly });
+        if (draft.quarterly !== settings[row.quarterlyKey]) {
+          updates.push({ key: row.quarterlyKey, value: draft.quarterly });
         }
       }
 
@@ -198,10 +198,10 @@ export function PlanPricingTable() {
           <Info size={14} className="shrink-0 mt-0.5" />
           <div>
             <p className="mb-1">
-              <strong>Plan Pricing:</strong> Configure monthly/yearly subscription prices (BDT) and monthly AI credit allowances for each user tier. Free tier is locked at ৳0.
+              <strong>Plan Pricing:</strong> Configure monthly/quarterly subscription prices (USD) and monthly AI credit allowances for each user tier. Free tier is locked at $0.
             </p>
             <p>
-              <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 tokens = $1.00</strong> of API usage. Set pack prices higher than API cost to maintain margin.
+              <strong>Pricing Guide:</strong> The internal base cost is <strong>10,000 credits = $1.00</strong> of API usage. Set plan prices higher than API cost to maintain margin.
             </p>
           </div>
         </div>
@@ -221,8 +221,8 @@ export function PlanPricingTable() {
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
               <tr>
                 <th className="px-3 py-3 w-[14%]">Plan</th>
-                <th className="px-3 py-3 w-[18%]">Monthly Price (৳)</th>
-                <th className="px-3 py-3 w-[18%]">Yearly Price (৳)</th>
+                <th className="px-3 py-3 w-[18%]">Monthly Price ($)</th>
+                <th className="px-3 py-3 w-[18%]">Quarterly Price ($)</th>
                 <th className="px-3 py-3 w-[22%]">Monthly AI Credits</th>
                 <th className="px-3 py-3 w-[8%]">Active</th>
                 <th className="px-3 py-3 w-[20%] text-right">Actions</th>
@@ -253,7 +253,7 @@ export function PlanPricingTable() {
                       </td>
                       <td className="px-3 py-3 min-w-0 align-middle">
                         <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                           <input
                             type="number"
                             min={0}
@@ -267,13 +267,13 @@ export function PlanPricingTable() {
                       </td>
                       <td className="px-3 py-3 min-w-0 align-middle">
                         <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">৳</span>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                           <input
                             type="number"
                             min={0}
                             step="0.01"
-                            value={draft.yearly}
-                            onChange={(e) => updateDraft(row.tier, { yearly: e.target.value })}
+                            value={draft.quarterly}
+                            onChange={(e) => updateDraft(row.tier, { quarterly: e.target.value })}
                             disabled={row.isFree}
                             className="w-full min-w-0 pl-6 pr-2 py-2 bg-white border border-slate-200/60 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all"
                           />

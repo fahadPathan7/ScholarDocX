@@ -767,7 +767,7 @@ export function ProjectWorkspace({
                   // fresh chat (no manual Send click needed). Action-oriented
                   // prompts still route through /ai/actions/plan with Confirm/Cancel.
                   window.dispatchEvent(new CustomEvent("scholardocx:open-ai", {
-                    detail: { contextMessage: message, autoSend: true, newChat: true }
+                    detail: { contextMessage: message, autoSend: true, newChat: true, forceAction: true }
                   }));
                 }}
                 onExportCsv={sheet.handleExportCsv}

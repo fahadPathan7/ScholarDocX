@@ -23,7 +23,7 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.9: Users with only admin roles and no user-tier role should see user-tier
   usage limits as zero in usage summaries.
 - FR-6.10: Users can request a renewal for their current plan using a monthly
-  or yearly billing cycle without replacing the active or expired plan record.
+  or quarterly billing cycle without replacing the active or expired plan record.
 - FR-6.11: Admin approval of a renewal must extend the current plan deadline
   from the approval timestamp when the existing plan has expired, or from the
   existing plan end date when it is still active.

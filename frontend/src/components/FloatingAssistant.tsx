@@ -164,6 +164,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   // startNewChat()/setInput are async state updates. We stash the text here
   // and a dedicated effect fires sendMessage(text) once state has settled.
   const pendingSendRef = useRef<string | null>(null);
+  // When true, the pending send bypasses looksLikeWorkspaceAction() and always
+  // routes to /ai/actions/plan. Set by Ask AI menu messages whose custom queries
+  // may not match the narrow frontend action-detection regex.
+  const forceActionRef = useRef(false);
 
   // Auto-scroll to bottom and auto-focus
   useEffect(() => {
@@ -185,6 +189,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         contextMessage?: string;
         autoSend?: boolean;
         newChat?: boolean;
+        forceAction?: boolean;
       };
       setOpen(true);
 
@@ -207,6 +212,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
           });
         }
         pendingSendRef.current = detail.contextMessage;
+        forceActionRef.current = !!detail.forceAction;
         setInput(detail.contextMessage); // shown in the composer while sending
       } else if (detail.contextMessage) {
         // Legacy pre-fill-only path (no auto-send).
@@ -245,8 +251,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     if (!open || loading) return;
     const text = pendingSendRef.current;
     if (!text) return;
+    const force = forceActionRef.current;
     pendingSendRef.current = null;
-    void sendMessage(text);
+    forceActionRef.current = false;
+    void sendMessage(text, force);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, loading, currentSession.id]);
 
@@ -439,11 +447,13 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   };
 
   // Send message
-  const sendMessage = async (overrideText?: unknown) => {
+  const sendMessage = async (overrideText?: unknown, forceAction?: boolean) => {
     // SCHOLARDOCX-0150: overrideText lets callers (e.g. the sheet Ask AI
     // menu) send immediately without waiting for the async setInput state
     // to flush. When omitted (or when React passes a MouseEvent from the
     // Send button / Enter handler), behaves exactly as before (reads `input`).
+    // forceAction: when true (set by Ask AI menu), always route to
+    // /ai/actions/plan regardless of the looksLikeWorkspaceAction regex.
     const override =
       typeof overrideText === "string" ? overrideText : undefined;
     const text = (override ?? input).trim();
@@ -507,7 +517,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     try {
       let response: RecordMap;
 
-      if (looksLikeWorkspaceAction(userMessage.content)) {
+      if (forceAction || looksLikeWorkspaceAction(userMessage.content)) {
         try {
           const actionPlan = await api.post<ActionPlan>("/ai/actions/plan", {
             message: userMessage.content,

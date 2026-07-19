@@ -303,12 +303,32 @@ no-migration variant for pre-existing tables.
 - `/auth/plans/requests` returns the current user's submitted plan requests so
   the plan UI can show request history and statuses
 - `/auth/plans/public` (GET, **anonymous**) returns the admin-configured
-  plans + pricing (limits per tier, monthly/yearly prices, monthly AI credits,
+  plans + pricing (limits per tier, monthly/quarterly prices, monthly AI credits,
   active flags) with **no** `get_current_user` dependency. It is the public
   source of truth the landing page `PricingSection` renders. It shares one
   assembly helper (`_assemble_public_plans`) with the auth-gated `/auth/plans`
   so the two endpoints can never drift. Exposes only marketing-safe data
   (plan limits/prices) — no per-user or private config.
+- `/auth/plans/checkout` (POST, SCHOLARDOCX-0156/0157) creates a Polar hosted
+  checkout session and returns `{status, url}`. The customer identifier sent to
+  Polar is derived from `current_user` — **never** from the client-supplied
+  `payload.customer_email`, which is spoofable. Returning customers
+  (`current_user["polar_customer_id"]` set) reuse their Polar customer via
+  `customer_id`; new customers get one created with the user UUID as
+  `external_customer_id` plus their account `customer_email`. Passing Polar a
+  known-customer identifier is what makes the hosted checkout page render the
+  email field **pre-filled AND disabled** (prevents email typos that would
+  otherwise break webhook reconciliation). `success_url` is validated against
+  the app's CORS origins (open-redirect guard); errors are generic (no provider
+  name / upstream body in user-facing copy). Full design: `billing-and-payments.md`.
+- `/webhooks/polar` (POST, anonymous, svix-signed) reconciles Polar events to
+  `users` rows. See `billing-and-payments.md` for the full contract
+  (idempotency, event routing, retry semantics). In short: signature is verified
+  before any write; events are deduped by svix message id (`polar_processed_events`);
+  user reconciliation is two-step — (1) `data.customer_id` → `Users.polar_customer_id`,
+  (2) on miss `data.customer.email` → `Users.email` then backfill — and a miss
+  raises 5xx so Polar retries. `subscription.canceled` keeps the plan until
+  period end; only `.revoked` downgrades immediately.
 - `/admin/plan-requests` returns both replacement upgrades and renewal
   requests and should support filtering by request type so admin permission
   checks can differ between upgrade review and extension review tabs

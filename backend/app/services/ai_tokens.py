@@ -22,7 +22,6 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-AI_TOKENS_FEATURE = "ai_tokens_per_month"
 PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
 USE_PACKS_FEATURE = "can_use_purchased_tokens"
 RATE_SETTING = "ai_token_rate_tokens_per_dollar"
@@ -652,7 +651,7 @@ def grant_purchased(
 # approval grants the pack's tokens to the user's purchased bucket.
 
 _PACK_SELECT = (
-    "SELECT id, code, display_name, token_amount, price_usd, is_active, sort_order "
+    "SELECT id, code, display_name, token_amount, price_usd, is_active, sort_order, polar_product_id "
     "FROM ai_token_packs"
 )
 
@@ -663,6 +662,7 @@ def _pack_row(row) -> dict:
         "code": row["code"],
         "display_name": row["display_name"],
         "token_amount": int(row["token_amount"]),
+        "polar_product_id": row["polar_product_id"],
         "price_usd": float(row["price_usd"]),
         "is_active": bool(int(row["is_active"])),
         "sort_order": int(row["sort_order"]),
@@ -701,6 +701,7 @@ def update_pack(
     token_amount: Optional[int] = None,
     price_usd: Optional[float] = None,
     is_active: Optional[bool] = None,
+    polar_product_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Super-admin pack config. Only provided fields are updated. Validates
     token_amount > 0 and price_usd >= 0. Returns the updated pack or None if the
@@ -727,6 +728,9 @@ def update_pack(
     if is_active is not None:
         fields.append("is_active = :is_active")
         params["is_active"] = 1 if is_active else 0
+    if polar_product_id is not None:
+        fields.append("polar_product_id = :polar_product_id")
+        params["polar_product_id"] = str(polar_product_id).strip()
 
     if fields:
         session.execute(

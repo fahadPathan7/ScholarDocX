@@ -3,6 +3,7 @@ import re
 import httpx
 import os
 import json
+import logging
 from collections import defaultdict
 from typing import Any, Optional, Literal
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,7 @@ from app.auth.dependencies import get_current_user, get_jwt_secret
 from app.auth.limits import feature_plan_phrase, get_primary_user_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 # All rate-limit thresholds/windows now live in the central registry
 # ``RATE_LIMIT_RULES`` in ``app/auth/rate_limit.py`` and are enforced through
@@ -409,31 +411,77 @@ def _assemble_public_plans(store: Store) -> dict:
 
 class PolarCheckoutPayload(BaseModel):
     product_id: str
-    customer_email: Optional[str] = None
+    customer_email: Optional[str] = None  # ignored — see SCHOLARDOCX-0156; kept for backward compat
     success_url: str
+
+
+def _is_allowlisted_success_url(url: str, settings: Settings) -> bool:
+    """True if `url`'s origin is a known app origin (CORS allowlist or regex).
+
+    Prevents open-redirect abuse where an authenticated client forwards an
+    arbitrary `success_url` to the payment provider, which then redirects the
+    buyer there post-payment. Matches the CORS origin semantics so the same
+    set of allowed origins governs both CORS and the checkout return URL.
+    (SCHOLARDOCX-0157)
+    """
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except (ValueError, AttributeError):
+        return False
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    if not origin or not parsed.scheme:
+        return False
+    if origin in settings.cors_origins:
+        return True
+    if settings.cors_origin_regex and re.match(settings.cors_origin_regex, origin):
+        return True
+    return False
+
 
 @router.post("/plans/checkout")
 async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dict = Depends(get_current_user)):
-    polar_token = os.environ.get("POLAR_ACCESS_TOKEN")
+    settings = get_settings()
+    polar_token = settings.polar_access_token
     if not polar_token:
-        raise HTTPException(status_code=500, detail="Polar integration is not configured.")
+        # Generic message — never surface the provider name to the user.
+        raise HTTPException(status_code=500, detail="Checkout is not configured.")
 
-    # Determine base URL by checking VITE_POLAR_URL or looking for sandbox in the token/env
-    polar_api_url = "https://sandbox-api.polar.sh/v1" if "sandbox" in os.environ.get("VITE_POLAR_URL", "sandbox") else "https://api.polar.sh/v1"
-    
-    # Actually, we should just use sandbox-api if VITE_POLAR_URL points to sandbox
-    if os.environ.get("VITE_POLAR_URL", "").find("sandbox") != -1:
-        polar_api_url = "https://sandbox-api.polar.sh/v1"
+    # SCHOLARDOCX-0157: validate success_url against the app's known origins so
+    # an authenticated client can't redirect a post-payment buyer to an
+    # arbitrary external host. Matches CORS allowlist + regex semantics.
+    if not _is_allowlisted_success_url(payload.success_url, settings):
+        raise HTTPException(status_code=400, detail="Return URL is not allowed.")
+
+    # Single source of truth for sandbox vs production. Previously there were
+    # two if/else blocks that disagreed on the unset default; the dead first
+    # block is removed. Default is production when POLAR_ENV/VITE_POLAR_URL do
+    # not explicitly opt into sandbox. (SCHOLARDOCX-0157)
+    polar_env = (settings.polar_env or os.environ.get("VITE_POLAR_URL", "")).lower()
+    polar_api_url = "https://sandbox-api.polar.sh/v1" if "sandbox" in polar_env else "https://api.polar.sh/v1"
+
+    # SCHOLARDOCX-0156: pass Polar a customer identifier derived from the
+    # authenticated user so the hosted checkout treats the customer as "known"
+    # and renders the email field pre-filled AND disabled. The authoritative
+    # source is `current_user` — NOT `payload.customer_email`, which is
+    # client-supplied and spoofable. Returning customers (with a stored
+    # polar_customer_id) reuse their Polar customer via `customer_id`; new
+    # customers get one created with our user UUID as `external_customer_id` plus
+    # their account email. See AI-Context/technical/api-boundaries.md
+    # (Polar billing) and webhooks.py for the matching reconciliation contract.
+    polar_customer_id = current_user.get("polar_customer_id")
+    req_body: dict = {
+        "product_id": payload.product_id,
+        "success_url": payload.success_url,
+    }
+    if polar_customer_id:
+        req_body["customer_id"] = polar_customer_id
     else:
-        # Default to production if not explicitly sandbox
-        polar_api_url = "https://api.polar.sh/v1"
+        req_body["external_customer_id"] = current_user["id"]
+        req_body["customer_email"] = current_user["email"]
 
     async with httpx.AsyncClient() as client:
-        req_body = {
-            "product_id": payload.product_id,
-            "success_url": payload.success_url
-        }
-
         response = await client.post(
             f"{polar_api_url}/checkouts/",
             json=req_body,
@@ -444,13 +492,25 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
         )
 
         if response.status_code not in (200, 201):
-            raise HTTPException(status_code=400, detail=f"Failed to create Polar checkout: {response.text}")
+            # Log the upstream body server-side for diagnosis; return a generic
+            # user-facing message. Never echo the provider name or upstream
+            # response to the client (AGENTS.md: no infrastructure exposure).
+            # (SCHOLARDOCX-0157)
+            logger.warning(
+                f"Checkout session creation failed: status={response.status_code} "
+                f"user={current_user.get('id')} body={response.text}"
+            )
+            raise HTTPException(status_code=400, detail="Checkout session could not be created.")
 
         data = response.json()
         if "url" not in data:
-            raise HTTPException(status_code=400, detail="Polar checkout response missing URL.")
+            logger.warning(
+                f"Checkout response missing URL: user={current_user.get('id')} keys={list(data.keys())}"
+            )
+            raise HTTPException(status_code=400, detail="Checkout session could not be created.")
 
         return {"status": "success", "url": data["url"]}
+
 
 @router.get("/plans/requests")
 def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

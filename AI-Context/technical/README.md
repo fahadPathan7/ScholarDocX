@@ -12,6 +12,7 @@ This folder explains how ScholarDocX should be built.
 - [api-boundaries.md](api-boundaries.md): frontend/backend/service boundaries.
 - [ai-integrations.md](ai-integrations.md): GLM and Tavily integration boundaries.
 - [authentication-and-identity.md](authentication-and-identity.md): optional auth, local profile, and Google OAuth architecture.
+- [billing-and-payments.md](billing-and-payments.md): Polar checkout + webhook reconciliation, idempotency, and secrets (SCHOLARDOCX-0156/0157).
 - [security-privacy.md](security-privacy.md): privacy and local safety rules.
 - [coding-standards.md](coding-standards.md): coding style and maintainability.
 - [file-size-and-modularity.md](file-size-and-modularity.md): 1000-line policy and split guidance.

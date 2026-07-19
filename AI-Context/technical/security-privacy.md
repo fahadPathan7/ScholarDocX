@@ -74,6 +74,36 @@ remain explicit user actions behind backend services.
   quota, and frontend controls are informational rather than the security
   boundary.
 
+## Polar Billing Security (SCHOLARDOCX-0156 / 0157)
+
+Full design in `billing-and-payments.md`. Security-relevant points:
+
+- **Secrets are server-side only.** `POLAR_ACCESS_TOKEN` (checkout creation
+  bearer key) and `POLAR_WEBHOOK_SECRET` (svix verification key) live on the
+  `Settings` class and are never exposed to the frontend. The checkout endpoint
+  proxies the provider call precisely so the token stays server-side.
+- **The webhook endpoint is anonymous and authenticated solely by signature.**
+  `/webhooks/polar` has NO `Depends(get_current_user)` — Polar cannot
+  authenticate. svix `Webhook.verify` runs BEFORE any DB write; a missing
+  `POLAR_WEBHOOK_SECRET` fails closed (500, never accept). svix natively
+  enforces `svix-id` / `svix-signature` / `svix-timestamp` presence and a ±5 min
+  replay window.
+- **`payload.customer_email` is untrusted.** The checkout endpoint ignores the
+  client-supplied email and derives the customer identity from `current_user`
+  (the authenticated session). A spoofed email cannot redirect a purchase onto
+  another user's account or unlock a different customer's history.
+- **`success_url` is allowlisted.** Before being forwarded to the provider it is
+  validated against `Settings.cors_origins` + `cors_origin_regex` — an
+  authenticated client cannot redirect a post-payment buyer to an arbitrary
+  external host (open-redirect / phishing guard).
+- **Webhook idempotency is enforced.** The `polar_processed_events` table dedups
+  by svix message id; retried deliveries cannot double-grant credits or
+  duplicate plan mutations. Handlers raise 5xx (so Polar retries) for
+  reconciliation misses and unknown products rather than silently returning 200.
+- **Error messages never leak the provider.** Checkout failures return a generic
+  user-facing detail; the provider name and upstream response body are logged
+  server-side only (AGENTS.md: no infrastructure exposure in UI copy).
+
 ## Authentication Rules
 
 - JWT signing keys are the root of all role guards. The secret must never be a

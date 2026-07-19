@@ -75,10 +75,11 @@ backend/
   requirements.txt
   pytest.ini
   app/
-    api/
-    core/
-    db/
-    services/
+    api/         # auth.py (auth + plans + checkout), webhooks.py (Polar svix),
+                 # admin.py, ai_tokens.py, dependencies.py, ...
+    core/        # config.py (Settings incl. polar_*), compat.py
+    db/          # models.py (SQLAlchemy), connection.py (init + migrations), schema.py (seed SQL)
+    services/    # store.py, ai_tokens.py (grant_purchased), admin.py, ...
   tests/
 
 workspace/

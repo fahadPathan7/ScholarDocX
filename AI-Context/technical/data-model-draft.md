@@ -458,3 +458,39 @@ Notes:
 - Rows are user-scoped and deleted with the owning local user.
 - Previewing does not create a row. A row is created when the user confirms a
   query, then updated with success/failure and result count.
+
+## billing (Polar) — SCHOLARDOCX-0156 / 0157
+
+External billing is handled by Polar; this section documents only the
+ScholarDocX-side columns/tables that carry Polar linkage. Full design in
+`billing-and-payments.md`.
+
+`users` columns added for billing (existing table — see `app/db/models.py:Users`):
+
+- polar_customer_id (Text, nullable) — Polar's customer id; backfilled on first
+  webhook match. Primary reconciliation key.
+- polar_subscription_id (Text, nullable) — Polar subscription id (null for
+  pack-only buyers).
+- polar_cancel_at_period_end (Integer, default 0) — 1 when a scheduled cancel
+  (`subscription.canceled`) was received.
+- plan_started_at (DateTime, nullable) — anchor for the monthly AI-credit cycle
+  (`ai_tokens._current_period`). Set only on a genuine new subscription or after
+  a lapse — NOT reset on every webhook.
+- plan_renews_at (DateTime, nullable) — `current_period_end` while the
+  subscription is active.
+- plan_ends_at (DateTime, nullable) — `current_period_end` while scheduled to
+  cancel; set to now on revoke.
+
+`polar_processed_events` (new, SCHOLARDOCX-0157) — webhook idempotency log:
+
+- id (String(36), PK)
+- event_id (Text, UNIQUE) — svix message id (`svix-id` header) or Polar object id
+- event_type (Text, nullable)
+- processed_at (DateTime)
+
+Notes:
+
+- `polar_customer_id` is the primary reconciliation key; the email fallback
+  exists so first-purchase events still match before the id is backfilled.
+- `polar_processed_events` is append-only; the unique constraint on `event_id`
+  is the dedup point for retried deliveries.

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot } from "lucide-react";
 import { api } from "../lib/api";
+import { emitUiError } from "../lib/uiError";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
 
@@ -141,16 +142,15 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       setPolarLoading(true);
       const res = await api.post<{ url: string }>("/auth/plans/checkout", {
         product_id: polarId,
-        customer_email: user?.email,
         success_url: window.location.href,
       });
       if (res.url) {
         window.location.href = res.url;
       }
     } catch (e) {
-      console.error("Polar checkout error:", e);
-      const detail = e.response?.data?.detail || e.message;
-      alert("Failed to initialize checkout session: " + detail);
+      console.error("Checkout error:", e);
+      emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+    } finally {
       setPolarLoading(false);
     }
   };

@@ -16,6 +16,28 @@ class AppSettings(Base):
     key: Mapped[Optional[str]] = mapped_column(Text, primary_key=True)
 
 
+class PolarProcessedEvents(Base):
+    """Idempotency log for Polar webhooks (SCHOLARDOCX-0157).
+
+    Polar retries undelivered webhooks; without a processed-event guard a single
+    order.created / subscription.updated event would grant credits or mutate plan
+    state N times. The `event_id` is the svix message id (`svix-id` header) when
+    present, falling back to the Polar object id (`data.id`). The unique
+    constraint makes the insert the dedup point: a second insert for the same
+    event_id raises, which the webhook handler treats as "already processed".
+    """
+    __tablename__ = 'polar_processed_events'
+    __table_args__ = (
+        UniqueConstraint('event_id'),
+        Index('idx_polar_processed_events_event_id', 'event_id'),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+    event_id: Mapped[str] = mapped_column(Text, nullable=False)
+    event_type: Mapped[Optional[str]] = mapped_column(Text)
+    processed_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class InviteCodes(Base):
     __tablename__ = 'invite_codes'
     __table_args__ = (

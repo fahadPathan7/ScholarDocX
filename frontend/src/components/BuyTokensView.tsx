@@ -138,15 +138,15 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       setPolarLoading(code);
       const res = await api.post<{ url: string }>("/auth/plans/checkout", {
         product_id: polarId,
-        customer_email: user?.email,
         success_url: window.location.href,
       });
       if (res.url) {
         window.location.href = res.url;
       }
     } catch (e) {
-      console.error("Polar checkout error:", e);
+      console.error("Checkout error:", e);
       emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+    } finally {
       setPolarLoading(null);
     }
   };

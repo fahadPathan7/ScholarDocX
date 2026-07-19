@@ -42,6 +42,13 @@ class Settings:
         self.groq_base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
         self.mistral_api_key = os.getenv("MISTRAL_API_KEY", "")
         self.mistral_base_url = os.getenv("MISTRAL_BASE_URL", "https://api.mistral.ai/v1/chat/completions")
+        # SCHOLARDOCX-0157: Polar billing config. polar_env drives sandbox vs
+        # production API base; "sandbox" anywhere in the value selects the
+        # sandbox API. Kept independent of VITE_POLAR_URL (a frontend-prefixed
+        # var) so backend and frontend can be configured separately.
+        self.polar_access_token = os.getenv("POLAR_ACCESS_TOKEN", "")
+        self.polar_webhook_secret = os.getenv("POLAR_WEBHOOK_SECRET", "")
+        self.polar_env = os.getenv("POLAR_ENV", "")
         self.cors_origins = [
             origin.strip()
             for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")

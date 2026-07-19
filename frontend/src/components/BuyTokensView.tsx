@@ -10,6 +10,7 @@ import {
   Sparkles,
   Wallet,
   XCircle,
+  ShoppingCart,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
@@ -87,6 +88,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>("packs");
+  const [polarLoading, setPolarLoading] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -128,6 +130,24 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       emitUiError({ title: "Request failed", message: error?.message || "Couldn't submit request." });
     } finally {
       setSubmitting(null);
+    }
+  };
+
+  const handlePolarCheckout = async (polarId: string, code: string) => {
+    try {
+      setPolarLoading(code);
+      const res = await api.post<{ url: string }>("/auth/plans/checkout", {
+        product_id: polarId,
+        customer_email: user?.email,
+        success_url: window.location.href,
+      });
+      if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (e) {
+      console.error("Polar checkout error:", e);
+      emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+      setPolarLoading(null);
     }
   };
 
@@ -349,24 +369,26 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
 
                     {(() => {
-                      // Use the array index + 1 to map to the 4 configured Polar slots
-                      const polarId = pricing[`polar_extra_credits_id_${idx + 1}`] || null;
-                      const polarBase = import.meta.env.VITE_POLAR_URL || "https://polar.sh";
-                      const polarUrl = polarId && user?.email 
-                        ? `${polarBase}/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
-                        : null;
-
-                      if (polarUrl) {
+                      const polarId = pricing[`polar_extra_credits_id_${idx + 1}`];
+                      if (polarId) {
                         return (
-                          <>
-                            <a
-                              href={polarUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`w-full py-3 px-4 rounded-xl font-bold transition-all shadow-sm text-center border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-700`}
+                          <div className="space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => handlePolarCheckout(polarId, pack.code)}
+                              disabled={polarLoading === pack.code || submitting === pack.code}
+                              className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl font-semibold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Buy Online via Polar
-                            </a>
+                              <ShoppingCart size={16} className="mr-2" />
+                              {polarLoading === pack.code ? "Redirecting..." : "Buy via Polar"}
+                            </button>
+                            
+                            <div className="relative flex py-1 items-center">
+                              <div className="flex-grow border-t border-slate-200"></div>
+                              <span className="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">or request manual</span>
+                              <div className="flex-grow border-t border-slate-200"></div>
+                            </div>
+
                             <button
                               onClick={() => handleRequest(pack.code)}
                               disabled={submitting === pack.code || justDone}
@@ -374,7 +396,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                             >
                               {submitting === pack.code ? "Requesting…" : justDone ? "Requested ✓" : "Request from Admin"}
                             </button>
-                          </>
+                          </div>
                         );
                       }
 

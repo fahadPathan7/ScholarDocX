@@ -69,6 +69,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const [requestMode, setRequestMode] = useState<"choose" | "admin">("choose");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [polarLoading, setPolarLoading] = useState(false);
   const [isQuarterly, setIsQuarterly] = useState(false);
 
   const openRequestModal = (plan: string, type: PlanRequestType) => {
@@ -132,6 +133,24 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       fetchRequests();
     } catch (err) {
       console.error("Failed to cancel plan request", err);
+    }
+  };
+
+  const handlePolarCheckout = async (polarId: string) => {
+    try {
+      setPolarLoading(true);
+      const res = await api.post<{ url: string }>("/auth/plans/checkout", {
+        product_id: polarId,
+        customer_email: user?.email,
+        success_url: window.location.href,
+      });
+      if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (e) {
+      console.error("Polar checkout error:", e);
+      alert("Failed to initialize checkout session. Please try again.");
+      setPolarLoading(false);
     }
   };
 
@@ -526,23 +545,22 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
 
                 {(() => {
                   const polarId = getPolarProductId(requestPlan);
-                  const polarBase = import.meta.env.VITE_POLAR_URL || "https://polar.sh";
-                  const polarUrl = polarId && user?.email 
-                    ? `${polarBase}/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
-                    : null;
-                  
-                  if (polarUrl && requestMode === "choose") {
+                  if (polarId && requestMode === "choose") {
                     return (
                       <div className="space-y-4">
-                        <a 
-                          href={polarUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 transition-colors group cursor-pointer text-center"
+                        <button 
+                          type="button"
+                          onClick={() => handlePolarCheckout(polarId)}
+                          disabled={polarLoading}
+                          className="w-full flex flex-col items-center justify-center p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 hover:bg-emerald-100 transition-colors group cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <span className="font-bold text-emerald-700 mb-1">Subscribe Online</span>
-                          <span className="text-xs text-emerald-600 font-medium">Instant activation via secure checkout</span>
-                        </a>
+                          <span className="font-bold text-emerald-700 mb-1">
+                            {polarLoading ? "Redirecting to Checkout..." : "Subscribe Online"}
+                          </span>
+                          {!polarLoading && (
+                            <span className="text-xs text-emerald-600 font-medium">Instant activation via secure checkout</span>
+                          )}
+                        </button>
                         
                         <div className="relative flex py-2 items-center">
                           <div className="flex-grow border-t border-slate-200"></div>

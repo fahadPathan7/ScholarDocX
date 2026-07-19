@@ -1,5 +1,7 @@
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import re
+import httpx
+import os
 import json
 from collections import defaultdict
 from typing import Any, Optional, Literal
@@ -404,6 +406,53 @@ def _assemble_public_plans(store: Store) -> dict:
     pricing.setdefault("plan_price_max_quarterly", "1500")
 
     return {"status": "success", "plans": filtered_plans, "pricing": pricing}
+
+class PolarCheckoutPayload(BaseModel):
+    product_id: str
+    customer_email: Optional[str] = None
+    success_url: str
+
+@router.post("/plans/checkout")
+async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dict = Depends(get_current_user)):
+    polar_token = os.environ.get("POLAR_ACCESS_TOKEN")
+    if not polar_token:
+        raise HTTPException(status_code=500, detail="Polar integration is not configured.")
+
+    # Determine base URL by checking VITE_POLAR_URL or looking for sandbox in the token/env
+    polar_api_url = "https://sandbox-api.polar.sh/v1" if "sandbox" in os.environ.get("VITE_POLAR_URL", "sandbox") else "https://api.polar.sh/v1"
+    
+    # Actually, we should just use sandbox-api if VITE_POLAR_URL points to sandbox
+    if os.environ.get("VITE_POLAR_URL", "").find("sandbox") != -1:
+        polar_api_url = "https://sandbox-api.polar.sh/v1"
+    else:
+        # Default to production if not explicitly sandbox
+        polar_api_url = "https://api.polar.sh/v1"
+
+    async with httpx.AsyncClient() as client:
+        req_body = {
+            "products": [payload.product_id],
+            "success_url": payload.success_url
+        }
+        if payload.customer_email:
+            req_body["customer_email"] = payload.customer_email
+
+        response = await client.post(
+            f"{polar_api_url}/checkouts/custom/",
+            json=req_body,
+            headers={
+                "Authorization": f"Bearer {polar_token}",
+                "Content-Type": "application/json"
+            }
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Failed to create Polar checkout: {response.text}")
+
+        data = response.json()
+        if "url" not in data:
+            raise HTTPException(status_code=400, detail="Polar checkout response missing URL.")
+
+        return {"status": "success", "url": data["url"]}
 
 @router.get("/plans/requests")
 def list_my_plan_requests(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

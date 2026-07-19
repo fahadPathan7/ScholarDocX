@@ -32,7 +32,10 @@ Admins see/manage $; users see/spend tokens.
   is_active, sort_order)`.
 - `ai_token_purchase_requests(user_id, pack_id, status, requested_at,
   reviewed_at/by, admin_notes)`.
-- `role_limits` reuse: feature `ai_tokens_per_month` (reset_period `monthly`).
+- `app_settings` (monthly AI credit allowance, SCHOLARDOCX-0140/0155): keys
+  `plan_ai_credits_<tier>` (free/general/pro/max). Edited in Settings → Plan
+  Pricing. The legacy `role_limits.ai_tokens_per_month` row is purged on every
+  `initialize_database()` and is no longer surfaced in the Role Limits admin UI.
 - `app_settings`: `ai_token_rate_tokens_per_dollar`.
 
 ## Billing Service — `app/services/ai_tokens.py`

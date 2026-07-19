@@ -68,13 +68,13 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const [requestType, setRequestType] = useState<PlanRequestType>("upgrade");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isYearly, setIsYearly] = useState(false);
+  const [isQuarterly, setIsQuarterly] = useState(false);
 
   const openRequestModal = (plan: string, type: PlanRequestType) => {
     setRequestPlan(plan);
     setRequestType(type);
     setMessage("");
-    setIsYearly(false);
+    setIsQuarterly(false);
   };
 
   const closeRequestModal = () => {
@@ -91,7 +91,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       const res = await api.post<{ message: string }>("/auth/plans/request", {
         requested_plan: requestPlan,
         request_type: requestType,
-        billing_cycle: isYearly ? "yearly" : "monthly",
+        billing_cycle: isQuarterly ? "quarterly" : "monthly",
         message
       });
       if (onToast) onToast(res.message);
@@ -259,16 +259,16 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
           {activeView === "plans" && (
             <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 shadow-inner">
               <button
-                onClick={() => setIsYearly(false)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${!isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setIsQuarterly(false)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${!isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Monthly
               </button>
               <button
-                onClick={() => setIsYearly(true)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${isYearly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
+                onClick={() => setIsQuarterly(true)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
               >
-                Yearly
+                Quarterly
               </button>
             </div>
           )}
@@ -308,7 +308,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                 type PlanConfigType = {
                   name: string;
                   monthlyPrice: string;
-                  yearlyPrice: string;
+                  quarterlyPrice: string;
                   description: string;
                   colorClass: string;
                   activeColorClass: string;
@@ -322,7 +322,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   free_user: {
                     name: 'Free',
                     monthlyPrice: '0',
-                    yearlyPrice: '0',
+                    quarterlyPrice: '0',
                     description: 'Basic plan to explore features.',
                     colorClass: 'bg-white border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-350 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-white border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -334,7 +334,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   general_user: {
                     name: 'General',
                     monthlyPrice: pricing?.plan_price_general_monthly || '0',
-                    yearlyPrice: pricing?.plan_price_general_yearly || '0',
+                    quarterlyPrice: pricing?.plan_price_general_quarterly || '0',
                     description: 'Essential features to get started.',
                     colorClass: 'bg-[#f4f7ff] border border-blue-200/60 shadow-sm hover:shadow-md hover:border-blue-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f4f7ff] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -346,7 +346,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   pro_user: {
                     name: 'Pro',
                     monthlyPrice: pricing?.plan_price_pro_monthly || '50',
-                    yearlyPrice: pricing?.plan_price_pro_yearly || '500',
+                    quarterlyPrice: pricing?.plan_price_pro_quarterly || '500',
                     description: 'For power users with latest AI.',
                     colorClass: 'bg-[#f2faf5] border border-emerald-200/60 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f2faf5] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -358,7 +358,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   max_user: {
                     name: 'Max',
                     monthlyPrice: pricing?.plan_price_max_monthly || '180',
-                    yearlyPrice: pricing?.plan_price_max_yearly || '1500',
+                    quarterlyPrice: pricing?.plan_price_max_quarterly || '1500',
                     description: 'Unlimited power and maximum storage.',
                     colorClass: 'bg-slate-900 border border-slate-800/80 text-white hover:border-indigo-500/30 shadow-lg transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-400 bg-slate-900 border-transparent scale-[1.02] text-white shadow-2xl shadow-emerald-500/20 transition-all duration-300',
@@ -404,11 +404,11 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     <div className="relative z-10 mb-4 border-b border-slate-100 dark:border-slate-800/20 pb-3">
                       <div className="flex items-baseline gap-1.5">
                         <span className={`text-4xl font-black tracking-tight ${role === 'max_user' ? 'text-white' : planConfig.numericClass}`}>
-                          {!isYearly ? planConfig.monthlyPrice : planConfig.yearlyPrice}
+                          {!isQuarterly ? planConfig.monthlyPrice : planConfig.quarterlyPrice}
                         </span>
                         <span className={`text-xs font-extrabold uppercase tracking-wide ${role === 'max_user' ? 'text-indigo-400' : 'text-slate-500'}`}>BDT</span>
                         <span className={`text-xs font-semibold ${role === 'max_user' ? 'text-slate-400' : 'text-slate-500'}`}>
-                          /{!isYearly ? "mo" : "yr"}
+                          /{!isQuarterly ? "mo" : "qtr"}
                         </span>
                       </div>
                     </div>
@@ -495,20 +495,20 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-semibold text-slate-700">Billing Cycle</label>
                       <select
-                        value={isYearly ? "yearly" : "monthly"}
-                        onChange={(e) => setIsYearly(e.target.value === "yearly")}
+                        value={isQuarterly ? "quarterly" : "monthly"}
+                        onChange={(e) => setIsQuarterly(e.target.value === "quarterly")}
                         className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block px-3 py-1.5 outline-none"
                       >
                         <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
+                        <option value="quarterly">Quarterly</option>
                       </select>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                       <span className="text-sm font-medium text-slate-600">Total Price</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        {requestPlan === "general_user" ? (isYearly ? `${pricing?.plan_price_general_yearly || '0'} BDT` : `${pricing?.plan_price_general_monthly || '0'} BDT`) :
-                          requestPlan === "pro_user" ? (isYearly ? `${pricing?.plan_price_pro_yearly || '500'} BDT` : `${pricing?.plan_price_pro_monthly || '50'} BDT`) :
-                            (isYearly ? `${pricing?.plan_price_max_yearly || '1500'} BDT` : `${pricing?.plan_price_max_monthly || '180'} BDT`)}
+                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '0'} BDT` : `${pricing?.plan_price_general_monthly || '0'} BDT`) :
+                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '500'} BDT` : `${pricing?.plan_price_pro_monthly || '50'} BDT`) :
+                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '1500'} BDT` : `${pricing?.plan_price_max_monthly || '180'} BDT`)}
                       </span>
                     </div>
                   </div>

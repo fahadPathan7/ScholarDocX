@@ -33,12 +33,18 @@ def test_seed_defaults(tmp_path):
         packs = db.execute(
             "SELECT code, token_amount, price_usd FROM ai_token_packs ORDER BY sort_order"
         ).fetchall()
-        allowance = dict(
-            (r["role"], r["limit_count"])
+        # SCHOLARDOCX-0140: monthly AI credit allowance moved from role_limits
+        # (ai_tokens_per_month) to app_settings (plan_ai_credits_<tier>).
+        credit_keys = {
+            r["key"]
             for r in db.execute(
-                "SELECT role, limit_count FROM role_limits WHERE feature='ai_tokens_per_month'"
+                "SELECT key FROM app_settings WHERE key LIKE 'plan_ai_credits_%'"
             ).fetchall()
-        )
+        }
+        # SCHOLARDOCX-0154: the legacy role_limits row is purged on init.
+        legacy_count = db.execute(
+            "SELECT COUNT(*) FROM role_limits WHERE feature='ai_tokens_per_month'"
+        ).fetchone()[0]
 
     assert int(rate) == 10000
     assert [dict(p) for p in packs] == [
@@ -47,7 +53,15 @@ def test_seed_defaults(tmp_path):
         {"code": "large", "token_amount": 1500000, "price_usd": 100.0},
         {"code": "extra_large", "token_amount": 5000000, "price_usd": 300.0},
     ]
-    assert allowance["general_user"] == 500000
+    # All four per-tier credit keys must exist (values are admin-editable, so we
+    # only assert presence, not the specific seeded default).
+    assert credit_keys == {
+        "plan_ai_credits_free",
+        "plan_ai_credits_general",
+        "plan_ai_credits_pro",
+        "plan_ai_credits_max",
+    }
+    assert legacy_count == 0
 
 
 # ── compute_cost ─────────────────────────────────────────────────────────────

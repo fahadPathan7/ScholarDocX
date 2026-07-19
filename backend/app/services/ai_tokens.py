@@ -22,7 +22,6 @@ from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-AI_TOKENS_FEATURE = "ai_tokens_per_month"
 PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
 USE_PACKS_FEATURE = "can_use_purchased_tokens"
 RATE_SETTING = "ai_token_rate_tokens_per_dollar"

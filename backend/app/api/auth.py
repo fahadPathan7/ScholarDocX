@@ -58,7 +58,7 @@ class ChangePasswordPayload(BaseModel):
 class PlanRequestPayload(BaseModel):
     requested_plan: str
     request_type: Literal["upgrade", "extension"] = "upgrade"
-    billing_cycle: Literal["monthly", "yearly"] = "monthly"
+    billing_cycle: Literal["monthly", "quarterly"] = "monthly"
     message: Optional[str] = ""
 
 class InviteRequestPayload(BaseModel):
@@ -395,11 +395,11 @@ def _assemble_public_plans(store: Store) -> dict:
 
     # Defaults in case not in DB yet
     pricing.setdefault("plan_price_general_monthly", "0")
-    pricing.setdefault("plan_price_general_yearly", "0")
+    pricing.setdefault("plan_price_general_quarterly", "0")
     pricing.setdefault("plan_price_pro_monthly", "50")
-    pricing.setdefault("plan_price_pro_yearly", "500")
+    pricing.setdefault("plan_price_pro_quarterly", "500")
     pricing.setdefault("plan_price_max_monthly", "180")
-    pricing.setdefault("plan_price_max_yearly", "1500")
+    pricing.setdefault("plan_price_max_quarterly", "1500")
 
     return {"status": "success", "plans": filtered_plans, "pricing": pricing}
 

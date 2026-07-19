@@ -125,6 +125,43 @@ def initialize_database(database_url: str) -> None:
         conn.execute(text("DELETE FROM app_settings WHERE key = 'jwt_secret_key'"))
         _seed_role_limits(conn)
         _seed_ai_token_defaults(conn)
+        _migrate_yearly_to_quarterly(conn)
+        _drop_legacy_ai_tokens_role_limit(conn)
+
+
+def _migrate_yearly_to_quarterly(conn) -> None:
+    """Rename the legacy 'yearly' billing cycle to 'quarterly' (SCHOLARDOCX-0154).
+
+    The user-facing billing cycle changed from yearly to quarterly. Old installs
+    still carry plan_price_*_yearly app_settings keys and plan_upgrade_requests
+    rows with billing_cycle='yearly'. This idempotent block, run on every
+    initialize_database(), drops the stale keys (the updated SEED_SQL inserts the
+    *_quarterly replacements) and backfills stored request rows. Safe to repeat:
+    both statements are no-ops once nothing matches.
+    """
+    conn.execute(
+        text(
+            "DELETE FROM app_settings WHERE key IN ("
+            "'plan_price_general_yearly', 'plan_price_pro_yearly', 'plan_price_max_yearly'"
+            ")"
+        )
+    )
+    conn.execute(
+        text("UPDATE plan_upgrade_requests SET billing_cycle = 'quarterly' WHERE billing_cycle = 'yearly'")
+    )
+
+
+def _drop_legacy_ai_tokens_role_limit(conn) -> None:
+    """Remove the legacy ai_tokens_per_month role_limits rows (SCHOLARDOCX-0154).
+
+    SCHOLARDOCX-0140 moved the monthly AI credit allowance from role_limits
+    (feature 'ai_tokens_per_month') to app_settings keys plan_ai_credits_<tier>,
+    managed in the admin Settings -> Plan Pricing table. DEFAULT_ROLE_LIMITS no
+    longer seeds this feature, but upgraded installs still carry the stale row.
+    This idempotent block, run on every initialize_database(), deletes it so it
+    no longer appears in Role Limits. Safe to repeat: no-op once the row is gone.
+    """
+    conn.execute(text("DELETE FROM role_limits WHERE feature = 'ai_tokens_per_month'"))
 
 
 def _seed_role_limits(conn) -> None:

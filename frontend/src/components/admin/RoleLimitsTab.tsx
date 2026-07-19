@@ -95,11 +95,6 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       resetInfo: "Resets when the user starts a new conversation or closes the current chat session.",
       example: "If limit is 10, user can send 10 messages per conversation. Starting a new conversation resets the counter to 0."
     },
-    ai_tokens_per_month: {
-      description: "Monthly AI credit grant for this role. Each model call is metered at the model's per-1M-token input/output price and deducted from this allowance as credits (at the configurable credits-per-dollar rate).",
-      resetInfo: "Resets on the 1st of each month at midnight UTC. Unused subscription credits do NOT roll over. Purchased credits (bought via packs) never expire and are consumed after this allowance.",
-      example: "If the allowance is 500,000 credits, the user can spend up to that much metered AI usage this month. When it runs out, actions are blocked until they buy more credits or the allowance resets."
-    },
     web_searches_per_day: {
       description: "Limits the number of web search requests per day.",
       resetInfo: "Resets daily at midnight UTC (00:00 UTC).",
@@ -173,7 +168,6 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
     {
       name: "AI Credits",
       features: [
-        { key: "ai_tokens_per_month", label: "Monthly AI Credit Allowance", format: (v: number) => v === -1 ? "Unlimited" : formatTokenCount(v), description: "Monthly AI credit grant for this role. Each model call is metered at its per-1M-token price and deducted as credits. Resets monthly with no rollover; purchased credits (never expire) are used after this allowance." },
         { key: "can_purchase_token_packs", label: "Can Purchase Extra AI Credit Packs", description: "Controls whether users on this plan can buy extra AI credit packs (Small / Medium / Large). Default ON for Pro and Max, OFF for Free and General. When OFF, the Buy Credits flow shows an upgrade upsell instead of the pack list." },
         { key: "can_use_purchased_tokens", label: "Can Use Purchased AI Credits", description: "Controls whether users on this plan can consume their purchased extra AI credits. Default ON for Pro and Max, OFF for Free and General. When OFF, purchased credits are locked and unusable until the user upgrades." }
       ]

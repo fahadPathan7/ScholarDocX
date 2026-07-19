@@ -45,7 +45,7 @@ export type TierPresentation = {
   variant: "default" | "popular" | "premium";
   badge?: string;
   /** Free-form period suffix shown next to the price. */
-  period: { monthly: string; yearly: string };
+  period: { monthly: string; quarterly: string };
 };
 
 /** Order in which cards render. Kept static so the grid is stable. */
@@ -63,14 +63,14 @@ export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
     name: "Free Plan",
     desc: "Perfect for starting out and trying application tracking features.",
     variant: "default",
-    period: { monthly: "/ forever", yearly: "/ forever" },
+    period: { monthly: "/ forever", quarterly: "/ forever" },
   },
   general_user: {
     tier: "general_user",
     name: "General User",
     desc: "Great for applicants tracking up to a dozen programs and deadlines.",
     variant: "default",
-    period: { monthly: "/ month", yearly: "/ year" },
+    period: { monthly: "/ month", quarterly: "/ quarter" },
   },
   pro_user: {
     tier: "pro_user",
@@ -78,7 +78,7 @@ export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
     desc: "For candidates applying to multiple top-tier programs.",
     variant: "popular",
     badge: "Popular",
-    period: { monthly: "/ month", yearly: "/ year" },
+    period: { monthly: "/ month", quarterly: "/ quarter" },
   },
   max_user: {
     tier: "max_user",
@@ -86,7 +86,7 @@ export const TIER_PRESENTATION: Record<TierKey, TierPresentation> = {
     desc: "No boundaries. Designed for absolute power-users and collaborative labs.",
     variant: "premium",
     badge: "Ultimate",
-    period: { monthly: "/ month", yearly: "/ year" },
+    period: { monthly: "/ month", quarterly: "/ quarter" },
   },
 };
 
@@ -162,7 +162,7 @@ export function resolveFeatureLines(limits: PlanLimits): string[] {
 export function resolvePrice(
   tier: TierKey,
   pricing: PricingResponse,
-  cycle: "monthly" | "yearly"
+  cycle: "monthly" | "quarterly"
 ): string {
   // Free tier is always 0 BDT regardless of admin config (it's "free forever").
   if (tier === "free_user") return "0 BDT";

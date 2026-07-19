@@ -303,7 +303,7 @@ no-migration variant for pre-existing tables.
 - `/auth/plans/requests` returns the current user's submitted plan requests so
   the plan UI can show request history and statuses
 - `/auth/plans/public` (GET, **anonymous**) returns the admin-configured
-  plans + pricing (limits per tier, monthly/yearly prices, monthly AI credits,
+  plans + pricing (limits per tier, monthly/quarterly prices, monthly AI credits,
   active flags) with **no** `get_current_user` dependency. It is the public
   source of truth the landing page `PricingSection` renders. It shares one
   assembly helper (`_assemble_public_plans`) with the auth-gated `/auth/plans`

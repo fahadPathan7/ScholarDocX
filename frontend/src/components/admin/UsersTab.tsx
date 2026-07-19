@@ -105,7 +105,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editingMode, setEditingMode] = useState<"user" | "admin" | null>(null);
-  const [editPlanDuration, setEditPlanDuration] = useState<"1_month" | "1_year" | "custom">("1_month");
+  const [editPlanDuration, setEditPlanDuration] = useState<"1_month" | "1_quarter" | "custom">("1_month");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
@@ -120,7 +120,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [createPassword, setCreatePassword] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
   const [createRoles, setCreateRoles] = useState<string[]>(["general_user"]);
-  const [planDuration, setPlanDuration] = useState<"1_month" | "1_year" | "custom">("1_month");
+  const [planDuration, setPlanDuration] = useState<"1_month" | "1_quarter" | "custom">("1_month");
   const [createCustomStart, setCreateCustomStart] = useState("");
   const [createCustomEnd, setCreateCustomEnd] = useState("");
 
@@ -353,7 +353,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
           payload.plan_start_date = customStartDate;
           payload.plan_end_date = customEndDate;
         } else {
-          payload.plan_duration_days = editPlanDuration === "1_month" ? 30 : 365;
+          payload.plan_duration_days = editPlanDuration === "1_month" ? 30 : 90;
         }
       }
 
@@ -874,7 +874,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                             <div className="flex gap-2">
                               {[
                                 { value: "1_month" as const, label: "1 Month", icon: Clock },
-                                { value: "1_year" as const, label: "1 Year", icon: Calendar },
+                                { value: "1_quarter" as const, label: "1 Quarter", icon: Calendar },
                                 { value: "custom" as const, label: "Custom", icon: Calendar },
                               ].map((option) => (
                                 <label
@@ -1017,7 +1017,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                         <div className="flex gap-2">
                           {[
                             { value: "1_month" as const, label: "1 Month", icon: Clock },
-                            { value: "1_year" as const, label: "1 Year", icon: Calendar },
+                            { value: "1_quarter" as const, label: "1 Quarter", icon: Calendar },
                             { value: "custom" as const, label: "Custom", icon: Calendar },
                           ].map((option) => (
                             <label

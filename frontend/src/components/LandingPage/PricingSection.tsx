@@ -29,7 +29,7 @@ import "./PricingSection.css";
 type FallbackPlan = {
   tier: TierKey;
   monthly: string;
-  yearly: string;
+  quarterly: string;
   features: string[];
 };
 
@@ -37,7 +37,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "free_user",
     monthly: "0 BDT",
-    yearly: "0 BDT",
+    quarterly: "0 BDT",
     features: [
       "1 Active Project Workspace",
       "1 Tracker Sheet",
@@ -48,7 +48,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "general_user",
     monthly: "0 BDT",
-    yearly: "0 BDT",
+    quarterly: "0 BDT",
     features: [
       "3 Active Project Workspaces",
       "3 Sheets per Project",
@@ -60,7 +60,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "pro_user",
     monthly: "50 BDT",
-    yearly: "500 BDT",
+    quarterly: "500 BDT",
     features: [
       "10 Active Project Workspaces",
       "10 Sheets per Project",
@@ -72,7 +72,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
   {
     tier: "max_user",
     monthly: "180 BDT",
-    yearly: "1500 BDT",
+    quarterly: "1500 BDT",
     features: [
       "Unlimited Projects & Sheets",
       "Unlimited Storage",
@@ -86,7 +86,7 @@ const FALLBACK_PLANS: FallbackPlan[] = [
 type LoadState = "loading" | "success" | "fallback";
 
 export function PricingSection() {
-  const [isYearly, setIsYearly] = useState(false);
+  const [isQuarterly, setIsQuarterly] = useState(false);
   const headerRef = useReveal<HTMLDivElement>();
   const gridRef = useReveal<HTMLDivElement>();
 
@@ -151,17 +151,17 @@ export function PricingSection() {
           <div className="lp-pricing-toggle-track">
             <button
               type="button"
-              className={`lp-pricing-toggle-btn${!isYearly ? " active" : ""}`}
-              onClick={() => setIsYearly(false)}
+              className={`lp-pricing-toggle-btn${!isQuarterly ? " active" : ""}`}
+              onClick={() => setIsQuarterly(false)}
             >
               Monthly Billing
             </button>
             <button
               type="button"
-              className={`lp-pricing-toggle-btn${isYearly ? " active" : ""}`}
-              onClick={() => setIsYearly(true)}
+              className={`lp-pricing-toggle-btn${isQuarterly ? " active" : ""}`}
+              onClick={() => setIsQuarterly(true)}
             >
-              Yearly Billing (Save up to 30%)
+              Quarterly Billing
             </button>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function PricingSection() {
           {tiers.map((tier, i) => {
             const plan = TIER_PRESENTATION[tier];
             const fallback = FALLBACK_PLANS.find((p) => p.tier === tier);
-            const cycle = isYearly ? "yearly" : "monthly";
+            const cycle = isQuarterly ? "quarterly" : "monthly";
 
             // Live data path
             if (state === "success" && data) {
@@ -190,7 +190,7 @@ export function PricingSection() {
             }
 
             // Fallback path
-            const price = isYearly ? fallback!.yearly : fallback!.monthly;
+            const price = isQuarterly ? fallback!.quarterly : fallback!.monthly;
             return (
               <PricingCard
                 key={tier}

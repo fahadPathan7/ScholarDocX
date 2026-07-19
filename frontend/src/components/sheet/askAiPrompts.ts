@@ -89,9 +89,9 @@ export const ASK_AI_PROMPTS: AskAiPrompt[] = [
   // ── Analyze (read-only — targeting by ID is still exact) ──────────
   {
     id: "application-summary",
-    title: "Application status breakdown",
+    title: "Show my application progress",
     description:
-      "Counts how many applications are in each stage (Applied, Interview, Offer, Rejected, Withdrawn) as a table, plus the overall conversion rate from applied to offer.",
+      "Counts how many applications are Applied, In Progress, Offer Received, Rejected, or Withdrawn. Shows which stage has the most applications and your success rate.",
     group: "analyze",
     build: (ctx) =>
       `Read every row in ${target(ctx)} and give me a full application-status breakdown. ` +
@@ -101,49 +101,81 @@ export const ASK_AI_PROMPTS: AskAiPrompt[] = [
       `Columns in this sheet: ${columnList(ctx.columns)}.`,
   },
   {
-    id: "funding-totals",
-    title: "Funding & money totals",
+    id: "deadline-risk",
+    title: "What deadlines are coming up?",
     description:
-      "Sums every money/funding/scholarship column across all rows and reports the total secured, total pending, and the biggest award so far with which university offered it.",
+      "Shows all deadlines in the next 45 days, warns you about anything overdue, and tells you exactly how many are due in the next week, two weeks, and month.",
     group: "analyze",
     build: (ctx) =>
-      `Read every row in ${target(ctx)} and calculate funding totals. ` +
-      `Sum any money-related columns (funding, scholarship, stipend, tuition waiver, grant, award, etc.) across all rows. ` +
-      `Report: total funding secured so far, total pending/unconfirmed, the single biggest award, and which university or program offered it. ` +
-      `If a money column has non-numeric or mixed values, call those out. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.`,
+      `Use get_deadlines with days_ahead=45 for ${target(ctx)} to find all upcoming deadlines. ` +
+      `Then use get_overdue_rows to identify any deadlines that have already passed. ` +
+      `Present the results as: ` +
+      `1. OVERDUE items (if any) with dates and row details ` +
+      `2. Upcoming deadlines sorted by date (soonest first) ` +
+      `3. Count breakdown: how many are due in next 7 days, next 14 days, and next 30 days ` +
+      `4. For each deadline, show the date, what it's for (university/professor name), and which column it's from. ` +
+      `Columns available: ${columnList(ctx.columns)}.`,
   },
   {
-    id: "deadline-risk",
-    title: "Deadline risk report",
+    id: "funding-totals",
+    title: "Calculate my total funding offers",
     description:
-      "Lists every deadline in the next 45 days sorted by soonest first, flags anything overdue in red, and counts how many deadlines land in the next 7, 14, and 30 days.",
+      "Adds up all funding, scholarships, stipends, and tuition waivers. Shows total secured, total pending, and which university offered the highest amount.",
     group: "analyze",
     build: (ctx) =>
-      `Read every row in ${target(ctx)} and build a deadline risk report. ` +
-      `Find all rows with a date/deadline column, then: (1) list every deadline in the next 45 days sorted by soonest first, ` +
-      `(2) flag anything already overdue as URGENT, (3) tell me exactly how many deadlines fall in the next 7 days, 14 days, and 30 days. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.`,
+      `First, use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then identify columns with money/funding values (look for keywords: funding, scholarship, stipend, tuition, waiver, grant, award). ` +
+      `For each money column found, extract the numeric values and compute: ` +
+      `1. Total amount across all rows (secured + pending) ` +
+      `2. Identify which rows/universities have the highest single funding amount ` +
+      `3. Flag any rows with non-numeric or missing funding data ` +
+      `Present the results as: Total funding by column, Top 3 highest offers with university names, and any data quality issues. ` +
+      `Columns available: ${columnList(ctx.columns)}.`,
+  },
+  {
+    id: "missing-info",
+    title: "Find incomplete applications",
+    description:
+      "Identifies rows with missing important data like deadlines, program names, contact emails, or application status. Helps you fill gaps before submission.",
+    group: "analyze",
+    build: (ctx) =>
+      `Use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then analyze each row for missing critical information. Check for empty/missing values in key columns: ` +
+      `- Deadline/date columns (most critical) ` +
+      `- University or Program name ` +
+      `- Status or Application status ` +
+      `- Contact information (email, professor name) ` +
+      `- Any other column that appears in most rows but is missing in some ` +
+      `For each incomplete row, report: row number, what specific fields are missing, and prioritize by urgency ` +
+      `(missing deadlines = highest priority, missing notes = lowest). ` +
+      `Present as a numbered list of incomplete applications with action items. ` +
+      `Columns available: ${columnList(ctx.columns)}.`,
   },
   {
     id: "response-rate",
-    title: "Outreach response rate",
+    title: "Who hasn't responded to my emails?",
     description:
-      "Counts how many outreach emails were sent vs. how many got a reply, computes the response rate as a percentage, and lists the professors/universities that never replied so you can follow up.",
+      "Counts how many emails you sent vs. how many got replies, shows your response rate percentage, and lists everyone you should follow up with.",
     group: "analyze",
     build: (ctx) =>
-      `Read every row in ${target(ctx)} and analyze my outreach. ` +
-      `Count how many rows have an outreach email sent, how many got a reply, and compute the response rate as a percentage. ` +
-      `Then list every professor or university that has not replied yet so I know who to follow up with. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.`,
+      `Use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then use semantic column matching to find email-related columns (sent, response, reply, follow-up). ` +
+      `Count: ` +
+      `1. Total rows with an email sent (any column indicating "sent" = yes/true or has a sent date) ` +
+      `2. How many of those got a response (response status column or reply received) ` +
+      `3. Calculate response rate as percentage: (responses / sent) * 100 ` +
+      `Then use filter_rows to find all rows where email was sent BUT no response received. ` +
+      `List those non-responders with: professor/university name, when email was sent, and days since sent. ` +
+      `Sort by longest time waiting (highest priority for follow-up). ` +
+      `Columns available: ${columnList(ctx.columns)}.`,
   },
 
   // ── Fill & Transform (writes — must target by ID) ─────────────────
   {
     id: "draft-emails",
-    title: "Draft outreach emails",
+    title: "Write personalized outreach emails for me",
     description:
-      "Adds an Email Draft column and writes a personalized, professional first-contact email in each row addressed to that professor/university, referencing their program and your interest.",
+      "Creates an Email Draft column and writes a unique, professional first-contact email for each program/professor that mentions their research and your interest.",
     group: "transform",
     build: (ctx) =>
       `Add a new "Email Draft" text column to ${target(ctx)}, then draft a personalized ` +
@@ -152,61 +184,87 @@ export const ASK_AI_PROMPTS: AskAiPrompt[] = [
       `Columns in this sheet: ${columnList(ctx.columns)}.${USE_IDS}`,
   },
   {
-    id: "categorize-status",
-    title: "Categorize every row by stage",
+    id: "priority-score",
+    title: "Which applications should I focus on first?",
     description:
-      "Adds a Stage column and assigns each row to Not Started, Researching, Ready to Apply, In Progress, or Done, based on the data already in the row.",
+      "Adds a Priority column scoring each application 1-5 (5 = most urgent) based on deadline, funding amount, and response status so you know what needs immediate attention.",
     group: "transform",
     build: (ctx) =>
-      `Add a "Stage" select column to ${target(ctx)}, then assign every row to one of: ` +
-      `"Not Started", "Researching", "Ready to Apply", "In Progress", or "Done". Base the choice on what is already in each row ` +
-      `(status, dates, emails sent, application submitted, etc.). Read the rows first, then fill the column. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.${USE_IDS}`
+      `First use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then use add_column to create a new "Priority" column with type "number". ` +
+      `After adding the column, analyze each row and assign a priority score 1-5 based on: ` +
+      `- Deadline proximity: days until deadline (closer = higher score) ` +
+      `- Funding amount: higher funding = higher priority ` +
+      `- Response status: awaiting response or action needed = higher priority ` +
+      `Scoring logic: 5 = urgent (deadline <7 days OR high funding + response needed), ` +
+      `4 = important (deadline <14 days), 3 = normal (deadline <30 days), ` +
+      `2 = low priority (deadline >30 days), 1 = very low (no deadline or completed). ` +
+      `Use bulk_update_rows or update_row to set the Priority value for each row. ` +
+      `Columns available: ${columnList(ctx.columns)}.${USE_IDS}`,
   },
   {
-    id: "priority-score",
-    title: "Score every row by priority 1–5",
+    id: "categorize-status",
+    title: "Organize my applications by stage",
     description:
-      "Adds a Priority number column and scores each row from 1 (low) to 5 (urgent) based on deadline proximity, funding amount, and response status — so you know where to focus first.",
+      "Adds a Stage column (Not Started, Researching, Ready to Apply, In Progress, Done) and automatically sorts each application into the right stage based on your data.",
     group: "transform",
     build: (ctx) =>
-      `Add a "Priority" number column to ${target(ctx)}, then score every row from ` +
-      `1 (low) to 5 (urgent). Score based on: how close the deadline is, how large the funding is, and whether a reply is ` +
-      `outstanding. Read every row first to compute the score, then fill the Priority column. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.${USE_IDS}`
+      `First use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then use add_column to create a new "Stage" column with type "select" and options: ` +
+      `["Not Started", "Researching", "Ready to Apply", "In Progress", "Done"]. ` +
+      `After adding the column, analyze each row and determine the appropriate stage: ` +
+      `- "Done" if: status shows completed/accepted/rejected/withdrawn OR has a final outcome ` +
+      `- "In Progress" if: application submitted OR status is "applied"/"interview"/"under review" ` +
+      `- "Ready to Apply" if: has university, program, and deadline filled BUT not yet applied ` +
+      `- "Researching" if: has some basic info (university or professor) BUT missing key details ` +
+      `- "Not Started" if: mostly empty or just a placeholder row ` +
+      `Use bulk_update_rows or update_row to set the Stage for each row based on your analysis. ` +
+      `Columns available: ${columnList(ctx.columns)}.${USE_IDS}`,
   },
   {
     id: "rank-by-fit",
-    title: "Rank rows by best fit",
+    title: "Rank programs by best match for me",
     description:
-      "Adds a Fit Rank column and ranks all rows 1, 2, 3… by how well they match your goals (funding, ranking, research fit, deadline realism), so the strongest options rise to the top.",
+      "Adds a Fit Rank column rating programs 1, 2, 3... based on funding, reputation, research alignment, and realistic deadlines so your best options appear at the top.",
     group: "transform",
     build: (ctx) =>
-      `Add a "Fit Rank" number column to ${target(ctx)}, then rank every row ` +
-      `from 1 (best) downward based on overall fit. Consider funding amount, program ranking/reputation, research alignment, ` +
-      `and how realistic the deadline is. Read the rows first, then assign a rank so the strongest options are at the top. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.${USE_IDS}`
+      `First use get_rows to read all rows from ${target(ctx)}. ` +
+      `Then use add_column to create a new "Fit Rank" column with type "number". ` +
+      `After adding the column, analyze and rank ALL rows from 1 (best fit) to N (lowest fit) based on: ` +
+      `- Funding amount: higher funding = better rank ` +
+      `- Program ranking/reputation: higher ranked universities = better (if available) ` +
+      `- Research alignment: match between your interests and professor/department (if info available) ` +
+      `- Deadline realism: enough time to apply properly = better (too soon or past = worse) ` +
+      `Assign rank 1 to the single best option, rank 2 to second best, etc. No ties - every row gets a unique rank. ` +
+      `Use bulk_update_rows or update_row to set the Fit Rank for each row. ` +
+      `Columns available: ${columnList(ctx.columns)}.${USE_IDS}`,
   },
 
   // ── Selection-aware (shown only with a selection / focused cell) ──
   {
     id: "act-on-selected",
-    title: "Bulk-update selected rows",
+    title: "Update all selected rows at once",
     description:
-      "Reads only the rows you have selected right now and suggests 3 concrete bulk updates you can apply to all of them at once — then offers to run them.",
+      "Looks at just the rows you selected and suggests 3 smart bulk updates (like changing status, adding notes, or updating dates) then lets you pick which to apply.",
     group: "selection",
     build: (ctx) =>
       `I have selected ${ctx.selectionCount} row(s) in ${target(ctx)}.` +
       `${ctx.selectionSummary ? ` ${ctx.selectionSummary}.` : ""} ` +
-      `Read only those selected rows and suggest 3 concrete bulk updates I could apply to all of them at once ` +
-      `(for example: set the same status, add a tag, push out a deadline). Then ask me which one to run. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.${USE_IDS}`
+      `Use get_rows to read the full sheet, then analyze ONLY the selected rows (indices: [provide actual selected indices if available]). ` +
+      `Based on what's in those specific rows, suggest 3 concrete bulk update actions I can apply to all of them, such as: ` +
+      `1. Set a common status (e.g., "In Progress" if multiple are mid-application) ` +
+      `2. Add the same tag or note (e.g., "Follow up needed") ` +
+      `3. Push out deadlines by X days OR set to a common date ` +
+      `4. Mark as a group for batch processing ` +
+      `Present the 3 suggestions with clear descriptions, then ask me which one to execute. ` +
+      `Once I choose, use bulk_update_rows with the selected row indices to apply the update. ` +
+      `Columns available: ${columnList(ctx.columns)}.${USE_IDS}`,
   },
   {
     id: "fill-cell",
-    title: "Fill the focused cell",
+    title: "Smart-fill this cell",
     description:
-      "Looks at the cell you are currently on, reads the rest of that row, and proposes a sensible value for that exact cell — then offers to write it in.",
+      "Reads the data in this row and intelligently suggests what should go in the cell you're focused on, then offers to fill it in for you.",
     group: "selection",
     build: (ctx) => {
       const cell = ctx.focusedCell;

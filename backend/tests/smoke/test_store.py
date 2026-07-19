@@ -480,3 +480,123 @@ def test_project_sheet_counts_includes_empty_projects(tmp_path):
         assert counts[str(p_one["id"])] == 1
     finally:
         store.db.close()
+
+
+# ── SCHOLARDOCX-0153: parent delete must cascade to NOT NULL children ──
+#
+# Regression for the NotNullViolation that occurred when deleting a project
+# with sheets/pages: SQLAlchemy's default relationship cascade tried to
+# nullify the child FK, but project_sheets.project_id and
+# project_pages.project_id are NOT NULL. Same latent defect existed for
+# universities→programs and documents→document_versions. Fixed by adding
+# cascade="all" to those four parent→child relationships in app/db/models.py.
+
+
+def test_deleting_project_cascades_to_sheets_and_pages(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Doomed", "degree_type": "phd"})
+        sheet = store.create_record(
+            "project_sheets", {"project_id": project["id"], "name": "Sheet A"}
+        )
+        page = store.create_record(
+            "project_pages",
+            {
+                "project_id": project["id"],
+                "sheet_id": sheet["id"],
+                "name": "Page A",
+                "columns_json": "[]",
+                "rows_json": "[]",
+            },
+        )
+
+        # Sanity: all three rows exist before delete.
+        assert store.get_record("projects", project["id"])["id"] == project["id"]
+        assert store.get_record("project_sheets", sheet["id"])["id"] == sheet["id"]
+        assert store.get_record("project_pages", page["id"])["id"] == page["id"]
+
+        # The delete must not raise NotNullViolation.
+        store.delete_record("projects", project["id"])
+
+        # All three rows must be gone (cascade DELETE, not nullify).
+        with pytest.raises(LookupError):
+            store.get_record("projects", project["id"])
+        with pytest.raises(LookupError):
+            store.get_record("project_sheets", sheet["id"])
+        with pytest.raises(LookupError):
+            store.get_record("project_pages", page["id"])
+    finally:
+        store.db.close()
+
+
+def test_deleting_project_keeps_notifications_with_null_project_id(tmp_path):
+    """Notifications outlive their project — project_id is nullable, so the
+    default nullify behavior is correct and must NOT cascade-delete them."""
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Gone", "degree_type": "phd"})
+        notification = store.create_record(
+            "notifications",
+            {
+                "project_id": project["id"],
+                "title": "Scheduled email",
+                "notification_type": "scheduled-email",
+                "due_at": "2026-06-01T09:00",
+            },
+        )
+
+        store.delete_record("projects", project["id"])
+
+        # Notification row survives, with project_id nullified.
+        surviving = store.get_record("notifications", notification["id"])
+        assert surviving["id"] == notification["id"]
+        assert surviving["project_id"] is None
+    finally:
+        store.db.close()
+
+
+def test_deleting_university_cascades_to_programs(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        university = store.create_record(
+            "universities", {"name": "Aalto University", "country": "Finland"}
+        )
+        program = store.create_record(
+            "programs", {"university_id": university["id"], "name": "CS"}
+        )
+
+        store.delete_record("universities", university["id"])
+
+        with pytest.raises(LookupError):
+            store.get_record("universities", university["id"])
+        with pytest.raises(LookupError):
+            store.get_record("programs", program["id"])
+    finally:
+        store.db.close()
+
+
+def test_deleting_document_cascades_to_versions(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        document = store.create_record(
+            "documents", {"document_type": "sop", "title": "Statement of Purpose"}
+        )
+        version = store.create_record(
+            "document_versions",
+            {
+                "document_id": document["id"],
+                "version_label": "v1",
+                "content_format": "markdown",
+                "content": "First draft",
+            },
+        )
+
+        store.delete_record("documents", document["id"])
+
+        with pytest.raises(LookupError):
+            store.get_record("documents", document["id"])
+        with pytest.raises(LookupError):
+            store.get_record("document_versions", version["id"])
+    finally:
+        store.db.close()
+

@@ -127,6 +127,42 @@ development.
 - Outreach logging and reminder creation.
 - AI research orchestration.
 
+## Delete Cascade Semantics
+
+When a parent row is deleted via the generic CRUD `DELETE /{table}/{id}`
+route (`store.delete_record` → `db.delete(obj)`), child rows resolve in two
+ways depending on FK nullability (SCHOLARDOCX-0153):
+
+- **NOT NULL child FK → cascade delete.** The parent relationship in
+  `app/db/models.py` carries `cascade="all"` so SQLAlchemy emits `DELETE`
+  for the children rather than attempting an illegal `UPDATE ... SET
+  fk=NULL`. Applies to:
+  - `Projects.project_sheets` / `Projects.project_pages`
+  - `Universities.programs`
+  - `Documents.document_versions`
+- **Nullable child FK → nullify (default).** No `cascade=` on the
+  relationship; the child row survives with `fk = NULL`. Applies to
+  `Projects.notifications` (notifications outlive their project as
+  historical records), `EmailTemplates.email_drafts`,
+  `Documents.owner_id`, `Applications.degree_workspace_id`, etc.
+
+Quota counters (`total_projects`, `total_sheets`, `total_records`) are
+recomputed from live data by `resync_usage_counts`
+(`app/auth/limits.py`) after the delete via
+`RESYNC_FEATURES_BY_TABLE` (`app/api/routes.py`), so the cascade removal
+of children flows through to the dashboard counts automatically — no
+manual count math in the delete path.
+
+**Why ORM cascade, not `ondelete="CASCADE"`?** `Base.metadata.create_all`
+only creates missing tables; it does not alter FK constraints on existing
+databases. A DB-level change would require a migration script against the
+live Supabase cluster. ORM `cascade="all"` is purely application-side and
+works on day one against the existing schema. The `advisor_atlas_*`
+tables use `ondelete="CASCADE"` at the column level because they were
+introduced after the cascade policy was understood; they are not
+inconsistent — both achieve the same outcome, the ORM form is just the
+no-migration variant for pre-existing tables.
+
 ## Avoid
 
 - Business logic inside UI components.

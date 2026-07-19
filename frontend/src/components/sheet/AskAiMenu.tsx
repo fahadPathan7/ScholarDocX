@@ -2,14 +2,26 @@
 /*  AskAiMenu — dropdown of context-aware prompts anchored to the     */
 /*  sheet "Ask AI" button. SCHOLARDOCX-0150.                           */
 /*                                                                    */
-/*  Mirrors the existing showDataMenu / showColumnsMenu popover        */
-/*  pattern in SheetToolbar.tsx (click-outside hook, .data-dropdown-  */
-/*  menu styles). No modal — so the AGENTS.md backdrop-blur rule      */
-/*  does not apply.                                                    */
+/*  Redesigned with a cleaner, more visual interface for better UX.   */
 /* ------------------------------------------------------------------ */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Sparkles, X } from "lucide-react";
+import { 
+  ArrowRight, 
+  Sparkles, 
+  Search,
+  BarChart3,
+  Calendar,
+  DollarSign,
+  AlertCircle,
+  Mail,
+  Wand2,
+  Target,
+  Layers,
+  TrendingUp,
+  MousePointerClick,
+  Zap
+} from "lucide-react";
 import {
   ASK_AI_PROMPTS,
   buildAskAiContext,
@@ -22,12 +34,27 @@ import {
 import type { ColumnDef } from "./sheetModel";
 
 const GROUP_LABELS: Record<AskAiPromptGroup, string> = {
-  analyze: "Analyze",
-  transform: "Fill & Transform",
-  selection: "Selection",
+  analyze: "Analyze My Data",
+  transform: "Smart Actions",
+  selection: "Selected Rows",
 };
 
 const GROUP_ORDER: AskAiPromptGroup[] = ["selection", "analyze", "transform"];
+
+// Icon mapping for each prompt
+const PROMPT_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string; color?: string }>> = {
+  "application-summary": BarChart3,
+  "deadline-risk": Calendar,
+  "funding-totals": DollarSign,
+  "missing-info": AlertCircle,
+  "response-rate": Mail,
+  "draft-emails": Wand2,
+  "priority-score": Target,
+  "categorize-status": Layers,
+  "rank-by-fit": TrendingUp,
+  "act-on-selected": MousePointerClick,
+  "fill-cell": Zap,
+};
 
 type Props = {
   ctx: AskAiContext;
@@ -39,8 +66,9 @@ type Props = {
 export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState("");
+  const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const customInputRef = useRef<HTMLInputElement>(null);
+  const customInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,6 +76,7 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
         setCustom("");
+        setHoveredPrompt(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -58,13 +87,12 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
     onPick(prompt.build(ctx));
     setOpen(false);
     setCustom("");
+    setHoveredPrompt(null);
   }
 
   function submitCustom() {
     const trimmed = custom.trim();
     if (!trimmed) return;
-    // SCHOLARDOCX-0150: scope a free-form prompt to the exact sheet by ID
-    // (names can collide) and tell the planner to use the IDs.
     onPick(
       `In ${target(ctx)}, ${trimmed}. ` +
         `When you emit any action plan, target this exact sheet using its project_id and sheet_id (not the names), because there may be other sheets with the same name.`
@@ -81,7 +109,7 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
   };
   for (const p of prompts) grouped[p.group].push(p);
 
-  const triggerStyle: React.CSSProperties = { ...btnStyle, color: "var(--ui-brand)" };
+  const triggerStyle: React.CSSProperties = { ...btnStyle, color: "var(--ui-primary)" };
 
   return (
     <div className="ask-ai-menu-container" ref={containerRef} style={{ position: "relative" }}>
@@ -104,145 +132,247 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
             marginTop: "4px",
             backgroundColor: "var(--ui-paper-strong)",
             border: "1px solid var(--ui-line)",
-            borderRadius: "6px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            padding: "4px",
+            borderRadius: "8px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)",
             zIndex: 100,
-            width: "320px",
-            maxHeight: "420px",
-            overflowY: "auto",
+            width: "380px",
+            maxHeight: "540px",
             display: "flex",
             flexDirection: "column",
-            gap: "2px",
+            overflow: "hidden",
           }}
         >
+          {/* Fixed Header */}
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: 700,
-              padding: "4px 8px 2px",
-              color: "var(--text-secondary)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
+              padding: "16px 16px 12px",
+              borderBottom: "1px solid var(--ui-line)",
+              background: "linear-gradient(to bottom, var(--ui-paper-strong), var(--ui-canvas-2))",
+              flexShrink: 0,
             }}
           >
-            Ask AI about "{ctx.sheetName}"
-          </div>
-          <div style={{ fontSize: "10.5px", padding: "0 8px 6px", color: "var(--text-secondary)" }}>
-            {ctx.rowCount} row(s) · {ctx.columns.length} column(s)
-            {ctx.selectionCount > 0 ? ` · ${ctx.selectionCount} selected` : ""}
-          </div>
-
-          {GROUP_ORDER.map((group) => {
-            const items = grouped[group];
-            if (items.length === 0) return null;
-            return (
-              <div key={group} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                <div
-                  style={{
-                    fontSize: "10.5px",
-                    fontWeight: 700,
-                    padding: "6px 8px 2px",
-                    color: "var(--text-secondary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {GROUP_LABELS[group]}
-                </div>
-                {items.map((p) => (
-                  <button
-                    key={p.id}
-                    className="text-button ask-ai-prompt-item"
-                    onClick={() => pick(p)}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "6px",
-                      width: "100%",
-                      padding: "7px 8px",
-                      fontSize: "12px",
-                      textAlign: "left",
-                      lineHeight: 1.35,
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <ArrowRight
-                      size={12}
-                      style={{ marginTop: "2px", color: "var(--ui-brand)", flexShrink: 0 }}
-                    />
-                    <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontWeight: 600 }}>{p.title}</span>
-                      <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
-                        {p.description}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-
-          {/* Custom prompt */}
-          <div style={{ height: "1px", background: "var(--border)", margin: "6px 0" }} />
-          <div style={{ padding: "2px 6px 4px" }}>
             <div
               style={{
-                fontSize: "10.5px",
+                fontSize: "13px",
                 fontWeight: 700,
-                padding: "0 2px 4px",
-                color: "var(--text-secondary)",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
+                color: "var(--ui-ink)",
+                marginBottom: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
             >
-              Write your own
+              <Sparkles size={14} style={{ color: "var(--ui-primary)" }} />
+              Ask AI about "{ctx.sheetName}"
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <input
+            <div style={{ fontSize: "11px", color: "var(--ui-muted)" }}>
+              {ctx.rowCount} row{ctx.rowCount !== 1 ? "s" : ""} · {ctx.columns.length} column{ctx.columns.length !== 1 ? "s" : ""}
+              {ctx.selectionCount > 0 && ` · ${ctx.selectionCount} selected`}
+            </div>
+          </div>
+
+          {/* Scrollable Prompt Groups */}
+          <div 
+            style={{ 
+              padding: "8px",
+              paddingRight: "4px", // Less padding on right to account for scrollbar
+              flex: 1,
+              overflowY: "auto",
+              overflowX: "hidden",
+            }}
+          >
+            {GROUP_ORDER.map((group) => {
+              const items = grouped[group];
+              if (items.length === 0) return null;
+              return (
+                <div key={group} style={{ marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      padding: "8px 8px 6px",
+                      color: "var(--ui-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {GROUP_LABELS[group]}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {items.map((p) => {
+                      const Icon = PROMPT_ICONS[p.id] || ArrowRight;
+                      const isHovered = hoveredPrompt === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          className="text-button ask-ai-prompt-item"
+                          onClick={() => pick(p)}
+                          onMouseEnter={() => setHoveredPrompt(p.id)}
+                          onMouseLeave={() => setHoveredPrompt(null)}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "10px",
+                            width: "100%",
+                            padding: "10px 12px",
+                            fontSize: "12px",
+                            textAlign: "left",
+                            lineHeight: 1.4,
+                            borderRadius: "6px",
+                            backgroundColor: isHovered ? "var(--ui-mint)" : "transparent",
+                            border: `1px solid ${isHovered ? "var(--ui-line)" : "transparent"}`,
+                            transition: "all 0.15s ease",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div
+                            style={{
+                              marginTop: "1px",
+                              flexShrink: 0,
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "6px",
+                              background: isHovered
+                                ? "var(--ui-primary)"
+                                : "var(--ui-mint)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <Icon size={14} color={isHovered ? "#ffffff" : "var(--ui-primary)"} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                color: "var(--ui-ink)",
+                                marginBottom: "3px",
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {p.title}
+                            </div>
+                            <div
+                              style={{
+                                color: "var(--ui-muted)",
+                                fontSize: "11px",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {p.description}
+                            </div>
+                          </div>
+                          <div style={{
+                            marginTop: "6px",
+                            flexShrink: 0,
+                            color: "var(--ui-muted)",
+                            opacity: isHovered ? 1 : 0,
+                            transition: "opacity 0.15s ease",
+                          }}>
+                            <ArrowRight size={14} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Fixed Custom Prompt Footer */}
+          <div
+            style={{
+              padding: "12px 16px 16px",
+              borderTop: "1px solid var(--ui-line)",
+              backgroundColor: "var(--ui-canvas-2)",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                padding: "0 0 8px",
+                color: "var(--ui-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Search size={12} />
+              Custom Request
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
+              <textarea
                 ref={customInputRef}
-                type="text"
                 value={custom}
-                placeholder="e.g. find all rows missing a deadline"
+                placeholder="e.g., find all rows missing a deadline"
                 onChange={(e) => setCustom(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     submitCustom();
                   }
                 }}
-                autoFocus
+                rows={1}
                 style={{
                   flex: 1,
                   fontSize: "12px",
-                  padding: "6px 8px",
-                  borderRadius: "4px",
+                  padding: "8px 10px",
+                  borderRadius: "6px",
                   border: "1px solid var(--ui-line)",
-                  backgroundColor: "var(--bg-secondary)",
-                  color: "var(--text-primary)",
+                  backgroundColor: "var(--ui-paper-strong)",
+                  color: "var(--ui-ink)",
+                  outline: "none",
+                  transition: "border-color 0.15s ease",
+                  resize: "none",
+                  fontFamily: "inherit",
+                  lineHeight: "1.4",
+                  minHeight: "36px",
+                  maxHeight: "92px",
+                  overflowY: "auto",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--ui-primary)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "var(--ui-line)";
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = Math.min(target.scrollHeight, 92) + "px";
                 }}
               />
               <button
-                className="secondary"
                 onClick={submitCustom}
                 disabled={!custom.trim()}
-                title="Send your custom prompt"
-                style={{ fontSize: "11px", padding: "6px 8px" }}
+                title="Send your custom prompt (Enter)"
+                style={{
+                  padding: 0,
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: custom.trim() ? "#2563eb" : "#94a3b8",
+                  border: "none",
+                  cursor: custom.trim() ? "pointer" : "not-allowed",
+                  transition: "all 0.15s ease",
+                  width: "36px",
+                  height: "36px",
+                  flexShrink: 0,
+                  opacity: custom.trim() ? 1 : 0.6,
+                }}
               >
-                <ArrowRight size={12} />
+                <ArrowRight size={16} strokeWidth={2.5} color="#ffffff" />
               </button>
             </div>
-            {custom && (
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setCustom("")}
-                title="Clear"
-                style={{ marginTop: "4px", fontSize: "10px", color: "var(--text-secondary)" }}
-              >
-                <X size={10} /> clear
-              </button>
-            )}
           </div>
         </div>
       )}

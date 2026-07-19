@@ -351,8 +351,9 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     {(() => {
                       // Use the array index + 1 to map to the 4 configured Polar slots
                       const polarId = pricing[`polar_extra_credits_id_${idx + 1}`] || null;
+                      const polarBase = import.meta.env.VITE_POLAR_URL || "https://polar.sh";
                       const polarUrl = polarId && user?.email 
-                        ? `https://polar.sh/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
+                        ? `${polarBase}/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
                         : null;
 
                       if (polarUrl) {

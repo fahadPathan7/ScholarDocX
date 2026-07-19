@@ -526,8 +526,9 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
 
                 {(() => {
                   const polarId = getPolarProductId(requestPlan);
+                  const polarBase = import.meta.env.VITE_POLAR_URL || "https://polar.sh";
                   const polarUrl = polarId && user?.email 
-                    ? `https://polar.sh/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
+                    ? `${polarBase}/checkout/${polarId}?customer_email=${encodeURIComponent(user.email)}` 
                     : null;
                   
                   if (polarUrl && requestMode === "choose") {

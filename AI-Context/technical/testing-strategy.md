@@ -42,6 +42,12 @@ Test:
 - Mocked GLM and Tavily failures.
 - Optional Google OAuth callback and local profile linking if auth is implemented.
 
+### Shared Database Fixtures & ORM Hygiene
+
+- **Pre-cleanup Commit & Session Rollback**: `cleanup_user_records` in `tests/helpers.py` explicitly calls `connection.commit()` after deleting dependent FK rows and user records. Test seed helpers (`_seed_user`) call `connection.db.rollback()` prior to cleanup to drop any uncommitted session state and release open table locks on PostgreSQL, preventing `UniqueViolation` and `DeadlockDetected` errors across repeated test runs.
+- **ORM Session Expiration**: Tests mixing raw SQL writes and SQLAlchemy ORM model queries must invoke `store.db.expire_all()` to flush/invalidate stale instances in the session identity map before asserting scalar database values.
+- **Product Settings Isolation**: Fixtures seeding `AppSettings` (`_seed_polar_products`) explicitly set all product keys (`basic`, `pro`, `max` monthly/quarterly) to distinct values so `handle_subscription_updated` role resolution remains isolated between test runs.
+
 ### Test folder organization
 
 Backend tests live in `backend/tests/` organized into three category folders:

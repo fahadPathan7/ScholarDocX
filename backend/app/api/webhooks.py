@@ -1,13 +1,15 @@
 import json
 import os
 import logging
+import base64
+import hashlib
+import hmac
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from svix.webhooks import Webhook
 
 from app.api.dependencies import get_store
 from app.db.models import Users, AiTokenPacks, AppSettings, PolarProcessedEvents
@@ -16,6 +18,65 @@ from app.services.ai_tokens import grant_purchased
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+
+# ---------------------------------------------------------------------------
+# Webhook signature verification (Standard Webhooks spec, no timestamp gate)
+#
+# The default `standardwebhooks` / `svix` libraries reject any delivery whose
+# `webhook-timestamp` header is older than 5 minutes.  On Render free tier the
+# instance sleeps after 15 min of inactivity; a cold-start can push the first
+# attempt past the 5-min window.  Polar also retries failed deliveries hours
+# later, which always exceeds the tolerance.
+#
+# We therefore verify the HMAC-SHA256 signature ourselves WITHOUT rejecting
+# stale timestamps.  The signature still proves the payload originated from
+# Polar (or whoever holds the shared secret).  Replay protection is handled
+# separately by the _mark_processed idempotency layer (SCHOLARDOCX-0157).
+# ---------------------------------------------------------------------------
+
+_WHSEC_PREFIX = "whsec_"
+
+
+def _decode_webhook_secret(raw: str) -> bytes:
+    """Strip the ``whsec_`` prefix and base64-decode the signing key."""
+    if raw.startswith(_WHSEC_PREFIX):
+        raw = raw[len(_WHSEC_PREFIX):]
+    return base64.b64decode(raw + "==")  # extra padding is harmless
+
+
+def _verify_polar_webhook(
+    payload: bytes, headers: Dict[str, str], secret_bytes: bytes
+) -> Any:
+    """Verify webhook signature (Standard Webhooks HMAC-SHA256).
+
+    Raises ``ValueError`` on missing headers or signature mismatch.
+    """
+    lc = {k.lower(): v for k, v in headers.items()}
+    msg_id = lc.get("webhook-id") or lc.get("svix-id") or ""
+    msg_ts = lc.get("webhook-timestamp") or lc.get("svix-timestamp") or ""
+    msg_sig = lc.get("webhook-signature") or lc.get("svix-signature") or ""
+
+    if not msg_id or not msg_ts or not msg_sig:
+        raise ValueError(
+            f"Missing required webhook headers (id={bool(msg_id)}, "
+            f"ts={bool(msg_ts)}, sig={bool(msg_sig)})"
+        )
+
+    body_str = payload.decode() if isinstance(payload, bytes) else payload
+    to_sign = f"{msg_id}.{msg_ts}.{body_str}".encode()
+    expected = hmac.new(secret_bytes, to_sign, hashlib.sha256).digest()
+
+    for part in msg_sig.split(" "):
+        split = part.split(",", 1)
+        if len(split) != 2:
+            continue
+        version, sig_b64 = split
+        if version != "v1":
+            continue
+        if hmac.compare_digest(expected, base64.b64decode(sig_b64)):
+            return json.loads(body_str)
+
+    raise ValueError("No matching signature found")
 
 
 def get_polar_webhook_secret() -> str:
@@ -119,10 +180,17 @@ async def polar_webhook(request: Request, store: Store = Depends(get_store)):
         raise HTTPException(status_code=500, detail="Webhook secret not configured")
 
     try:
-        wh = Webhook(webhook_secret)
-        event = wh.verify(payload, headers)
+        secret_bytes = _decode_webhook_secret(webhook_secret)
+        event = _verify_polar_webhook(payload, headers, secret_bytes)
     except Exception as e:
-        logger.error(f"Polar webhook signature verification failed: {e}")
+        logger.error(
+            "Polar webhook signature verification failed: %s | "
+            "webhook-id=%s webhook-timestamp=%s webhook-signature=%s",
+            e,
+            headers.get("webhook-id", "(missing)"),
+            headers.get("webhook-timestamp", "(missing)"),
+            headers.get("webhook-signature", "(present)" if headers.get("webhook-signature") else "(missing)"),
+        )
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     event_type = event.get("type")
@@ -146,7 +214,7 @@ async def polar_webhook(request: Request, store: Store = Depends(get_store)):
             await handle_subscription_updated(data, store, event_id, canceled=True)
         elif event_type == "subscription.revoked":
             await handle_subscription_revoked(data, store, event_id)
-        elif event_type == "order.created":
+        elif event_type in ("order.created", "order.updated"):
             await handle_order_created(data, store, event_id)
         else:
             logger.warning(f"Unhandled Polar event type: {event_type} (event_id={event_id})")

@@ -140,9 +140,10 @@ export function hasAdminRole(roles: string[] | undefined | null): boolean {
   return (roles || []).some((role) => ["super_admin", "general_admin"].includes(role));
 }
 
-export function isUserPlanExpired(planEndsAt?: string): boolean {
-  if (!planEndsAt) return false;
-  const parsed = new Date(planEndsAt);
+export function isUserPlanExpired(planEndsAt?: string, planRenewsAt?: string): boolean {
+  const targetDate = planEndsAt || planRenewsAt;
+  if (!targetDate) return false;
+  const parsed = new Date(targetDate);
   if (Number.isNaN(parsed.getTime())) return false;
 
   const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
@@ -151,9 +152,10 @@ export function isUserPlanExpired(planEndsAt?: string): boolean {
   return endDate < today;
 }
 
-export function getUserPlanStatus(planEndsAt?: string): UserPlanStatus {
-  if (!planEndsAt) return "no_plan";
-  const parsed = new Date(planEndsAt);
+export function getUserPlanStatus(planEndsAt?: string, planRenewsAt?: string): UserPlanStatus {
+  const targetDate = planEndsAt || planRenewsAt;
+  if (!targetDate) return "no_plan";
+  const parsed = new Date(targetDate);
   if (Number.isNaN(parsed.getTime())) return "no_plan";
 
   const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
@@ -166,9 +168,10 @@ export function getUserPlanStatus(planEndsAt?: string): UserPlanStatus {
   return "active";
 }
 
-export function getPlanDaysRemaining(planEndsAt?: string): number | null {
-  if (!planEndsAt) return null;
-  const parsed = new Date(planEndsAt);
+export function getPlanDaysRemaining(planEndsAt?: string, planRenewsAt?: string): number | null {
+  const targetDate = planEndsAt || planRenewsAt;
+  if (!targetDate) return null;
+  const parsed = new Date(targetDate);
   if (Number.isNaN(parsed.getTime())) return null;
 
   const endDate = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());

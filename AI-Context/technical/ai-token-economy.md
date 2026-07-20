@@ -247,12 +247,12 @@ shift by remaining. It renders a `<button>` by default (opens the buy page via
 `is_unlimited` field is reserved for future extensibility but currently always
 returns false (no role grants unlimited tokens).
 
-**Buy flow** (`src/components/BuyTokensView.tsx` — a full page as of
+**Buy flow (`src/components/BuyTokensView.tsx` — a full page as of
 SCHOLARDOCX-0085, replacing the former `BuyTokensModal`): hidden `buy-credits`
 view mirroring `PlanComparisonView` chrome (back button + title + Packs/My
 Requests toggle). Lists active packs (`GET /packs`) as plan-style cards with a
 Request action (`POST /purchase-requests`), the user's request history
-(`GET /purchase-requests/me`), and a live balance strip. Renders the upgrade
+(`GET /purchase-requests/me`) rendered in a full-width container (`w-full` with filter pills and enhanced card layout, SCHOLARDOCX-0160), and a live balance strip. Renders the upgrade
 upsell (→ Choose Plan) when `canPurchasePacks` is false. Request → admin approves
 → tokens granted (never expire). No payment gateway — approval is the grant.
 

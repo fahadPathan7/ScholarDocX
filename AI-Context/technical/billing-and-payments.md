@@ -126,6 +126,7 @@ flip the cycle index and re-grant the monthly allowance.
 - **Role Preservation**: When `handle_subscription_updated` runs, existing administrative roles (`super_admin`, `system_admin`, `general_admin`) are preserved so that subscribing or updating a plan via Polar never strips admin access.
 - **Admin Dashboard Restrictions**: Manual role updates for active Polar subscribers (`polar_subscription_id` present and `polar_cancel_at_period_end == 0`) are disabled in the Admin User Management panel and rejected with `ValueError` in `AdminService.update_user_roles`. Plan changes for active online subscribers must be managed via the Polar Dashboard.
 - **Customer Portal**: Endpoint `POST /auth/plans/portal` generates a Polar customer session URL via `POST /v1/customer-sessions/` for online subscription management.
+- **Frontend Profile Subscription Card (SCHOLARDOCX-0161)**: Updated `getUserPlanStatus` in `lib/auth.ts` to accept `plan_renews_at` as a fallback, ensuring active online subscriptions without a `plan_ends_at` date correctly calculate `planStatus = "active"` and render the "Subscription Source: Online" badge in `ProfileView.tsx`.
 
 ### Credit grants (`grant_purchased`)
 Signature: `(user_id, tokens, *, session, source, note=None, ref_id=None)`.

@@ -131,8 +131,10 @@ export function ProfileView({
   const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
   const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
 
-  const planStatus = getUserPlanStatus(user?.plan_ends_at);
-  const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
+  const planStatus = (user?.polar_subscription_id && !user?.polar_cancel_at_period_end)
+    ? "active"
+    : getUserPlanStatus(user?.plan_ends_at, user?.plan_renews_at);
+  const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at, user?.plan_renews_at);
   const planCardTone = planStatus === "expired"
     ? {
         headerClass: "text-rose-800",
@@ -489,11 +491,16 @@ export function ProfileView({
                       </span>
                     </div>
                   )}
-                  {planStatus !== "no_plan" && planStatus !== "expired" && (
+                  {(user?.polar_subscription_id || (planStatus !== "no_plan" && planStatus !== "expired")) && (
                     <div className="flex justify-between items-center mb-1">
                       <span className="opacity-70 font-medium">Subscription Source:</span>
-                      <span className="font-semibold text-xs tracking-wide uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                        {user.polar_subscription_id ? "Online" : "Manual / Admin"}
+                      <span className={`font-semibold text-xs tracking-wide uppercase px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                        user?.polar_subscription_id
+                          ? "bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
+                          : "bg-slate-100 text-slate-600 border border-slate-200"
+                      }`}>
+                        {user?.polar_subscription_id && <Globe size={11} />}
+                        {user?.polar_subscription_id ? "Online" : "Manual / Admin"}
                       </span>
                     </div>
                   )}

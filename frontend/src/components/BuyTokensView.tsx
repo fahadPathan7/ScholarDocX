@@ -11,6 +11,8 @@ import {
   Wallet,
   XCircle,
   ShoppingCart,
+  Calendar,
+  Info,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
@@ -39,6 +41,7 @@ type MyRequest = {
 };
 
 type ViewMode = "packs" | "requests";
+type RequestFilter = "all" | "pending" | "approved" | "cancelled";
 
 function formatTokens(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0)}M`;
@@ -46,28 +49,41 @@ function formatTokens(n: number) {
   return `${n}`;
 }
 
-const statusBadge = (s: string) => {
+function formatDate(dateStr: string) {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+const statusBadgeStyle = (s: string) => {
   switch (s) {
     case "Approved":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-sm";
     case "Rejected":
-      return "bg-rose-100 text-rose-700 border-rose-200";
+      return "bg-rose-50 text-rose-700 border-rose-200/80 shadow-sm";
     case "Cancelled":
-      return "bg-slate-100 text-slate-600 border-slate-200";
+      return "bg-slate-100 text-slate-600 border-slate-200/80 shadow-sm";
     default:
-      return "bg-amber-100 text-amber-700 border-amber-200";
+      return "bg-amber-50 text-amber-700 border-amber-200/80 shadow-sm";
   }
 };
 
 const statusIcon = (s: string) => {
   switch (s) {
     case "Approved":
-      return <CheckCircle2 size={13} />;
+      return <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />;
     case "Rejected":
     case "Cancelled":
-      return <XCircle size={13} />;
+      return <XCircle size={13} className="shrink-0" />;
     default:
-      return <Clock3 size={13} />;
+      return <Clock3 size={13} className="text-amber-600 shrink-0" />;
   }
 };
 
@@ -88,6 +104,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>("packs");
+  const [requestFilter, setRequestFilter] = useState<RequestFilter>("all");
   const [polarLoading, setPolarLoading] = useState<string | null>(null);
 
   const fetchAll = async () => {
@@ -111,7 +128,9 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const cancelRequest = async (id: string) => {
     try {
       await api.post(`/ai-tokens/purchase-requests/${id}/cancel`, {});
-      setRequests((prev) => prev.filter((req) => req.id !== id));
+      setRequests((prev) =>
+        prev.map((req) => (req.id === id ? { ...req, status: "Cancelled" } : req))
+      );
       onToast?.("Purchase request cancelled.");
     } catch (err: any) {
       emitUiError({ title: "Couldn't cancel", message: err?.message || "Try again later." });
@@ -160,6 +179,13 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const showBalance = !!balance && !balance.is_unlimited;
   const allowanceLabel = !balance ? "" : balance.monthly_allowance === -1 ? "∞" : formatTokens(balance.monthly_allowance);
 
+  const filteredRequests = requests.filter((req) => {
+    if (requestFilter === "pending") return req.status === "Pending";
+    if (requestFilter === "approved") return req.status === "Approved";
+    if (requestFilter === "cancelled") return req.status === "Cancelled" || req.status === "Rejected";
+    return true;
+  });
+
   return (
     <div className="animate-fade-in p-6 lg:p-12 h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-4 mb-8 shrink-0 flex-wrap">
@@ -176,8 +202,6 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
-
-
           {canPurchasePacks && (
             <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/60 shadow-inner">
               <button
@@ -248,43 +272,124 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
             </div>
           </div>
         ) : activeView === "requests" ? (
-          <div className="max-w-3xl">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">My purchase requests</h3>
-            {requests.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
-                <Clock3 size={22} className="mx-auto text-slate-300 mb-2" />
-                <p className="text-sm text-slate-400">No purchase requests yet. Pick a pack to get started.</p>
+          <div className="w-full space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  My purchase requests
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Track status and history of your requested AI credit top-ups
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 self-start sm:self-auto">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "pending", label: "Pending" },
+                  { id: "approved", label: "Approved" },
+                  { id: "cancelled", label: "Cancelled / Rejected" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setRequestFilter(tab.id as RequestFilter)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      requestFilter === tab.id
+                        ? "bg-white text-slate-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredRequests.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-slate-200 bg-gradient-to-b from-slate-50/50 to-white p-12 text-center my-4">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                  <Clock3 size={24} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-700 mb-1">
+                  {requestFilter === "all" ? "No purchase requests yet" : `No ${requestFilter} requests`}
+                </h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5">
+                  When you request token packs, their progress and review status will appear here.
+                </p>
+                <button
+                  onClick={() => setActiveView("packs")}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  <Coins size={14} /> Browse Credit Packs
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
-                {requests.map((req) => (
+                {filteredRequests.map((req) => (
                   <div
                     key={req.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3 shadow-sm"
+                    className="group rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 transition-all duration-200 hover:border-slate-300 hover:shadow-md"
                   >
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-800 truncate">
-                        {req.pack_name} · {formatTokens(req.token_amount)} credits
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 shrink-0 group-hover:scale-105 transition-transform">
+                          <Coins size={20} className="text-indigo-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base font-bold text-slate-800 tracking-tight">
+                              {req.pack_name || req.pack_code}
+                            </span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              {formatTokens(req.token_amount)} credits
+                            </span>
+                            {req.price_usd > 0 && (
+                              <span className="text-xs font-semibold text-slate-500">
+                                ${req.price_usd.toFixed(2)} USD
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-4 text-xs text-slate-400 mt-1 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} className="text-slate-400" />
+                              Requested {formatDate(req.requested_at)}
+                            </span>
+                            {req.reviewed_at && (
+                              <span className="flex items-center gap-1">
+                                <CheckCircle2 size={12} className="text-slate-400" />
+                                Reviewed {formatDate(req.reviewed_at)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        Requested {new Date(req.requested_at).toLocaleDateString("en-GB")}
-                        {req.reviewed_at ? ` · Reviewed ${new Date(req.reviewed_at).toLocaleDateString("en-GB")}` : ""}
+
+                      <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                        {req.status === "Pending" && (
+                          <button
+                            onClick={() => cancelRequest(req.id)}
+                            className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50/50 text-xs font-semibold text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+                          >
+                            Cancel Request
+                          </button>
+                        )}
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeStyle(req.status)}`}>
+                          {statusIcon(req.status)}
+                          {req.status}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {req.status === "Pending" && (
-                        <button
-                          onClick={() => cancelRequest(req.id)}
-                          className="text-xs font-medium text-rose-500 hover:text-rose-700 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadge(req.status)}`}>
-                        {statusIcon(req.status)}
-                        {req.status}
-                      </span>
-                    </div>
+
+                    {req.admin_notes && (
+                      <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50/80 rounded-xl p-3 border border-slate-200/50">
+                        <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold text-slate-700 mr-1">Admin note:</span>
+                          <span className="text-slate-600">{req.admin_notes}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

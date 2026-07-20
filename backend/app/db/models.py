@@ -130,6 +130,7 @@ class Users(Base):
     polar_subscription_id: Mapped[Optional[str]] = mapped_column(Text)
     plan_renews_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     polar_cancel_at_period_end: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    polar_pending_plan: Mapped[Optional[str]] = mapped_column(Text)
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
     ai_conversations: Mapped[list['AiConversations']] = relationship('AiConversations', back_populates='user')

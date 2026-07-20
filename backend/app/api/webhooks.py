@@ -195,7 +195,6 @@ def _mark_processed(store: Store, event_id: Optional[str], event_type: Optional[
 
 
 def _find_user(store: Store, customer_id: Optional[str], data: Dict[str, Any]) -> Optional[Users]:
-    store.db.expire_all()
     user = None
     if customer_id:
         user = store.db.scalar(select(Users).where(Users.polar_customer_id == customer_id))
@@ -346,6 +345,21 @@ async def handle_subscription_updated(
         user.polar_cancel_at_period_end = 0
         user.plan_renews_at = current_period_end if current_period_end else None
         user.plan_ends_at = None
+
+    # Parse scheduled pending plan updates (e.g. Max -> Basic next billing cycle)
+    pending_update = data.get("pending_update")
+    if isinstance(pending_update, dict) and pending_update.get("product_id"):
+        pending_pid = pending_update.get("product_id")
+        if pending_pid in [get_app_setting(store, "polar_product_id_basic_monthly"), get_app_setting(store, "polar_product_id_basic_quarterly")]:
+            user.polar_pending_plan = "Basic"
+        elif pending_pid in [get_app_setting(store, "polar_product_id_pro_monthly"), get_app_setting(store, "polar_product_id_pro_quarterly")]:
+            user.polar_pending_plan = "Pro"
+        elif pending_pid in [get_app_setting(store, "polar_product_id_max_monthly"), get_app_setting(store, "polar_product_id_max_quarterly")]:
+            user.polar_pending_plan = "Max"
+        else:
+            user.polar_pending_plan = "Updated Plan"
+    else:
+        user.polar_pending_plan = None
 
     store.db.commit()
     logger.info(

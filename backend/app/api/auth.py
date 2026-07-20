@@ -229,6 +229,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "polar_customer_id": current_user.get("polar_customer_id"),
         "polar_subscription_id": current_user.get("polar_subscription_id"),
         "polar_cancel_at_period_end": bool(current_user.get("polar_cancel_at_period_end")),
+        "polar_pending_plan": current_user.get("polar_pending_plan"),
     }
 
 

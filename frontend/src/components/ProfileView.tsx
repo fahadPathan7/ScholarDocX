@@ -510,6 +510,14 @@ export function ProfileView({
                       <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
                     </div>
                   )}
+                  {user.polar_pending_plan && (
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200/60">
+                      <span className="opacity-70 font-medium">Scheduled Next Plan:</span>
+                      <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                        {user.polar_pending_plan} (Starts {user.plan_renews_at ? new Date(user.plan_renews_at).toLocaleDateString("en-GB") : 'Next Billing'})
+                      </span>
+                    </div>
+                  )}
                   {planStatus === "warning" && planDaysRemaining !== null && (
                     <p className="mt-2 text-xs font-medium">
                       {planDaysRemaining === 0 ? "This plan ends today." : `${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"} remaining.`}

@@ -517,3 +517,31 @@ def test_admin_update_roles_blocks_active_polar_subscriber(tmp_path):
     finally:
         store.db.close()
 
+
+@pytest.mark.asyncio
+async def test_subscription_updated_stores_pending_plan(tmp_path):
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        data = {
+            "id": "sub_pending_1",
+            "customer_id": "cus_polar_1",
+            "product_id": PRO_PRODUCT,
+            "customer": {"email": "wh-user@example.com"},
+            "current_period_end": "2026-09-20T00:00:00Z",
+            "cancel_at_period_end": False,
+            "pending_update": {
+                "product_id": get_app_setting(store, "polar_product_id_basic_monthly"),
+                "applied_at": "2026-09-20T00:00:00Z"
+            }
+        }
+
+        await handle_subscription_updated(data, store, event_id="evt_pending_1")
+
+        store.db.expire_all()
+        user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
+        assert user_after.polar_pending_plan == "Basic"
+    finally:
+        store.db.close()
+

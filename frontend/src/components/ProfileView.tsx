@@ -126,6 +126,11 @@ export function ProfileView({
     }
   };
 
+  const { adminRoles, planTier, prettify } = classifyRoles(user?.roles);
+  const tierKey = planTier || "free_user";
+  const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
+  const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
+
   const planStatus = getUserPlanStatus(user?.plan_ends_at);
   const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
   const planCardTone = planStatus === "expired"
@@ -340,11 +345,6 @@ export function ProfileView({
     const parts = full.replace(/\\/g, "/").split("/").filter(Boolean);
     return parts.length > 2 ? "…/" + parts.slice(-2).join("/") : full;
   };
-
-  const { adminRoles, planTier, prettify } = classifyRoles(user?.roles);
-  const tierKey = planTier || "free_user";
-  const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
-  const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
 
   return (
     <div className="profile-page">

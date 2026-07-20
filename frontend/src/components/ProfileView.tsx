@@ -277,6 +277,19 @@ export function ProfileView({
     logout();
   };
 
+  const handleManagePolarPortal = async () => {
+    try {
+      const res = await api.post<{ url: string }>("/auth/plans/portal", {});
+      if (res?.url) {
+        window.open(res.url, "_blank");
+      } else {
+        window.open("https://polar.sh/purchases", "_blank");
+      }
+    } catch {
+      window.open("https://polar.sh/purchases", "_blank");
+    }
+  };
+
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError("");
@@ -371,6 +384,16 @@ export function ProfileView({
                    <Leaf size={13} />}
                   <span>{tierLabel}</span>
                 </div>
+                {user?.polar_subscription_id && (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                    user?.polar_cancel_at_period_end 
+                      ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
+                      : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  }`}>
+                    <Globe size={11} />
+                    {user?.polar_cancel_at_period_end ? "Canceling Online" : "Online Subscription"}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -519,6 +542,15 @@ export function ProfileView({
                   </div>
                   <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
                 </button>
+                {user?.polar_subscription_id && (
+                  <button onClick={handleManagePolarPortal} className="profile-action-row" type="button">
+                    <div className="profile-action-content">
+                      <ExternalLink size={16} className={planCardTone.iconClass} />
+                      Manage Online Subscription
+                    </div>
+                    <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
+                  </button>
+                )}
               </div>
             </div>
           )}

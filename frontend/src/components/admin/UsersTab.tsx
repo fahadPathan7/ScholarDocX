@@ -35,6 +35,8 @@ type UserRecord = {
   last_login_at?: string | null;
   plan_started_at?: string | null;
   plan_ends_at?: string | null;
+  polar_subscription_id?: string | null;
+  polar_cancel_at_period_end?: number | null;
 };
 
 type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";

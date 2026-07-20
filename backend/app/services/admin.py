@@ -176,12 +176,13 @@ DEFAULT_ROLE_LIMITS = {
 }
 
 class AdminService:
-    def __init__(self, db: Session):
-        self.db = db
-        # SCHOLARDOCX-0139: route raw-SQL call sites through the legacy shim so
-        # the ~35 self.connection.execute(...) sites (with ? params and
-        # fetchone()[0] / row["col"] access) work unchanged on Postgres.
-        self.connection = LegacyConnection(db)
+    def __init__(self, db: Any):
+        if isinstance(db, LegacyConnection):
+            self.connection = db
+            self.db = db.db
+        else:
+            self.db = db
+            self.connection = LegacyConnection(db)
 
     @staticmethod
     def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -364,7 +365,9 @@ class AdminService:
                 u.plan_ends_at, 
                 u.created_at, 
                 u.token_version,
-                u.polar_subscription_id
+                u.polar_subscription_id,
+                u.polar_cancel_at_period_end,
+                u.plan_renews_at
             FROM users u
             LEFT JOIN local_profiles lp ON u.id = lp.user_id
             ORDER BY u.created_at DESC
@@ -499,6 +502,12 @@ class AdminService:
         return d
 
     def update_user_roles(self, admin_id: str, user_id: str, roles: list[str], plan_duration_days: Optional[int] = None, plan_start_date: Optional[str] = None, plan_end_date: Optional[str] = None) -> dict:
+        target_user = self.connection.execute(
+            "SELECT polar_subscription_id, polar_cancel_at_period_end FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if target_user and target_user["polar_subscription_id"] and not target_user["polar_cancel_at_period_end"]:
+            raise ValueError("User has an active Polar online subscription. Role and plan changes must be managed via the Polar Dashboard.")
+
         roles_json = json.dumps(roles)
 
         # Only set plan dates for user-level roles (free_user, general_user, pro_user, max_user)

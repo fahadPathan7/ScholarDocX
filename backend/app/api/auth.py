@@ -224,8 +224,48 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "display_name": current_user["display_name"],
         "roles": current_user.get("roles", []),
         "plan_started_at": current_user.get("plan_started_at"),
-        "plan_ends_at": current_user.get("plan_ends_at")
+        "plan_ends_at": current_user.get("plan_ends_at"),
+        "plan_renews_at": current_user.get("plan_renews_at"),
+        "polar_customer_id": current_user.get("polar_customer_id"),
+        "polar_subscription_id": current_user.get("polar_subscription_id"),
+        "polar_cancel_at_period_end": bool(current_user.get("polar_cancel_at_period_end")),
     }
+
+
+@router.post("/plans/portal")
+def create_customer_portal_session(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
+    customer_id = current_user.get("polar_customer_id")
+    if not customer_id:
+        return {"url": "https://polar.sh/purchases"}
+
+    settings = get_settings()
+    access_token = settings.polar_access_token
+    if not access_token:
+        return {"url": "https://polar.sh/purchases"}
+
+    import urllib.request
+    import json as _json
+
+    api_url = "https://sandbox.api.polar.sh/v1/customer-sessions/" if "sandbox" in settings.polar_env.lower() else "https://api.polar.sh/v1/customer-sessions/"
+    req = urllib.request.Request(
+        api_url,
+        data=_json.dumps({"customer_id": customer_id}).encode(),
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res_data = _json.loads(resp.read().decode())
+            portal_url = res_data.get("customer_portal_url") or res_data.get("url")
+            if portal_url:
+                return {"url": portal_url}
+    except Exception as e:
+        logger.warning(f"Could not create Polar customer session: {e}")
+
+    return {"url": "https://polar.sh/purchases"}
 
 @router.post("/me/password")
 def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

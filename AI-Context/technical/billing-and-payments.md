@@ -73,10 +73,10 @@ on success, 5xx on transient/retry-worthy failures (so Polar retries), 400 on
 signature failure.
 
 ### Signature verification
-- svix `Webhook.verify(payload, headers)` runs BEFORE any DB write.
+- `_verify_polar_webhook(payload, headers, raw_secret)` runs BEFORE any DB write.
 - Missing `POLAR_WEBHOOK_SECRET` → 500 (fail closed; never accept unsigned).
-- svix natively enforces presence of `svix-id` / `svix-signature` / `svix-timestamp`
-  and a ±5 min replay window.
+- Evaluates candidate secret representations derived from `POLAR_WEBHOOK_SECRET` (Base64-decoded without `whsec_` prefix, Base64-decoded full string, raw UTF-8 without prefix, and raw UTF-8 full string) with `.strip()` whitespace sanitization. This ensures signature verification succeeds regardless of Polar/Svix key variance.
+- Test suites use an `autouse` fixture (`mock_webhook_settings`) to mock product settings in memory, preserving actual production/sandbox `AppSettings` in the database.
 
 ### Idempotency (SCHOLARDOCX-0157)
 Polar retries undelivered webhooks. The `polar_processed_events` table dedups by

@@ -74,8 +74,29 @@ def _seed_user(connection, user_id, email, roles, polar_customer_id=None, polar_
     connection.db.expire_all()
 
 
+@pytest.fixture(autouse=True)
+def mock_webhook_settings():
+    """Ensure unit tests resolve expected mock product IDs without mutating AppSettings in DB."""
+    test_products = {
+        "polar_product_id_basic_monthly": "polar_prod_basic_monthly",
+        "polar_product_id_basic_quarterly": "polar_prod_basic_quarterly",
+        "polar_product_id_pro_monthly": PRO_PRODUCT,
+        "polar_product_id_pro_quarterly": "polar_prod_pro_quarterly",
+        "polar_product_id_max_monthly": "polar_prod_max_monthly",
+        "polar_product_id_max_quarterly": "polar_prod_max_quarterly",
+        "polar_extra_credits_id_1": SMALL_PACK_PRODUCT,
+    }
+    real_get_app_setting = webhooks.get_app_setting
+
+    def _mock_get_app_setting(store, key, default=""):
+        return test_products.get(key) or real_get_app_setting(store, key, default)
+
+    with patch("app.api.webhooks.get_app_setting", side_effect=_mock_get_app_setting):
+        yield
+
+
 def _seed_polar_products(connection, store):
-    """Seed the Polar product-id settings so the handlers can resolve them."""
+    """Ensure default Polar product-id settings exist without overwriting real DB values."""
     from app.db.models import AppSettings
     products = {
         "polar_product_id_basic_monthly": "polar_prod_basic_monthly",
@@ -88,9 +109,7 @@ def _seed_polar_products(connection, store):
     }
     for key, value in products.items():
         existing = store.db.scalar(select(AppSettings).where(AppSettings.key == key))
-        if existing:
-            existing.value = value
-        else:
+        if not existing:
             store.db.add(AppSettings(key=key, value=value))
     store.db.commit()
 

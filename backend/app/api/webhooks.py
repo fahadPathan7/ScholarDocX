@@ -385,7 +385,18 @@ async def handle_subscription_revoked(data: Dict[str, Any], store: Store, event_
 
 async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Optional[str]) -> None:
     """Grant extra-credit pack tokens for a one-off Polar order."""
-    product_id = data.get("product_id")
+    # If this order is for a subscription product, it is managed via subscription.* events
+    sub_product_ids = {
+        get_app_setting(store, "polar_product_id_basic_monthly"),
+        get_app_setting(store, "polar_product_id_basic_quarterly"),
+        get_app_setting(store, "polar_product_id_pro_monthly"),
+        get_app_setting(store, "polar_product_id_pro_quarterly"),
+        get_app_setting(store, "polar_product_id_max_monthly"),
+        get_app_setting(store, "polar_product_id_max_quarterly"),
+    } - {""}
+    if product_id in sub_product_ids:
+        logger.info(f"Order event received for subscription product {product_id} (event_id={event_id})")
+        return
 
     pack_code: Optional[str] = None
     if product_id == get_app_setting(store, "polar_extra_credits_id_1"):
@@ -398,8 +409,8 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
         pack_code = "extra_large"
 
     if not pack_code:
-        logger.warning(f"Unknown Polar extra-credit product_id {product_id} in order (event_id={event_id})")
-        return  # not ours — don't fail the webhook over unrelated products
+        logger.info(f"Unmapped product_id {product_id} in order event (event_id={event_id})")
+        return  # not an extra credit pack — don't fail the webhook
 
     pack_row = store.db.scalar(select(AiTokenPacks).where(AiTokenPacks.code == pack_code))
     if not pack_row or pack_row.token_amount <= 0:

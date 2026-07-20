@@ -60,8 +60,8 @@ def get_engine(database_url: str) -> Engine:
         _engine_cache[resolved] = create_engine(
             resolved,
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=3,
+            pool_size=10,
+            max_overflow=10,
             pool_timeout=30,
             connect_args={"prepare_threshold": None},
         )

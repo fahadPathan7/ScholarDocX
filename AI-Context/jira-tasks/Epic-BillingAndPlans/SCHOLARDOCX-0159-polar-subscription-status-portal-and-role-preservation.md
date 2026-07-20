@@ -60,16 +60,17 @@ Out of scope:
 
 - [x] Online subscribers display a status badge (e.g. "ONLINE SUBSCRIPTION" / "CANCELING") in the profile.
 - [x] Active subscription displays "Renews on: DD/MM/YYYY"; canceled subscription displays "Cancels on: DD/MM/YYYY".
-- [x] Active online subscribers see a "Manage Subscription" button.
+- [x] Active online subscribers see a "Manage Subscription" button linking to Polar Customer Portal SSO (`sandbox-api.polar.sh`).
 - [x] "Request Manual Upgrade" is disabled for active Polar subscribers with an informative hint.
 - [x] Admins cannot manually modify plan roles for active Polar subscribers from the admin dashboard (read-only with informative note).
 - [x] Admin roles (`super_admin`, `system_admin`, `admin`) are preserved when `handle_subscription_updated` runs.
+- [x] Scheduled plan downgrades/upgrades (`pending_update`) are tracked (`polar_pending_plan`) and rendered in Profile.
 
 ## Implementation Plan
 
 1. **Backend Role Preservation**: Update `handle_subscription_updated` in `webhooks.py` to extract existing admin/system roles before updating plan roles.
-2. **Backend API Payload**: Include `polar_cancel_at_period_end` and `polar_current_period_end` in `/auth/me` user dict, and provide `/auth/plans/portal` route.
-3. **Frontend Profile Billing Card**: Update `ProfileView.tsx` to render online subscription tag, renewal/cancellation date, and Manage Subscription button.
+2. **Backend API Payload**: Include `polar_cancel_at_period_end`, `polar_current_period_end`, and `polar_pending_plan` in `/auth/me` user dict, and provide `/auth/plans/portal` route targeting `sandbox-api.polar.sh`.
+3. **Frontend Profile Billing Card**: Update `ProfileView.tsx` to render online subscription tag, renewal/cancellation date, scheduled next plan, and Manage Subscription button.
 4. **Frontend Plan Request Modal**: Update `PlanRequestModal.tsx` to disable manual upgrade card for active Polar subscribers.
 
 ## Unit Test Plan
@@ -80,6 +81,7 @@ Unit tests needed:
 Planned tests:
 - `test_subscription_updated_preserves_admin_roles` in `test_webhooks.py`.
 - `test_admin_update_roles_blocks_active_polar_subscriber` in `test_webhooks.py`.
+- `test_subscription_updated_stores_pending_plan` in `test_webhooks.py`.
 
 ## File Size Check
 
@@ -87,8 +89,10 @@ Files expected to be edited:
 - `backend/app/api/webhooks.py`
 - `backend/app/api/auth.py`
 - `backend/app/services/admin.py`
+- `backend/app/db/models.py`
 - `frontend/src/components/ProfileView.tsx`
 - `frontend/src/components/admin/UsersTab.tsx`
+- `frontend/src/lib/auth.ts`
 - `backend/tests/unit/test_webhooks.py`
 
 Line-count risk:
@@ -97,7 +101,7 @@ Line-count risk:
 ## Verification Plan
 
 - Run unit test suite `pytest backend/tests/unit/test_webhooks.py`.
-- Verify UI rendering of status badges, dates, portal button, and disabled manual option.
+- Verify UI rendering of status badges, dates, portal button, scheduled next plan, and disabled manual option.
 
 ## Completion Notes
 
@@ -105,13 +109,15 @@ Changed files:
 - `backend/app/api/webhooks.py`
 - `backend/app/api/auth.py`
 - `backend/app/services/admin.py`
+- `backend/app/db/models.py`
 - `frontend/src/components/ProfileView.tsx`
 - `frontend/src/components/admin/UsersTab.tsx`
+- `frontend/src/lib/auth.ts`
 - `backend/tests/unit/test_webhooks.py`
 - `AI-Context/technical/billing-and-payments.md`
 
 Verification completed:
-- All 13 unit tests passed in `test_webhooks.py`, including `test_subscription_updated_preserves_admin_roles` and `test_admin_update_roles_blocks_active_polar_subscriber`.
+- All 14 unit tests passed in `test_webhooks.py`, including `test_subscription_updated_preserves_admin_roles`, `test_admin_update_roles_blocks_active_polar_subscriber`, and `test_subscription_updated_stores_pending_plan`.
 
 Follow-ups:
 - None.

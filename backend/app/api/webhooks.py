@@ -385,6 +385,8 @@ async def handle_subscription_revoked(data: Dict[str, Any], store: Store, event_
 
 async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Optional[str]) -> None:
     """Grant extra-credit pack tokens for a one-off Polar order."""
+    product_id = data.get("product_id")
+
     # If this order is for a subscription product, it is managed via subscription.* events
     sub_product_ids = {
         get_app_setting(store, "polar_product_id_basic_monthly"),

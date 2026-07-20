@@ -159,7 +159,9 @@ export function ProfileView({
     ? "Your plan has expired. Renew or change your plan to restore full workspace access."
     : planStatus === "warning"
       ? `Your plan ends ${planDaysRemaining === 0 ? "today" : `in ${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"}`}. Renew or change your plan to avoid interruption.`
-      : "Upgrade to unlock premium features, higher AI limits, and dedicated support.";
+      : tierKey === "max_user"
+        ? "You are on the top-tier Max plan with maximum AI limits and full workspace capabilities."
+        : "Upgrade to unlock premium features, higher AI limits, and dedicated support.";
 
   useEffect(() => {
     // Refresh user context to ensure latest roles from database

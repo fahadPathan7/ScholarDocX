@@ -137,6 +137,22 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     }
   };
 
+  const handleManageOnlineSubscription = async () => {
+    try {
+      const res = await api.post<{ url: string }>("/auth/plans/portal", {});
+      if (res?.url) {
+        window.location.href = res.url;
+      } else {
+        window.location.href = "https://polar.sh/purchases";
+      }
+    } catch {
+      window.location.href = "https://polar.sh/purchases";
+    }
+  };
+
+  const isOnlineSubscribed = Boolean(user?.polar_subscription_id);
+  const isCanceling = Boolean(user?.polar_cancel_at_period_end);
+
   const handlePolarCheckout = async (polarId: string) => {
     try {
       setPolarLoading(true);
@@ -466,7 +482,24 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
 
                     <div className="mt-8 relative z-10">
-                      {role === 'free_user' && isCurrentPlan ? null : (
+                      {isOnlineSubscribed ? (
+                        role === "free_user" ? (
+                          <button
+                            disabled
+                            className="w-full py-3.5 rounded-xl font-bold bg-slate-100 text-slate-400 border border-slate-200/80 cursor-not-allowed text-sm"
+                            title="The Free plan will automatically be enabled after your online subscription is cancelled and the current period ends."
+                          >
+                            {isCanceling ? "Free at Period End" : "Available at Period End"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleManageOnlineSubscription}
+                            className={`w-full py-3.5 rounded-xl font-bold transition-all shadow-sm ${planConfig.buttonClass}`}
+                          >
+                            Manage Subscription
+                          </button>
+                        )
+                      ) : role === 'free_user' && isCurrentPlan ? null : (
                         <button
                           onClick={() => openRequestModal(role, isCurrentPlan ? "extension" : "upgrade")}
                           disabled={hasPendingRequest}

@@ -126,8 +126,15 @@ export function ProfileView({
     }
   };
 
-  const planStatus = getUserPlanStatus(user?.plan_ends_at);
-  const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at);
+  const { adminRoles, planTier, prettify } = classifyRoles(user?.roles);
+  const tierKey = planTier || "free_user";
+  const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
+  const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
+
+  const planStatus = (user?.polar_subscription_id && !user?.polar_cancel_at_period_end)
+    ? "active"
+    : getUserPlanStatus(user?.plan_ends_at, user?.plan_renews_at);
+  const planDaysRemaining = getPlanDaysRemaining(user?.plan_ends_at, user?.plan_renews_at);
   const planCardTone = planStatus === "expired"
     ? {
         headerClass: "text-rose-800",
@@ -159,7 +166,9 @@ export function ProfileView({
     ? "Your plan has expired. Renew or change your plan to restore full workspace access."
     : planStatus === "warning"
       ? `Your plan ends ${planDaysRemaining === 0 ? "today" : `in ${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"}`}. Renew or change your plan to avoid interruption.`
-      : "Upgrade to unlock premium features, higher AI limits, and dedicated support.";
+      : tierKey === "max_user"
+        ? "You are on the top-tier Max plan with maximum AI limits and full workspace capabilities."
+        : "Upgrade to unlock premium features, higher AI limits, and dedicated support.";
 
   useEffect(() => {
     // Refresh user context to ensure latest roles from database
@@ -339,11 +348,6 @@ export function ProfileView({
     return parts.length > 2 ? "…/" + parts.slice(-2).join("/") : full;
   };
 
-  const { adminRoles, planTier, prettify } = classifyRoles(user?.roles);
-  const tierKey = planTier || "free_user";
-  const tierLabel = planTier ? PLAN_LABELS[planTier] : "Member";
-  const isTopTier = tierKey === "max_user" || tierKey === "pro_user";
-
   return (
     <div className="profile-page">
       {user?.is_active === false && (
@@ -478,7 +482,7 @@ export function ProfileView({
               <p className={`profile-system-hint ${planCardTone.hintClass}`} style={{ marginTop: 0, marginBottom: "8px" }}>
                 {planHintText}
               </p>
-              {(user?.plan_started_at || user?.plan_ends_at) && (
+              {(user?.plan_started_at || user?.plan_ends_at || user?.plan_renews_at || user?.polar_subscription_id) && (
                 <div className={`rounded-lg p-3 mb-3 text-[13px] ${planCardTone.panelClass}`}>
                   {planStatus !== "active" && planStatus !== "no_plan" && (
                     <div className="mb-2">
@@ -487,11 +491,16 @@ export function ProfileView({
                       </span>
                     </div>
                   )}
-                  {planStatus !== "no_plan" && planStatus !== "expired" && (
+                  {(user?.polar_subscription_id || (planStatus !== "no_plan" && planStatus !== "expired")) && (
                     <div className="flex justify-between items-center mb-1">
                       <span className="opacity-70 font-medium">Subscription Source:</span>
-                      <span className="font-semibold text-xs tracking-wide uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                        {user.polar_subscription_id ? "Online" : "Manual / Admin"}
+                      <span className={`font-semibold text-xs tracking-wide uppercase px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                        user?.polar_subscription_id
+                          ? "bg-emerald-100/80 text-emerald-700 border border-emerald-200/60"
+                          : "bg-slate-100 text-slate-600 border border-slate-200"
+                      }`}>
+                        {user?.polar_subscription_id && <Globe size={11} />}
+                        {user?.polar_subscription_id ? "Online" : "Manual / Admin"}
                       </span>
                     </div>
                   )}

@@ -309,18 +309,26 @@ no-migration variant for pre-existing tables.
   assembly helper (`_assemble_public_plans`) with the auth-gated `/auth/plans`
   so the two endpoints can never drift. Exposes only marketing-safe data
   (plan limits/prices) — no per-user or private config.
-- `/auth/plans/checkout` (POST, SCHOLARDOCX-0156/0157) creates a Polar hosted
-  checkout session and returns `{status, url}`. The customer identifier sent to
-  Polar is derived from `current_user` — **never** from the client-supplied
-  `payload.customer_email`, which is spoofable. Returning customers
-  (`current_user["polar_customer_id"]` set) reuse their Polar customer via
-  `customer_id`; new customers get one created with the user UUID as
+- `/auth/plans/checkout` (POST, SCHOLARDOCX-0156/0157/0158) creates a Polar
+  hosted checkout session and returns `{status, url}`. The customer identifier
+  sent to Polar is derived from `current_user` — **never** from the
+  client-supplied `payload.customer_email`, which is spoofable. Returning
+  customers (`current_user["polar_customer_id"]` set) reuse their Polar customer
+  via `customer_id`; new customers get one created with the user UUID as
   `external_customer_id` plus their account `customer_email`. Passing Polar a
   known-customer identifier is what makes the hosted checkout page render the
   email field **pre-filled AND disabled** (prevents email typos that would
   otherwise break webhook reconciliation). `success_url` is validated against
-  the app's CORS origins (open-redirect guard); errors are generic (no provider
-  name / upstream body in user-facing copy). Full design: `billing-and-payments.md`.
+  the app's CORS origins (open-redirect guard); `product_id` is validated as a
+  canonical UUID at the boundary (`_is_uuid_shape`) so a placeholder or unset
+  `polar_*_id` setting (e.g. the test sentinel `polar_prod_pro_monthly`) is
+  rejected with 400 *before* any call to the provider, instead of surfacing as
+  a cryptic upstream 422; errors are generic (no provider name / upstream body
+  / echoed input in user-facing copy). Full design: `billing-and-payments.md`.
+- `/auth/plans` and `/auth/plans/public` (SCHOLARDOCX-0158): `_assemble_public_plans`
+  omits any `polar_product_id_*` / `polar_extra_credits_id_*` key whose value is
+  not a canonical UUID. Plan/price data is still returned; only the buyable id
+  is gated, so the frontend never renders a buy button it cannot fulfill.
 - `/webhooks/polar` (POST, anonymous, svix-signed) reconciles Polar events to
   `users` rows. See `billing-and-payments.md` for the full contract
   (idempotency, event routing, retry semantics). In short: signature is verified

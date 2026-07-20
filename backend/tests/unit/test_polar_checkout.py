@@ -25,6 +25,10 @@ USER_EMAIL = "checkout@example.com"
 # success_url validation passes without extra config. (SCHOLARDOCX-0157)
 ALLOWED_ORIGIN = "http://localhost:5173"
 ALLOWED_SUCCESS_URL = f"{ALLOWED_ORIGIN}/billing"
+# Real-shaped Polar product UUID. SCHOLARDOCX-0158 made the checkout endpoint
+# reject anything that isn't a canonical UUID, so the shared fixture must use
+# one. (The earlier `prod_abc` value would now fail validation at the boundary.)
+PRODUCT_UUID = "5b1f3a2c-4d6e-4a8f-9b21-2c3d4e5f6789"
 
 
 class _FakeResponse:
@@ -84,7 +88,7 @@ def fake_polar(monkeypatch):
 @pytest.fixture
 def payload():
     return PolarCheckoutPayload(
-        product_id="prod_abc",
+        product_id=PRODUCT_UUID,
         customer_email="attacker@example.com",  # must be IGNORED by the backend
         success_url=ALLOWED_SUCCESS_URL,
     )
@@ -150,7 +154,7 @@ async def test_forwards_product_id_and_success_url(fake_polar, payload):
     await create_polar_checkout(payload, current_user)
 
     body = fake_polar.captured_body
-    assert body["product_id"] == "prod_abc"
+    assert body["product_id"] == PRODUCT_UUID
     assert body["success_url"] == ALLOWED_SUCCESS_URL
 
 
@@ -166,7 +170,7 @@ async def test_known_customer_forwards_product_id_and_success_url(fake_polar, pa
     await create_polar_checkout(payload, current_user)
 
     body = fake_polar.captured_body
-    assert body["product_id"] == "prod_abc"
+    assert body["product_id"] == PRODUCT_UUID
     assert body["success_url"] == ALLOWED_SUCCESS_URL
 
 
@@ -204,3 +208,104 @@ async def test_generic_error_on_upstream_failure(fake_polar, payload):
     assert "polar" not in detail.lower()
     assert "req_123" not in detail
     assert "upstream detail" not in detail
+
+
+# ---------------------------------------------------------------------------
+# SCHOLARDOCX-0158 product_id validation tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad_value",
+    [
+        "polar_prod_pro_monthly",   # test sentinel leaked into a settings row
+        "polar_product_id_pro_monthly",  # the setting key name itself
+        "prod_abc",                 # legacy placeholder, not a UUID
+        "",                         # unset
+        "5b1f3a2c-4d6e-4a8f-9b21",  # too short (truncated UUID)
+        "not-a-uuid-at-all",
+    ],
+)
+async def test_rejects_non_uuid_product_id(fake_polar, payload, bad_value):
+    """A non-UUID product_id is rejected at the boundary with 400 — no Polar call."""
+    payload.product_id = bad_value
+    current_user = {"id": USER_ID, "email": USER_EMAIL, "polar_customer_id": None}
+
+    with pytest.raises(HTTPException) as exc:
+        await create_polar_checkout(payload, current_user)
+
+    assert exc.value.status_code == 400
+    # Generic, user-safe message — no provider name.
+    assert "polar" not in exc.value.detail.lower()
+    # Non-empty offending values must not be echoed back to the client.
+    # (Empty string is trivially "in" every string, so skip that case here.)
+    if bad_value:
+        assert bad_value not in exc.value.detail
+    # Validation runs before any HTTP call is made.
+    assert fake_polar.captured_body is None
+
+
+@pytest.mark.asyncio
+async def test_accepts_valid_uuid_product_id(fake_polar, payload):
+    """A canonical UUID product_id is accepted and forwarded unchanged."""
+    payload.product_id = PRODUCT_UUID
+    current_user = {"id": USER_ID, "email": USER_EMAIL, "polar_customer_id": None}
+
+    result = await create_polar_checkout(payload, current_user)
+
+    assert fake_polar.captured_body["product_id"] == PRODUCT_UUID
+    assert result["status"] == "success"
+
+
+def test_assemble_public_plans_filters_non_uuid_product_ids():
+    """_assemble_public_plans must omit polar_*_id keys whose value isn't a UUID.
+
+    Regression guard for SCHOLARDOCX-0158: a placeholder sentinel stored in
+    app_settings (e.g. `polar_prod_pro_monthly`) must not be advertised to the
+    frontend, so PlanComparisonView never renders a buy button it cannot
+    fulfill. Prices are still surfaced; only the buyable id is gated.
+    """
+    import app.api.auth as auth
+
+    class _FakeStore:
+        def __init__(self):
+            self.legacy_connection = self
+
+        def execute(self, sql):
+            # Return two role_limits rows so `plans` is non-empty, plus a mix
+            # of well-formed and malformed polar ids + a price row.
+            class _Result:
+                def __init__(self, rows):
+                    self._rows = rows
+
+                def fetchall(self):
+                    return self._rows
+
+            lowered = sql.lower()
+            if "from role_limits" in lowered:
+                return _Result([
+                    {"role": "pro_user", "feature": "max_projects", "limit_count": 50, "reset_period": "monthly"},
+                ])
+            if "from app_settings" in lowered:
+                return _Result([
+                    {"key": "plan_price_pro_monthly", "value": "50"},
+                    {"key": "polar_product_id_pro_monthly", "value": "polar_prod_pro_monthly"},  # bad
+                    {"key": "polar_product_id_pro_quarterly", "value": PRODUCT_UUID},            # good
+                    {"key": "polar_extra_credits_id_1", "value": ""},                            # bad
+                    {"key": "polar_extra_credits_id_2", "value": PRODUCT_UUID},                  # good
+                ])
+            return _Result([])
+
+    out = auth._assemble_public_plans(_FakeStore())
+
+    pricing = out["pricing"]
+    # Price is surfaced regardless.
+    assert pricing.get("plan_price_pro_monthly") == "50"
+    # Malformed product ids are dropped…
+    assert "polar_product_id_pro_monthly" not in pricing
+    assert "polar_extra_credits_id_1" not in pricing
+    # …valid UUIDs are kept.
+    assert pricing.get("polar_product_id_pro_quarterly") == PRODUCT_UUID
+    assert pricing.get("polar_extra_credits_id_2") == PRODUCT_UUID
+

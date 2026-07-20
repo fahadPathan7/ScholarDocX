@@ -59,6 +59,7 @@ def make_store(tmp_path):
 
 
 def _seed_user(connection, user_id, email, roles, polar_customer_id=None, polar_subscription_id=None):
+    connection.db.rollback()
     cleanup_user_records(connection, user_id=user_id, email=email)
     connection.execute(
         """
@@ -70,13 +71,19 @@ def _seed_user(connection, user_id, email, roles, polar_customer_id=None, polar_
         (user_id, email, roles, polar_customer_id, polar_subscription_id),
     )
     connection.commit()
+    connection.db.expire_all()
 
 
 def _seed_polar_products(connection, store):
     """Seed the Polar product-id settings so the handlers can resolve them."""
     from app.db.models import AppSettings
     products = {
+        "polar_product_id_basic_monthly": "polar_prod_basic_monthly",
+        "polar_product_id_basic_quarterly": "polar_prod_basic_quarterly",
         "polar_product_id_pro_monthly": PRO_PRODUCT,
+        "polar_product_id_pro_quarterly": "polar_prod_pro_quarterly",
+        "polar_product_id_max_monthly": "polar_prod_max_monthly",
+        "polar_product_id_max_quarterly": "polar_prod_max_quarterly",
         "polar_extra_credits_id_1": SMALL_PACK_PRODUCT,
     }
     for key, value in products.items():
@@ -131,8 +138,9 @@ async def test_subscription_updated_grants_plan_and_persists_customer_id(tmp_pat
 
         await handle_subscription_updated(data, store, event_id="evt_1")
 
-        store.db.refresh(store.db.scalar(select(Users).where(Users.id == USER_ID)))
+        store.db.expire_all()  # flush stale identity map after raw-SQL + ORM mix
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user is not None, "User should exist in database after subscription update"
         assert json.loads(user.roles) == ["pro_user"]
         assert user.polar_subscription_id == "sub_abc"
         assert user.polar_customer_id == "cus_polar_1"  # backfilled from email fallback
@@ -197,6 +205,7 @@ async def test_subscription_canceled_keeps_plan_until_period_end(tmp_path):
             (original_start, USER_ID),
         )
         connection.commit()
+        connection.db.expire_all()
 
         data = {
             "id": "sub_existing",
@@ -210,7 +219,9 @@ async def test_subscription_canceled_keeps_plan_until_period_end(tmp_path):
         # canceled=True simulates routing of subscription.canceled
         await handle_subscription_updated(data, store, event_id="evt_cancel", canceled=True)
 
+        store.db.expire_all()  # flush stale identity map after raw-SQL + ORM mix
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user is not None, "User should exist in database"
         assert json.loads(user.roles) == ["pro_user"]  # plan KEPT
         assert user.polar_cancel_at_period_end == 1
         # DateTime column round-trips as a datetime object (H6: we write ISO
@@ -240,6 +251,7 @@ async def test_plan_started_at_not_reset_on_retry_of_same_subscription(tmp_path)
             (original_start, USER_ID),
         )
         connection.commit()
+        connection.db.expire_all()
 
         data = {
             "id": "sub_x",
@@ -251,7 +263,9 @@ async def test_plan_started_at_not_reset_on_retry_of_same_subscription(tmp_path)
         }
         await handle_subscription_updated(data, store, event_id="evt_retry")
 
+        store.db.expire_all()  # flush stale identity map after raw-SQL + ORM mix
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user is not None, "User should exist in database"
         assert str(user.plan_started_at).startswith("2026-07-01")
     finally:
         store.db.close()
@@ -274,7 +288,9 @@ async def test_subscription_revoked_downgrades_immediately(tmp_path):
 
         await handle_subscription_revoked(data, store, event_id="evt_revoke")
 
+        store.db.expire_all()  # flush stale identity map after raw-SQL + ORM mix
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user is not None, "User should exist in database"
         assert json.loads(user.roles) == ["free_user"]
         assert user.polar_subscription_id is None
         assert user.plan_ends_at is not None
@@ -300,7 +316,9 @@ async def test_revoke_falls_back_to_customer_id_when_subscription_id_missing(tmp
 
         await handle_subscription_revoked(data, store, event_id="evt_revoke_fb")
 
+        store.db.expire_all()  # flush stale identity map after raw-SQL + ORM mix
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user is not None, "User should exist in database"
         assert json.loads(user.roles) == ["free_user"]  # would no-op before the fix
     finally:
         store.db.close()
@@ -369,7 +387,9 @@ async def test_duplicate_order_created_does_not_double_grant(tmp_path):
         # (This mirrors what polar_webhook does before dispatching.)
         assert webhooks._is_processed(store, "evt_dup_1") is True
 
+        store.db.expire_all()  # flush stale identity map after raw-SQL writes in grant_purchased
         balance = store.db.scalar(select(AiTokenBalances).where(AiTokenBalances.user_id == USER_ID))
+        assert balance is not None, "AiTokenBalances row should exist after grant_purchased"
         assert balance.purchased_remaining == 100  # not 200
     finally:
         store.db.close()
@@ -400,14 +420,14 @@ async def test_order_user_not_found_raises(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-@patch("app.api.webhooks.Webhook")
-def test_polar_webhook_subscription_created(mock_webhook):
-    """Smoke test through the HTTP endpoint: svix mocked, asserts 200."""
+@patch("app.api.webhooks._verify_polar_webhook")
+@patch("app.api.webhooks._decode_webhook_secret", return_value=b"fake_secret")
+def test_polar_webhook_subscription_created(mock_decode, mock_verify):
+    """Smoke test through the HTTP endpoint: signature mocked, asserts 200."""
     from app.main import app
     client = TestClient(app)
 
-    mock_wh_instance = MagicMock()
-    mock_wh_instance.verify.return_value = {
+    mock_verify.return_value = {
         "type": "subscription.created",
         "data": {
             "id": "sub_smoke",
@@ -416,7 +436,6 @@ def test_polar_webhook_subscription_created(mock_webhook):
             "customer": {"email": "smoke@example.com"},
         },
     }
-    mock_webhook.return_value = mock_wh_instance
 
     # Bypass product-id resolution so the smoke test doesn't depend on admin config.
     with patch(
@@ -426,7 +445,7 @@ def test_polar_webhook_subscription_created(mock_webhook):
         response = client.post(
             "/api/webhooks/polar",
             json={"mock": "payload"},
-            headers={"svix-id": "msg_smoke_1", "svix-timestamp": "123", "svix-signature": "v1,sig"},
+            headers={"webhook-id": "msg_smoke_1", "webhook-timestamp": "123", "webhook-signature": "v1,sig"},
         )
         # Either 200 (user not seeded → will 500 on miss) — we only assert the
         # endpoint is wired and signature verification passes. The reconciliation

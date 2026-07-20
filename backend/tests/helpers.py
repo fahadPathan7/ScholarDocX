@@ -93,13 +93,17 @@ def cleanup_user_records(connection, user_id: str | None = None, email: str | No
                 f"DELETE FROM {_quote_ident(table)} WHERE {_quote_ident(column)} = ?",
                 (uid,),
             )
+        connection.execute("DELETE FROM ai_token_ledger WHERE user_id = ?", (uid,))
+        connection.execute("DELETE FROM ai_token_balances WHERE user_id = ?", (uid,))
         connection.execute("DELETE FROM users WHERE id = ?", (uid,))
 
     if email:
         connection.execute("DELETE FROM users WHERE email = ?", (email,))
 
+    connection.commit()
 
-def make_user(settings: Settings, roles: list, email: str = None) -> dict[str, Any]:
+
+def make_user(settings: Settings, roles: list, email: str | None = None) -> dict[str, Any]:
     """Insert a user row and return a minimal user dict for auth/token code.
 
     Always pre-cleans any existing row for the same email so the function is
@@ -130,9 +134,11 @@ def set_model_price(settings: Settings, model_id: str, input_price: float, outpu
 
 def get_balance(settings: Settings, uid: str) -> dict[str, Any]:
     with connect(settings.database_target) as db:
-        return dict(db.execute(
+        row = db.execute(
             "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
-        ).fetchone())
+        ).fetchone()
+        return dict(row) if row is not None else {}
+
 
 
 def ledger_rows(settings: Settings, uid: str) -> list[dict[str, Any]]:

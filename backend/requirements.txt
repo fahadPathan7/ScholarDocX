@@ -13,4 +13,3 @@ sqlalchemy>=2.0.0
 # at a Postgres instance (e.g. Supabase). psycopg3 (psycopg[binary]) is the
 # modern SQLAlchemy-recommended driver and installs cleanly on Python 3.13+.
 psycopg[binary]>=3.1
-svix>=1.25.0

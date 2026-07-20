@@ -37,16 +37,38 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 _WHSEC_PREFIX = "whsec_"
 
 
-def _decode_webhook_secret(raw: str) -> bytes:
-    """Strip the ``whsec_`` prefix and base64-decode the signing key."""
-    raw = raw.strip()
-    if raw.startswith(_WHSEC_PREFIX):
-        raw = raw[len(_WHSEC_PREFIX):]
-    return base64.b64decode(raw + "==")  # extra padding is harmless
+def _get_candidate_secrets(raw_secret: str | bytes) -> list[bytes]:
+    """Return all plausible byte candidates for the signing secret."""
+    if isinstance(raw_secret, bytes):
+        return [raw_secret]
+
+    raw = raw_secret.strip()
+    no_prefix = raw[len(_WHSEC_PREFIX):] if raw.startswith(_WHSEC_PREFIX) else raw
+    candidates: list[bytes] = []
+
+    # 1. Standard b64decode of key without whsec_ prefix
+    try:
+        candidates.append(base64.b64decode(no_prefix + "=="))
+    except Exception:
+        pass
+
+    # 2. Standard b64decode of full raw key
+    try:
+        candidates.append(base64.b64decode(raw + "=="))
+    except Exception:
+        pass
+
+    # 3. Raw UTF-8 bytes without whsec_ prefix
+    candidates.append(no_prefix.encode("utf-8"))
+
+    # 4. Raw UTF-8 bytes of full raw key
+    candidates.append(raw.encode("utf-8"))
+
+    return candidates
 
 
 def _verify_polar_webhook(
-    payload: bytes, headers: Dict[str, str], secret_bytes: bytes
+    payload: bytes, headers: Dict[str, str], secret_or_bytes: str | bytes
 ) -> Any:
     """Verify webhook signature (Standard Webhooks HMAC-SHA256).
 
@@ -63,9 +85,10 @@ def _verify_polar_webhook(
             f"ts={bool(msg_ts)}, sig={bool(msg_sig)})"
         )
 
-    body_str = payload.decode() if isinstance(payload, bytes) else payload
-    to_sign = f"{msg_id}.{msg_ts}.{body_str}".encode()
-    expected = hmac.new(secret_bytes, to_sign, hashlib.sha256).digest()
+    body_str = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else payload
+    to_sign = f"{msg_id}.{msg_ts}.{body_str}".encode("utf-8")
+
+    candidate_keys = _get_candidate_secrets(secret_or_bytes)
 
     for part in msg_sig.split(" "):
         split = part.split(",", 1)
@@ -74,8 +97,16 @@ def _verify_polar_webhook(
         version, sig_b64 = split
         if version != "v1":
             continue
-        if hmac.compare_digest(expected, base64.b64decode(sig_b64)):
-            return json.loads(body_str)
+
+        try:
+            passed_sig_bytes = base64.b64decode(sig_b64)
+        except Exception:
+            continue
+
+        for key_bytes in candidate_keys:
+            expected = hmac.new(key_bytes, to_sign, hashlib.sha256).digest()
+            if hmac.compare_digest(expected, passed_sig_bytes):
+                return json.loads(body_str)
 
     raise ValueError("No matching signature found")
 
@@ -181,8 +212,7 @@ async def polar_webhook(request: Request, store: Store = Depends(get_store)):
         raise HTTPException(status_code=500, detail="Webhook secret not configured")
 
     try:
-        secret_bytes = _decode_webhook_secret(webhook_secret)
-        event = _verify_polar_webhook(payload, headers, secret_bytes)
+        event = _verify_polar_webhook(payload, headers, webhook_secret)
     except Exception as e:
         logger.error(
             "Polar webhook signature verification failed: %s | "

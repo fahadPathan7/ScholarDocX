@@ -71,7 +71,7 @@ def _seed_user(connection, user_id, email, roles, polar_customer_id=None, polar_
         (user_id, email, roles, polar_customer_id, polar_subscription_id),
     )
     connection.commit()
-    connection.db.expire_all()
+    connection.db.expunge_all()
 
 
 @pytest.fixture(autouse=True)

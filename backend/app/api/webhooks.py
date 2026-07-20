@@ -39,6 +39,7 @@ _WHSEC_PREFIX = "whsec_"
 
 def _decode_webhook_secret(raw: str) -> bytes:
     """Strip the ``whsec_`` prefix and base64-decode the signing key."""
+    raw = raw.strip()
     if raw.startswith(_WHSEC_PREFIX):
         raw = raw[len(_WHSEC_PREFIX):]
     return base64.b64decode(raw + "==")  # extra padding is harmless
@@ -80,7 +81,7 @@ def _verify_polar_webhook(
 
 
 def get_polar_webhook_secret() -> str:
-    secret = os.environ.get("POLAR_WEBHOOK_SECRET")
+    secret = os.environ.get("POLAR_WEBHOOK_SECRET", "").strip()
     if not secret:
         logger.warning("POLAR_WEBHOOK_SECRET is not set. Webhooks will fail.")
         return ""

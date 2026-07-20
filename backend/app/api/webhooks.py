@@ -37,6 +37,14 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 _WHSEC_PREFIX = "whsec_"
 
 
+def _decode_webhook_secret(raw: str) -> bytes:
+    """Strip the ``whsec_`` prefix and base64-decode the signing key."""
+    raw = raw.strip()
+    if raw.startswith(_WHSEC_PREFIX):
+        raw = raw[len(_WHSEC_PREFIX):]
+    return base64.b64decode(raw + "==")
+
+
 def _get_candidate_secrets(raw_secret: str | bytes) -> list[bytes]:
     """Return all plausible byte candidates for the signing secret."""
     if isinstance(raw_secret, bytes):

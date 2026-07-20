@@ -277,6 +277,19 @@ export function ProfileView({
     logout();
   };
 
+  const handleManagePolarPortal = async () => {
+    try {
+      const res = await api.post<{ url: string }>("/auth/plans/portal", {});
+      if (res?.url) {
+        window.open(res.url, "_blank");
+      } else {
+        window.open("https://polar.sh/purchases", "_blank");
+      }
+    } catch {
+      window.open("https://polar.sh/purchases", "_blank");
+    }
+  };
+
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setPasswordError("");
@@ -371,6 +384,16 @@ export function ProfileView({
                    <Leaf size={13} />}
                   <span>{tierLabel}</span>
                 </div>
+                {user?.polar_subscription_id && (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                    user?.polar_cancel_at_period_end 
+                      ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
+                      : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  }`}>
+                    <Globe size={11} />
+                    {user?.polar_cancel_at_period_end ? "Canceling Online" : "Online Subscription"}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -487,6 +510,14 @@ export function ProfileView({
                       <span className="font-semibold">{user.plan_ends_at ? new Date(user.plan_ends_at).toLocaleDateString("en-GB") : 'N/A'}</span>
                     </div>
                   )}
+                  {user.polar_pending_plan && (
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200/60">
+                      <span className="opacity-70 font-medium">Scheduled Next Plan:</span>
+                      <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                        {user.polar_pending_plan} (Starts {user.plan_renews_at ? new Date(user.plan_renews_at).toLocaleDateString("en-GB") : 'Next Billing'})
+                      </span>
+                    </div>
+                  )}
                   {planStatus === "warning" && planDaysRemaining !== null && (
                     <p className="mt-2 text-xs font-medium">
                       {planDaysRemaining === 0 ? "This plan ends today." : `${planDaysRemaining} day${planDaysRemaining === 1 ? "" : "s"} remaining.`}
@@ -519,6 +550,15 @@ export function ProfileView({
                   </div>
                   <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
                 </button>
+                {user?.polar_subscription_id && (
+                  <button onClick={handleManagePolarPortal} className="profile-action-row" type="button">
+                    <div className="profile-action-content">
+                      <ExternalLink size={16} className={planCardTone.iconClass} />
+                      Manage Online Subscription
+                    </div>
+                    <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
+                  </button>
+                )}
               </div>
             </div>
           )}

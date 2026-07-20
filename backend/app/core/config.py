@@ -48,7 +48,7 @@ class Settings:
         # var) so backend and frontend can be configured separately.
         self.polar_access_token = os.getenv("POLAR_ACCESS_TOKEN", "")
         self.polar_webhook_secret = os.getenv("POLAR_WEBHOOK_SECRET", "")
-        self.polar_env = os.getenv("POLAR_ENV", "")
+        self.polar_env = os.getenv("POLAR_ENV") or ("sandbox" if "sandbox" in os.getenv("VITE_POLAR_URL", "").lower() else "")
         self.cors_origins = [
             origin.strip()
             for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")

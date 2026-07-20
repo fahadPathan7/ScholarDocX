@@ -51,6 +51,7 @@ export interface User {
   plan_renews_at?: string;
   polar_cancel_at_period_end?: number;
   polar_subscription_id?: string;
+  polar_pending_plan?: string;
   is_active?: boolean;
   is_blocked?: boolean;
 }

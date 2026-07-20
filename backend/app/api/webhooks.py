@@ -253,7 +253,7 @@ async def polar_webhook(request: Request, store: Store = Depends(get_store)):
             await handle_subscription_updated(data, store, event_id, canceled=True)
         elif event_type == "subscription.revoked":
             await handle_subscription_revoked(data, store, event_id)
-        elif event_type in ("order.created", "order.updated"):
+        elif event_type == "order.created":
             await handle_order_created(data, store, event_id)
         else:
             logger.warning(f"Unhandled Polar event type: {event_type} (event_id={event_id})")
@@ -311,7 +311,10 @@ async def handle_subscription_updated(
         # 500 → Polar retries, giving a "pay then sign up" flow time to complete.
         raise HTTPException(status_code=500, detail="User not found")
 
-    user.roles = json.dumps(plan_roles)
+    existing_roles = json.loads(user.roles) if isinstance(user.roles, str) and user.roles else (user.roles or [])
+    non_plan_roles = [r for r in existing_roles if r not in ["free_user", "general_user", "pro_user", "max_user"]]
+    updated_roles = list(dict.fromkeys(non_plan_roles + plan_roles))
+    user.roles = json.dumps(updated_roles)
     user.polar_subscription_id = subscription_id
 
     # SCHOLARDOCX-0157: don't reset plan_started_at on every event. It anchors
@@ -342,6 +345,21 @@ async def handle_subscription_updated(
         user.polar_cancel_at_period_end = 0
         user.plan_renews_at = current_period_end if current_period_end else None
         user.plan_ends_at = None
+
+    # Parse scheduled pending plan updates (e.g. Max -> Basic next billing cycle)
+    pending_update = data.get("pending_update")
+    if isinstance(pending_update, dict) and pending_update.get("product_id"):
+        pending_pid = pending_update.get("product_id")
+        if pending_pid in [get_app_setting(store, "polar_product_id_basic_monthly"), get_app_setting(store, "polar_product_id_basic_quarterly")]:
+            user.polar_pending_plan = "Basic"
+        elif pending_pid in [get_app_setting(store, "polar_product_id_pro_monthly"), get_app_setting(store, "polar_product_id_pro_quarterly")]:
+            user.polar_pending_plan = "Pro"
+        elif pending_pid in [get_app_setting(store, "polar_product_id_max_monthly"), get_app_setting(store, "polar_product_id_max_quarterly")]:
+            user.polar_pending_plan = "Max"
+        else:
+            user.polar_pending_plan = "Updated Plan"
+    else:
+        user.polar_pending_plan = None
 
     store.db.commit()
     logger.info(
@@ -432,6 +450,12 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
         )
         raise HTTPException(status_code=500, detail="User not found")
 
+    order_id = data.get("id")
+    order_dedup_id = f"polar_order:{order_id}" if order_id else None
+    if order_dedup_id and _is_processed(store, order_dedup_id):
+        logger.info(f"Polar order {order_id} already granted; skipping duplicate order event (event_id={event_id})")
+        return
+
     # SCHOLARDOCX-0157 (C1 fix): grant_purchased's signature is
     # (user_id, tokens, *, session, source, note=None, ref_id=None). The
     # previous call passed an unsupported `metadata=` kwarg, which raised
@@ -445,10 +469,12 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
         source="polar_order",
         note=pack_row.display_name,
     )
+    if order_dedup_id:
+        _mark_processed(store, order_dedup_id, "order_granted")
     store.db.commit()
     logger.info(
         f"Granted {pack_row.token_amount} extra credits to user {user.id} via Polar order "
-        f"(pack={pack_code}, event_id={event_id})"
+        f"(pack={pack_code}, order_id={order_id}, event_id={event_id})"
     )
 
 

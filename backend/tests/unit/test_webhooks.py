@@ -71,7 +71,7 @@ def _seed_user(connection, user_id, email, roles, polar_customer_id=None, polar_
         (user_id, email, roles, polar_customer_id, polar_subscription_id),
     )
     connection.commit()
-    connection.db.expire_all()
+    connection.db.expunge_all()
 
 
 @pytest.fixture(autouse=True)
@@ -470,3 +470,78 @@ def test_polar_webhook_subscription_created(mock_decode, mock_verify):
         # endpoint is wired and signature verification passes. The reconciliation
         # correctness is covered by the direct-handler tests above.
         assert response.status_code in (200, 500)
+
+
+@pytest.mark.asyncio
+async def test_subscription_updated_preserves_admin_roles(tmp_path):
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        _seed_user(connection, USER_ID, "wh-user@example.com", '["super_admin", "free_user"]')
+
+        data = {
+            "id": "sub_admin_1",
+            "customer_id": "cus_polar_1",
+            "product_id": PRO_PRODUCT,
+            "customer": {"email": "wh-user@example.com"},
+            "current_period_end": "2026-09-20T00:00:00Z",
+            "cancel_at_period_end": False,
+        }
+
+        await handle_subscription_updated(data, store, event_id="evt_admin_1")
+
+        store.db.expire_all()
+        user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
+        roles_after = json.loads(user_after.roles)
+        assert "super_admin" in roles_after
+        assert "pro_user" in roles_after
+    finally:
+        store.db.close()
+
+
+def test_admin_update_roles_blocks_active_polar_subscriber(tmp_path):
+    store, connection, settings = make_store(tmp_path)
+    try:
+        from app.services.admin import AdminService
+        admin_svc = AdminService(connection)
+
+        connection.execute(
+            "UPDATE users SET polar_subscription_id = 'sub_active_1', polar_cancel_at_period_end = 0 WHERE id = ?",
+            (USER_ID,)
+        )
+        connection.commit()
+
+        with pytest.raises(ValueError, match="User has an active Polar online subscription"):
+            admin_svc.update_user_roles("admin_id_1", USER_ID, ["pro_user"])
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_subscription_updated_stores_pending_plan(tmp_path):
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        data = {
+            "id": "sub_pending_1",
+            "customer_id": "cus_polar_1",
+            "product_id": PRO_PRODUCT,
+            "customer": {"email": "wh-user@example.com"},
+            "current_period_end": "2026-09-20T00:00:00Z",
+            "cancel_at_period_end": False,
+            "pending_update": {
+                "product_id": webhooks.get_app_setting(store, "polar_product_id_basic_monthly"),
+                "applied_at": "2026-09-20T00:00:00Z"
+            }
+        }
+
+        await handle_subscription_updated(data, store, event_id="evt_pending_1")
+
+        store.db.expire_all()
+        user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
+        assert user_after.polar_pending_plan == "Basic"
+    finally:
+        store.db.close()
+

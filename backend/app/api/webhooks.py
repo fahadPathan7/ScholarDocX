@@ -195,6 +195,7 @@ def _mark_processed(store: Store, event_id: Optional[str], event_type: Optional[
 
 
 def _find_user(store: Store, customer_id: Optional[str], data: Dict[str, Any]) -> Optional[Users]:
+    store.db.expire_all()
     user = None
     if customer_id:
         user = store.db.scalar(select(Users).where(Users.polar_customer_id == customer_id))

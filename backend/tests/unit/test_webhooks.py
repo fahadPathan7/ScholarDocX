@@ -477,9 +477,7 @@ async def test_subscription_updated_preserves_admin_roles(tmp_path):
     store, connection, settings = make_store(tmp_path)
     try:
         _seed_polar_products(connection, store)
-        user = store.db.scalar(select(Users).where(Users.id == USER_ID))
-        user.roles = json.dumps(["super_admin", "free_user"])
-        store.db.commit()
+        _seed_user(connection, USER_ID, "wh-user@example.com", '["super_admin", "free_user"]')
 
         data = {
             "id": "sub_admin_1",
@@ -494,6 +492,7 @@ async def test_subscription_updated_preserves_admin_roles(tmp_path):
 
         store.db.expire_all()
         user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
         roles_after = json.loads(user_after.roles)
         assert "super_admin" in roles_after
         assert "pro_user" in roles_after

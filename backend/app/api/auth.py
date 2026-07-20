@@ -234,25 +234,26 @@ def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.post("/plans/portal")
 def create_customer_portal_session(store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):
-    customer_id = current_user.get("polar_customer_id")
-    if not customer_id:
-        return {"url": "https://polar.sh/purchases"}
-
     settings = get_settings()
+    is_sandbox = "sandbox" in (settings.polar_env or "").lower() or "sandbox" in os.getenv("VITE_POLAR_URL", "").lower()
+    fallback_url = "https://sandbox.polar.sh" if is_sandbox else "https://polar.sh"
+
+    customer_id = current_user.get("polar_customer_id")
     access_token = settings.polar_access_token
-    if not access_token:
-        return {"url": "https://polar.sh/purchases"}
+    if not customer_id or not access_token:
+        return {"url": fallback_url}
 
     import urllib.request
     import json as _json
 
-    api_url = "https://sandbox.api.polar.sh/v1/customer-sessions/" if "sandbox" in settings.polar_env.lower() else "https://api.polar.sh/v1/customer-sessions/"
+    api_url = "https://sandbox-api.polar.sh/v1/customer-sessions/" if is_sandbox else "https://api.polar.sh/v1/customer-sessions/"
     req = urllib.request.Request(
         api_url,
         data=_json.dumps({"customer_id": customer_id}).encode(),
         headers={
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            "User-Agent": "ScholarDocX/1.0",
         },
         method="POST"
     )
@@ -265,7 +266,7 @@ def create_customer_portal_session(store: Store = Depends(get_store), current_us
     except Exception as e:
         logger.warning(f"Could not create Polar customer session: {e}")
 
-    return {"url": "https://polar.sh/purchases"}
+    return {"url": fallback_url}
 
 @router.post("/me/password")
 def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(get_store), current_user: dict = Depends(get_current_user)):

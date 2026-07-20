@@ -478,7 +478,7 @@ export function ProfileView({
               <p className={`profile-system-hint ${planCardTone.hintClass}`} style={{ marginTop: 0, marginBottom: "8px" }}>
                 {planHintText}
               </p>
-              {(user?.plan_started_at || user?.plan_ends_at) && (
+              {(user?.plan_started_at || user?.plan_ends_at || user?.plan_renews_at || user?.polar_subscription_id) && (
                 <div className={`rounded-lg p-3 mb-3 text-[13px] ${planCardTone.panelClass}`}>
                   {planStatus !== "active" && planStatus !== "no_plan" && (
                     <div className="mb-2">

@@ -531,7 +531,7 @@ async def test_subscription_updated_stores_pending_plan(tmp_path):
             "current_period_end": "2026-09-20T00:00:00Z",
             "cancel_at_period_end": False,
             "pending_update": {
-                "product_id": get_app_setting(store, "polar_product_id_basic_monthly"),
+                "product_id": webhooks.get_app_setting(store, "polar_product_id_basic_monthly"),
                 "applied_at": "2026-09-20T00:00:00Z"
             }
         }

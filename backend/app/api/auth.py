@@ -382,8 +382,16 @@ def _assemble_public_plans(store: Store) -> dict:
             credits[key] = value
         elif key.startswith("plan_is_active_"):
             active_flags[key] = value
-        elif key.startswith("plan_price_") or key.startswith("polar_product_id_") or key.startswith("polar_extra_credits_id_"):
+        elif key.startswith("plan_price_"):
             pricing[key] = value
+        elif key.startswith("polar_product_id_") or key.startswith("polar_extra_credits_id_"):
+            # SCHOLARDOCX-0158: only surface a buyable product id when it is a
+            # real Polar UUID. A placeholder or unset value (e.g. the test
+            # sentinel `polar_prod_pro_monthly`, or an empty string) is omitted
+            # so the frontend never renders a checkout button it cannot
+            # fulfill. The plan/price is still shown; only the buy CTA is gated.
+            if _is_uuid_shape(value):
+                pricing[key] = value
 
     for role, setting_key in credit_by_role.items():
         value = credits.get(setting_key, credit_defaults[setting_key])
@@ -413,6 +421,27 @@ class PolarCheckoutPayload(BaseModel):
     product_id: str
     customer_email: Optional[str] = None  # ignored — see SCHOLARDOCX-0156; kept for backward compat
     success_url: str
+
+
+# Canonical UUID (8-4-4-4-12 hex). Polar product ids are always UUIDs in this
+# form. Used to reject placeholders / setting-key names / empty strings before
+# they are forwarded to the provider, which would otherwise return a cryptic
+# 422. (SCHOLARDOCX-0158)
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _is_uuid_shape(value: Any) -> bool:
+    """True if `value` is a canonical Polar-style product UUID.
+
+    Strict on dash placement and hex length so obviously-wrong values like the
+    test sentinel `polar_prod_pro_monthly` or an empty string are caught at the
+    API boundary instead of surfacing as a provider-side validation error.
+    (SCHOLARDOCX-0158)
+    """
+    return isinstance(value, str) and bool(_UUID_RE.match(value))
 
 
 def _is_allowlisted_success_url(url: str, settings: Settings) -> bool:
@@ -453,6 +482,20 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
     # arbitrary external host. Matches CORS allowlist + regex semantics.
     if not _is_allowlisted_success_url(payload.success_url, settings):
         raise HTTPException(status_code=400, detail="Return URL is not allowed.")
+
+    # SCHOLARDOCX-0158: product_id must be a canonical Polar UUID. Catches
+    # placeholder / setting-key-name values (e.g. `polar_prod_pro_monthly`)
+    # that would otherwise be forwarded to the provider and surface as a
+    # cryptic 422. Generic user message; value logged server-side only.
+    if not _is_uuid_shape(payload.product_id):
+        logger.warning(
+            f"Checkout rejected: invalid product_id shape "
+            f"user={current_user.get('id')} value={payload.product_id!r}"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Selected plan is not configured for checkout.",
+        )
 
     # Single source of truth for sandbox vs production. Previously there were
     # two if/else blocks that disagreed on the unset default; the dead first

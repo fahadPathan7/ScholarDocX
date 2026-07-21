@@ -1,8 +1,10 @@
+import json
 import pytest
 from fastapi.testclient import TestClient
 from app.main import create_app
 from unittest.mock import patch, MagicMock
 from app.auth.dependencies import get_current_user
+from app.services.admin import AdminService
 
 def override_get_current_user_general():
     return {"id": 1, "email": "test@test.com", "roles": ["general_user"]}
@@ -96,7 +98,7 @@ def test_create_user_by_admin_forbidden_admin_roles(client):
 def test_create_user_by_super_admin_allowed_admin_roles(mock_create_user, client):
     client.app.dependency_overrides[get_current_user] = override_get_current_user_super
     mock_create_user.return_value = {"id": 11, "email": "newadmin@test.com", "roles": ["general_admin"]}
-    
+
     # Super admin can assign administrative roles
     response = client.post("/api/admin/users", json={
         "email": "newadmin@test.com",
@@ -106,3 +108,169 @@ def test_create_user_by_super_admin_allowed_admin_roles(mock_create_user, client
     })
     assert response.status_code == 200
     client.app.dependency_overrides.clear()
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# SCHOLARDOCX-0167: signup_method / plan_source tests.
+#
+# signup_method is an immutable origin fact stored on the row (set once at
+# user creation); list_users passes it through, only falling back to 'admin'
+# if the column is somehow NULL. plan_source, by contrast, IS derived from
+# mutable current-state fields (polar_subscription_id, paid-tier roles) since
+# it reflects the user's current plan funding, not their origin.
+#
+# We feed fixture rows through a mocked connection and assert:
+#   - signup_method passes through unchanged (origin is durable)
+#   - signup_method falls back to 'admin' on a NULL column (legacy hole)
+#   - plan_source derives correctly for the 4 plan-funding lifecycle states
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def _make_admin_service_with_rows(rows):
+    """Build an AdminService whose list_users query returns the given rows.
+
+    AdminService.__init__ takes a LegacyConnection directly via its
+    `isinstance(db, LegacyConnection)` fast path, then reads `db.db`. We mock
+    both the inner `db` attribute and the outer connection's
+    `.execute(...).fetchall()` chain so the classifier runs against fixture
+    rows without needing a real DB.
+    """
+    from app.db.legacy_db import LegacyConnection
+    fake_connection = MagicMock(spec=LegacyConnection)
+    fake_connection.db = MagicMock()  # inner SQLAlchemy session, unused here
+    fake_connection.execute.return_value.fetchall.return_value = rows
+    svc = AdminService(db=fake_connection)
+    return svc
+
+
+def _user_row(
+    *,
+    roles,
+    signup_method=None,
+    registered_with_invite_id=None,
+    invite_code=None,
+    polar_customer_id=None,
+    polar_subscription_id=None,
+    pending_payment_since=None,
+    plan_ends_at=None,
+    is_active=True,
+):
+    """Build a single user row as returned by the list_users SELECT.
+
+    `roles` is passed as a Python list and serialized to JSON to match how
+    Postgres stores/returns the column. `signup_method` defaults to None to
+    exercise the NULL-fallback path; callers who want to assert passthrough
+    pass an explicit value.
+    """
+    return {
+        "id": 1,
+        "email": "user@test.com",
+        "display_name": "Test User",
+        "roles": json.dumps(roles),
+        "is_active": is_active,
+        "is_blocked": False,
+        "last_login_at": None,
+        "plan_started_at": None,
+        "plan_ends_at": plan_ends_at,
+        "created_at": None,
+        "token_version": 1,
+        "polar_customer_id": polar_customer_id,
+        "polar_subscription_id": polar_subscription_id,
+        "signup_method": signup_method,
+        "polar_cancel_at_period_end": False,
+        "plan_renews_at": None,
+        "pending_payment_since": pending_payment_since,
+        "registered_with_invite_id": registered_with_invite_id,
+        "invite_code": invite_code,
+    }
+
+
+# ── signup_method passthrough tests ──────────────────────────────────────
+# signup_method is now a stored origin column, not derived. list_users must
+# pass it through verbatim. These tests confirm that, regardless of any
+# mutable current-state fields (roles, polar links, pending_payment_since),
+# the stored origin value wins.
+
+def test_signup_method_invite_passthrough():
+    """Stored 'invite' origin passes through even if the user later acquired
+    paid roles or polar links (origin ≠ current state)."""
+    row = _user_row(
+        roles=["pro_user"],
+        signup_method="invite",
+        polar_customer_id="pol_cust_999",  # added later, must not change origin
+        polar_subscription_id="sub_999",
+    )
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["signup_method"] == "invite"
+
+
+def test_signup_method_purchase_passthrough():
+    """The fahad@gmail.com case: stored 'purchase' origin passes through even
+    after pending_payment_since is cleared by the activation webhook."""
+    row = _user_row(
+        roles=["pro_user"],
+        signup_method="purchase",
+        polar_customer_id="pol_cust_123",
+        polar_subscription_id="sub_123",
+        pending_payment_since=None,  # cleared on activation — was the old bug
+        is_active=True,
+    )
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["signup_method"] == "purchase"
+
+
+def test_signup_method_admin_passthrough():
+    """The fahadpathan56@gmail.com case: stored 'admin' origin passes through
+    EVEN IF the account has polar_customer_id set (e.g. attached for testing).
+    This is the regression that prompted making signup_method a persisted
+    column instead of a derived value."""
+    row = _user_row(
+        roles=["super_admin", "max_user"],
+        signup_method="admin",
+        polar_customer_id="pol_cust_56",  # present, but origin is still admin
+        polar_subscription_id="sub_56",
+    )
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["signup_method"] == "admin"
+
+
+def test_signup_method_null_falls_back_to_admin():
+    """Safety net: if a legacy row has NULL (e.g. migration hole), list_users
+    falls back to 'admin' rather than crashing or returning None."""
+    row = _user_row(roles=["free_user"], signup_method=None)
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["signup_method"] == "admin"
+
+
+def test_plan_source_polar():
+    """Active Polar subscription present → plan_source 'polar'."""
+    row = _user_row(
+        roles=["pro_user"],
+        polar_customer_id="pol_cust_123",
+        polar_subscription_id="sub_123",
+    )
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["plan_source"] == "polar"
+
+
+def test_plan_source_admin_set():
+    """Paid-tier role WITHOUT a Polar subscription (admin granted the plan)
+    → 'admin_set'. Note: plan_ends_at must NOT override this either way."""
+    row = _user_row(roles=["pro_user"], plan_ends_at="2026-12-31")
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["plan_source"] == "admin_set"
+
+
+def test_plan_source_none_for_free_user():
+    """Self-registered free user with no Polar link and no paid-tier role → 'none'."""
+    row = _user_row(roles=["free_user"], signup_method="invite")
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["plan_source"] == "none"
+
+
+def test_plan_source_admin_set_for_admin_created_user():
+    """Admin-created user (even on free_user role) → 'admin_set'."""
+    row = _user_row(roles=["free_user"], signup_method="admin", plan_ends_at="2026-08-20")
+    result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["plan_source"] == "admin_set"
+

@@ -234,6 +234,10 @@ def test_compute_cost_prices_inactive_models(tmp_path):
         assert cost_usd == pytest.approx(1.0)
         assert tokens > 0
     finally:
+        session.execute(
+            text("UPDATE ai_models SET is_active = 1 WHERE model_id = 'GLM-4.7'")
+        )
+        session.commit()
         session.close()
 
 

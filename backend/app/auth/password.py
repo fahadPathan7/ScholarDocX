@@ -33,22 +33,41 @@ def generate_random_password(length: int = 16) -> str:
 
 
 def validate_password_strength(password: str) -> bool:
+    """Boolean wrapper around validate_password_with_reason.
+
+    Kept for backward compatibility with code/tests that only need to know
+    whether the password is acceptable. New callers should use
+    validate_password_with_reason directly so they can surface the specific
+    failure reason to the user.
     """
-    Check password complexity:
+    ok, _ = validate_password_with_reason(password)
+    return ok
+
+
+def validate_password_with_reason(password: str) -> tuple[bool, str | None]:
+    """Validate password complexity, returning (ok, reason).
+
+    Reason is None on success, or a short human-readable string explaining
+    the first failing rule on failure. Callers should surface this string
+    verbatim in error messages — it is the single source of truth for what
+    the password policy actually requires, so the rule and the message can
+    never drift apart.
+
+    Policy (checked in this order; first failure wins):
     - Minimum 8 characters
     - At least one uppercase letter
     - At least one lowercase letter
-    - At least one number
-    - At least one special character
+    - At least one digit
+    - At least one special character from !@#$%^&*
     """
     if len(password) < 8:
-        return False
+        return False, "Password must be at least 8 characters long."
     if not any(c.isupper() for c in password):
-        return False
+        return False, "Password must include at least one uppercase letter."
     if not any(c.islower() for c in password):
-        return False
+        return False, "Password must include at least one lowercase letter."
     if not any(c.isdigit() for c in password):
-        return False
+        return False, "Password must include at least one digit."
     if not any(c in "!@#$%^&*" for c in password):
-        return False
-    return True
+        return False, "Password must include at least one special character (!@#$%^&*)."
+    return True, None

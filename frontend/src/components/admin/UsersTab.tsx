@@ -32,6 +32,7 @@ import { emitUiError } from "../../lib/uiError";
 import { adminNotificationCategories, getNotificationSettingLabel } from "../../config/notificationLabels";
 import { useDialog } from "../DialogProvider";
 import DateRangeCalendar from "../DateRangeCalendar";
+import { PasswordField } from "../PasswordField";
 
 function CopyableUserId({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -73,6 +74,7 @@ type UserRecord = {
   plan_started_at?: string | null;
   plan_ends_at?: string | null;
   polar_subscription_id?: string | null;
+  polar_customer_id?: string | null;
   polar_cancel_at_period_end?: number | null;
   registered_with_invite_id?: string | number | null;
   invite_code?: string | null;
@@ -256,18 +258,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     if (filter === "all") return true;
     return filter === "active" ? user.is_active : !user.is_active;
   };
+  const getSignupMethod = (user: UserRecord): "invite" | "purchase" | "admin" => {
+    if (user.signup_method === "invite" || user.signup_method === "purchase" || user.signup_method === "admin") {
+      return user.signup_method;
+    }
+    if (user.registered_with_invite_id) return "invite";
+    if (user.polar_customer_id || user.polar_subscription_id) return "purchase";
+    return "admin";
+  };
+
+  const getPlanSource = (user: UserRecord): "polar" | "admin_set" | "none" => {
+    if (user.plan_source === "polar" || user.plan_source === "admin_set" || user.plan_source === "none") {
+      return user.plan_source;
+    }
+    if (user.polar_subscription_id) return "polar";
+    if (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.signup_method === "admin" || Boolean(user.plan_ends_at)) return "admin_set";
+    return "none";
+  };
+
   const matchesJoinMethod = (user: UserRecord, filter: JoinMethodFilter) => {
     if (filter === "all") return true;
-    const method = user.signup_method || (user.registered_with_invite_id ? "invite" : "purchase");
-    if (filter === "invite") return method === "invite";
-    if (filter === "purchase") return method === "purchase";
-    if (filter === "admin") return method === "admin";
-    return true;
+    return getSignupMethod(user) === filter;
   };
   const matchesPlanSource = (user: UserRecord, filter: PlanSourceFilter) => {
     if (filter === "all") return true;
-    const source = user.plan_source || (user.polar_subscription_id ? "polar" : (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.plan_ends_at) ? "admin_set" : "none");
-    return source === filter;
+    return getPlanSource(user) === filter;
   };
 
   const matchesSearch = (user: UserRecord, query: string) => {
@@ -386,9 +401,10 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
         </p>,
         "Notification Sent"
       );
-    } catch {
+    } catch (err: any) {
       setIsSendingNotification(false);
-      emitUiError({ title: "Action failed", message: "Failed to send the notification.", kind: "general" });
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to send the notification.";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -401,8 +417,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     try {
       const updated = await api.post<UserRecord>(`/admin/users/${user.id}/toggle-status`, { is_active: !user.is_active });
       upsertUser(updated);
-    } catch {
-      emitUiError({ title: "Action failed", message: "Failed to toggle status.", kind: "general" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to toggle status.";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -415,8 +432,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     try {
       const updated = await api.post<UserRecord>(`/admin/users/${user.id}/revoke`, {});
       upsertUser(updated);
-    } catch {
-      emitUiError({ title: "Action failed", message: "Failed to revoke tokens.", kind: "general" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to revoke tokens.";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -452,8 +470,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       setEditPlanDuration("1_month");
       setCustomStartDate("");
       setCustomEndDate("");
-    } catch {
-      emitUiError({ title: "Permission denied", message: "Failed to update roles. You might not have super_admin permissions.", kind: "permission" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to update roles.";
+      emitUiError({ title: "Update failed", message, kind: "general" });
     }
   };
 
@@ -506,8 +525,19 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       setCreateCustomStart("");
       setCreateCustomEnd("");
     } catch (err: any) {
-      const message = err?.response?.data?.detail || "Failed to create user";
-      emitUiError({ title: "Action failed", message: String(message), kind: "general" });
+      // The fetch-based api client (lib/api.ts) throws a plain Error whose
+      // .message already contains the backend's `detail` string when the
+      // response body was JSON with a `detail` field. The previous code read
+      // `err.response.data.detail`, which is the axios API shape and never
+      // exists on our errors — so it always fell back to "Failed to create
+      // user" and hid the real reason (e.g. "Password must be between 3 and
+      // 10 characters long"). Read err.message directly so the backend's
+      // explanation surfaces in the modal.
+      const backendDetail = err?.message && typeof err.message === "string"
+        ? err.message.trim()
+        : "";
+      const message = backendDetail || "Failed to create user";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -717,22 +747,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                       <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {user.signup_method === "invite" || user.registered_with_invite_id ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
-                          title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
-                        >
-                          <Ticket size={13} /> Joined by Invite
-                        </span>
-                      ) : user.signup_method === "admin" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                          <UserCheck size={13} /> Admin Created
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                          <CreditCard size={13} /> Online Purchase
-                        </span>
-                      )}
+                      {(() => {
+                        const method = getSignupMethod(user);
+                        if (method === "invite") {
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
+                              title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
+                            >
+                              <Ticket size={13} /> Joined by Invite
+                            </span>
+                          );
+                        }
+                        if (method === "admin") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                              <UserCheck size={13} /> Admin Created
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                            <CreditCard size={13} /> Online Purchase
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       {(() => {
@@ -799,22 +838,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {user.plan_source === "polar" || user.polar_subscription_id ? (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200/60"
-                          title={user.polar_subscription_id ? `Polar Subscription ID: ${user.polar_subscription_id}` : "Active Polar Subscription"}
-                        >
-                          <Zap size={13} /> Via Polar
-                        </span>
-                      ) : user.plan_source === "admin_set" || (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.plan_ends_at) ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
-                          <Sparkles size={13} /> Admin Set
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
-                          <Slash size={13} /> Not Subscribed
-                        </span>
-                      )}
+                      {(() => {
+                        const source = getPlanSource(user);
+                        if (source === "polar") {
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200/60"
+                              title={user.polar_subscription_id ? `Polar Subscription ID: ${user.polar_subscription_id}` : "Active Polar Subscription"}
+                            >
+                              <Zap size={13} /> Via Polar
+                            </span>
+                          );
+                        }
+                        if (source === "admin_set") {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                              <Sparkles size={13} /> Admin Set
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
+                            <Slash size={13} /> Not Subscribed
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${user.is_active ? "bg-emerald-100/50 text-emerald-700" : "bg-slate-100/50 text-slate-600"}`}>
@@ -1155,12 +1203,10 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                    <input
-                      type="password"
+                    <PasswordField
                       required
                       value={createPassword}
                       onChange={(event) => setCreatePassword(event.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white"
                       placeholder="••••••••"
                     />
                   </div>

@@ -136,6 +136,14 @@ class Users(Base):
     # subscription webhook when payment is confirmed. Rows older than 2h in this
     # state are deleted by the pending-account cleanup. NULL for normal users.
     pending_payment_since: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    # SCHOLARDOCX-0167: immutable record of how this user account was created.
+    # One-time fact, written exactly once at INSERT time, never updated.
+    # Allowed values: 'invite' (invite-code registration), 'purchase' (paid
+    # self-registration via Polar checkout), 'admin' (created from the admin
+    # panel). Used by the admin Users tab "join method" column. Distinct from
+    # mutable fields like roles, plan, or polar_subscription_id — those reflect
+    # current state, signup_method reflects origin.
+    signup_method: Mapped[Optional[str]] = mapped_column(Text)
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
     ai_conversations: Mapped[list['AiConversations']] = relationship('AiConversations', back_populates='user')

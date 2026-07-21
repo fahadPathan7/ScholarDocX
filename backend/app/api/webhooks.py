@@ -462,6 +462,8 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
         )
         raise HTTPException(status_code=500, detail="User not found")
 
+    target_user_id = str(user.id)
+
     order_id = data.get("id")
     order_dedup_id = f"polar_order:{order_id}" if order_id else None
     if order_dedup_id and _is_processed(store, order_dedup_id):
@@ -475,7 +477,7 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
     # the correct parameter; `ref_id` is unused here because event-level
     # idempotency is handled by _mark_processed.
     grant_purchased(
-        user_id=user.id,
+        user_id=target_user_id,
         tokens=pack_row.token_amount,
         session=store.db,
         source="polar_order",
@@ -485,7 +487,7 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
         _mark_processed(store, order_dedup_id, "order_granted")
     store.db.commit()
     logger.info(
-        f"Granted {pack_row.token_amount} extra credits to user {user.id} via Polar order "
+        f"Granted {pack_row.token_amount} extra credits to user {target_user_id} via Polar order "
         f"(pack={pack_code}, order_id={order_id}, event_id={event_id})"
     )
 

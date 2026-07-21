@@ -134,6 +134,8 @@ export function LoginPage() {
       }
     } catch (err: any) {
       if (err.message === "user_suspended" || err.message === "user_blocked") {
+        setShowAppealForm(false);
+        setAppealSuccessState(false);
         setIsSuspendedModalOpen(true);
       } else {
         setError(err.message || "Failed to log in. Please check your credentials.");

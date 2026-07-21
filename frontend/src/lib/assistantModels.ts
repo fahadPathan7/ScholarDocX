@@ -89,3 +89,10 @@ export function getFallbackModel(
   if (firstAllowedExplicit) return firstAllowedExplicit;
   return modelOptions.find((option) => allowedProviders.has(option.provider))?.value ?? "gemini:gemini-2.5-flash";
 }
+
+export const LEGACY_CHAT_STORAGE_KEY = "scholardocx_chat_history";
+
+export function getChatStorageKey(userId?: string | number | null): string {
+  return userId ? `scholardocx_chat_history_${userId}` : "scholardocx_chat_history_guest";
+}
+

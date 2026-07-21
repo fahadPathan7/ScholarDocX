@@ -48,6 +48,7 @@ def cleanup_user_records(connection, user_id: str | None = None, email: str | No
     be idempotent. Production FKs intentionally do not cascade user deletion;
     tests clean their own rows explicitly.
     """
+    connection.db.rollback()
     user_ids: set[str] = set()
     if user_id:
         user_ids.add(user_id)

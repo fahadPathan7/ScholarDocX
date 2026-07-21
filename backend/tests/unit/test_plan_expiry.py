@@ -123,3 +123,11 @@ def test_downgrade_internal_endpoint_auth(monkeypatch):
     json_data = res_ok.json()
     assert json_data["status"] == "success"
     assert "downgraded" in json_data
+
+
+def test_admin_cleanup_expired_plans_endpoint():
+    client = TestClient(app)
+    # Admin endpoint requires authentication
+    res_unauth = client.post("/api/admin/cleanup/expired-plans")
+    assert res_unauth.status_code in (401, 403)
+

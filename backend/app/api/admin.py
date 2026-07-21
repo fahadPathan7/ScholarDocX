@@ -3,7 +3,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, EmailStr
 from app.auth.dependencies import get_current_user, require_admin, require_super_admin
-from app.auth.password import hash_password, validate_password_strength
+from app.auth.password import hash_password, validate_password_with_reason
 from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
 from app.auth.rate_limit import rate_limiter
 from app.services.admin import AdminService
@@ -219,12 +219,10 @@ def get_invite_usages(code: str, admin_service: AdminService = Depends(get_admin
 def create_user(payload: UserCreatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_create_user", current_user, admin_service.db)
 
-    # Validate password
-    if not validate_password_strength(payload.password):
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be between 3 and 10 characters long."
-        )
+    # Validate password — surface the specific failing rule (SCHOLARDOCX-0168).
+    ok, reason = validate_password_with_reason(payload.password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
 
     requested_roles = payload.roles or ["general_user"]
 
@@ -389,3 +387,11 @@ def cleanup_pending_accounts(current_user: dict = Depends(get_current_user), sto
     from app.services.registration_cleanup import purge_expired_pending_accounts
     deleted = purge_expired_pending_accounts(store)
     return {"status": "success", "deleted": deleted}
+
+
+@router.post("/cleanup/expired-plans")
+def cleanup_expired_plans(current_user: dict = Depends(get_current_user), store: Store = Depends(get_store)):
+    require_super_admin(current_user)
+    from app.services.plan_expiry import downgrade_expired_user_plans
+    downgraded = downgrade_expired_user_plans(store)
+    return {"status": "success", "downgraded": downgraded}

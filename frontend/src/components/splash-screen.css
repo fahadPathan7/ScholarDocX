@@ -195,6 +195,18 @@
   margin: 0;
 }
 
+/* Secondary sub-line under the primary loading message (cold-start notice).
+   Subtle and dim so it reads as a quiet footnote without stealing focus. */
+.splash-message-secondary {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  margin: 4px 0 0;
+  max-width: 380px;
+  text-align: left;
+}
+
 /* Tips */
 .splash-tips-container {
   display: flex;

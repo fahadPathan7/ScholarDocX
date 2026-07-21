@@ -28,9 +28,10 @@ export function SettingsTab() {
     try {
       const res = await api.get<Record<string, string>>("/admin/settings");
       setSettings(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      emitUiError({ title: "Failed to load settings", message: "Could not fetch app settings." });
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Could not fetch app settings.";
+      emitUiError({ title: "Failed to load settings", message });
     } finally {
       setLoading(false);
     }
@@ -50,9 +51,10 @@ export function SettingsTab() {
           "Security Warning"
         );
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      emitUiError({ title: "Update Failed", message: "Failed to update setting." });
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to update setting.";
+      emitUiError({ title: "Update Failed", message });
     }
   };
 
@@ -180,7 +182,7 @@ export function SettingsTab() {
         </div>
 
         {/* Registration Card — SCHOLARDOCX-0162 */}
-        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
+        <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
           <div className="p-4 flex items-center gap-3">
             <div className="bg-emerald-100/50 p-2 rounded-lg border border-emerald-200 flex items-center justify-center w-9 h-9 shrink-0">
               <Shield className="w-5 h-5 text-emerald-600" />
@@ -188,30 +190,30 @@ export function SettingsTab() {
             <div className="min-w-0">
               <h3 className="font-semibold text-slate-900 text-sm">Registration</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Control how new users can sign up. Unpaid pending accounts are
-                removed after 2 hours.
+                Control how new users can sign up. Unpaid pending accounts are removed after 2 hours.
               </p>
             </div>
           </div>
-          <div className="px-4 pb-4 flex flex-wrap items-center gap-3">
-            <label htmlFor="registration_mode" className="text-xs text-slate-600">
-              Mode
-            </label>
-            <select
-              id="registration_mode"
-              className="auth-input"
-              style={{ maxWidth: 260 }}
-              value={settings["registration_mode"] || "invite_or_paid"}
-              onChange={(e) => handleUpdate("registration_mode", e.target.value)}
-            >
-              <option value="invite_only">Invite code only</option>
-              <option value="invite_or_paid">Invite code or paid plan</option>
-              <option value="paid_only">Paid plan only</option>
-            </select>
+          <div className="px-4 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <label htmlFor="registration_mode" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Mode
+              </label>
+              <select
+                id="registration_mode"
+                className="px-3 py-1.5 bg-white border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
+                value={settings["registration_mode"] || "invite_or_paid"}
+                onChange={(e) => handleUpdate("registration_mode", e.target.value)}
+              >
+                <option value="invite_only">Invite code only</option>
+                <option value="invite_or_paid">Invite code or paid plan</option>
+                <option value="paid_only">Paid plan only</option>
+              </select>
+            </div>
             {hasRole("super_admin") && (
               <button
                 type="button"
-                className="admin-config-btn"
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
                 onClick={async () => {
                   try {
                     const res = await api.post<{ deleted: number }>(
@@ -223,15 +225,63 @@ export function SettingsTab() {
                       "Cleanup complete"
                     );
                     fetchSettings();
-                  } catch {
+                  } catch (err: any) {
+                    const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Could not run the pending-account cleanup.";
                     emitUiError({
                       title: "Cleanup failed",
-                      message: "Could not run the pending-account cleanup.",
+                      message,
                     });
                   }
                 }}
               >
+                <Trash2 className="w-3.5 h-3.5 text-emerald-600" />
                 Run cleanup now
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expired Plan Maintenance Card */}
+        <div className="profile-system-card glass-panel overflow-hidden flex flex-col justify-between" style={{ padding: '0' }}>
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-indigo-100/50 p-2 rounded-lg border border-indigo-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <Clock className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">Expired Plan Maintenance</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Downgrade users whose paid plan duration has ended to Free.
+              </p>
+            </div>
+          </div>
+          <div className="px-4 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex items-center justify-between flex-wrap gap-3">
+            <span className="text-xs text-slate-500 font-medium">Manual Trigger</span>
+            {hasRole("super_admin") && (
+              <button
+                type="button"
+                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                onClick={async () => {
+                  try {
+                    const res = await api.post<{ downgraded: number }>(
+                      "/admin/cleanup/expired-plans",
+                      {}
+                    );
+                    await showAlert(
+                      `Downgraded ${res.downgraded ?? 0} user(s) with expired plans.`,
+                      "Downgrade complete"
+                    );
+                    fetchSettings();
+                  } catch (err: any) {
+                    const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Could not run the expired plan downgrade cleanup.";
+                    emitUiError({
+                      title: "Downgrade failed",
+                      message,
+                    });
+                  }
+                }}
+              >
+                <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                Run downgrade now
               </button>
             )}
           </div>

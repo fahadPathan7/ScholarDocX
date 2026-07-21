@@ -127,6 +127,8 @@ def initialize_database(database_url: str) -> None:
         _seed_ai_token_defaults(conn)
         _migrate_yearly_to_quarterly(conn)
         _drop_legacy_ai_tokens_role_limit(conn)
+        _add_pending_payment_column(conn)
+        _seed_registration_mode_default(conn)
 
 
 def _migrate_yearly_to_quarterly(conn) -> None:
@@ -162,6 +164,38 @@ def _drop_legacy_ai_tokens_role_limit(conn) -> None:
     no longer appears in Role Limits. Safe to repeat: no-op once the row is gone.
     """
     conn.execute(text("DELETE FROM role_limits WHERE feature = 'ai_tokens_per_month'"))
+
+
+def _add_pending_payment_column(conn) -> None:
+    """Add users.pending_payment_since if missing (SCHOLARDOCX-0162).
+
+    ``Base.metadata.create_all`` creates missing tables but does NOT add
+    columns to existing tables, so upgraded Postgres installs need this ALTER.
+    ``ADD COLUMN IF NOT EXISTS`` makes it safe to run on every boot. Fresh
+    installs get the column from create_all and this is a no-op.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE users "
+            "ADD COLUMN IF NOT EXISTS pending_payment_since TIMESTAMP"
+        )
+    )
+
+
+def _seed_registration_mode_default(conn) -> None:
+    """Seed the default registration_mode app setting (SCHOLARDOCX-0162).
+
+    Controls which registration paths are open: ``invite_only`` (legacy),
+    ``invite_or_paid`` (default — both paths open), or ``paid_only`` (invite
+    disabled). Idempotent: ON CONFLICT preserves any admin-chosen value.
+    """
+    conn.execute(
+        text(
+            "INSERT INTO app_settings (key, value) "
+            "VALUES ('registration_mode', 'invite_or_paid') "
+            "ON CONFLICT (key) DO NOTHING"
+        )
+    )
 
 
 def _seed_role_limits(conn) -> None:

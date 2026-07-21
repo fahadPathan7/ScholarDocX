@@ -325,6 +325,33 @@ no-migration variant for pre-existing tables.
   rejected with 400 *before* any call to the provider, instead of surfacing as
   a cryptic upstream 422; errors are generic (no provider name / upstream body
   / echoed input in user-facing copy). Full design: `billing-and-payments.md`.
+  The hosted-checkout call lives in the shared helper
+  `_create_polar_checkout_session(user, product_id, success_url, settings)`
+  which is also used by `/auth/register-paid` (SCHOLARDOCX-0162). For a
+  not-yet-active pending-payment user the helper is called with
+  `external_customer_id=user.id` + `customer_email=user.email` (the new-customer
+  branch), so the checkout email is pre-filled and disabled identically.
+- `/auth/register-paid` (POST, anonymous, SCHOLARDOCX-0162) creates an inert
+  user account (`is_active=0`, `pending_payment_since=now`, roles
+  `["free_user"]`) and returns a hosted checkout URL for the chosen Basic/Pro/Max
+  plan + billing cycle. Payload: `{email, password, display_name?, plan,
+  billing_cycle}`. Gated by the `registration_mode` app setting (403 if
+  `invite_only`); rate-limited to 1/24h/IP (`auth_register_paid`); validates
+  password strength, rejects duplicate and pending emails, and validates the
+  plan is active and configured (`plan_is_active_<tier>=1` and
+  `polar_product_id_<tier>_<cycle>` is a canonical UUID). On checkout failure the
+  just-created user row is deleted (no orphan). Activation is **not** done here
+  — it happens in the Polar webhook (see below). No email verification is sent.
+- `/api/internal/cleanup-pending` (POST, anonymous, SCHOLARDOCX-0162) deletes
+  `users` rows where `pending_payment_since IS NOT NULL AND is_active=0 AND
+  pending_payment_since < NOW() - INTERVAL '2 hours'`, plus their seeded
+  dependents. Gated by an `X-Cleanup-Token` header matched against the
+  `CLEANUP_SECRET` env var (same shared-secret pattern as `POLAR_WEBHOOK_SECRET`
+  — no admin login required, safe for external schedulers). Returns
+  `{status, deleted}`. Intended for the GitHub Actions 2h cron.
+- `/admin/cleanup/pending-accounts` (POST, `require_super_admin`,
+  SCHOLARDOCX-0162) is a manual trigger of the same purge for admins; surfaced
+  as a button in the admin Settings tab.
 - `/auth/plans` and `/auth/plans/public` (SCHOLARDOCX-0158): `_assemble_public_plans`
   omits any `polar_product_id_*` / `polar_extra_credits_id_*` key whose value is
   not a canonical UUID. Plan/price data is still returned; only the buyable id
@@ -336,7 +363,13 @@ no-migration variant for pre-existing tables.
   user reconciliation is two-step — (1) `data.customer_id` → `Users.polar_customer_id`,
   (2) on miss `data.customer.email` → `Users.email` then backfill — and a miss
   raises 5xx so Polar retries. `subscription.canceled` keeps the plan until
-  period end; only `.revoked` downgrades immediately.
+  period end; only `.revoked` downgrades immediately. SCHOLARDOCX-0162:
+  `handle_subscription_updated` also activates a pending-payment registrant —
+  when the matched user has `pending_payment_since IS NOT NULL`, the handler sets
+  `is_active=1` and clears `pending_payment_since` (the role swap to the paid
+  plan role already happens in the same handler). If the user was already purged
+  by the 2h cleanup cron, `_find_user` misses and the existing 500 → Polar retry
+  applies (acceptable; the account is gone).
 - `/admin/plan-requests` returns both replacement upgrades and renewal
   requests and should support filtering by request type so admin permission
   checks can differ between upgrade review and extension review tabs

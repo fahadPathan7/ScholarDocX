@@ -131,6 +131,11 @@ class Users(Base):
     plan_renews_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     polar_cancel_at_period_end: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     polar_pending_plan: Mapped[Optional[str]] = mapped_column(Text)
+    # SCHOLARDOCX-0162: set when a paid self-registration creates an inert user
+    # awaiting checkout/payment. Cleared (and is_active set to 1) by the Polar
+    # subscription webhook when payment is confirmed. Rows older than 2h in this
+    # state are deleted by the pending-account cleanup. NULL for normal users.
+    pending_payment_since: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
     ai_conversations: Mapped[list['AiConversations']] = relationship('AiConversations', back_populates='user')

@@ -5,7 +5,18 @@
 The secure personal workspace MVP ships with a full JWT auth model (the earlier "no auth
 gate" stance is superseded):
 
-- Registration is invite-gated; login returns a signed JWT.
+- Registration is invite-gated **or** paid (admin-configurable via the
+  `registration_mode` app setting: `invite_only`, `invite_or_paid`, or
+  `paid_only`); login returns a signed JWT.
+- Paid self-registration (SCHOLARDOCX-0162): a user without an invite code may
+  register by purchasing a Basic/Pro/Max plan at signup. The account is created
+  in an inert state (`is_active=0` with `pending_payment_since` set), cannot log
+  in, is activated on the `subscription.created` webhook (which sets
+  `is_active=1` and clears `pending_payment_since`), and is **completely deleted
+  after 2 hours if unpaid** (GitHub Actions cron + lazy safety net on login).
+  The paid-registration endpoint is rate-limited to 1 request / 24h / IP. No
+  email verification is required — the paid checkout session + browser
+  continuity is the trust anchor (the app has no email-sending infra today).
 - `get_current_user` validates the token, loads the user from the DB, enforces
   `is_active`, and checks `token_version` (revocation). Authorization roles are
   taken from the DB row, not the token payload.

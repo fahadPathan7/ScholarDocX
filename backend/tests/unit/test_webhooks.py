@@ -545,3 +545,89 @@ async def test_subscription_updated_stores_pending_plan(tmp_path):
     finally:
         store.db.close()
 
+
+# ---------------------------------------------------------------------------
+# SCHOLARDOCX-0162: pending-payment activation on subscription webhook
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_subscription_updated_activates_pending_payment_user(tmp_path):
+    """A pending-payment registrant (is_active=0, pending_payment_since set) is
+    activated when the subscription webhook confirms payment."""
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        # Seed a pending-payment user: inert + pending_payment_since set, free role.
+        connection.db.rollback()
+        cleanup_user_records(connection, user_id=USER_ID, email="wh-user@example.com")
+        connection.execute(
+            """
+            INSERT INTO users (
+                id, email, password_hash, display_name, roles, is_active, is_blocked,
+                pending_payment_since, plan_started_at
+            ) VALUES (?, ?, 'x', 'Test', ?, 0, 0, ?, ?)
+            """,
+            (
+                USER_ID,
+                "wh-user@example.com",
+                '["free_user"]',
+                "2026-07-21T10:00:00+00:00",
+                "2026-07-21T10:00:00+00:00",
+            ),
+        )
+        connection.commit()
+        connection.db.expunge_all()
+
+        data = {
+            "id": "sub_activate_1",
+            "customer_id": "cus_polar_1",
+            "product_id": PRO_PRODUCT,
+            "customer": {"email": "wh-user@example.com"},
+            "current_period_end": "2026-09-20T00:00:00Z",
+            "cancel_at_period_end": False,
+        }
+
+        await handle_subscription_updated(data, store, event_id="evt_activate_1")
+
+        store.db.expire_all()
+        user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
+        # Activation: account is now live, pending marker cleared.
+        assert user_after.is_active == 1
+        assert user_after.pending_payment_since is None
+        # Role swapped to the paid plan (free_user → pro_user).
+        roles = json.loads(user_after.roles)
+        assert "pro_user" in roles
+        assert "free_user" not in roles
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_subscription_updated_leaves_active_users_pending_marker_null(tmp_path):
+    """Normal (non-pending) users must be untouched by the activation branch:
+    pending_payment_since stays NULL and is_active stays 1."""
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        # The default _seed_user creates an active user with no pending marker.
+        data = {
+            "id": "sub_normal_1",
+            "customer_id": "cus_normal_1",
+            "product_id": PRO_PRODUCT,
+            "customer": {"email": "wh-user@example.com"},
+            "current_period_end": "2026-09-20T00:00:00Z",
+            "cancel_at_period_end": False,
+        }
+
+        await handle_subscription_updated(data, store, event_id="evt_normal_1")
+
+        store.db.expire_all()
+        user_after = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user_after is not None
+        assert user_after.is_active == 1
+        assert user_after.pending_payment_since is None
+    finally:
+        store.db.close()
+

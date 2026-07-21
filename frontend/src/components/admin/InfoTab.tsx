@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
-import { ShieldAlert, RefreshCw, Upload } from "lucide-react";
+import { ShieldAlert, RefreshCw, Upload, Clock } from "lucide-react";
 
 type RateLimitRule = {
   rule_key: string;
@@ -26,7 +26,7 @@ const METHOD_BADGE: Record<string, string> = {
 };
 
 /**
- * Read-only admin tab that lists every active request rate limit in the app.
+ * Read-only admin tab that lists every active request rate limit and cron job in the app.
  * Data comes from `GET /admin/info/rate-limits`, which reads the central
  * registry in `backend/app/auth/rate_limit.py`. There is nothing to edit
  * here — values are backend constants; this surface exists for visibility.
@@ -56,7 +56,7 @@ export function InfoTab() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-300">
+    <div className="h-full overflow-y-auto pr-1 flex flex-col space-y-6 animate-in fade-in duration-300 pb-6">
       {/* Upload limits */}
       <div className="shrink-0 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
@@ -87,8 +87,69 @@ export function InfoTab() {
         </div>
       </div>
 
+      {/* System Cron Jobs & Automated Maintenance */}
+      <div className="shrink-0 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-800 mb-1 flex items-center gap-2">
+          <Clock size={18} className="text-indigo-500" />
+          System Cron Jobs & Automated Maintenance
+        </h3>
+        <p className="text-slate-500 text-xs mb-4">
+          Automated background maintenance workflows running on scheduled intervals across the system.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border border-slate-200 rounded-lg">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Cron Job</th>
+                <th className="px-4 py-3 font-semibold">Frequency</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Purpose & Automated Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              <tr className="hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-semibold text-slate-800">
+                  Expired Plan Downgrade
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                    <Clock size={12} /> Daily (00:00 UTC)
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                    Active
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-600 text-xs leading-normal">
+                  Automatically moves users whose paid plan duration has ended to the Free plan tier. User access is updated while preserving all admin privileges intact.
+                </td>
+              </tr>
+              <tr className="hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-semibold text-slate-800">
+                  Unpaid Pending Account Cleanup
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
+                    <Clock size={12} /> Every 2 hours
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                    Active
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-600 text-xs leading-normal">
+                  Automatically removes unconfirmed pending registration accounts if paid checkout is not completed within 2 hours.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Rules table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[480px] overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-200/50 bg-transparent shrink-0">
           <div className="text-sm font-medium text-slate-600 flex items-center gap-2">
             <ShieldAlert size={16} className="text-rose-500" />

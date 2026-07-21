@@ -7,6 +7,7 @@ import {
   CheckCircle,
   ChevronDown,
   Clock,
+  CreditCard,
   KeyRound,
   Megaphone,
   MoreVertical,
@@ -14,6 +15,7 @@ import {
   Search,
   Send,
   ShieldAlert,
+  Ticket,
   Users,
   X,
   XCircle,
@@ -37,11 +39,15 @@ type UserRecord = {
   plan_ends_at?: string | null;
   polar_subscription_id?: string | null;
   polar_cancel_at_period_end?: number | null;
+  registered_with_invite_id?: string | number | null;
+  invite_code?: string | null;
+  signup_method?: "invite" | "purchase" | string;
 };
 
 type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
 type PlanStatusFilter = "all" | "expiring_soon" | "expiring_soon_3d" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
+type JoinMethodFilter = "all" | "invite" | "purchase";
 type NotificationModalMode = "broadcast" | "user" | null;
 
 function AdminPortal({ children }: { children: React.ReactNode }) {
@@ -99,6 +105,12 @@ const statusTabs = [
   { id: "suspended" as const, label: "Suspended", icon: Ban },
 ];
 
+const joinMethodTabs = [
+  { id: "all" as const, label: "All Methods", icon: null },
+  { id: "invite" as const, label: "Joined via Invite", icon: Ticket },
+  { id: "purchase" as const, label: "Joined via Purchase", icon: CreditCard },
+];
+
 const adminNotificationOptions = adminNotificationCategories.flatMap((category) =>
   category.settings.map((setting) => ({ value: setting.key, label: setting.label, description: setting.description }))
 );
@@ -114,6 +126,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [planStatusFilter, setPlanStatusFilter] = useState<PlanStatusFilter>("all");
   const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>("all");
+  const [joinMethodFilter, setJoinMethodFilter] = useState<JoinMethodFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
@@ -197,6 +210,13 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     if (filter === "all") return true;
     return filter === "active" ? user.is_active : !user.is_active;
   };
+  const matchesJoinMethod = (user: UserRecord, filter: JoinMethodFilter) => {
+    if (filter === "all") return true;
+    const isInvite = Boolean(user.registered_with_invite_id || user.signup_method === "invite");
+    if (filter === "invite") return isInvite;
+    if (filter === "purchase") return !isInvite;
+    return true;
+  };
 
   const matchesSearch = (user: UserRecord, query: string) => {
     if (!query) return true;
@@ -211,18 +231,27 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     role = roleFilter,
     plan = planStatusFilter,
     status = statusFilter,
+    joinMethod = joinMethodFilter,
     query = searchQuery,
   }: {
     role?: RoleFilter;
     plan?: PlanStatusFilter;
     status?: AccountStatusFilter;
+    joinMethod?: JoinMethodFilter;
     query?: string;
   }) =>
-    users.filter((user) => matchesRole(user, role) && matchesPlan(user, plan) && matchesStatus(user, status) && matchesSearch(user, query));
+    users.filter(
+      (user) =>
+        matchesRole(user, role) &&
+        matchesPlan(user, plan) &&
+        matchesStatus(user, status) &&
+        matchesJoinMethod(user, joinMethod) &&
+        matchesSearch(user, query)
+    );
 
   const filteredUsers = useMemo(
     () => filterUsers({}),
-    [users, roleFilter, planStatusFilter, statusFilter, searchQuery]
+    [users, roleFilter, planStatusFilter, statusFilter, joinMethodFilter, searchQuery]
   );
 
   // Render guard (not pagination): cap how many heavy rows the DOM holds at
@@ -538,6 +567,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
           <div className="w-px bg-slate-200 h-8 hidden sm:block" />
 
+          {/* Join Method Subgroup */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Join Method</span>
+            <div className="flex items-center gap-1.5">
+              {joinMethodTabs.map((tab) => {
+                const isActive = joinMethodFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setJoinMethodFilter(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                  >
+                    {tab.icon && <tab.icon size={13} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-px bg-slate-200 h-8 hidden sm:block" />
+
           {/* Selection Subgroup */}
           <div className="flex flex-col gap-1.5 justify-center">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
@@ -557,6 +611,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
               <tr>
                 <th className="px-6 py-4 font-semibold">ID</th>
                 <th className="px-6 py-4 font-semibold">User</th>
+                <th className="px-6 py-4 font-semibold">Join Method</th>
                 <th className="px-6 py-4 font-semibold">Roles</th>
                 <th className="px-6 py-4 font-semibold">Plan Duration</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
@@ -573,6 +628,20 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800">{user.display_name || "Unknown User"}</div>
                       <div className="text-xs text-slate-500">{user.email}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.registered_with_invite_id || user.signup_method === "invite" ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
+                          title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
+                        >
+                          <Ticket size={13} /> Joined by Invite
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          <CreditCard size={13} /> Online Purchase
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5">

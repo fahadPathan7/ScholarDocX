@@ -200,14 +200,22 @@ interactive, and polished without becoming decorative marketing UI.
   height animated via a `grid-template-rows: 0fr → 1fr` transition rather than
   JS-measured heights).
 - The public auth pages (`LoginPage.tsx`, `RegisterPage.tsx`) use a shared set of
-  `auth-*` visual primitives in one `LoginPage.css` (imported by both pages),
-  built from the `--ui-*` tokens — light canvas gradient, white paper card, mint
-  logo mark, muted-teal primary button/links, teal focus rings. This replaces a
-  prior dark `bg-zinc-*` / `bg-emerald-*` Tailwind palette that clashed with the
-  system. Every auth view (login, register, forgot password, request invite,
-  success states) renders a "Back to home" `Link` to `/` as a pill at the
-  top-left of the card, placed above the conditional view block so it is always
-  visible. Auth logic, API calls, and routing are unchanged by the restyle.
+  `auth-*` visual primitives in `LoginPage.css` built from the `--ui-*` tokens.
+  The card layout uses a wide container (`.auth-card.auth-card-wide`, `max-width: 740px`)
+  for registration to allow multi-column horizontal field layouts: Plan and Billing
+  Cycle side-by-side, full-width single horizontal Price Readout banner (mint background),
+  Display Name and Email side-by-side, Password and Confirm Password side-by-side.
+  The registration page defaults to opening the "Purchase a plan" tab.
+  Price readout, hint text, cycle toggle button text (`Quarterly Save 20%`), and footer links
+  formatting are set to single-line display (`white-space: nowrap`) to prevent line wrapping
+  and vertical overflow on laptop viewports.
+  Quarterly billing toggles across the landing page, registration form, and plan comparison view
+  display a promotional `Save 20%` badge chip for marketing incentive.
+  Every auth view renders a "Back to home" `Link` to `/` as a pill at the top-left of
+  the card. All sub-views (Request Invite, Forgot Password, Success screens) provide both
+  "Back to login" and "Back to registration" links. Auth logic, API calls, and routing are unchanged.
+- The Admin Panel Users tab (`UsersTab.tsx`) includes a **Join Method** column (`Joined by Invite` badge chip vs `Online Purchase` badge chip) and a corresponding `Join Method` filter subgroup (`All Methods` | `Joined via Invite` | `Joined via Purchase`) so admins can distinguish how users registered.
+- The Admin Panel Info tab (`InfoTab.tsx`) includes a dedicated **System Cron Jobs & Automated Maintenance** panel detailing active background maintenance routines (Expired Plan Downgrade, Unpaid Pending Account Cleanup), their schedules (Daily UTC, 2-hour interval), routes, CLI scripts, auth headers, and execution behaviors.
 
 ## Implementation Notes
 

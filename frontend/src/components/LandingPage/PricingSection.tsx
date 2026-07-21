@@ -159,7 +159,7 @@ export function PricingSection() {
               className={`lp-pricing-toggle-btn${isQuarterly ? " active" : ""}`}
               onClick={() => setIsQuarterly(true)}
             >
-              Quarterly Billing
+              Quarterly Billing <span className="lp-discount-tag">Save 20%</span>
             </button>
           </div>
         </div>

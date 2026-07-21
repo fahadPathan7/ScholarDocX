@@ -365,7 +365,9 @@ class AdminService:
                 u.plan_ends_at, 
                 u.created_at, 
                 u.token_version,
+                u.polar_customer_id,
                 u.polar_subscription_id,
+                u.signup_method,
                 u.polar_cancel_at_period_end,
                 u.plan_renews_at,
                 u.pending_payment_since,
@@ -385,16 +387,28 @@ class AdminService:
             d["roles"] = roles_list
             
             is_admin_account = any(r in ["super_admin", "general_admin"] for r in roles_list)
-            if d.get("registered_with_invite_id") or d.get("invite_code"):
-                d["signup_method"] = "invite"
-            elif is_admin_account or not d.get("pending_payment_since"):
-                d["signup_method"] = "admin"
-            else:
-                d["signup_method"] = "purchase"
+            has_paid_tier_role = any(r in ["general_user", "pro_user", "max_user"] for r in roles_list)
+            has_polar_link = bool(d.get("polar_customer_id") or d.get("polar_subscription_id"))
 
+            # signup_method — PASSTHROUGH. This is an immutable origin fact
+            # written once at user creation (SCHOLARDOCX-0167), not a derived
+            # property. The previous version tried to derive it from mutable
+            # state (roles, polar links, pending_payment_since), which produced
+            # wrong results because those fields change over a user's lifetime
+            # while signup_method must not. If a legacy row somehow has NULL
+            d["signup_method"] = d.get("signup_method") or (
+                "invite" if d.get("registered_with_invite_id") else (
+                    "purchase" if (d.get("polar_customer_id") or d.get("polar_subscription_id")) else "admin"
+                )
+            )
+
+            # plan_source — what currently funds/grants the user's plan:
+            #   polar      — active Polar subscription (sub ID present).
+            #   admin_set  — plan created/set by admin (paid-tier role, admin signup, or plan duration set).
+            #   none       — self-registered free users without active Polar sub or admin configuration.
             if d.get("polar_subscription_id"):
                 d["plan_source"] = "polar"
-            elif any(r in ["general_user", "pro_user", "max_user"] for r in roles_list) or d.get("plan_ends_at"):
+            elif has_paid_tier_role or d.get("signup_method") == "admin" or bool(d.get("plan_ends_at")):
                 d["plan_source"] = "admin_set"
             else:
                 d["plan_source"] = "none"
@@ -724,8 +738,8 @@ class AdminService:
         
         cursor = self.connection.execute(
             """
-            INSERT INTO users (email, password_hash, display_name, roles, is_active, plan_started_at, plan_ends_at)
-            VALUES (?, ?, ?, ?, 1, ?, ?)
+            INSERT INTO users (email, password_hash, display_name, roles, is_active, plan_started_at, plan_ends_at, signup_method)
+            VALUES (?, ?, ?, ?, 1, ?, ?, 'admin')
             """,
             (email, password_hash, display_name, roles_json, plan_started_at, plan_ends_at)
         )

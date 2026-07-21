@@ -42,8 +42,9 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
         setProfileId(id);
         setProfile(next);
         setDestinationsInput(next.destinations.join(", "));
-      } catch (error) {
-        onToast("Failed to load your Hunt Profile.");
+      } catch (error: any) {
+        const message = error?.message && typeof error.message === "string" ? error.message.trim() : "Failed to load your Hunt Profile.";
+        onToast(message);
         onClose();
       } finally {
         setIsLoading(false);
@@ -66,8 +67,9 @@ export function HuntProfileModal({ onClose, onSaved, onToast }: HuntProfileModal
       onToast("Hunt Profile saved.");
       onSaved(toSave);
       onClose();
-    } catch (error) {
-      onToast("Failed to save Hunt Profile.");
+    } catch (error: any) {
+      const message = error?.message && typeof error.message === "string" ? error.message.trim() : "Failed to save Hunt Profile.";
+      onToast(message);
     } finally {
       setIsSaving(false);
     }

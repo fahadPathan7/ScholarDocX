@@ -4,12 +4,15 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, RecordMap } from "../lib/api";
 import { useUsage } from "../contexts/UsageContext";
+import { useAuth } from "../contexts/AuthContext";
 import { emitUiError } from "../lib/uiError";
 import {
+  getChatStorageKey,
   getFallbackModel,
   getModelDisplayName,
   getProviderDisplayName,
   getProviderForModel,
+  LEGACY_CHAT_STORAGE_KEY,
   MODEL_OPTIONS,
   MODEL_PROVIDER_FEATURES,
   type ModelOption,
@@ -47,7 +50,7 @@ type ActionPlan = {
 
 
 const MAX_HISTORY = 5;
-const STORAGE_KEY = "scholardocx_chat_history";
+
 const SUMMARY_MIN_MESSAGES = 2;
 const FAILED_SUMMARY_MODES = new Set(["local-fallback", "provider-error"]);
 const ACTION_REQUEST_RE = /\b(create|make|add|start|set up|setup|new|update|edit|change|modify|delete|remove|get|show|list|find|search|count|how many)\b/i;
@@ -114,7 +117,11 @@ const createInitialGreeting = () => ({
 });
 
 export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?: () => Promise<void> }) {
+  const { user } = useAuth();
   const { usageData, refreshUsage } = useUsage();
+  const userId = user?.id;
+  const storageKey = useMemo(() => getChatStorageKey(userId), [userId]);
+
   const [open, setOpen] = useState(false);
   const [wide, setWide] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -373,30 +380,51 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     localStorage.setItem("scholarDocX_backgroundModel", backgroundModel);
   }, [backgroundModel]);
 
-  // Load history from localStorage
+  // Purge legacy non-user-scoped key to prevent cross-account history leakage
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const loadedHistory = JSON.parse(stored);
-        setHistory(loadedHistory);
-        
-        // Auto-load the most recent session if it exists
-        if (loadedHistory.length > 0) {
-          const mostRecent = loadedHistory[0];
-          setCurrentSession(mostRecent);
-        }
-      } catch (e) {
-        console.error("Failed to load chat history", e);
-      }
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (e) {
+      // ignore SSR or disabled storage errors
     }
   }, []);
 
-  // Save history to localStorage
-  const saveHistory = (sessions: ChatSession[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  // Load history from localStorage whenever active user (storageKey) changes
+  useEffect(() => {
+    const initialSession: ChatSession = {
+      id: Date.now().toString(),
+      messages: [createInitialGreeting()],
+      title: "New Chat",
+      timestamp: Date.now()
+    };
+
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const loadedHistory = JSON.parse(stored);
+        if (Array.isArray(loadedHistory) && loadedHistory.length > 0) {
+          setHistory(loadedHistory);
+          setCurrentSession(loadedHistory[0]);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load chat history", e);
+    }
+
+    setHistory([]);
+    setCurrentSession(initialSession);
+  }, [storageKey]);
+
+  // Save history to localStorage for the active user
+  const saveHistory = useCallback((sessions: ChatSession[]) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(sessions));
+    } catch (e) {
+      console.error("Failed to save chat history", e);
+    }
     setHistory(sessions);
-  };
+  }, [storageKey]);
 
   // Save current session to history
   const saveCurrentSession = () => {
@@ -415,7 +443,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       const trimmedHistory = updatedHistory.slice(0, MAX_HISTORY);
       saveHistory(trimmedHistory);
     }
-  }, [currentSession.messages.length]);
+  }, [currentSession.messages.length, saveHistory]);
 
   // Start new chat
   const startNewChat = () => {

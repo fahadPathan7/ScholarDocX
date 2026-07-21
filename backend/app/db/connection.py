@@ -128,6 +128,7 @@ def initialize_database(database_url: str) -> None:
         _migrate_yearly_to_quarterly(conn)
         _drop_legacy_ai_tokens_role_limit(conn)
         _add_pending_payment_column(conn)
+        _add_signup_method_column(conn)
         _seed_registration_mode_default(conn)
 
 
@@ -178,6 +179,57 @@ def _add_pending_payment_column(conn) -> None:
         text(
             "ALTER TABLE users "
             "ADD COLUMN IF NOT EXISTS pending_payment_since TIMESTAMP"
+        )
+    )
+
+
+def _add_signup_method_column(conn) -> None:
+    """Add users.signup_method if missing (SCHOLARDOCX-0167).
+
+    signup_method is an immutable origin fact: 'invite' | 'purchase' | 'admin'.
+    Unlike roles / polar_subscription_id (mutable current-state fields), it is
+    written exactly once at INSERT time and never updated afterwards. See
+    Users.signup_method in models.py for the full rationale.
+
+    Backfills existing rows: any pre-column user is assigned a value based on
+    the strongest origin signal available at the time of this migration:
+      - registered_with_invite_id NOT NULL  -> 'invite'
+      - polar_customer_id NOT NULL          -> 'purchase'
+      - otherwise                           -> 'admin'
+    This matches what list_users was *trying* to compute before; running it
+    once here then freezes it as a fact. New users get the column set at their
+    respective INSERT site (auth.register / auth.register_paid /
+    AdminService.create_user).
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe to run on every boot. The
+    backfill UPDATE is a no-op once every row has a non-NULL value (the WHERE
+    clause filters them out).
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE users "
+            "ADD COLUMN IF NOT EXISTS signup_method TEXT"
+        )
+    )
+    # Backfill rows that pre-date the column. Order matters: invite is the
+    # strongest signal, then polar_customer_id, then default to admin (covers
+    # admin-panel-created users who have neither field set).
+    conn.execute(
+        text(
+            "UPDATE users SET signup_method = 'invite' "
+            "WHERE signup_method IS NULL AND registered_with_invite_id IS NOT NULL"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE users SET signup_method = 'purchase' "
+            "WHERE signup_method IS NULL AND polar_customer_id IS NOT NULL"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE users SET signup_method = 'admin' "
+            "WHERE signup_method IS NULL"
         )
     )
 

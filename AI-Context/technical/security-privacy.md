@@ -32,6 +32,12 @@ remain explicit user actions behind backend services.
 - **Enforce maximum document size limit of 10 MB per file** to prevent resource
   exhaustion, storage abuse, and excessive bandwidth usage. This limit is
   validated both client-side and server-side.
+- **Client-Side Account Isolation for Local Storage**: User conversation history
+  and sensitive local state must be scoped per user ID (e.g.,
+  `scholardocx_chat_history_${user.id}`). Non-user-scoped legacy keys must be
+  purged on startup and logout to ensure multiple users sharing the same browser
+  never see another account's cached AI turns (SCHOLARDOCX-0160).
+
 
 ## External API Rules
 

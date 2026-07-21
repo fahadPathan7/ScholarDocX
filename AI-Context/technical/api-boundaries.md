@@ -18,6 +18,7 @@ development.
 - Ask user confirmation before AI saves or document overwrites.
 - Convert API authorization/limit failures into user-friendly alerts through a
   centralized UI-error mapping layer instead of component-by-component parsing.
+  **Modal Error Surfacing Standard (SCHOLARDOCX-0167):** When an API request fails, catch blocks in modals, forms, and admin action handlers MUST prioritize extracting and displaying `err?.message` (which parses the backend's `detail` string) rather than overwriting errors with hardcoded generic messages (e.g. "Permission denied"). Avoid setting `kind: "permission"` on general validation errors so irrelevant role quota guidance text is not appended to the alert.
 - Login path must stay non-blocking (SCHOLARDOCX-0146): the `/auth/login`
   response already returns the full `user` object, so the frontend hydrates
   auth state synchronously from it and navigates client-side (`navigate`),
@@ -350,8 +351,11 @@ no-migration variant for pre-existing tables.
   — no admin login required, safe for external schedulers). Returns
   `{status, deleted}`. Intended for the GitHub Actions 2h cron.
 - `/admin/cleanup/pending-accounts` (POST, `require_super_admin`,
-  SCHOLARDOCX-0162) is a manual trigger of the same purge for admins; surfaced
+  SCHOLARDOCX-0162) is a manual trigger of the pending account purge for admins; surfaced
   as a button in the admin Settings tab.
+- `/admin/cleanup/expired-plans` (POST, `require_super_admin`) is a manual
+  trigger for the expired plan downgrade cleanup; surfaced as a button in the
+  admin Settings tab (runs `downgrade_expired_user_plans`).
 - `/auth/plans` and `/auth/plans/public` (SCHOLARDOCX-0158): `_assemble_public_plans`
   omits any `polar_product_id_*` / `polar_extra_credits_id_*` key whose value is
   not a canonical UUID. Plan/price data is still returned; only the buyable id
@@ -370,6 +374,33 @@ no-migration variant for pre-existing tables.
   plan role already happens in the same handler). If the user was already purged
   by the 2h cleanup cron, `_find_user` misses and the existing 500 → Polar retry
   applies (acceptable; the account is gone).
+- **Admin user classification (SCHOLARDOCX-0167):** `AdminService.list_users`
+  returns two display-only fields per row — `signup_method`
+  (`invite` | `purchase` | `admin`) and `plan_source` (`polar` | `admin_set` |
+  `none`). They have **different semantics** and must not be conflated:
+  - `signup_method` is an **immutable persisted origin fact** (column
+    `users.signup_method`), set exactly once at INSERT time by whichever
+    creation path runs:
+    - `auth.register` (invite code) → `'invite'`
+    - `auth.register_paid` (Polar checkout) → `'purchase'`
+    - `AdminService.create_user` (admin panel) → `'admin'`
+    Never derive this from mutable state. Roles, plan, polar_subscription_id,
+    and pending_payment_since all change over a user's lifetime; origin does
+    not. `list_users` passes the column through verbatim, with a NULL fallback
+    to `'admin'` (safety net for legacy rows).
+  - `plan_source` IS derived from mutable state because it reflects the
+    **current** plan funding:
+    - `polar` iff `polar_subscription_id` or `polar_customer_id` is present.
+    - `admin_set` iff the user has a paid-tier role, was created by an admin (`signup_method == "admin"`), or has an admin-configured plan duration (`plan_ends_at` set) without a Polar subscription.
+    - `none` otherwise (self-registered free users without admin intervention or Polar subscription).
+  - Polar column durability, for reference:
+    - `pending_payment_since` — transient; set on registration, NULLed by
+      activation webhook.
+    - `polar_customer_id` — durable; set on first checkout, never cleared.
+      Useful for "user came through Polar at least once" but NOT for origin
+      (admin-created accounts can have it attached for testing).
+    - `polar_subscription_id` — current active subscription; nulled on
+      `.revoked`. Use for `plan_source`, not origin.
 - `/admin/plan-requests` returns both replacement upgrades and renewal
   requests and should support filtering by request type so admin permission
   checks can differ between upgrade review and extension review tabs

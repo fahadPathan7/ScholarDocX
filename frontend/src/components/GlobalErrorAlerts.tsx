@@ -33,9 +33,16 @@ export function GlobalErrorAlerts() {
           <span style={{ marginTop: 2, color: "#475569" }}>{icon}</span>
           <div>
             <p style={{ margin: 0, fontWeight: 600, color: "#1f2937" }}>{detail.message}</p>
-            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
-              Action guidance: ask your admin to review role permissions/limits, or retry after reset if this is a quota issue.
-            </p>
+            {/* The "Action guidance" line is only meaningful for auth/quota
+                failures (permission/limit/rate). For general validation
+                errors (e.g. "Password must be between 3 and 10 characters"),
+                appending it would mislead the user into thinking the problem
+                is role/permission related when it's just bad input. */}
+            {(detail.kind === "permission" || detail.kind === "limit" || detail.kind === "rate") && (
+              <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+                Action guidance: ask your admin to review role permissions/limits, or retry after reset if this is a quota issue.
+              </p>
+            )}
           </div>
         </div>,
         detail.title || "Action blocked"

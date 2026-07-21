@@ -88,10 +88,11 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
 
       onToast(`Added to ${TRACKER_SHEET_NAME}.`);
       onDone(updatedOpportunity);
-    } catch (error) {
+    } catch (error: any) {
       // 403/limit errors already surface the standard styled alert via the
       // global api client (FR-7.21); this toast is a fallback for anything else.
-      onToast("Could not add this opportunity to the tracker.");
+      const message = error?.message && typeof error.message === "string" ? error.message.trim() : "Could not add this opportunity to the tracker.";
+      onToast(message);
     } finally {
       setIsSubmitting(false);
     }

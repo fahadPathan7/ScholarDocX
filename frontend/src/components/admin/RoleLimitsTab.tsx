@@ -59,7 +59,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       fetchLimits();
       onLimitsUpdated?.();
     } catch (err: any) {
-      emitUiError({ title: "Permission denied", message: "Failed to update limit. Ensure you have the required permissions.", kind: "permission" });
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to update limit.";
+      emitUiError({ title: "Update failed", message, kind: "general" });
     }
   };
 
@@ -77,7 +78,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       fetchLimits();
       onLimitsUpdated?.();
     } catch (err: any) {
-      emitUiError({ title: "Permission denied", message: "Failed to reset role limits. Ensure you have the required permissions.", kind: "permission" });
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to reset role limits.";
+      emitUiError({ title: "Reset failed", message, kind: "general" });
     } finally {
       setIsResetting(false);
     }

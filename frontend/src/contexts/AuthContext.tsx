@@ -97,6 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     clearToken();
+    try {
+      localStorage.removeItem("scholardocx_chat_history");
+    } catch (e) {
+      // ignore SSR or storage error
+    }
     setUser(null);
     setIsAuthenticated(false);
     window.location.href = "/";

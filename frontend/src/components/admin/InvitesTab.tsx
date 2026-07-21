@@ -40,8 +40,9 @@ export function InvitesTab() {
     try {
       await api.post("/admin/invites", { max_uses: maxUses, expiration_hours: expirationHours });
       fetchInvites();
-    } catch (err) {
-      emitUiError({ title: "Action failed", message: "Failed to create invite.", kind: "general" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to create invite.";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -54,8 +55,9 @@ export function InvitesTab() {
     try {
       await api.delete(`/admin/invites/${code}`);
       fetchInvites();
-    } catch (err) {
-      emitUiError({ title: "Action failed", message: "Failed to delete invite.", kind: "general" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to delete invite.";
+      emitUiError({ title: "Action failed", message, kind: "general" });
     }
   };
 
@@ -66,8 +68,9 @@ export function InvitesTab() {
     try {
       const res = await api.get<any[]>(`/admin/invites/${code}/usages`);
       setUsages(res);
-    } catch (err) {
-      emitUiError({ title: "Failed to fetch usages", message: "Could not load invite code usages.", kind: "general" });
+    } catch (err: any) {
+      const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Could not load invite code usages.";
+      emitUiError({ title: "Failed to fetch usages", message, kind: "general" });
     } finally {
       setLoadingUsages(false);
     }

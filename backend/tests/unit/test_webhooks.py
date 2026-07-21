@@ -114,7 +114,7 @@ def _seed_polar_products(connection, store):
     store.db.commit()
 
 
-def _seed_pack(connection, store, code="small", token_amount=100):
+def _seed_pack(connection, store, code="small", token_amount=10000):
     """Ensure a token pack row exists with the expected code."""
     from app.db.models import AiTokenPacks
     pack = store.db.scalar(select(AiTokenPacks).where(AiTokenPacks.code == code))
@@ -354,7 +354,7 @@ async def test_order_created_grants_credits(tmp_path):
     store, connection, settings = make_store(tmp_path)
     try:
         _seed_polar_products(connection, store)
-        _seed_pack(connection, store, code="small", token_amount=100)
+        _seed_pack(connection, store, code="small", token_amount=10000)
         _seed_user(
             connection, USER_ID, "wh-user@example.com", '["general_user"]',
             polar_customer_id="cus_polar_1",
@@ -368,10 +368,11 @@ async def test_order_created_grants_credits(tmp_path):
         }
         await handle_order_created(data, store, event_id="evt_order_1")
 
+        store.db.expire_all()
         balance = store.db.scalar(select(AiTokenBalances).where(AiTokenBalances.user_id == USER_ID))
-        # 100 tokens granted into the purchased bucket.
+        # 10000 tokens granted into the purchased bucket.
         assert balance is not None
-        assert balance.purchased_remaining == 100
+        assert balance.purchased_remaining == 10000
     finally:
         store.db.close()
 
@@ -382,7 +383,7 @@ async def test_duplicate_order_created_does_not_double_grant(tmp_path):
     store, connection, settings = make_store(tmp_path)
     try:
         _seed_polar_products(connection, store)
-        _seed_pack(connection, store, code="small", token_amount=100)
+        _seed_pack(connection, store, code="small", token_amount=10000)
         _seed_user(
             connection, USER_ID, "wh-user@example.com", '["general_user"]',
             polar_customer_id="cus_polar_1",
@@ -409,7 +410,7 @@ async def test_duplicate_order_created_does_not_double_grant(tmp_path):
         store.db.expire_all()  # flush stale identity map after raw-SQL writes in grant_purchased
         balance = store.db.scalar(select(AiTokenBalances).where(AiTokenBalances.user_id == USER_ID))
         assert balance is not None, "AiTokenBalances row should exist after grant_purchased"
-        assert balance.purchased_remaining == 100  # not 200
+        assert balance.purchased_remaining == 10000  # not 20000
     finally:
         store.db.close()
 
@@ -419,7 +420,7 @@ async def test_order_user_not_found_raises(tmp_path):
     store, connection, settings = make_store(tmp_path)
     try:
         _seed_polar_products(connection, store)
-        _seed_pack(connection, store, code="small", token_amount=100)
+        _seed_pack(connection, store, code="small", token_amount=10000)
 
         data = {
             "id": "order_orphan",

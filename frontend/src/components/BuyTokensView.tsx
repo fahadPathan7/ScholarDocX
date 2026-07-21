@@ -162,9 +162,10 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       if (res.url) {
         window.location.href = res.url;
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Checkout error:", e);
-      emitUiError({ title: "Checkout failed", message: "Failed to initialize checkout session." });
+      const message = e?.message && typeof e.message === "string" ? e.message.trim() : "Failed to initialize checkout session.";
+      emitUiError({ title: "Checkout failed", message });
     } finally {
       setPolarLoading(null);
     }

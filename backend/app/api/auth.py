@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from app.auth.jwt import create_token
-from app.auth.password import hash_password, validate_password_strength, verify_password
+from app.auth.password import hash_password, validate_password_with_reason, verify_password
 from app.auth.rate_limit import (
     client_ip_from_request,
     rate_limiter,
@@ -86,12 +86,10 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     client_ip = client_ip_from_request(request)
     rate_limiter.check_and_record("auth_register", client_ip)
 
-    # Validate password
-    if not validate_password_strength(payload.password):
-        raise HTTPException(
-            status_code=400, 
-            detail="Password must be between 3 and 10 characters long."
-        )
+    # Validate password — surface the specific failing rule (SCHOLARDOCX-0168).
+    ok, reason = validate_password_with_reason(payload.password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
 
     # Validate invite code
     invite = store.legacy_connection.execute(
@@ -124,8 +122,8 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     
     cursor = store.legacy_connection.execute(
         """
-        INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id)
-        VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?)
+        INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id, signup_method)
+        VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?, 'invite')
         """,
         (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at, invite["id"])
     )
@@ -233,12 +231,10 @@ async def register_paid(
         )
 
     # Password strength — same rule as invite-code register.
-    if not validate_password_strength(payload.password):
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be 8 or more characters and include upper, "
-                   "lowercase, a digit, and a special character.",
-        )
+    # Validate password — surface the specific failing rule (SCHOLARDOCX-0168).
+    ok, reason = validate_password_with_reason(payload.password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
 
     # Reject if the email is already registered OR is already in the
     # pending-payment window (give the user a clear path: finish checkout or
@@ -286,8 +282,8 @@ async def register_paid(
         """
         INSERT INTO users
             (email, password_hash, display_name, roles, is_active, is_blocked,
-             plan_started_at, plan_ends_at, pending_payment_since)
-        VALUES (?, ?, ?, ?, 0, 0, ?, NULL, ?)
+             plan_started_at, plan_ends_at, pending_payment_since, signup_method)
+        VALUES (?, ?, ?, ?, 0, 0, ?, NULL, ?, 'purchase')
         """,
         (payload.email, hashed_password, payload.display_name, default_roles, now_iso, now_iso),
     )
@@ -519,11 +515,10 @@ def change_my_password(payload: ChangePasswordPayload, store: Store = Depends(ge
         rate_limiter.record("auth_password_change", identity)
         raise HTTPException(status_code=400, detail="Incorrect current password.")
         
-    if not validate_password_strength(payload.new_password):
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be between 3 and 10 characters long."
-        )
+    # Validate new password — surface the specific failing rule (SCHOLARDOCX-0168).
+    ok, reason = validate_password_with_reason(payload.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
         
     new_hash = hash_password(payload.new_password)
     

@@ -368,6 +368,7 @@ class AdminService:
                 u.polar_subscription_id,
                 u.polar_cancel_at_period_end,
                 u.plan_renews_at,
+                u.pending_payment_since,
                 u.registered_with_invite_id,
                 ic.code as invite_code
             FROM users u
@@ -380,8 +381,24 @@ class AdminService:
         results = []
         for u in users:
             d = dict(u)
-            d["roles"] = safe_json_loads(d["roles"], default=[])
-            d["signup_method"] = "invite" if d.get("registered_with_invite_id") else "purchase"
+            roles_list = safe_json_loads(d["roles"], default=[])
+            d["roles"] = roles_list
+            
+            is_admin_account = any(r in ["super_admin", "general_admin"] for r in roles_list)
+            if d.get("registered_with_invite_id") or d.get("invite_code"):
+                d["signup_method"] = "invite"
+            elif is_admin_account or not d.get("pending_payment_since"):
+                d["signup_method"] = "admin"
+            else:
+                d["signup_method"] = "purchase"
+
+            if d.get("polar_subscription_id"):
+                d["plan_source"] = "polar"
+            elif any(r in ["general_user", "pro_user", "max_user"] for r in roles_list) or d.get("plan_ends_at"):
+                d["plan_source"] = "admin_set"
+            else:
+                d["plan_source"] = "none"
+
             results.append(d)
             
         return results

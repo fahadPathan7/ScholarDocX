@@ -10,9 +10,17 @@
 name: Downgrade expired user plans
 
 on:
-  schedule:
-    # Runs once every day at 00:00 UTC
-    - cron: "0 0 * * *"
+  # ── Schedule trigger DISABLED ──────────────────────────────────────────────
+  # The daily cron schedule below is commented out. The workflow itself, the
+  # backend endpoint (POST /api/internal/downgrade-expired-plans), and the
+  # downgrade logic all remain in place and correct — only the automatic
+  # trigger is off.
+  #
+  # To re-enable automatic runs: uncomment the `schedule:` block below.
+  # To run once ad-hoc: Actions tab → "Run workflow" (workflow_dispatch below).
+  # schedule:
+  #   # Runs once every day at 00:00 UTC
+  #   - cron: "0 0 * * *"
   workflow_dispatch: {}  # allow manual runs from the Actions tab
 
 jobs:

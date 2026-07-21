@@ -121,12 +121,12 @@ class LegacyConnection:
     def execute(self, sql: str, params: Any = ()) -> _LegacyResult:
         # Translate ? positional placeholders -> :p0, :p1, ... named ones.
         named_params: dict[str, Any]
-        translated = sql
+        translated = str(sql)
         if isinstance(params, (list, tuple)):
             named_params = {}
             for i in range(len(params)):
                 named_params[f"p{i}"] = params[i]
-            translated = _translate_placeholders(sql, len(params))
+            translated = _translate_placeholders(translated, len(params))
         elif isinstance(params, dict):
             named_params = params
         else:

@@ -312,9 +312,10 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
               </button>
               <button
                 onClick={() => setIsQuarterly(true)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${isQuarterly ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Quarterly
+                <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-emerald-100 text-emerald-700">Save 20%</span>
               </button>
             </div>
           )}

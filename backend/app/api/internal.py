@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.api.dependencies import get_store
 from app.services.registration_cleanup import purge_expired_pending_accounts
+from app.services.plan_expiry import downgrade_expired_user_plans
 from app.services.store import Store
 
 router = APIRouter(prefix="/internal", tags=["internal"])
@@ -55,3 +56,22 @@ def cleanup_pending_accounts(
         raise HTTPException(status_code=401, detail="Unauthorized.")
     deleted = purge_expired_pending_accounts(store)
     return {"status": "success", "deleted": deleted}
+
+
+@router.post("/downgrade-expired-plans")
+def downgrade_expired_plans(
+    x_cleanup_token: Optional[str] = Header(default=None, alias="X-Cleanup-Token"),
+    store: Store = Depends(get_store),
+):
+    """Downgrade users with expired plans to free_user role.
+
+    Called by the GitHub Actions ``downgrade-expired-users`` workflow daily.
+    Preserves admin roles intact. Gated by ``CLEANUP_SECRET``.
+    """
+    secret = _cleanup_secret()
+    if not secret:
+        raise HTTPException(status_code=503, detail="Cleanup endpoint not configured.")
+    if not x_cleanup_token or not hmac.compare_digest(x_cleanup_token, secret):
+        raise HTTPException(status_code=401, detail="Unauthorized.")
+    downgraded = downgrade_expired_user_plans(store)
+    return {"status": "success", "downgraded": downgraded}

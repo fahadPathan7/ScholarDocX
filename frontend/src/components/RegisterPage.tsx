@@ -42,11 +42,8 @@ export function RegisterPage() {
   const [searchParams] = useSearchParams();
   const initialFromPlan = searchParams.get("plan"); // ?plan=pro deep-link from pricing
 
-  // Default tab: paid if the URL deep-linked with ?plan= or if mode is paid_only;
-  // otherwise invite (the historical default).
-  const [tab, setTab] = useState<"invite" | "paid">(
-    initialFromPlan ? "paid" : "invite"
-  );
+  // Default tab: Purchase a plan (paid). Fallback to invite if regMode is invite_only.
+  const [tab, setTab] = useState<"invite" | "paid">("paid");
   const [regMode, setRegMode] = useState<RegMode>("invite_or_paid");
 
   // ---- invite form state (unchanged) ----
@@ -179,7 +176,7 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
+      <div className="auth-card auth-card-wide">
         <div className="auth-topnav">
           <Link to="/" className="auth-back-home">
             <ArrowLeft size={14} />
@@ -231,7 +228,7 @@ export function RegisterPage() {
         {/* ---- Invite-code form (unchanged behavior) ---- */}
         {tab === "invite" && showInviteTab && (
           <form onSubmit={handleInviteSubmit} className="auth-form auth-form-horizontal">
-            <div className="auth-field">
+            <div className="auth-field auth-field-full">
               <label className="auth-label" htmlFor="inviteCode">
                 Invite Code
               </label>
@@ -311,7 +308,7 @@ export function RegisterPage() {
         {/* ---- Paid registration form ---- */}
         {tab === "paid" && showPaidTab && (
           <form onSubmit={handlePaidSubmit} className="auth-form auth-form-horizontal">
-            <div className="auth-field auth-field-full">
+            <div className="auth-field">
               <label className="auth-label" htmlFor="pPlan">
                 Plan
               </label>
@@ -331,21 +328,9 @@ export function RegisterPage() {
                   );
                 })}
               </select>
-              <div className="auth-plan-readout">
-                <span className="auth-plan-price">{priceFor(plan)}</span>
-                <span className="auth-plan-desc">
-                  {TIER_PRESENTATION[
-                    plan === "basic"
-                      ? "general_user"
-                      : plan === "pro"
-                      ? "pro_user"
-                      : "max_user"
-                  ].desc}
-                </span>
-              </div>
             </div>
 
-            <div className="auth-field auth-field-full">
+            <div className="auth-field">
               <label className="auth-label" htmlFor="billingCycle">
                 Billing cycle
               </label>
@@ -362,9 +347,23 @@ export function RegisterPage() {
                   className={`auth-cycle-btn ${billingCycle === "quarterly" ? "active" : ""}`}
                   onClick={() => setBillingCycle("quarterly")}
                 >
-                  Quarterly
+                  Quarterly <span className="auth-discount-tag">Save 20%</span>
                 </button>
               </div>
+            </div>
+
+            <div className="auth-plan-readout auth-field-full">
+              <span className="auth-plan-price">{priceFor(plan)}</span>
+              <span className="auth-plan-dot">•</span>
+              <span className="auth-plan-desc">
+                {TIER_PRESENTATION[
+                  plan === "basic"
+                    ? "general_user"
+                    : plan === "pro"
+                    ? "pro_user"
+                    : "max_user"
+                ].desc}
+              </span>
             </div>
 
             <div className="auth-field">
@@ -434,24 +433,27 @@ export function RegisterPage() {
           </form>
         )}
 
-        <div className="auth-switch-row col">
-          <div>
+        <div className="auth-switch-row">
+          <span>
             Already have an account?{" "}
             <Link to="/login" className="auth-link-btn">
               Log in
             </Link>
-          </div>
+          </span>
           {showInviteTab && (
-            <div>
-              Need an invite code?{" "}
-              <Link
-                to="/login"
-                state={{ requestInvite: true }}
-                className="auth-link-btn"
-              >
-                Request one here
-              </Link>
-            </div>
+            <>
+              <span className="auth-switch-sep">•</span>
+              <span>
+                Need an invite code?{" "}
+                <Link
+                  to="/login"
+                  state={{ requestInvite: true }}
+                  className="auth-link-btn"
+                >
+                  Request one here
+                </Link>
+              </span>
+            </>
           )}
         </div>
       </div>

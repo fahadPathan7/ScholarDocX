@@ -196,15 +196,21 @@ export function LoginPage() {
             <div className="auth-alert success">
               Your request has been submitted successfully. We will review it shortly.
             </div>
-            <button
-              onClick={() => {
-                setShowInviteRequest(false);
-                setInviteSuccess(false);
-              }}
-              className="auth-link-btn"
-            >
-              Back to login
-            </button>
+            <div className="auth-switch-row">
+              <button
+                onClick={() => {
+                  setShowInviteRequest(false);
+                  setInviteSuccess(false);
+                }}
+                className="auth-link-btn"
+              >
+                Back to login
+              </button>
+              <span className="auth-switch-sep">•</span>
+              <Link to="/register" className="auth-link-btn">
+                Back to registration
+              </Link>
+            </div>
           </div>
         ) : showInviteRequest ? (
           <form onSubmit={handleRequestInvite} className="auth-form">
@@ -229,6 +235,8 @@ export function LoginPage() {
             </button>
             <div className="auth-switch-row">
               <button type="button" onClick={() => setShowInviteRequest(false)} className="auth-link-btn muted">Back to login</button>
+              <span className="auth-switch-sep">•</span>
+              <Link to="/register" className="auth-link-btn muted">Back to registration</Link>
             </div>
           </form>
         ) : showForgotPassword ? (
@@ -237,16 +245,22 @@ export function LoginPage() {
               <div className="auth-alert success">
                 If an account exists for this email, your request has been submitted to the administrator. They will contact you shortly.
               </div>
-              <button
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setForgotSuccess(false);
-                  setForgotEmail("");
-                }}
-                className="auth-link-btn"
-              >
-                Back to login
-              </button>
+              <div className="auth-switch-row">
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotSuccess(false);
+                    setForgotEmail("");
+                  }}
+                  className="auth-link-btn"
+                >
+                  Back to login
+                </button>
+                <span className="auth-switch-sep">•</span>
+                <Link to="/register" className="auth-link-btn">
+                  Back to registration
+                </Link>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleForgotPassword} className="auth-form">
@@ -268,6 +282,8 @@ export function LoginPage() {
               </button>
               <div className="auth-switch-row">
                 <button type="button" onClick={() => setShowForgotPassword(false)} className="auth-link-btn muted">Back to login</button>
+                <span className="auth-switch-sep">•</span>
+                <Link to="/register" className="auth-link-btn muted">Back to registration</Link>
               </div>
             </form>
           )

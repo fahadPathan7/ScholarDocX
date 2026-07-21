@@ -1,0 +1,38 @@
+# SCHOLARDOCX-0166: Downgrades expired user plans to free_user role once per day.
+#
+# Users whose paid plan or manual duration has expired (plan_ends_at < NOW()) are
+# transitioned to free_user role. Admin roles (general_admin, super_admin) are
+# strictly preserved intact.
+#
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   BACKEND_URL    — origin of the deployed API, e.g. https://api.example.com
+#   CLEANUP_SECRET — must match the backend's CLEANUP_SECRET env var
+name: Downgrade expired user plans
+
+on:
+  schedule:
+    # Runs once every day at 00:00 UTC
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}  # allow manual runs from the Actions tab
+
+jobs:
+  downgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger expired plan downgrade
+        run: |
+          set -euo pipefail
+          resp=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "X-Cleanup-Token: $CLEANUP_SECRET" \
+            "$BACKEND_URL/api/internal/downgrade-expired-plans")
+          code=$(echo "$resp" | tail -n1)
+          body=$(echo "$resp" | sed '$d')
+          echo "HTTP $code"
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "::error::Downgrade endpoint returned HTTP $code"
+            exit 1
+          fi
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}

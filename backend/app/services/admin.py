@@ -367,9 +367,12 @@ class AdminService:
                 u.token_version,
                 u.polar_subscription_id,
                 u.polar_cancel_at_period_end,
-                u.plan_renews_at
+                u.plan_renews_at,
+                u.registered_with_invite_id,
+                ic.code as invite_code
             FROM users u
             LEFT JOIN local_profiles lp ON u.id = lp.user_id
+            LEFT JOIN invite_codes ic ON u.registered_with_invite_id = ic.id
             ORDER BY u.created_at DESC
             """
         ).fetchall()
@@ -378,6 +381,7 @@ class AdminService:
         for u in users:
             d = dict(u)
             d["roles"] = safe_json_loads(d["roles"], default=[])
+            d["signup_method"] = "invite" if d.get("registered_with_invite_id") else "purchase"
             results.append(d)
             
         return results

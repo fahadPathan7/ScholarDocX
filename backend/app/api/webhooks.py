@@ -361,6 +361,18 @@ async def handle_subscription_updated(
     else:
         user.polar_pending_plan = None
 
+    # SCHOLARDOCX-0162: activate a pending-payment registrant. Paid
+    # self-registration creates the user inert (is_active=0,
+    # pending_payment_since set) and cannot log in until this webhook confirms
+    # payment. The role swap above already put the paid plan role in place; here
+    # we flip the account live and clear the pending marker so it is no longer
+    # eligible for the 2h unpaid cleanup. No-op for normal users
+    # (pending_payment_since is NULL).
+    if getattr(user, "pending_payment_since", None) is not None:
+        user.is_active = 1
+        user.pending_payment_since = None
+        logger.info(f"Activated pending-payment user {user.id} via webhook (event_id={event_id})")
+
     store.db.commit()
     logger.info(
         f"Updated user {user.id} to plan {plan_roles} from Polar subscription "

@@ -1,0 +1,46 @@
+# SCHOLARDOCX-0162: reaps unpaid pending-payment registration accounts.
+#
+# A user who registers via the paid path gets 2 hours to complete checkout; if
+# they never pay, the inert account is deleted by the backend
+# purge_expired_pending_accounts function. This workflow is the reliable,
+# zero-cost trigger for that purge (Render Cron Jobs are paid; an in-process
+# asyncio loop dies on Render free-tier sleep after 15 min).
+#
+# A lazy safety net on /auth/login also runs the purge, so if this cron is ever
+# disabled or delayed, accounts are still reaped on the next login attempt past
+# the TTL. The delete window is anchored on pending_payment_since, so timing
+# drift in this cron never deletes a too-new account.
+#
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   BACKEND_URL   — origin of the deployed API, e.g. https://api.example.com
+#   CLEANUP_SECRET — must match the backend's CLEANUP_SECRET env var
+name: Cleanup unpaid pending accounts
+
+on:
+  schedule:
+    # Every 2 hours, on the hour. UTC. Minimum granularity for GitHub Actions
+    # scheduled workflows is 5 min, but during high load the actual run may lag.
+    - cron: "0 */2 * * *"
+  workflow_dispatch: {}  # allow manual runs from the Actions tab
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger pending-account cleanup
+        run: |
+          set -euo pipefail
+          resp=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "X-Cleanup-Token: $CLEANUP_SECRET" \
+            "$BACKEND_URL/api/internal/cleanup-pending")
+          code=$(echo "$resp" | tail -n1)
+          body=$(echo "$resp" | sed '$d')
+          echo "HTTP $code"
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "::error::Cleanup endpoint returned HTTP $code"
+            exit 1
+          fi
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}

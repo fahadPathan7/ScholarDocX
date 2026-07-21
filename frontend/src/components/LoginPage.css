@@ -167,11 +167,137 @@
 
 .auth-feedback { text-align: center; }
 
+/* ---------- Tabs (invite vs purchase) — SCHOLARDOCX-0162 ---------- */
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 252, 0.6);
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-tab:hover:not(.active) {
+  color: var(--ui-ink-soft);
+  background: rgba(52, 127, 120, 0.06);
+}
+
+.auth-tab.active {
+  color: white;
+  background: linear-gradient(135deg, var(--ui-primary) 0%, var(--ui-primary-2) 100%);
+  box-shadow: 0 4px 10px rgba(52, 127, 120, 0.2);
+}
+
+/* ---------- Billing-cycle toggle (paid tab) ---------- */
+.auth-cycle-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 252, 0.6);
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+}
+
+.auth-cycle-btn {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.auth-cycle-btn:hover:not(.active) {
+  color: var(--ui-ink-soft);
+  background: rgba(52, 127, 120, 0.06);
+}
+
+.auth-cycle-btn.active {
+  color: var(--ui-primary);
+  background: var(--ui-mint);
+}
+
+/* ---------- Plan price readout (paid registration) ---------- */
+/* Price on its own line, descriptor text on the next line. */
+.auth-plan-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.auth-plan-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ui-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.auth-plan-desc {
+  font-size: 12.5px;
+  color: var(--ui-muted);
+  line-height: 1.4;
+}
+
+/* ---------- Inline hint under a form ---------- */
+.auth-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ui-muted);
+  text-align: center;
+}
+
 /* ---------- Form ---------- */
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Horizontal variant: pairs fields side-by-side in a 2-column grid.
+   Used by the Create Account (RegisterPage) forms so the card stays compact
+   instead of growing tall. Collapses to a single column on narrow screens. */
+.auth-form.auth-form-horizontal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.auth-form.auth-form-horizontal .auth-submit,
+.auth-form.auth-form-horizontal .auth-hint {
+  grid-column: 1 / -1;
+}
+
+/* Fields that should span the full row even inside the horizontal grid
+   (e.g. a plan selector with a price readout beneath it). */
+.auth-form.auth-form-horizontal .auth-field-full {
+  grid-column: 1 / -1;
 }
 
 .auth-field { display: flex; flex-direction: column; }
@@ -376,4 +502,6 @@
   .auth-page { padding: 28px 18px; }
   .auth-title { font-size: 23px; }
   .auth-form-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  /* Collapse horizontal Create Account grid to a single column on phones. */
+  .auth-form.auth-form-horizontal { grid-template-columns: 1fr; }
 }

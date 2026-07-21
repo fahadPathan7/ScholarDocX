@@ -168,6 +168,221 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     
     return {"status": "success", "message": "User registered successfully."}
 
+
+# ---------------------------------------------------------------------------
+# Paid self-registration (no invite code) — SCHOLARDOCX-0162
+#
+# A user without an invite code can register by purchasing a Basic/Pro/Max plan
+# at signup. The account is created in an inert state (is_active=0,
+# pending_payment_since=now) and CANNOT log in. Activation happens in the Polar
+# webhook (handle_subscription_updated sets is_active=1 and clears
+# pending_payment_since). If payment never arrives within 2h the account is
+# deleted by the pending-account cleanup (GitHub Actions cron + lazy net).
+# No email verification is sent — the paid checkout session is the trust anchor.
+# ---------------------------------------------------------------------------
+
+# Maps the public plan slug (as used in the payload) to (tier_setting_suffix,
+# plan_role). tier_setting_suffix is appended to plan_is_active_<suffix> and
+# polar_product_id_<suffix>_<cycle>. Mirrors the mapping in
+# _assemble_public_plans / active_by_role.
+_PAID_PLAN_BY_SLUG = {
+    "basic": ("general", "general_user"),
+    "pro": ("pro", "pro_user"),
+    "max": ("max", "max_user"),
+}
+
+
+class RegisterPaidPayload(BaseModel):
+    email: EmailStr
+    password: str
+    display_name: Optional[str] = "User"
+    plan: Literal["basic", "pro", "max"]
+    billing_cycle: Literal["monthly", "quarterly"]
+    success_url: Optional[str] = None
+
+
+def _get_registration_mode(store: Store) -> str:
+    """Read the registration_mode app setting (default invite_or_paid)."""
+    row = store.legacy_connection.execute(
+        "SELECT value FROM app_settings WHERE key = 'registration_mode'"
+    ).fetchone()
+    return (row["value"] if row else "invite_or_paid")
+
+
+@router.post("/register-paid")
+async def register_paid(
+    payload: RegisterPaidPayload, request: Request, store: Store = Depends(get_store)
+):
+    """Register a new account by purchasing a paid plan (no invite code).
+
+    Creates an inert user, starts a hosted checkout session, and returns its
+    URL. The account becomes usable only when the Polar webhook confirms
+    payment. See SCHOLARDOCX-0162.
+    """
+    # Rate limit first (1 / 24h / IP). check_and_record counts every hit, so a
+    # failed attempt still consumes the daily slot — same posture as
+    # auth_invite_request (anti-abuse on an open registration path).
+    client_ip = client_ip_from_request(request)
+    rate_limiter.check_and_record("auth_register_paid", client_ip)
+
+    # Gate by registration_mode. invite_only → this path is closed.
+    mode = _get_registration_mode(store)
+    if mode == "invite_only":
+        raise HTTPException(
+            status_code=403,
+            detail="Paid registration is not available. An invite code is required.",
+        )
+
+    # Password strength — same rule as invite-code register.
+    if not validate_password_strength(payload.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be 8 or more characters and include upper, "
+                   "lowercase, a digit, and a special character.",
+        )
+
+    # Reject if the email is already registered OR is already in the
+    # pending-payment window (give the user a clear path: finish checkout or
+    # wait for the 2h expiry).
+    existing = store.legacy_connection.execute(
+        "SELECT id, is_active, pending_payment_since FROM users WHERE email = ?",
+        (payload.email,),
+    ).fetchone()
+    if existing:
+        if existing["pending_payment_since"] is not None and not existing["is_active"]:
+            raise HTTPException(
+                status_code=409,
+                detail="An account for this email is awaiting payment. Please "
+                       "complete checkout, or retry in a few hours.",
+            )
+        raise HTTPException(status_code=400, detail="Email already registered.")
+
+    # Plan validation: tier must be active and have a configured Polar product
+    # UUID for the requested cycle.
+    plan_slug = payload.plan
+    tier_suffix, _plan_role = _PAID_PLAN_BY_SLUG[plan_slug]
+    settings_rows = store.legacy_connection.execute(
+        "SELECT key, value FROM app_settings WHERE key IN (?, ?)",
+        (f"plan_is_active_{tier_suffix}", f"polar_product_id_{tier_suffix}_{payload.billing_cycle}"),
+    ).fetchall()
+    settings_map = {row["key"]: row["value"] for row in settings_rows}
+    is_active = settings_map.get(f"plan_is_active_{tier_suffix}", "1") == "1"
+    product_id = settings_map.get(f"polar_product_id_{tier_suffix}_{payload.billing_cycle}", "")
+    if not is_active or not _is_uuid_shape(product_id):
+        logger.warning(
+            f"register-paid rejected: plan={plan_slug} cycle={payload.billing_cycle} "
+            f"active={is_active} product_id={product_id!r}"
+        )
+        raise HTTPException(
+            status_code=400, detail="Selected plan is not available for checkout."
+        )
+
+    # Create the inert user. is_active=0 blocks login until the webhook flips
+    # it; pending_payment_since anchors the 2h cleanup window. roles start as
+    # free_user — the webhook swaps in the paid plan role on activation.
+    hashed_password = hash_password(payload.password)
+    default_roles = json.dumps(["free_user"])
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cursor = store.legacy_connection.execute(
+        """
+        INSERT INTO users
+            (email, password_hash, display_name, roles, is_active, is_blocked,
+             plan_started_at, plan_ends_at, pending_payment_since)
+        VALUES (?, ?, ?, ?, 0, 0, ?, NULL, ?)
+        """,
+        (payload.email, hashed_password, payload.display_name, default_roles, now_iso, now_iso),
+    )
+    user_id = cursor.lastrowid
+
+    # Seed the same dependents as invite-code register / admin create_user so
+    # the account is fully ready the moment it is activated.
+    _seed_new_user_dependents(store, user_id, payload.display_name, payload.email)
+    store.legacy_connection.commit()
+
+    # Build the hosted checkout URL. success_url is validated inside the helper
+    # against the CORS allowlist; default to the registration-complete route.
+    settings = get_settings()
+    success_url = payload.success_url or _default_success_url(request)
+    try:
+        result = await _create_polar_checkout_session(
+            user={"id": str(user_id), "email": payload.email, "polar_customer_id": None},
+            product_id=product_id,
+            success_url=success_url,
+            settings=settings,
+        )
+    except HTTPException:
+        # Checkout failed (provider down, bad config, …). Roll back the inert
+        # user + its just-seeded dependents so the email is immediately free to
+        # retry, and surface a generic message.
+        _delete_user_cascade(store, user_id)
+        store.legacy_connection.commit()
+        logger.warning(f"register-paid checkout failed; rolled back user {user_id}")
+        raise
+    return {"status": "success", "checkout_url": result["url"]}
+
+
+def _default_success_url(request: Request) -> str:
+    """Best-effort default success_url derived from the inbound request origin.
+
+    Falls back to localhost dev origin if the request has no host. The value is
+    still re-validated against the CORS allowlist inside the checkout helper, so
+    an unparseable/proxied host can never produce an open redirect.
+    """
+    host = request.headers.get("origin") or request.headers.get("host")
+    if host:
+        scheme = "https" if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https" else "http"
+        if "://" not in host:
+            host = f"{scheme}://{host}"
+        return f"{host.rstrip('/')}/registration-complete"
+    return "http://localhost:5173/registration-complete"
+
+
+def _seed_new_user_dependents(store: Store, user_id: str, display_name: str, email: str) -> None:
+    """Seed local_profiles, user_usage_stats, and document_categories.
+
+    Shared shape with ``register`` (invite) and ``AdminService.create_user``.
+    Kept as a module helper so the paid path doesn't grow a third copy.
+    """
+    conn = store.legacy_connection
+    conn.execute(
+        "INSERT INTO local_profiles (user_id, display_name, email) VALUES (?, ?, ?)",
+        (user_id, display_name, email),
+    )
+    features = [
+        "ai_messages_per_session", "total_projects", "total_sheets", "total_records",
+        "sheets_per_project", "records_per_sheet", "total_documents_bytes",
+        "total_sticky_notes", "total_whiteboards",
+    ]
+    for feature in features:
+        conn.execute(
+            "INSERT INTO user_usage_stats (user_id, feature, current_count, last_reset_at) "
+            "VALUES (?, ?, 0, CURRENT_TIMESTAMP)",
+            (user_id, feature),
+        )
+    from app.core.categories import DEFAULT_MEDIA_CATEGORIES
+    for index, (slug, label) in enumerate(DEFAULT_MEDIA_CATEGORIES):
+        conn.execute(
+            "INSERT INTO document_categories (slug, display_name, sort_order, user_id) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+            (slug, label, index, user_id),
+        )
+
+
+def _delete_user_cascade(store: Store, user_id: str) -> None:
+    """Delete a not-yet-activated user and its seeded dependents.
+
+    Used by register-paid rollback and by the 2h pending-account cleanup. A
+    pending-payment user has only local_profiles / user_usage_stats /
+    document_categories rows (never logged in), so this is a bounded set.
+    user_usage_stats.user_id is NOT NULL (must precede the user delete); the
+    other two are nullable but we remove them for tidiness.
+    """
+    conn = store.legacy_connection
+    conn.execute("DELETE FROM user_usage_stats WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM local_profiles WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM document_categories WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
 @router.post("/login")
 def login(payload: LoginPayload, request: Request, store: Store = Depends(get_store)):
     # Rate limiting — check first; only record on a *failed* credential check,
@@ -182,8 +397,26 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
     if not user or not verify_password(payload.password, user["password_hash"]):
         rate_limiter.record("auth_login", client_ip)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
-        
+
+    # SCHOLARDOCX-0162: lazy safety net. Reap unpaid pending-payment accounts
+    # every ~2h on this cheap, frequent path. No-op when the last run is fresh.
+    # The codebase already does all time-based cleanup lazily on read (invite
+    # codes, usage-stat resets, rate-limit pruning), so this matches the pattern
+    # and survives free-tier sleep without a background loop.
+    from app.services.registration_cleanup import maybe_run_lazy_cleanup
+    maybe_run_lazy_cleanup(store)
+
     if not user["is_active"]:
+        # SCHOLARDOCX-0162: distinguish an account awaiting payment from one an
+        # admin deactivated/suspended. The pending state is expected to clear
+        # within seconds-minutes of checkout; the suspended state needs admin
+        # action. Frontend maps these details to different copy.
+        if user.get("pending_payment_since") is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="Your account is being activated after payment. Please "
+                       "wait a moment and try again.",
+            )
         raise HTTPException(status_code=403, detail="user_suspended")
 
     roles = safe_json_loads(user["roles"], default=[])
@@ -457,7 +690,20 @@ def _assemble_public_plans(store: Store) -> dict:
     pricing.setdefault("plan_price_max_monthly", "180")
     pricing.setdefault("plan_price_max_quarterly", "1500")
 
-    return {"status": "success", "plans": filtered_plans, "pricing": pricing}
+    # SCHOLARDOCX-0162: surface registration_mode so the public RegisterPage can
+    # decide which tabs to show (invite-only hides the paid tab; paid-only hides
+    # the invite tab). Read from app_settings; default to invite_or_paid.
+    reg_mode_row = store.legacy_connection.execute(
+        "SELECT value FROM app_settings WHERE key = 'registration_mode'"
+    ).fetchone()
+    registration_mode = reg_mode_row["value"] if reg_mode_row else "invite_or_paid"
+
+    return {
+        "status": "success",
+        "plans": filtered_plans,
+        "pricing": pricing,
+        "registration_mode": registration_mode,
+    }
 
 class PolarCheckoutPayload(BaseModel):
     product_id: str
@@ -513,7 +759,30 @@ def _is_allowlisted_success_url(url: str, settings: Settings) -> bool:
 
 @router.post("/plans/checkout")
 async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dict = Depends(get_current_user)):
-    settings = get_settings()
+    # SCHOLARDOCX-0162: the checkout-call logic now lives in the shared
+    # ``_create_polar_checkout_session`` helper so the paid-registration path
+    # can reuse it for a not-yet-active user. This route remains the thin
+    # auth-gated entry point for an already-logged-in user.
+    return await _create_polar_checkout_session(
+        user=current_user,
+        product_id=payload.product_id,
+        success_url=payload.success_url,
+        settings=get_settings(),
+    )
+
+
+async def _create_polar_checkout_session(
+    user: dict, product_id: str, success_url: str, settings: Settings
+) -> dict:
+    """Create a hosted checkout session and return ``{status, url}``.
+
+    Shared by the auth-gated ``/auth/plans/checkout`` route (logged-in user
+    upgrading) and the anonymous ``/auth/register-paid`` route (inert user
+    buying a plan at signup). The customer identifier sent to the provider is
+    derived from ``user`` — never from a client-supplied email (SCHOLARDOCX-0156).
+    Validation (provider configured, allowlisted success_url, canonical UUID
+    product_id) runs here so both callers are protected identically.
+    """
     polar_token = settings.polar_access_token
     if not polar_token:
         # Generic message — never surface the provider name to the user.
@@ -522,17 +791,17 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
     # SCHOLARDOCX-0157: validate success_url against the app's known origins so
     # an authenticated client can't redirect a post-payment buyer to an
     # arbitrary external host. Matches CORS allowlist + regex semantics.
-    if not _is_allowlisted_success_url(payload.success_url, settings):
+    if not _is_allowlisted_success_url(success_url, settings):
         raise HTTPException(status_code=400, detail="Return URL is not allowed.")
 
     # SCHOLARDOCX-0158: product_id must be a canonical Polar UUID. Catches
     # placeholder / setting-key-name values (e.g. `polar_prod_pro_monthly`)
     # that would otherwise be forwarded to the provider and surface as a
     # cryptic 422. Generic user message; value logged server-side only.
-    if not _is_uuid_shape(payload.product_id):
+    if not _is_uuid_shape(product_id):
         logger.warning(
             f"Checkout rejected: invalid product_id shape "
-            f"user={current_user.get('id')} value={payload.product_id!r}"
+            f"user={user.get('id')} value={product_id!r}"
         )
         raise HTTPException(
             status_code=400,
@@ -547,24 +816,24 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
     polar_api_url = "https://sandbox-api.polar.sh/v1" if "sandbox" in polar_env else "https://api.polar.sh/v1"
 
     # SCHOLARDOCX-0156: pass Polar a customer identifier derived from the
-    # authenticated user so the hosted checkout treats the customer as "known"
-    # and renders the email field pre-filled AND disabled. The authoritative
-    # source is `current_user` — NOT `payload.customer_email`, which is
-    # client-supplied and spoofable. Returning customers (with a stored
-    # polar_customer_id) reuse their Polar customer via `customer_id`; new
-    # customers get one created with our user UUID as `external_customer_id` plus
-    # their account email. See AI-Context/technical/api-boundaries.md
-    # (Polar billing) and webhooks.py for the matching reconciliation contract.
-    polar_customer_id = current_user.get("polar_customer_id")
+    # user so the hosted checkout treats the customer as "known" and renders
+    # the email field pre-filled AND disabled. The authoritative source is
+    # ``user`` — never a client-supplied email, which is spoofable. Returning
+    # customers (with a stored polar_customer_id) reuse their Polar customer
+    # via `customer_id`; new customers get one created with our user UUID as
+    # `external_customer_id` plus their account email. See
+    # AI-Context/technical/api-boundaries.md (Polar billing) and webhooks.py
+    # for the matching reconciliation contract.
+    polar_customer_id = user.get("polar_customer_id")
     req_body: dict = {
-        "product_id": payload.product_id,
-        "success_url": payload.success_url,
+        "product_id": product_id,
+        "success_url": success_url,
     }
     if polar_customer_id:
         req_body["customer_id"] = polar_customer_id
     else:
-        req_body["external_customer_id"] = current_user["id"]
-        req_body["customer_email"] = current_user["email"]
+        req_body["external_customer_id"] = user["id"]
+        req_body["customer_email"] = user["email"]
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -583,14 +852,14 @@ async def create_polar_checkout(payload: PolarCheckoutPayload, current_user: dic
             # (SCHOLARDOCX-0157)
             logger.warning(
                 f"Checkout session creation failed: status={response.status_code} "
-                f"user={current_user.get('id')} body={response.text}"
+                f"user={user.get('id')} body={response.text}"
             )
             raise HTTPException(status_code=400, detail="Checkout session could not be created.")
 
         data = response.json()
         if "url" not in data:
             logger.warning(
-                f"Checkout response missing URL: user={current_user.get('id')} keys={list(data.keys())}"
+                f"Checkout response missing URL: user={user.get('id')} keys={list(data.keys())}"
             )
             raise HTTPException(status_code=400, detail="Checkout session could not be created.")
 

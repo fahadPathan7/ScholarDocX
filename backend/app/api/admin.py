@@ -377,3 +377,15 @@ def list_app_settings(admin_service: AdminService = Depends(get_admin_service), 
 def update_app_setting(key: str, payload: SettingUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
     require_feature("admin_manage_settings", current_user, admin_service.db)
     return admin_service.update_app_setting(current_user["id"], key, payload.value)
+
+
+# SCHOLARDOCX-0162: manual trigger for the pending-account cleanup, surfaced as
+# a button in the admin Settings tab. Same purge the GitHub Actions cron and the
+# lazy /auth/login safety net run; gated to super_admin so a regular admin can't
+# force-delete pending rows out of band.
+@router.post("/cleanup/pending-accounts")
+def cleanup_pending_accounts(current_user: dict = Depends(get_current_user), store: Store = Depends(get_store)):
+    require_super_admin(current_user)
+    from app.services.registration_cleanup import purge_expired_pending_accounts
+    deleted = purge_expired_pending_accounts(store)
+    return {"status": "success", "deleted": deleted}

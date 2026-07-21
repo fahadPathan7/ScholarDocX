@@ -17,6 +17,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
+import { RegistrationCompletePage } from "./components/RegistrationCompletePage";
 import { LandingPage } from "./components/LandingPage";
 import { FullScreenSheet } from "./components/FullScreenSheet";
 
@@ -36,6 +37,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/registration-complete" element={<RegistrationCompletePage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/sheet/fullscreen" element={<FullScreenSheet />} />
                 <Route path="/*" element={<App />} />

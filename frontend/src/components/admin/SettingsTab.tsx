@@ -178,6 +178,64 @@ export function SettingsTab() {
             </button>
           </div>
         </div>
+
+        {/* Registration Card — SCHOLARDOCX-0162 */}
+        <div className="profile-system-card glass-panel overflow-hidden" style={{ padding: '0' }}>
+          <div className="p-4 flex items-center gap-3">
+            <div className="bg-emerald-100/50 p-2 rounded-lg border border-emerald-200 flex items-center justify-center w-9 h-9 shrink-0">
+              <Shield className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-900 text-sm">Registration</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Control how new users can sign up. Unpaid pending accounts are
+                removed after 2 hours.
+              </p>
+            </div>
+          </div>
+          <div className="px-4 pb-4 flex flex-wrap items-center gap-3">
+            <label htmlFor="registration_mode" className="text-xs text-slate-600">
+              Mode
+            </label>
+            <select
+              id="registration_mode"
+              className="auth-input"
+              style={{ maxWidth: 260 }}
+              value={settings["registration_mode"] || "invite_or_paid"}
+              onChange={(e) => handleUpdate("registration_mode", e.target.value)}
+            >
+              <option value="invite_only">Invite code only</option>
+              <option value="invite_or_paid">Invite code or paid plan</option>
+              <option value="paid_only">Paid plan only</option>
+            </select>
+            {hasRole("super_admin") && (
+              <button
+                type="button"
+                className="admin-config-btn"
+                onClick={async () => {
+                  try {
+                    const res = await api.post<{ deleted: number }>(
+                      "/admin/cleanup/pending-accounts",
+                      {}
+                    );
+                    await showAlert(
+                      `Removed ${res.deleted ?? 0} unpaid pending account(s).`,
+                      "Cleanup complete"
+                    );
+                    fetchSettings();
+                  } catch {
+                    emitUiError({
+                      title: "Cleanup failed",
+                      message: "Could not run the pending-account cleanup.",
+                    });
+                  }
+                }}
+              >
+                Run cleanup now
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {showJwtModal && (

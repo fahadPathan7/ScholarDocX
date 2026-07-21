@@ -337,11 +337,7 @@ export function LoginPage() {
             <div className="auth-switch-row col">
               <div>
                 Don't have an account?{" "}
-                <Link to="/register" className="auth-link-btn">Sign up with invite code</Link>
-              </div>
-              <div>
-                Need an invite code?{" "}
-                <button type="button" onClick={() => setShowInviteRequest(true)} className="auth-link-btn">Request one here</button>
+                <Link to="/register" className="auth-link-btn">Sign up</Link>
               </div>
             </div>
           </>

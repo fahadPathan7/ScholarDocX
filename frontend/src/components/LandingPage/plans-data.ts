@@ -31,6 +31,9 @@ export type PublicPlansResponse = {
   status: string;
   plans: PlansResponse;
   pricing: PricingResponse;
+  // SCHOLARDOCX-0162: which registration paths are open. Drives the RegisterPage
+  // tab visibility. Default "invite_or_paid" when the backend omits it.
+  registration_mode?: "invite_only" | "invite_or_paid" | "paid_only";
 };
 
 // ---- Tier metadata (presentation layer — static, not admin-driven) ----

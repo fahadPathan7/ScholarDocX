@@ -48,6 +48,21 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.19: A "Forget Pass Requests" admin tab lists requests by status; an admin
   may set a new password for the user (resolving the request and invalidating
   prior sessions) or dismiss the request without changing the password.
+- FR-6.20: A user may register without an invite code by purchasing a Basic,
+  Pro, or Max plan at signup; the account is inert (cannot log in) until payment
+  is confirmed by the subscription webhook. (SCHOLARDOCX-0162)
+- FR-6.21: Accounts created via the paid path that remain unpaid are completely
+  deleted after 2 hours. (SCHOLARDOCX-0162)
+- FR-6.22: Paid registration is rate-limited to one attempt per client IP per
+  24 hours. (SCHOLARDOCX-0162)
+- FR-6.23: An admin setting `registration_mode` controls which registration
+  paths are open: `invite_only`, `invite_or_paid` (default), or `paid_only`.
+  (SCHOLARDOCX-0162)
+
+Note on FR-6.1 / BD-006: the "app can run without remote signup" stance remains
+true for invite-only mode. The paid path is an additional opt-in acquisition
+channel, never a replacement for invite-code registration when
+`registration_mode=invite_only`.
 
 ## Google Signin User Flow
 

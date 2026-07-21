@@ -336,7 +336,7 @@ no-migration variant for pre-existing tables.
   `["free_user"]`) and returns a hosted checkout URL for the chosen Basic/Pro/Max
   plan + billing cycle. Payload: `{email, password, display_name?, plan,
   billing_cycle}`. Gated by the `registration_mode` app setting (403 if
-  `invite_only`); rate-limited to 1/24h/IP (`auth_register_paid`); validates
+  `invite_only`); rate-limited to 3/24h/IP (`auth_register_paid`); validates
   password strength, rejects duplicate and pending emails, and validates the
   plan is active and configured (`plan_is_active_<tier>=1` and
   `polar_product_id_<tier>_<cycle>` is a canonical UUID). On checkout failure the

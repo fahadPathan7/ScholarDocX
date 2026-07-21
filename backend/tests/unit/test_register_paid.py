@@ -11,11 +11,10 @@ call is made. The validation tests never reach that call (they raise first).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from app.api import auth as auth_module
 from app.api.auth import RegisterPaidPayload, register_paid
@@ -88,7 +87,7 @@ class _FakeConn:
             return _FakeResult([_Row(self.existing_user)] if self.existing_user else [])
         if "from app_settings where key in" in lowered:
             return _FakeResult([
-                _Row({"key": f"plan_is_active_general", "value": self.plan_active}),
+                _Row({"key": "plan_is_active_general", "value": self.plan_active}),
                 _Row({"key": "polar_product_id_general_monthly", "value": self.plan_product_id}),
             ])
         if lowered.startswith("insert into users"):
@@ -125,8 +124,12 @@ class _FakeRequest:
         self.client = None
 
 
-def _payload(**overrides) -> RegisterPaidPayload:
-    defaults = {
+def _fake_request(host: str = "localhost:5173", scheme: str = "http") -> Request:
+    return cast(Request, _FakeRequest(host=host, scheme=scheme))
+
+
+def _payload(**overrides: Any) -> RegisterPaidPayload:
+    defaults: dict[str, Any] = {
         "email": "newuser@example.com",
         "password": "StrongP@ss1!",
         "display_name": "New User",
@@ -149,7 +152,7 @@ async def test_register_paid_rejects_invite_only_mode():
     store = _FakeStore(conn)
 
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(), _FakeRequest(), store)
+        await register_paid(_payload(), _fake_request(), store)  # type: ignore
 
     assert exc.value.status_code == 403
     assert "invite code" in exc.value.detail.lower()
@@ -167,7 +170,7 @@ async def test_register_paid_accepts_invite_or_paid_mode():
     original = auth_module._create_polar_checkout_session
     auth_module._create_polar_checkout_session = _fake_checkout
     try:
-        result = await register_paid(_payload(), _FakeRequest(), store)
+        result = await register_paid(_payload(), _fake_request(), store)  # type: ignore
     finally:
         auth_module._create_polar_checkout_session = original
 
@@ -184,7 +187,7 @@ async def test_register_paid_accepts_invite_or_paid_mode():
 async def test_register_paid_rejects_weak_password():
     conn = _FakeConn()
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(password="weak"), _FakeRequest(), _FakeStore(conn))
+        await register_paid(_payload(password="weak"), _fake_request(), _FakeStore(conn))  # type: ignore
     assert exc.value.status_code == 400
     assert "password" in exc.value.detail.lower()
 
@@ -193,7 +196,7 @@ async def test_register_paid_rejects_weak_password():
 async def test_register_paid_rejects_duplicate_email():
     conn = _FakeConn(existing_user={"id": "u-1", "is_active": 1, "pending_payment_since": None})
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(), _FakeRequest(), _FakeStore(conn))
+        await register_paid(_payload(), _fake_request(), _FakeStore(conn))  # type: ignore
     assert exc.value.status_code == 400
     assert "already registered" in exc.value.detail.lower()
 
@@ -206,7 +209,7 @@ async def test_register_paid_rejects_pending_email_with_clear_message():
         existing_user={"id": "u-2", "is_active": 0, "pending_payment_since": "2026-07-21T10:00:00+00:00"}
     )
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(), _FakeRequest(), _FakeStore(conn))
+        await register_paid(_payload(), _fake_request(), _FakeStore(conn))  # type: ignore
     assert exc.value.status_code == 409
     assert "awaiting payment" in exc.value.detail.lower()
 
@@ -215,7 +218,7 @@ async def test_register_paid_rejects_pending_email_with_clear_message():
 async def test_register_paid_rejects_inactive_plan():
     conn = _FakeConn(plan_active="0")
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(), _FakeRequest(), _FakeStore(conn))
+        await register_paid(_payload(), _FakeRequest(), _FakeStore(conn))  # type: ignore
     assert exc.value.status_code == 400
     assert "not available" in exc.value.detail.lower()
 
@@ -225,7 +228,7 @@ async def test_register_paid_rejects_unconfigured_plan_product():
     """A non-UUID product id (e.g. placeholder sentinel) is rejected."""
     conn = _FakeConn(plan_product_id="polar_prod_basic_monthly")  # not a UUID
     with pytest.raises(HTTPException) as exc:
-        await register_paid(_payload(), _FakeRequest(), _FakeStore(conn))
+        await register_paid(_payload(), _fake_request(), _FakeStore(conn))  # type: ignore
     assert exc.value.status_code == 400
     assert "not available" in exc.value.detail.lower()
 
@@ -247,7 +250,7 @@ async def test_register_paid_rolls_back_user_on_checkout_failure():
     auth_module._create_polar_checkout_session = _failing_checkout
     try:
         with pytest.raises(HTTPException):
-            await register_paid(_payload(), _FakeRequest(), store)
+            await register_paid(_payload(), _fake_request(), store)  # type: ignore
     finally:
         auth_module._create_polar_checkout_session = original
 
@@ -264,21 +267,23 @@ async def test_register_paid_rolls_back_user_on_checkout_failure():
 
 
 def test_auth_register_paid_rate_limit_rule_present():
-    """The 1/24h/IP rule exists in the central registry so it shows in the
+    """The 3/24h/IP rule exists in the central registry so it shows in the
     admin Info tab and is enforced by check_and_record in register_paid."""
     rule = next((r for r in RATE_LIMIT_RULES if r["key"] == "auth_register_paid"), None)
     assert rule is not None
-    assert rule["max_requests"] == 1
+    assert rule["max_requests"] == 3
     assert rule["window_seconds"] == 86400
     assert rule["scope"] == "ip"
 
 
-def test_auth_register_paid_second_attempt_within_24h_is_blocked():
-    """A second call from the same IP within the window raises 429."""
+def test_auth_register_paid_fourth_attempt_within_24h_is_blocked():
+    """A 4th call from the same IP within the window raises 429."""
     rate_limiter.reset()
     ip = "203.0.113.9"
-    rate_limiter.check_and_record("auth_register_paid", ip)  # first attempt ok
+    rate_limiter.check_and_record("auth_register_paid", ip)  # 1st attempt ok
+    rate_limiter.check_and_record("auth_register_paid", ip)  # 2nd attempt ok
+    rate_limiter.check_and_record("auth_register_paid", ip)  # 3rd attempt ok
     with pytest.raises(HTTPException) as exc:
-        rate_limiter.check_and_record("auth_register_paid", ip)  # second blocked
+        rate_limiter.check_and_record("auth_register_paid", ip)  # 4th blocked
     assert exc.value.status_code == 429
     rate_limiter.reset()

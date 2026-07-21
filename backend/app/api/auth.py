@@ -1,4 +1,4 @@
-from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
+from app.core.compat import safe_parse_datetime, safe_json_loads
 import re
 import httpx
 import os
@@ -6,9 +6,9 @@ import json
 import logging
 from collections import defaultdict
 from typing import Any, Optional, Literal
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from app.auth.jwt import create_token
@@ -19,7 +19,6 @@ from app.auth.rate_limit import (
     user_identity,
 )
 from app.core.config import Settings, get_settings
-from app.db.connection import initialize_database
 from app.services.store import Store
 from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user, get_jwt_secret
@@ -219,7 +218,7 @@ async def register_paid(
     URL. The account becomes usable only when the Polar webhook confirms
     payment. See SCHOLARDOCX-0162.
     """
-    # Rate limit first (1 / 24h / IP). check_and_record counts every hit, so a
+    # Rate limit first (3 / 24h / IP). check_and_record counts every hit, so a
     # failed attempt still consumes the daily slot — same posture as
     # auth_invite_request (anti-abuse on an open registration path).
     client_ip = client_ip_from_request(request)
@@ -292,7 +291,9 @@ async def register_paid(
         """,
         (payload.email, hashed_password, payload.display_name, default_roles, now_iso, now_iso),
     )
-    user_id = cursor.lastrowid
+    if cursor.lastrowid is None:
+        raise HTTPException(status_code=500, detail="Failed to create user record.")
+    user_id = str(cursor.lastrowid)
 
     # Seed the same dependents as invite-code register / admin create_user so
     # the account is fully ready the moment it is activated.
@@ -305,7 +306,7 @@ async def register_paid(
     success_url = payload.success_url or _default_success_url(request)
     try:
         result = await _create_polar_checkout_session(
-            user={"id": str(user_id), "email": payload.email, "polar_customer_id": None},
+            user={"id": user_id, "email": payload.email, "polar_customer_id": None},
             product_id=product_id,
             success_url=success_url,
             settings=settings,
@@ -337,7 +338,7 @@ def _default_success_url(request: Request) -> str:
     return "http://localhost:5173/registration-complete"
 
 
-def _seed_new_user_dependents(store: Store, user_id: str, display_name: str, email: str) -> None:
+def _seed_new_user_dependents(store: Store, user_id: str, display_name: Optional[str], email: str) -> None:
     """Seed local_profiles, user_usage_stats, and document_categories.
 
     Shared shape with ``register`` (invite) and ``AdminService.create_user``.

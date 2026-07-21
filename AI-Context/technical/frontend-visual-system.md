@@ -214,7 +214,7 @@ interactive, and polished without becoming decorative marketing UI.
   Every auth view renders a "Back to home" `Link` to `/` as a pill at the top-left of
   the card. All sub-views (Request Invite, Forgot Password, Success screens) provide both
   "Back to login" and "Back to registration" links. Auth logic, API calls, and routing are unchanged.
-- The Admin Panel Users tab (`UsersTab.tsx`) includes a **Join Method** column (`Joined by Invite` badge chip vs `Online Purchase` badge chip) and a corresponding `Join Method` filter subgroup (`All Methods` | `Joined via Invite` | `Joined via Purchase`) so admins can distinguish how users registered.
+- The Admin Panel Users tab (`UsersTab.tsx`) includes a **Join Method** column (`Joined by Invite` amber badge vs `Online Purchase` emerald badge vs `Admin Created` indigo badge) with a corresponding `Join Method` filter subgroup (`All Methods` | `Joined via Invite` | `Online Purchase` | `Admin Created`), as well as a **Plan Source** column (`Via Polar` cyan badge vs `Admin Set` purple badge vs `Not Subscribed` slate badge) with a corresponding `Plan Source` filter subgroup (`All Sources` | `Via Polar` | `Admin Set` | `Not Subscribed`) so admins can track both how accounts joined and how current active plans were granted.
 - The Admin Panel Info tab (`InfoTab.tsx`) includes a dedicated **System Cron Jobs & Automated Maintenance** panel detailing active background maintenance routines (Expired Plan Downgrade, Unpaid Pending Account Cleanup), their schedules (Daily UTC, 2-hour interval), routes, CLI scripts, auth headers, and execution behaviors.
 
 ## Implementation Notes

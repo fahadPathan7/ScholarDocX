@@ -7,6 +7,7 @@ import {
   CheckCircle,
   ChevronDown,
   Clock,
+  Copy,
   CreditCard,
   KeyRound,
   Megaphone,
@@ -15,10 +16,14 @@ import {
   Search,
   Send,
   ShieldAlert,
+  Slash,
+  Sparkles,
   Ticket,
+  UserCheck,
   Users,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 
 import { hasRole, formatRoleName } from "../../lib/auth";
@@ -27,6 +32,36 @@ import { emitUiError } from "../../lib/uiError";
 import { adminNotificationCategories, getNotificationSettingLabel } from "../../config/notificationLabels";
 import { useDialog } from "../DialogProvider";
 import DateRangeCalendar from "../DateRangeCalendar";
+
+function CopyableUserId({ userId }: { userId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userId) {
+      navigator.clipboard.writeText(userId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const shortId = userId && userId.length > 8 ? `${userId.substring(0, 8)}...` : userId;
+
+  return (
+    <button
+      onClick={handleCopy}
+      title={`Click to copy full ID: ${userId}`}
+      className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-600 hover:text-indigo-600 bg-slate-100/80 hover:bg-indigo-50 px-2 py-1 rounded-md border border-slate-200/70 hover:border-indigo-200 transition-all cursor-pointer group"
+    >
+      <span>{shortId}</span>
+      {copied ? (
+        <CheckCircle size={12} className="text-emerald-500 shrink-0" />
+      ) : (
+        <Copy size={12} className="text-slate-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
+      )}
+    </button>
+  );
+}
 
 type UserRecord = {
   id: string;
@@ -41,13 +76,15 @@ type UserRecord = {
   polar_cancel_at_period_end?: number | null;
   registered_with_invite_id?: string | number | null;
   invite_code?: string | null;
-  signup_method?: "invite" | "purchase" | string;
+  signup_method?: "invite" | "purchase" | "admin" | string;
+  plan_source?: "polar" | "admin_set" | "none" | string;
 };
 
 type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
 type PlanStatusFilter = "all" | "expiring_soon" | "expiring_soon_3d" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
-type JoinMethodFilter = "all" | "invite" | "purchase";
+type JoinMethodFilter = "all" | "invite" | "purchase" | "admin";
+type PlanSourceFilter = "all" | "polar" | "admin_set" | "none";
 type NotificationModalMode = "broadcast" | "user" | null;
 
 function AdminPortal({ children }: { children: React.ReactNode }) {
@@ -108,7 +145,15 @@ const statusTabs = [
 const joinMethodTabs = [
   { id: "all" as const, label: "All Methods", icon: null },
   { id: "invite" as const, label: "Joined via Invite", icon: Ticket },
-  { id: "purchase" as const, label: "Joined via Purchase", icon: CreditCard },
+  { id: "purchase" as const, label: "Online Purchase", icon: CreditCard },
+  { id: "admin" as const, label: "Admin Created", icon: UserCheck },
+];
+
+const planSourceTabs = [
+  { id: "all" as const, label: "All Sources", icon: null },
+  { id: "polar" as const, label: "Via Polar", icon: Zap },
+  { id: "admin_set" as const, label: "Admin Set", icon: Sparkles },
+  { id: "none" as const, label: "Not Subscribed", icon: Slash },
 ];
 
 const adminNotificationOptions = adminNotificationCategories.flatMap((category) =>
@@ -127,6 +172,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [planStatusFilter, setPlanStatusFilter] = useState<PlanStatusFilter>("all");
   const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>("all");
   const [joinMethodFilter, setJoinMethodFilter] = useState<JoinMethodFilter>("all");
+  const [planSourceFilter, setPlanSourceFilter] = useState<PlanSourceFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
@@ -212,17 +258,24 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   };
   const matchesJoinMethod = (user: UserRecord, filter: JoinMethodFilter) => {
     if (filter === "all") return true;
-    const isInvite = Boolean(user.registered_with_invite_id || user.signup_method === "invite");
-    if (filter === "invite") return isInvite;
-    if (filter === "purchase") return !isInvite;
+    const method = user.signup_method || (user.registered_with_invite_id ? "invite" : "purchase");
+    if (filter === "invite") return method === "invite";
+    if (filter === "purchase") return method === "purchase";
+    if (filter === "admin") return method === "admin";
     return true;
+  };
+  const matchesPlanSource = (user: UserRecord, filter: PlanSourceFilter) => {
+    if (filter === "all") return true;
+    const source = user.plan_source || (user.polar_subscription_id ? "polar" : (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.plan_ends_at) ? "admin_set" : "none");
+    return source === filter;
   };
 
   const matchesSearch = (user: UserRecord, query: string) => {
     if (!query) return true;
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.trim().toLowerCase();
     return (
-      user.email.toLowerCase().includes(lowerQuery) ||
+      (user.id && user.id.toLowerCase().includes(lowerQuery)) ||
+      (user.email && user.email.toLowerCase().includes(lowerQuery)) ||
       (user.display_name && user.display_name.toLowerCase().includes(lowerQuery))
     );
   };
@@ -232,12 +285,14 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     plan = planStatusFilter,
     status = statusFilter,
     joinMethod = joinMethodFilter,
+    planSource = planSourceFilter,
     query = searchQuery,
   }: {
     role?: RoleFilter;
     plan?: PlanStatusFilter;
     status?: AccountStatusFilter;
     joinMethod?: JoinMethodFilter;
+    planSource?: PlanSourceFilter;
     query?: string;
   }) =>
     users.filter(
@@ -246,12 +301,13 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
         matchesPlan(user, plan) &&
         matchesStatus(user, status) &&
         matchesJoinMethod(user, joinMethod) &&
+        matchesPlanSource(user, planSource) &&
         matchesSearch(user, query)
     );
 
   const filteredUsers = useMemo(
     () => filterUsers({}),
-    [users, roleFilter, planStatusFilter, statusFilter, joinMethodFilter, searchQuery]
+    [users, roleFilter, planStatusFilter, statusFilter, joinMethodFilter, planSourceFilter, searchQuery]
   );
 
   // Render guard (not pagination): cap how many heavy rows the DOM holds at
@@ -471,10 +527,10 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search by ID, name, email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-2 bg-white border border-slate-200/50 rounded-xl text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
+              className="pl-8 pr-3 py-2 bg-white border border-slate-200/50 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-slate-400 text-slate-700 shadow-sm"
             />
           </div>
           {adminPermissions["admin_send_notifications"] && (
@@ -491,31 +547,71 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       </div>
 
       <div className="flex flex-col gap-4 bg-slate-100/50 p-3.5 rounded-xl border border-slate-200/50 shrink-0">
-        {/* Role Filters Group */}
-        <div className="flex flex-col gap-1.5 w-full">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {roleTabs.map((tab) => {
-              const isActive = roleFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setRoleFilter(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
-                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                    }`}
-                >
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+        {/* Row 1: Role, Join Method, Selection */}
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+          {/* Role Filters Group */}
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[280px]">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Role</span>
+            <div className="flex gap-1.5 flex-wrap">
+              {roleTabs.map((tab) => {
+                const isActive = roleFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setRoleFilter(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                  >
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-px bg-slate-200/80 h-8 hidden lg:block self-center" />
+
+          {/* Join Method Subgroup */}
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Join Method</span>
+            <div className="flex items-center gap-1.5">
+              {joinMethodTabs.map((tab) => {
+                const isActive = joinMethodFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setJoinMethodFilter(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                  >
+                    {tab.icon && <tab.icon size={13} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-px bg-slate-200/80 h-8 hidden lg:block self-center" />
+
+          {/* Selection Subgroup */}
+          <div className="flex flex-col gap-1.5 justify-center shrink-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+            <div className="flex items-center px-2 py-1">
+              <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                {filteredUsers.length}
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="h-px bg-slate-200/80 w-full" />
 
-        {/* Plan / Status / Selection Filters Group */}
+        {/* Row 2: Plan, Status, Plan Source */}
         <div className="flex flex-wrap gap-4 items-center w-full">
           {/* Plan Subgroup */}
           <div className="flex flex-col gap-1.5">
@@ -567,16 +663,16 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
           <div className="w-px bg-slate-200 h-8 hidden sm:block" />
 
-          {/* Join Method Subgroup */}
+          {/* Plan Source Subgroup */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Join Method</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan Source</span>
             <div className="flex items-center gap-1.5">
-              {joinMethodTabs.map((tab) => {
-                const isActive = joinMethodFilter === tab.id;
+              {planSourceTabs.map((tab) => {
+                const isActive = planSourceFilter === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setJoinMethodFilter(tab.id)}
+                    onClick={() => setPlanSourceFilter(tab.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
                       ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
@@ -587,18 +683,6 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                   </button>
                 );
               })}
-            </div>
-          </div>
-
-          <div className="w-px bg-slate-200 h-8 hidden sm:block" />
-
-          {/* Selection Subgroup */}
-          <div className="flex flex-col gap-1.5 justify-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
-            <div className="flex items-center px-2 py-1">
-              <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
-                {filteredUsers.length}
-              </span>
             </div>
           </div>
         </div>
@@ -612,10 +696,11 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                 <th className="px-6 py-4 font-semibold">ID</th>
                 <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-6 py-4 font-semibold">Join Method</th>
-                <th className="px-6 py-4 font-semibold">Roles</th>
+                <th className="px-6 py-4 font-semibold">User Plan</th>
+                <th className="px-6 py-4 font-semibold">Admin Role</th>
                 <th className="px-6 py-4 font-semibold">Plan Duration</th>
+                <th className="px-6 py-4 font-semibold">Plan Source</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold">Last Login</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -624,18 +709,24 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                 const planStatus = getPlanStatus(user);
                 return (
                   <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{user.id}</td>
+                    <td className="px-6 py-4">
+                      <CopyableUserId userId={user.id} />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800">{user.display_name || "Unknown User"}</div>
                       <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {user.registered_with_invite_id || user.signup_method === "invite" ? (
+                      {user.signup_method === "invite" || user.registered_with_invite_id ? (
                         <span
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
                           title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
                         >
                           <Ticket size={13} /> Joined by Invite
+                        </span>
+                      ) : user.signup_method === "admin" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                          <UserCheck size={13} /> Admin Created
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
@@ -644,17 +735,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1.5">
-                        {user.roles.map((role) => (
-                          <span key={role} className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            role === "super_admin" ? "bg-rose-100 text-rose-700" :
-                            role === "general_admin" ? "bg-amber-100 text-amber-700" :
-                            "bg-indigo-100/50 text-indigo-700"
-                          }`}>
-                            {formatRoleName(role)}
+                      {(() => {
+                        const userRole = user.roles.find((role) => userTierRoles.includes(role)) || "free_user";
+                        return (
+                          <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                            {formatRoleName(userRole)}
                           </span>
-                        ))}
-                      </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const adminRole = user.roles.find((role) => adminRoleKeys.includes(role));
+                        if (!adminRole) {
+                          return <span className="text-xs text-slate-400 font-mono px-2 py-0.5">-</span>;
+                        }
+                        return (
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
+                            adminRole === "super_admin" 
+                              ? "bg-rose-50 text-rose-700 border-rose-200/60" 
+                              : "bg-amber-50 text-amber-700 border-amber-200/60"
+                          }`}>
+                            {formatRoleName(adminRole)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-xs">
                       {user.plan_started_at || user.plan_ends_at ? (
@@ -693,31 +798,29 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                         <span className="italic text-slate-400">N/A</span>
                       )}
                     </td>
+                    <td className="px-6 py-4">
+                      {user.plan_source === "polar" || user.polar_subscription_id ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200/60"
+                          title={user.polar_subscription_id ? `Polar Subscription ID: ${user.polar_subscription_id}` : "Active Polar Subscription"}
+                        >
+                          <Zap size={13} /> Via Polar
+                        </span>
+                      ) : user.plan_source === "admin_set" || (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.plan_ends_at) ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
+                          <Sparkles size={13} /> Admin Set
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
+                          <Slash size={13} /> Not Subscribed
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${user.is_active ? "bg-emerald-100/50 text-emerald-700" : "bg-slate-100/50 text-slate-600"}`}>
                         {user.is_active ? <CheckCircle size={12} /> : <XCircle size={12} />}
                         {user.is_active ? "Active" : "Suspended"}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.last_login_at ? (
-                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/60 shadow-sm w-fit">
-                          <Clock size={12} className="text-indigo-500" />
-                          <span className="text-slate-700 font-medium text-[11px] tracking-tight">
-                            {new Date(user.last_login_at).toLocaleString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-100 bg-slate-50/50 text-[11px] font-medium text-slate-400 italic tracking-tight">
-                          Never logged in
-                        </span>
-                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="relative inline-block text-left">

@@ -383,7 +383,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   // Purge legacy non-user-scoped key to prevent cross-account history leakage
   useEffect(() => {
     try {
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_CHAT_STORAGE_KEY);
     } catch (e) {
       // ignore SSR or disabled storage errors
     }

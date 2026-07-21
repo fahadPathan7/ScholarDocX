@@ -17,10 +17,21 @@
 name: Cleanup unpaid pending accounts
 
 on:
-  schedule:
-    # Every 2 hours, on the hour. UTC. Minimum granularity for GitHub Actions
-    # scheduled workflows is 5 min, but during high load the actual run may lag.
-    - cron: "0 */2 * * *"
+  # ── Schedule trigger DISABLED ──────────────────────────────────────────────
+  # The automatic cron schedule below is commented out. The workflow itself,
+  # the backend endpoint (POST /api/internal/cleanup-pending), and the purge
+  # logic all remain in place and correct — only the automatic trigger is off.
+  #
+  # To re-enable automatic runs: uncomment the `schedule:` block below.
+  # To run once ad-hoc: Actions tab → "Run workflow" (workflow_dispatch below).
+  #
+  # Safety net still active: /auth/login lazily runs the purge on the next
+  # login past the TTL, so unpaid pending accounts are still reaped even with
+  # this cron disabled.
+  # schedule:
+  #   # Every 2 hours, on the hour. UTC. Minimum granularity for GitHub Actions
+  #   # scheduled workflows is 5 min, but during high load the actual run may lag.
+  #   - cron: "0 */2 * * *"
   workflow_dispatch: {}  # allow manual runs from the Actions tab
 
 jobs:

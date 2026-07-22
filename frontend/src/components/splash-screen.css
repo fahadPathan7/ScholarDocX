@@ -248,8 +248,8 @@
   transform: translateY(-4px);
 }
 
-/* Responsive Fallback */
-@media (max-width: 768px) {
+/* Responsive Fallback — stack vertically on smaller screens */
+@media (max-width: 1024px) {
   .splash-container-horizontal {
     flex-direction: column;
     gap: 40px;

@@ -2,13 +2,14 @@
 /*  SheetToolbar — actions row above the sheet grid                    */
 /* ------------------------------------------------------------------ */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Info } from "lucide-react";
 import type { ColumnDef, CellStyle } from "./sheetModel";
 import type { SheetView } from "./sheetFilters";
 import { useDialog } from "../DialogProvider";
 import { CellStyleBar } from "./CellStyleBar";
 import { AskAiMenuFromSheet } from "./AskAiMenu";
+import { DropdownPortal } from "./DropdownPortal";
 import type { RecordMap } from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -60,22 +61,12 @@ export function SheetToolbarActions({
   bulkClearRowFormatting: (rowIndices: number[]) => void;
 }) {
   const [showDataMenu, setShowDataMenu] = useState(false);
-  const dataMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dataMenuRef.current && !dataMenuRef.current.contains(event.target as Node)) {
-        setShowDataMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const dataBtnRef = useRef<HTMLButtonElement>(null);
 
   const btnStyle: React.CSSProperties = { fontSize: '11px', padding: '4px 10px' };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', flexShrink: 0 }}>
       {focusedCell && (
         (() => {
           const hasSelection = selectedRows.size > 0;
@@ -90,7 +81,7 @@ export function SheetToolbarActions({
             : {};
 
           return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px', maxWidth: '100%', minWidth: 0, overflowX: 'auto', flexShrink: 0 }}>
               {hasSelection && (
                 <span className="format-rail-scope" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
                   Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
@@ -120,9 +111,10 @@ export function SheetToolbarActions({
       )}
 
       {/* Import / Export */}
-      <div className="data-menu-container" ref={dataMenuRef} style={{ position: 'relative' }}>
+      <div className="data-menu-container" style={{ position: 'relative' }}>
         <button
-          className="secondary"
+          ref={dataBtnRef}
+          className={`secondary ${showDataMenu ? 'active' : ''}`}
           onClick={() => setShowDataMenu(!showDataMenu)}
           style={btnStyle}
           title="Import/Export data"
@@ -130,33 +122,30 @@ export function SheetToolbarActions({
           <Database size={12} /> Import / Export
         </button>
         {showDataMenu && (
-          <div className="data-dropdown-menu" style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            marginTop: '4px',
-            backgroundColor: 'var(--ui-paper-strong)',
-            border: '1px solid var(--ui-line)',
-            borderRadius: '6px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '4px',
-            zIndex: 100,
-            width: '180px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px'
-          }}>
-            <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onExportCsv(); }}>
-              <Download size={14} style={{ marginRight: '8px' }} /> Export CSV
-            </button>
-            <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onImportCsv(); }}>
-              <Upload size={14} style={{ marginRight: '8px' }} /> Import CSV
-            </button>
-            <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }}></div>
-            <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onSaveTemplate(); }}>
-              <Save size={14} style={{ marginRight: '8px' }} /> Save as Template
-            </button>
-          </div>
+          <DropdownPortal triggerRef={dataBtnRef} onOutsideClick={() => setShowDataMenu(false)}>
+            <div className="data-dropdown-menu" style={{
+              backgroundColor: 'var(--ui-paper-strong)',
+              border: '1px solid var(--ui-line)',
+              borderRadius: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              padding: '4px',
+              width: '180px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px'
+            }}>
+              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onExportCsv(); }}>
+                <Download size={14} style={{ marginRight: '8px' }} /> Export CSV
+              </button>
+              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onImportCsv(); }}>
+                <Upload size={14} style={{ marginRight: '8px' }} /> Import CSV
+              </button>
+              <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }}></div>
+              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onSaveTemplate(); }}>
+                <Save size={14} style={{ marginRight: '8px' }} /> Save as Template
+              </button>
+            </div>
+          </DropdownPortal>
         )}
       </div>
 
@@ -243,31 +232,15 @@ export function SheetToolbar({
   const [showViewsMenu, setShowViewsMenu] = useState(false);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
 
-  const columnsMenuRef = useRef<HTMLDivElement>(null);
-  const viewsMenuRef = useRef<HTMLDivElement>(null);
-  const groupMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target as Node)) {
-        setShowColumnsMenu(false);
-      }
-      if (viewsMenuRef.current && !viewsMenuRef.current.contains(event.target as Node)) {
-        setShowViewsMenu(false);
-      }
-      if (groupMenuRef.current && !groupMenuRef.current.contains(event.target as Node)) {
-        setShowGroupMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const columnsBtnRef = useRef<HTMLButtonElement>(null);
+  const viewsBtnRef = useRef<HTMLButtonElement>(null);
+  const groupBtnRef = useRef<HTMLButtonElement>(null);
 
   const isFiltering = searchQuery.trim().length > 0 || viewRows.length !== rows.length;
 
   return (
-    <div className="sheet-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', ...(fullScreenMode ? { marginBottom: '12px' } : {}) }}>
-      <div className="toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <div className="sheet-toolbar" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '8px', width: '100%', maxWidth: '100%', overflowX: 'auto', ...(fullScreenMode ? { marginBottom: '12px' } : {}) }}>
+      <div className="toolbar-left" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'nowrap', flexShrink: 0 }}>
 
         {/* 1. Add Record */}
         <button className="secondary" onClick={onAddRow} disabled={columns.length === 0} title={columns.length === 0 ? "Add columns first" : "Add a new record"} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
@@ -312,7 +285,7 @@ export function SheetToolbar({
       </div>
 
       {/* Right side */}
-      <div className="toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
+      <div className="toolbar-right" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
 
         {/* Match count when the view is narrowed by search/filters */}
         {isFiltering && (
@@ -322,8 +295,9 @@ export function SheetToolbar({
         )}
 
         {/* 3. Columns Menu */}
-        <div className="columns-menu-container" ref={columnsMenuRef} style={{ position: 'relative' }}>
+        <div className="columns-menu-container" style={{ position: 'relative' }}>
           <button
+            ref={columnsBtnRef}
             className={`secondary ${showColumnsMenu ? 'active' : ''}`}
             onClick={() => setShowColumnsMenu(!showColumnsMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
@@ -332,49 +306,46 @@ export function SheetToolbar({
             <Columns size={14} /> Columns
           </button>
           {showColumnsMenu && (
-            <div className="columns-dropdown-menu" style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: '4px',
-              backgroundColor: 'var(--ui-paper-strong)',
-              border: '1px solid var(--ui-line)',
-              borderRadius: '6px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '6px 8px',
-              zIndex: 100,
-              width: '220px',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.125px'
-            }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                Visible columns
+            <DropdownPortal triggerRef={columnsBtnRef} onOutsideClick={() => setShowColumnsMenu(false)}>
+              <div className="columns-dropdown-menu" style={{
+                backgroundColor: 'var(--ui-paper-strong)',
+                border: '1px solid var(--ui-line)',
+                borderRadius: '6px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                padding: '6px 8px',
+                width: '220px',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.125px'
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                  Visible columns
+                </div>
+                {columns.filter(c => c.type !== "group").map(col => (
+                  <label key={col.name} className="column-visibility-item" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0.2px 8px',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    lineHeight: '1.2'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={!col.hidden}
+                      onChange={() => onToggleColumnVisibility(col.name)}
+                      style={{ margin: 0 }}
+                    />
+                    {col.name}
+                    {col.hidden && <EyeOff size={12} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />}
+                  </label>
+                ))}
               </div>
-              {columns.filter(c => c.type !== "group").map(col => (
-                <label key={col.name} className="column-visibility-item" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.2px 8px',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  lineHeight: '1.2'
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={!col.hidden}
-                    onChange={() => onToggleColumnVisibility(col.name)}
-                    style={{ margin: 0 }}
-                  />
-                  {col.name}
-                  {col.hidden && <EyeOff size={12} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />}
-                </label>
-              ))}
-            </div>
+            </DropdownPortal>
           )}
         </div>
 
@@ -384,8 +355,9 @@ export function SheetToolbar({
         </button>
 
         {/* 5. Categorize */}
-        <div className="group-menu-container" ref={groupMenuRef} style={{ position: 'relative' }}>
+        <div className="group-menu-container" style={{ position: 'relative' }}>
           <button
+            ref={groupBtnRef}
             className={`secondary ${groupBy || showGroupMenu ? 'active' : ''}`}
             onClick={() => setShowGroupMenu(!showGroupMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
@@ -397,33 +369,17 @@ export function SheetToolbar({
             </span>
           </button>
           {showGroupMenu && (
-            <div className="group-dropdown-menu" style={{
-              position: 'absolute', top: '100%', right: 0, marginTop: '4px',
-              backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
-              borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '6px 8px', zIndex: 100, width: '220px', maxHeight: '300px',
-              overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.125px'
-            }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                Categorize by column
-              </div>
-              <label className="group-item" style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
-                lineHeight: '1.2'
+            <DropdownPortal triggerRef={groupBtnRef} onOutsideClick={() => setShowGroupMenu(false)}>
+              <div className="group-dropdown-menu" style={{
+                backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
+                borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                padding: '6px 8px', width: '220px', maxHeight: '300px',
+                overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.125px'
               }}>
-                <input
-                  type="radio"
-                  name="group_by"
-                  checked={groupBy === null}
-                  onChange={() => { onGroupByChange(null); setShowGroupMenu(false); }}
-                  style={{ margin: 0 }}
-                />
-                <span style={{ color: 'var(--text-secondary)' }}>None (Flat list)</span>
-              </label>
-
-              {columns.filter(c => c.type === 'select' || c.type === 'bool').map(col => (
-                <label key={col.name} className="group-item" style={{
+                <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                  Categorize by column
+                </div>
+                <label className="group-item" style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
                   lineHeight: '1.2'
@@ -431,14 +387,31 @@ export function SheetToolbar({
                   <input
                     type="radio"
                     name="group_by"
-                    checked={groupBy === col.name}
-                    onChange={() => { onGroupByChange(col.name); setShowGroupMenu(false); }}
+                    checked={groupBy === null}
+                    onChange={() => { onGroupByChange(null); setShowGroupMenu(false); }}
                     style={{ margin: 0 }}
                   />
-                  {col.name}
+                  <span style={{ color: 'var(--text-secondary)' }}>None (Flat list)</span>
                 </label>
-              ))}
-            </div>
+
+                {columns.filter(c => c.type === 'select' || c.type === 'bool').map(col => (
+                  <label key={col.name} className="group-item" style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
+                    lineHeight: '1.2'
+                  }}>
+                    <input
+                      type="radio"
+                      name="group_by"
+                      checked={groupBy === col.name}
+                      onChange={() => { onGroupByChange(col.name); setShowGroupMenu(false); }}
+                      style={{ margin: 0 }}
+                    />
+                    {col.name}
+                  </label>
+                ))}
+              </div>
+            </DropdownPortal>
           )}
         </div>
 
@@ -453,8 +426,9 @@ export function SheetToolbar({
         </button>
 
         {/* Views Menu */}
-        <div className="views-menu-container" ref={viewsMenuRef} style={{ position: 'relative' }}>
+        <div className="views-menu-container" style={{ position: 'relative' }}>
           <button
+            ref={viewsBtnRef}
             className={`secondary ${showViewsMenu || currentViewId ? 'active' : ''}`}
             onClick={() => setShowViewsMenu(!showViewsMenu)}
             style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
@@ -466,51 +440,52 @@ export function SheetToolbar({
             </span>
           </button>
           {showViewsMenu && (
-            <div className="views-dropdown-menu" style={{
-              position: 'absolute', top: '100%', right: 0, marginTop: '4px',
-              backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
-              borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '4px', zIndex: 100, width: '200px', display: 'flex',
-              flexDirection: 'column', gap: '2px'
-            }}>
-              <button
-                className="text-button"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}
-                onClick={() => { setShowViewsMenu(false); onLoadView(null); }}
-              >
-                <span>Reset to default</span>
-              </button>
+            <DropdownPortal triggerRef={viewsBtnRef} onOutsideClick={() => setShowViewsMenu(false)}>
+              <div className="views-dropdown-menu" style={{
+                backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
+                borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                padding: '4px', width: '200px', display: 'flex',
+                flexDirection: 'column', gap: '2px'
+              }}>
+                <button
+                  className="text-button"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}
+                  onClick={() => { setShowViewsMenu(false); onLoadView(null); }}
+                >
+                  <span>Reset to default</span>
+                </button>
 
-              {savedViews.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>}
+                {savedViews.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>}
 
-              {savedViews.map(view => (
-                <div key={view.id} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <button
-                    className={`text-button ${currentViewId === view.id ? 'active' : ''}`}
-                    style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'space-between', padding: '6px 12px', fontSize: '13px' }}
-                    onClick={() => { setShowViewsMenu(false); onLoadView(view.id); }}
-                  >
-                    <span>{view.name}</span>
-                    {currentViewId === view.id && <Check size={14} />}
-                  </button>
-                </div>
-              ))}
+                {savedViews.map(view => (
+                  <div key={view.id} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <button
+                      className={`text-button ${currentViewId === view.id ? 'active' : ''}`}
+                      style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'space-between', padding: '6px 12px', fontSize: '13px' }}
+                      onClick={() => { setShowViewsMenu(false); onLoadView(view.id); }}
+                    >
+                      <span>{view.name}</span>
+                      {currentViewId === view.id && <Check size={14} />}
+                    </button>
+                  </div>
+                ))}
 
-              <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-              <button
-                className="text-button"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }}
-                onClick={async () => {
-                  setShowViewsMenu(false);
-                  const name = await showPrompt("Save current view as:");
-                  if (name) onSaveView(name);
-                }}
-                title="Saves your current filters, sorting, column visibility, and grouping state so you can quickly restore them later."
-              >
-                <Save size={14} style={{ marginRight: '8px' }} /> Save view
-                <Info size={14} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
-              </button>
-            </div>
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                <button
+                  className="text-button"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }}
+                  onClick={async () => {
+                    setShowViewsMenu(false);
+                    const name = await showPrompt("Save current view as:");
+                    if (name) onSaveView(name);
+                  }}
+                  title="Saves your current filters, sorting, column visibility, and grouping state so you can quickly restore them later."
+                >
+                  <Save size={14} style={{ marginRight: '8px' }} /> Save view
+                  <Info size={14} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
+                </button>
+              </div>
+            </DropdownPortal>
           )}
         </div>
 

@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Info,
   LayoutDashboard,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
@@ -83,6 +84,7 @@ import { SplashScreen } from "./components/SplashScreen";
 import { useDialog } from "./components/DialogProvider";
 import { useAuth } from "./contexts/AuthContext";
 import { useUsage } from "./contexts/UsageContext";
+import { useIsMobile } from "./hooks/useMediaQuery";
 import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
 import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
@@ -137,6 +139,8 @@ export function App() {
   const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isMobile = useIsMobile();
   const [toast, setToast] = useState("");
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
@@ -411,12 +415,14 @@ export function App() {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
       setActiveTab("plans");
       showToast(`Advisor Atlas is available on ${phrase}.`);
+      setMobileNavOpen(false);
       return;
     }
     if (key === "news" && !canUseScholarshipHunt) {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan"; // Scholarship Hunt is also typically on pro/max
       setActiveTab("plans");
       showToast(`Scholarship Hunt is available on ${phrase}.`);
+      setMobileNavOpen(false);
       return;
     }
     if (key === "projects") {
@@ -424,6 +430,7 @@ export function App() {
       setRefreshTrigger((value) => value + 1);
     }
     setActiveTab(key);
+    setMobileNavOpen(false);
   };
 
   const navigateToCalendarEvent = (event: RecordMap) => {
@@ -455,7 +462,7 @@ export function App() {
   return (
     <div className={navCollapsed ? "app-shell nav-collapsed" : "app-shell"}>
       <GlobalErrorAlerts />
-      <aside className="sidebar">
+      <aside className={`sidebar${mobileNavOpen && isMobile ? " sidebar-open" : ""}`}>
         <div className="brand logoCardPremium">
           <ScholarDocXMark />
           <div className="logoContent">
@@ -492,6 +499,10 @@ export function App() {
         </nav>
       </aside>
 
+      {isMobile && mobileNavOpen && (
+        <div className="sidebar-mobile-backdrop" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
+      )}
+
       <main>
         <div className="main-head" style={{ position: 'relative', zIndex: 1000 }}>
           <DeepSpaceBanner />
@@ -512,8 +523,13 @@ export function App() {
               <h1 style={{ color: '#f8fafc' }}>Built for the scholars who refuse to settle.</h1>
             </div>
             <div className="top-actions">
-              <button className="icon-button" onClick={() => setNavCollapsed((value) => !value)} title="Collapse navigation">
-                {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              <button
+                className="icon-button nav-toggle-button"
+                onClick={() => (isMobile ? setMobileNavOpen((v) => !v) : setNavCollapsed((value) => !value))}
+                title={isMobile ? "Open navigation" : "Collapse navigation"}
+                aria-label={isMobile ? "Open navigation" : "Collapse navigation"}
+              >
+                {isMobile ? <Menu size={18} /> : navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
               </button>
               <button className={`icon-button ${isRefreshing ? "refreshing" : ""}`} onClick={refreshActiveTab} title="Refresh data" disabled={isRefreshing}>
                 <RefreshCw size={18} className={isRefreshing ? "icon-spin" : ""} />

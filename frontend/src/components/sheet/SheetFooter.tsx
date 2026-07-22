@@ -167,7 +167,7 @@ export function SheetFooter({
         const isFull = pct >= 100;
         const isFiltering = viewRows.length !== rows.length;
         return (
-          <div className="sheet-toolbar-quota" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100px', marginLeft: 'auto', alignItems: 'flex-end' }}>
+          <div className="sheet-toolbar-quota" style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '80px', width: 'auto', marginLeft: 'auto', alignItems: 'flex-end', flexShrink: 0 }}>
             <span className={`toolbar-quota-label${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}`} style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
               {isFiltering ? `${viewRows.length} of ${used}` : `${used} / ${max}`} records
             </span>

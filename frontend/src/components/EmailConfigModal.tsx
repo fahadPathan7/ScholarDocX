@@ -84,7 +84,7 @@ export function EmailConfigModal({
             </select>
           </label>
         </div>
-        <div className="modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+        <div className="modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap" }}>
           <button className="secondary" type="button" onClick={onClose}>
             Cancel
           </button>

@@ -63,15 +63,13 @@ const flowItems = [
   { icon: BookOpen,      title: "Discover your dream universities" },
   { icon: CalendarCheck, title: "Build a clear plan with deadlines" },
   { icon: FileText,      title: "Keep all your documents organized" },
-  { icon: Zap,           title: "Follow every application's journey" },
-  { icon: UserCheck,     title: "Connect with the right professors" }
+  { icon: UserCheck,     title: "Track applications & professor outreach" }
 ];
 
 const aiGuideItems = [
   { icon: Bot,        title: "Fully agentic — just tell Lumi what to do" },
   { icon: Globe,      title: "Searches the web to power your research" },
-  { icon: FolderPlus, title: "Spins up projects in seconds for you" },
-  { icon: PencilLine, title: "Updates sheet rows exactly as you want" },
+  { icon: FolderPlus, title: "Spins up projects & updates sheet rows" },
   { icon: Trash2,     title: "Cleans up data on your command" }
 ];
 
@@ -255,6 +253,18 @@ export function AboutView() {
             </div>
           ))}
         </div>
+        <div className="about-panel-footer">
+          <a
+            className="about-support-button"
+            href={getEmailComposeUrl()}
+            onClick={handleContactClick}
+            rel="noreferrer"
+          >
+            <Mail size={14} />
+            Contact Support
+            <ExternalLink size={14} />
+          </a>
+        </div>
       </section>
 
       <div className="about-grid">
@@ -290,41 +300,17 @@ export function AboutView() {
             </div>
           ))}
         </div>
-      </section>
-
-      <div className="about-support-wrapper">
-        <div className="about-support" style={{ marginBottom: "16px" }}>
-          <div className="about-support-text">
-            <Bot size={16} />
-            <strong>Explore available AI models</strong>
-          </div>
+        <div className="about-panel-footer">
           <button
             className="about-support-button"
             onClick={() => setShowModelsModal(true)}
           >
-            <Bot size={16} />
+            <Bot size={14} />
             Explore AI Models
             <ChevronRight size={14} />
           </button>
         </div>
-
-        <div className="about-support">
-          <div className="about-support-text">
-            <MessageCircle size={16} />
-            <strong>Need help or have feedback?</strong>
-          </div>
-          <a
-            className="about-support-button"
-            href={getEmailComposeUrl()}
-            onClick={handleContactClick}
-            rel="noreferrer"
-          >
-            <Mail size={16} />
-            Contact Support
-            <ExternalLink size={14} />
-          </a>
-        </div>
-      </div>
+      </section>
 
 
       <p className="about-footer">

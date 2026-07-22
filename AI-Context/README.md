@@ -17,7 +17,7 @@ Those files were deleted after their content was absorbed into this refined work
 
 - [business](business): product goals, users, business decisions, success metrics, risks.
 - [functional](functional): features, requirements, relationships, acceptance criteria.
-- [technical](technical): architecture, stack, storage, APIs, coding rules, testing.
+- [technical](technical): architecture, stack, storage, APIs, coding rules, testing, and [responsive-design-system](technical/responsive-design-system.md).
 - [planbook](planbook): detailed pre-implementation plans for large or cross-module features.
 - [jira-tasks](jira-tasks): task files used to execute work.
 - [workflows](workflows): the process rules for AI development (ai-dlc-process.md, branch-creation.md).

@@ -25,10 +25,17 @@
 .lp-container main {
   height: auto;
   min-height: auto;
-  overflow: visible;
+  overflow: hidden;
   display: block;
   background: none;
+  max-width: 100%;
 }
+
+.lp-container svg {
+  max-width: 100%;
+  overflow: hidden;
+}
+
 
 /* ---------- Section titles ---------- */
 .lp-section-title {

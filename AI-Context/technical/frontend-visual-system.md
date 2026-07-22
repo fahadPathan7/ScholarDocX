@@ -5,6 +5,8 @@
 ScholarDocX should feel like a local research command center: focused,
 interactive, and polished without becoming decorative marketing UI.
 
+> **Responsive Design System**: For all non-desktop viewports (≤ 1200px), off-canvas navigation drawer, single-column flex linear card stacking, compact topbar controls, and unrestricted horizontal/vertical scrollability, read [responsive-design-system.md](responsive-design-system.md).
+
 
 ## Principles
 
@@ -76,6 +78,9 @@ interactive, and polished without becoming decorative marketing UI.
   restrained blue and warm accent states so the interface does not read as a
   single green wash.
 - Dropdown menus (such as Columns and Categorize list selectors) use a compact row spacing layout (0.125px gap, 0.2px 8px padding, 0px margin inputs, 1.2 line height) to maintain dense and clean scannability.
+- System-wide responsive design is enforced across six key viewports: 320px, 375px, 430px (phones), 768px (tablets), 1024px, and 1440px (desktops). Playwright visual audit sweeps inspect all in-app tabs and public routes to ensure 0 horizontal page-level overflow offenders (`r.width > mainW`). On smaller viewports (≤768px and ≤430px), static non-functional decorative header copy, ambient canvas banners, and heavy marketing subtitles are hidden to declutter the workspace and maximize scrollable functional area (`overflow-y: auto`).
+- **Responsive Single-Row Flex Parity Rules**: Section headers (`.section-head`), action toolbars (`SheetToolbarActions`), cell formatting ribbons (`CellStyleBar`), and sheet toolbars (`.sheet-toolbar`) MUST maintain a single-row horizontal flex layout (`flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important`). Never use un-scoped `.section-head div` selectors which force action buttons into vertical columns. Title containers (`.section-head > div:first-child`) MUST have `flex-shrink: 0 !important; min-width: max-content !important; white-space: nowrap !important` so section titles (`Edit rows and columns` / `ttt`) are never crushed into a 10px vertical line of single letters. Full spec: [responsive-design-system.md](responsive-design-system.md).
+
 - Dashboard typography should be compact: headings and metric numbers should
   support scanning without visually shouting.
 - Admin dashboard panels should feel like a dense operational console: compact
@@ -239,6 +244,35 @@ interactive, and polished without becoming decorative marketing UI.
 - The Whiteboard view allows deleting any whiteboard, including the final active board. When no whiteboards remain, the component cleanly resets drawing state and transitions to the `wb-empty-state` screen ('No whiteboards yet') with a CTA to create a new whiteboard.
 - The Admin Panel Settings tab (`SettingsTab.tsx`) Registration card uses a split-pane footer layout with a subtle slate-50 background, a border-t divider, an uppercase tracking-wider label for the Mode select dropdown (custom border and focus ring styled cleanly instead of raw inputs), and a soft emerald action button with an inline `Trash2` icon for the manual account cleanup trigger.
 - **Suspended Account View (`SplashScreen.tsx` & `LoginPage.tsx`)**: When a suspended user (`user_suspended` / `user_blocked`) attempts to log in on `LoginPage.tsx`, the primary informative "Account Suspended" modal ("Your account has been suspended from ScholarDocX. If you think this was a mistake, please contact an administrator.") renders first with a **Contact Admin** button and a **Close** button. Clicking **Contact Admin** opens the appeal message textarea form modal (`maxLength={500}`, `POST /auth/contact-admin`), with a **Cancel** button to return to the info notice.
+- **Responsive design (SCHOLARDOCX-0150)**: the app is fully responsive across
+  320 / 375 / 430 / 768 / 1024 / 1440 px. The responsive system has three pieces:
+  1. **`frontend/src/responsive.css`** — a dedicated override sheet imported
+     LAST in `main.tsx` (after `cell-formatting.css`). All new broad
+     responsive rules live here, not in the oversized `styles.css`. New rules
+     use Tailwind-aligned breakpoints (640 / 768 / 1024) while the legacy
+     `@media (max-width: 980px)` block in `styles.css` is left intact for the
+     769–980px band. **Do not expand `styles.css` with new responsive rules —
+     add them to `responsive.css`.**
+  2. **Mobile nav drawer (≤768px)** — the desktop sidebar (a persistent
+     `grid-template-columns: 280px 1fr` column) becomes an off-canvas slide-in
+     drawer. `App.tsx` holds `mobileNavOpen` state and uses the `useIsMobile`
+     hook (`frontend/src/hooks/useMediaQuery.ts`). The nav collapse toggle
+     button (`nav-toggle-button` class) renders a `Menu` (hamburger) icon on
+     mobile and the `PanelLeftClose/Open` icons on desktop. The drawer
+     (`aside.sidebar.sidebar-open`) is `position: fixed; transform:
+     translateX(-100%) → 0`, width `min(280px, 82vw)`, z-index 1080, with a
+     tap-to-dismiss `.sidebar-mobile-backdrop` (z-index 1070). `handleSidebarNav`
+     closes the drawer after every tab switch. Above 768px the desktop
+     collapse behaviour (280px↔86px) is unchanged — do not remove the
+     `nav-collapsed` class or the legacy 980px block.
+  3. **Per-view fixes** — documents category grid constrained with
+     `min-width: 0` (cards were forcing ~403px min-content); about-page
+     hero/flow panels given `min-width: 0` so the grid track doesn't overflow;
+     about models modal resets its `margin-left: 150px` sidebar offset on
+     mobile; PlanComparisonView toggle row uses `flex-wrap`; admin tables and
+     the sheet table rely on their existing `overflow-auto` scroll wrappers
+     (confirmed working). Wide tables intentionally scroll horizontally inside
+     bounded containers — this is correct, not a bug.
 
 
 

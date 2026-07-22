@@ -571,7 +571,7 @@ export function SheetTable({
                                 borderRadius: '6px',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 padding: '12px',
-                                zIndex: 100,
+                                zIndex: 9999,
                                 width: '240px',
                                 display: 'flex',
                                 flexDirection: 'column',

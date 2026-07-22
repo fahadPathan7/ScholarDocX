@@ -316,7 +316,7 @@ export function EditColumnsModal({
             );
           })}
         </div>
-        <div className="modal-actions" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div className="modal-actions" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <button type="button" className="secondary" onClick={onAddColumn}>
             <Plus size={16} /> Column
           </button>

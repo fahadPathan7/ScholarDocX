@@ -292,7 +292,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {activeView === "plans" && (
             <button
               onClick={() => setShowAll(!showAll)}

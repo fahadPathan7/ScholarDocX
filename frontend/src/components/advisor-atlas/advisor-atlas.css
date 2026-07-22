@@ -189,7 +189,42 @@
 }
 
 .atlas-shell.sidebar-collapsed {
-  grid-template-columns: 60px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.atlas-shell.sidebar-collapsed .atlas-history-panel {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  padding: 0;
+  border-right: 1px solid rgba(34, 94, 91, 0.12);
+  overflow: hidden;
+}
+
+.atlas-shell.sidebar-collapsed .atlas-history-title {
+  padding: 0;
+  justify-content: center;
+}
+
+.atlas-history-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: rgba(34, 94, 91, 0.08);
+  border: 1px solid rgba(34, 94, 91, 0.18);
+  color: var(--atlas-teal);
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.atlas-history-toggle-btn:hover,
+.atlas-history-toggle-btn.active {
+  background: rgba(34, 94, 91, 0.14);
+  border-color: rgba(34, 94, 91, 0.28);
 }
 
 .atlas-history-panel {

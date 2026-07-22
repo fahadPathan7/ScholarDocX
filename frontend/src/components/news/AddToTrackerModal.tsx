@@ -129,7 +129,7 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
             </label>
           )}
         </div>
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexWrap: "wrap" }}>
           <button className="secondary" type="button" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>

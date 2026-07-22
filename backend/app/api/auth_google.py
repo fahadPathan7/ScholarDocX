@@ -25,7 +25,7 @@ import logging
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 import jwt as pyjwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -39,6 +39,21 @@ from app.api.dependencies import get_store
 
 router = APIRouter(prefix="/auth/google", tags=["auth"])
 logger = logging.getLogger(__name__)
+
+
+def _jwt_secret() -> str:
+    """Return the JWT signing secret, narrowed to ``str``.
+
+    ``Settings.jwt_secret_key`` is ``Optional[str]`` (it's read from env
+    and can be unset). Every call site in this module needs a non-optional
+    ``str`` for ``pyjwt`` encode/decode. We assert here so the type checker
+    is satisfied and a missing secret fails loudly instead of passing
+    ``None`` silently into ``jwt.encode``.
+    """
+    secret = get_settings().jwt_secret_key
+    assert secret, "JWT_SECRET is required for Google OAuth"
+    return secret
+
 
 # Cookie name holding the signed (state + nonce + PKCE verifier) between
 # the login redirect and the callback. HttpOnly + SameSite=Lax so it
@@ -116,7 +131,7 @@ def google_login(request: Request):
         "exp": int(time.time()) + _STATE_COOKIE_MAX_AGE,
     }
     cookie_value = jwt.encode(
-        cookie_payload, settings.jwt_secret_key, algorithm="HS256"
+        cookie_payload, _jwt_secret(), algorithm="HS256"
     )
 
     params = {
@@ -271,9 +286,8 @@ def google_callback(
 def _decode_state_cookie(cookie_token: str) -> dict:
     """Decode the signed state cookie. Raises on tamper/expiry."""
     import jwt
-    settings = get_settings()
     return jwt.decode(
-        cookie_token, settings.jwt_secret_key, algorithms=["HS256"]
+        cookie_token, _jwt_secret(), algorithms=["HS256"]
     )
 
 
@@ -306,49 +320,31 @@ def _validate_id_token(id_token_str: str, expected_nonce: str, client_id: str) -
 
     Verifies signature against Google's JWKS, checks audience (our
     client_id) and issuer, and enforces the nonce we sent at /login.
+    Uses PyJWT (not authlib.jose which is deprecated in 1.7+).
     """
-    from authlib.jose import jwt as jose_jwt
-    # Google's JWKS endpoint; authlib caches keys per-request.
-    header = jose_jwt.get_header(id_token_str)
-    key_id = header.get("kid")
-    jwks = _fetch_google_jwks()
-    key = jwks.find_by_kid(key_id) if key_id else None
-    if key is None:
-        raise ValueError("id_token signing key not found in Google JWKS")
-    claims = jose_jwt.decode(
+    import jwt as _jwt
+    from jwt import PyJWKClient
+
+    # Fetch Google's public keys and resolve the signing key for this token.
+    # PyJWKClient caches the JWKS internally and auto-refreshes per the
+    # cache-control headers Google returns (max-age ~36000s).
+    jwks_client = PyJWKClient("https://www.googleapis.com/oauth2/v3/certs")
+    signing_key = jwks_client.get_signing_key_from_jwt(id_token_str)
+
+    # Decode + verify signature, audience, issuer, and expiry in one call.
+    claims = _jwt.decode(
         id_token_str,
-        key,
-        claims_options={
-            "iss": {"essential": True, "values": [
-                "https://accounts.google.com",
-                "accounts.google.com",
-            ]},
-            "aud": {"essential": True, "value": client_id},
-            "exp": {"essential": True},
-            "nonce": {"essential": True, "value": expected_nonce},
-        },
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=client_id,
+        issuer=["https://accounts.google.com", "accounts.google.com"],
     )
-    claims.validate()  # raises ClaimAssertionError on failure
+
+    # Enforce the nonce we sent at /login (prevents token replay).
+    if claims.get("nonce") != expected_nonce:
+        raise ValueError("nonce mismatch — id_token may be replayed")
+
     return dict(claims)
-
-
-_JWKS_CACHE: dict[str, Any] = {"keys": None, "fetched_at": 0.0}
-
-
-def _fetch_google_jwks():
-    """Fetch (and lightly cache) Google's public JWKS for id_token verify."""
-    import time
-    now = time.time()
-    if _JWKS_CACHE["keys"] is not None and now - _JWKS_CACHE["fetched_at"] < 3600:
-        return _JWKS_CACHE["keys"]
-    import httpx
-    resp = httpx.get("https://www.googleapis.com/oauth2/v3/certs", timeout=10)
-    resp.raise_for_status()
-    from authlib.jose import JsonWebKey
-    keys = JsonWebKey.import_key_set(resp.json())
-    _JWKS_CACHE["keys"] = keys
-    _JWKS_CACHE["fetched_at"] = now
-    return keys
 
 
 def _resolve_user(
@@ -415,6 +411,8 @@ def _resolve_user(
                 ),
             )
             user_id = cursor.lastrowid
+            if not user_id:
+                raise RuntimeError("Failed to create Google user record")
             _insert_external_identity(
                 conn, google_sub, user_id, email, display_name, avatar_url
             )

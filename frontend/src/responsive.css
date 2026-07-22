@@ -594,6 +594,30 @@
     max-height: 88vh !important;
     overflow-y: auto !important;
   }
+
+  /* Sheet parent container (toolbar, buttons, table): flush to screen edges
+     on phones — remove the 28px side gutter so the whole sheet work surface
+     spans the full viewport width. */
+  .project-detail,
+  .project-detail.sheet-detail-view {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .sheet-detail-view .section-body {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+
+  .sheet-detail-view .detail-bar,
+  .sheet-detail-view .sheet-toolbar {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  .sheet-detail-view .sheet-scroll {
+    border-radius: 0 !important;
+  }
 }
 
 
@@ -993,6 +1017,50 @@ main > div {
 }
 
 /* ============================================================================
+   15b. Sheet modals on small screens — consume full width, no side gutter
+   ========================================================================= */
+@media (max-width: 768px) {
+  .modal-panel,
+  .modal-panel.column-form,
+  .modal-panel.edit-columns-form,
+  .modal-panel.record-form {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Backdrop fills its portaled container edge-to-edge with no side padding. */
+  .modal-backdrop,
+  .modal-backdrop-main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On the smallest screens kill any remaining inset so the panel touches
+     both screen edges. */
+  .modal-panel,
+  .modal-panel.column-form,
+  .modal-panel.edit-columns-form,
+  .modal-panel.record-form {
+    inset-inline: 0 !important;
+  }
+
+  /* Smallest screens: sheet parent container flush to the very edges. */
+  .project-detail,
+  .project-detail.sheet-detail-view,
+  .sheet-detail-view .section-body,
+  .sheet-detail-view .detail-bar,
+  .sheet-detail-view .sheet-toolbar {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* ============================================================================
    16. About Tab (<= 1450px)
    ========================================================================= */
 
@@ -1116,8 +1184,6 @@ svg {
   max-width: 100%;
 }
 
-.auth-card,
-.auth-card.auth-card-wide,
 .auth-field,
 .auth-input,
 .auth-label,

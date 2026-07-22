@@ -77,8 +77,8 @@
 
 /* Wider variant for registration to accommodate horizontal multi-column fields without vertical overflow */
 .auth-card.auth-card-wide {
-  max-width: 740px;
-  padding: 36px 44px;
+  max-width: 480px;
+  padding: 32px 36px;
 }
 
 @keyframes auth-card-entrance {
@@ -629,7 +629,7 @@
   .auth-card,
   .auth-card.auth-card-wide {
     width: 100%;
-    max-width: 100%;
+    max-width: 100% !important;
     padding: 28px 18px;
     box-sizing: border-box;
   }

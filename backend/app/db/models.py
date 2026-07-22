@@ -102,6 +102,37 @@ class PasswordResetRequests(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
+class ExternalIdentities(Base):
+    """OAuth/OpenID provider identities linked to a ScholarDocX user
+    (SCHOLARDOCX-0169 Google sign-in).
+
+    One user can have multiple linked identities (e.g. Google today,
+    GitHub later). The (provider, provider_subject_id) pair is unique —
+    a given Google subject id can map to exactly one local user. Login
+    via Google looks this table up first; if no row exists but the
+    verified Google email matches a `users.email`, a row is inserted
+    here (auto-link). Google sign-in never creates a new `users` row —
+    the invite/paid registration gate stays intact.
+    """
+    __tablename__ = 'external_identities'
+    __table_args__ = (
+        UniqueConstraint('provider', 'provider_subject_id'),
+        Index('idx_external_identities_user_id', 'user_id'),
+        Index('idx_external_identities_provider_subject', 'provider', 'provider_subject_id'),
+    )
+
+    provider: Mapped[str] = mapped_column(Text, nullable=False)  # 'google'
+    provider_subject_id: Mapped[str] = mapped_column(Text, nullable=False)  # Google 'sub'
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(Text)
+    display_name: Mapped[Optional[str]] = mapped_column(Text)
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text)
+    connected_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+
+    user: Mapped['Users'] = relationship('Users', back_populates='external_identities')
+
+
 class Users(Base):
     __tablename__ = 'users'
     __table_args__ = (
@@ -140,9 +171,11 @@ class Users(Base):
     # One-time fact, written exactly once at INSERT time, never updated.
     # Allowed values: 'invite' (invite-code registration), 'purchase' (paid
     # self-registration via Polar checkout), 'admin' (created from the admin
-    # panel). Used by the admin Users tab "join method" column. Distinct from
-    # mutable fields like roles, plan, or polar_subscription_id — those reflect
-    # current state, signup_method reflects origin.
+    # panel), 'google' (created via Google OAuth sign-up, SCHOLARDOCX-0169 —
+    # the account is inert until the user completes with an invite code or
+    # paid plan). Used by the admin Users tab "join method" column. Distinct
+    # from mutable fields like roles, plan, or polar_subscription_id — those
+    # reflect current state, signup_method reflects origin.
     signup_method: Mapped[Optional[str]] = mapped_column(Text)
     invite_codes_created_by: Mapped[list['InviteCodes']] = relationship('InviteCodes', foreign_keys='[InviteCodes.created_by]', back_populates='users')
     registered_with_invite: Mapped[Optional['InviteCodes']] = relationship('InviteCodes', foreign_keys=[registered_with_invite_id], back_populates='users_registered_with_invite')
@@ -178,6 +211,7 @@ class Users(Base):
     outreach_logs: Mapped[list['OutreachLogs']] = relationship('OutreachLogs', back_populates='user')
     reminders: Mapped[list['Reminders']] = relationship('Reminders', back_populates='user')
     saved_scholarship_queries: Mapped[list['SavedScholarshipQueries']] = relationship('SavedScholarshipQueries', back_populates='user')
+    external_identities: Mapped[list['ExternalIdentities']] = relationship('ExternalIdentities', back_populates='user')
     scholarship_opportunities: Mapped[list['ScholarshipOpportunities']] = relationship('ScholarshipOpportunities', back_populates='user')
 
 

@@ -77,6 +77,10 @@ def purge_expired_pending_accounts(
 
     ids = [r["id"] for r in rows]
     for user_id in ids:
+        # SCHOLARDOCX-0169: Google inert accounts have external_identities
+        # rows that must be deleted first (FK → users.id) or the user
+        # delete fails and the email stays locked.
+        conn.execute("DELETE FROM external_identities WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM user_usage_stats WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM local_profiles WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM document_categories WHERE user_id = ?", (user_id,))

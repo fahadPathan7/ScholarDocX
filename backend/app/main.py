@@ -38,6 +38,8 @@ def create_app() -> FastAPI:
     app.include_router(router, prefix="/api", dependencies=[Depends(get_current_user)])
     from app.api.auth import router as auth_router
     app.include_router(auth_router, prefix="/api")
+    from app.api.auth_google import router as google_auth_router
+    app.include_router(google_auth_router, prefix="/api")
     from app.api.admin import router as admin_router
     app.include_router(admin_router, prefix="/api")
     from app.api.news import router as news_router

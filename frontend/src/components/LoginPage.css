@@ -75,9 +75,11 @@
   animation: auth-card-entrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Wider variant for registration to accommodate horizontal multi-column fields without vertical overflow */
+/* Wider variant for registration to accommodate horizontal multi-column fields
+   and the new "Sign up with Google" button without feeling cramped.
+   SCHOLARDOCX-0169: widened from 480px to 560px. */
 .auth-card.auth-card-wide {
-  max-width: 480px;
+  max-width: 560px;
   padding: 32px 36px;
 }
 
@@ -174,162 +176,6 @@
 
 .auth-feedback { text-align: center; }
 
-/* ---------- Tabs (invite vs purchase) — SCHOLARDOCX-0162 ---------- */
-.auth-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: rgba(255, 255, 252, 0.6);
-  border: 1px solid var(--ui-line);
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-.auth-tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 10px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--ui-muted);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.auth-tab:hover:not(.active) {
-  color: var(--ui-ink-soft);
-  background: rgba(52, 127, 120, 0.06);
-}
-
-.auth-tab.active {
-  color: white;
-  background: linear-gradient(135deg, var(--ui-primary) 0%, var(--ui-primary-2) 100%);
-  box-shadow: 0 4px 10px rgba(52, 127, 120, 0.2);
-}
-
-/* ---------- Billing-cycle toggle (paid tab) ---------- */
-.auth-cycle-toggle {
-  display: flex;
-  width: 100%;
-  gap: 4px;
-  padding: 3px;
-  background: var(--ui-canvas-2);
-  border: 1px solid var(--ui-line-strong);
-  border-radius: 12px;
-  box-sizing: border-box;
-  height: 44px;
-  align-items: center;
-}
-
-.auth-cycle-btn {
-  flex: 1;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--ui-muted);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.auth-cycle-btn:hover:not(.active) {
-  color: var(--ui-ink-soft);
-  background: rgba(52, 127, 120, 0.06);
-}
-
-.auth-cycle-btn.active {
-  color: var(--ui-primary);
-  background: var(--ui-mint);
-  box-shadow: 0 2px 6px rgba(52, 127, 120, 0.12);
-}
-
-.auth-discount-tag {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  padding: 1.5px 6px;
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--ui-primary);
-  background: rgba(52, 127, 120, 0.12);
-  border-radius: 9999px;
-  line-height: 1.2;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.auth-cycle-btn.active .auth-discount-tag {
-  background: rgba(52, 127, 120, 0.2);
-  color: #1e5852;
-}
-
-/* ---------- Plan price readout (paid registration) ---------- */
-.auth-plan-readout {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 2px;
-  padding: 8px 16px;
-  background: var(--ui-mint);
-  border: 1px solid rgba(52, 127, 120, 0.16);
-  border-radius: 10px;
-  flex-wrap: wrap;
-}
-
-.auth-plan-price {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--ui-primary);
-  letter-spacing: -0.01em;
-  line-height: 1;
-}
-
-.auth-plan-dot {
-  color: var(--ui-primary-2);
-  font-size: 13px;
-  opacity: 0.5;
-}
-
-.auth-plan-desc {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--ui-ink-soft);
-  line-height: 1.2;
-  white-space: normal;
-  text-align: center;
-}
-
-
-/* ---------- Inline hint under a form ---------- */
-.auth-hint {
-  margin-top: 6px;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: var(--ui-muted);
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-
 /* ---------- Form ---------- */
 .auth-form {
   display: flex;
@@ -346,8 +192,7 @@
   gap: 14px 16px;
 }
 
-.auth-form.auth-form-horizontal .auth-submit,
-.auth-form.auth-form-horizontal .auth-hint {
+.auth-form.auth-form-horizontal .auth-submit {
   grid-column: 1 / -1;
 }
 
@@ -674,9 +519,6 @@
     padding: 18px 12px;
   }
   .auth-title { font-size: 19px; }
-  .auth-plan-readout { padding: 6px 8px; }
-  .auth-plan-desc { font-size: 11px; }
-  .auth-hint { font-size: 11px; }
   .auth-switch-row { font-size: 11.5px; }
 }
 
@@ -687,6 +529,51 @@
   }
   .auth-title { font-size: 18px; }
   .auth-logo-mark { width: 44px; height: 44px; margin-bottom: 12px; }
+}
+
+/* ---------- Google sign-in (SCHOLARDOCX-0169) ---------- */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 14px 0 10px;
+  color: var(--ui-text-muted, #8a8f98);
+  font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ui-border, rgba(0, 0, 0, 0.08));
+}
+.auth-divider span {
+  padding: 0 12px;
+}
+
+.auth-google-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text, #1f2329);
+  background: var(--ui-surface, #fff);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.auth-google-btn:hover {
+  background: var(--ui-surface-2, rgba(0, 0, 0, 0.03));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.auth-google-btn:active {
+  transform: scale(0.99);
 }
 
 

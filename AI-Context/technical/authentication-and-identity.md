@@ -52,6 +52,57 @@ Recommended approach for a web app with a backend:
 - Keep tokens server-side if tokens are needed.
 - Do not expose client secrets or refresh tokens to the frontend.
 
+## Google OAuth Implementation (SCHOLARDOCX-0169)
+
+Google sign-in/sign-up is implemented as an OPTIONAL auth method alongside
+email/password. Registration is now simplified to two paths: invite-code
+or Google — both give a free plan. Paid self-registration at signup was
+removed; users upgrade to paid plans later via the logged-in plan flow.
+
+**Flow:** authorization-code + PKCE, backend-side exchange via `authlib`.
+
+- `GET /api/auth/google/login` → 302 to Google consent. Generates a random
+  `state` + `nonce` + PKCE verifier; stashes all three in a signed HttpOnly
+  cookie (`sd_google_oauth_state`, signed with the JWT secret, 10 min TTL).
+  Scopes: `openid email profile`. `prompt=select_account`.
+- Google redirects to `GET /api/auth/google/callback?code=...&state=...`.
+  Backend verifies the signed state cookie (CSRF guard), exchanges the code
+  (with the PKCE verifier), validates the id_token (signature vs Google
+  JWKS, `aud`, `iss`, `nonce`), then resolves the user.
+- On success the backend mints the EXISTING JWT (`create_token`) and 302s
+  the browser to `FRONTEND_ORIGIN/auth-complete?token=...`.
+- On failure the backend 302s to `FRONTEND_ORIGIN/auth-complete?error=...`.
+- Frontend `/auth-complete` reads the token, hydrates `AuthContext.login()`,
+  and navigates to `/dashboard`. On error it bounces to `/login` with the
+  message in router state.
+
+**Account model (simplified):**
+
+- Google sign-up: a NEW Google user gets an ACTIVE FREE account created
+  immediately (`signup_method='google'`, `is_active=1`, `roles=['free_user']`).
+  No invite code or payment required — the user goes straight to the
+  dashboard and can upgrade to a paid plan later.
+- Google sign-in: a returning user with a linked account logs in directly.
+- Auto-link by verified email: if the Google id_token's `email` (with
+  `email_verified=true`) matches an existing `users.email`, an
+  `external_identities` row is inserted and the user is logged in.
+  Unverified Google emails are refused (a verified-email guarantee is
+  what makes auto-link safe).
+
+**Env config (`config.py`):** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_REDIRECT_URI` (points at the BACKEND callback), `FRONTEND_ORIGIN`
+(where the browser is sent after minting the token). If client id/secret
+are unset, `google_enabled` is False and `/auth/google/login` returns 503.
+
+**Frontend:** "Sign in/up with Google" buttons on `LoginPage.tsx` and
+`RegisterPage.tsx` link to `${API_BASE}/auth/google/login`. No OAuth
+secrets ever reach the frontend.
+
+**Removed (SCHOLARDOCX-0169 simplification):** `/auth/register-paid`,
+`/auth/google/complete-invite`, `/auth/google/complete-paid`, the
+`registration_mode` setting, `CompleteSignupPage`, `RegistrationCompletePage`.
+Paid registration at signup was replaced by the post-login upgrade flow.
+
 ## Localhost Redirects
 
 Local development can use localhost redirect URIs. Production or packaged-app redirect strategy must be decided during the auth task.
@@ -61,24 +112,25 @@ Potential redirect examples:
 - `http://localhost:<backend-port>/auth/google/callback`
 - A packaged desktop app custom URI scheme if the app later becomes desktop-packaged.
 
-## Data Model Additions If Auth Is Implemented
+## Data Model: external_identities
 
-Possible tables:
+The `external_identities` table links OAuth/OIDC provider identities to a
+ScholarDocX user. One user may have multiple linked identities.
 
-- `local_profiles`
-- `external_identities`
-- `oauth_tokens` if Google API access is required
+| Field | Type | Notes |
+|---|---|---|
+| `id` | String(36) PK | UUID |
+| `provider` | Text | `'google'` (extensible) |
+| `provider_subject_id` | Text | Google `sub` claim |
+| `user_id` | FK → `users.id` | The linked local user |
+| `email` | Text (nullable) | Snapshot of provider email |
+| `display_name` | Text (nullable) | Snapshot |
+| `avatar_url` | Text (nullable) | Snapshot |
+| `connected_at` | DateTime | Auto-set on insert |
 
-Possible fields:
-
-- local profile id
-- provider name
-- provider subject id
-- email
-- display name
-- avatar URL
-- connected at
-- disconnected at
+Unique on `(provider, provider_subject_id)`. No `oauth_tokens` table is
+needed — Google login does not store refresh tokens (no offline Google
+API access is required for sign-in).
 
 ## Security Rules
 

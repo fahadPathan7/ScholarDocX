@@ -209,10 +209,18 @@ Full design in `billing-and-payments.md`. Security-relevant points:
 - Missing role-limit rows default to allow (`check_and_increment_limit`) and
   no-cap (`get_user_limit` → -1); users without any user-tier role get 0.
   Admin role-limit edits must call `invalidate_limits_cache()`.
-- If Google OAuth is added, keep it optional unless a later business decision changes this.
-- Request minimal scopes.
-- Store only necessary identity fields.
-- Do not expose OAuth secrets or refresh tokens to frontend code.
+- Google OAuth (SCHOLARDOCX-0169) is implemented as an OPTIONAL login
+  method. It must stay optional unless a later business decision changes
+  this. Authorization-code + PKCE flow runs server-side; the client
+  secret never reaches the frontend.
+- Request minimal scopes (`openid email profile`).
+- Store only necessary identity fields (Google `sub`, email, name,
+  avatar snapshot) in `external_identities`.
+- Do not expose OAuth secrets or refresh tokens to frontend code. No
+  refresh tokens are stored at all — login only needs the id_token.
+- Google sign-in does NOT create accounts. Auto-link is permitted only
+  for Google emails with `email_verified=true`. A first-time Google user
+  with no matching `users.email` is rejected with a clear message.
 
 ## Future Considerations
 
@@ -222,6 +230,7 @@ Possible later features:
 - Encrypted local workspace.
 - Redaction before AI calls.
 - Per-document privacy flags.
-- Optional Google OAuth identity.
+- "Connect Google" button in Profile/Settings (link an existing password
+  account to Google from within the app, as opposed to login-time auto-link).
 
 These are not MVP requirements unless a Jira task adds them.

@@ -190,27 +190,13 @@ export function SettingsTab() {
             <div className="min-w-0">
               <h3 className="font-semibold text-slate-900 text-sm">Registration</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Control how new users can sign up. Unpaid pending accounts are removed after 2 hours.
+                New users join via invite code or Google sign-up. Both get a
+                free plan. Unused pending accounts are removed automatically.
               </p>
             </div>
           </div>
-          <div className="px-4 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <label htmlFor="registration_mode" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                Mode
-              </label>
-              <select
-                id="registration_mode"
-                className="px-3 py-1.5 bg-white border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer"
-                value={settings["registration_mode"] || "invite_or_paid"}
-                onChange={(e) => handleUpdate("registration_mode", e.target.value)}
-              >
-                <option value="invite_only">Invite code only</option>
-                <option value="invite_or_paid">Invite code or paid plan</option>
-                <option value="paid_only">Paid plan only</option>
-              </select>
-            </div>
-            {hasRole("super_admin") && (
+          {hasRole("super_admin") && (
+            <div className="px-4 py-2.5 border-t border-slate-200/50 bg-slate-50/50 flex items-center justify-end flex-wrap gap-3">
               <button
                 type="button"
                 className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
@@ -221,7 +207,7 @@ export function SettingsTab() {
                       {}
                     );
                     await showAlert(
-                      `Removed ${res.deleted ?? 0} unpaid pending account(s).`,
+                      `Removed ${res.deleted ?? 0} pending account(s).`,
                       "Cleanup complete"
                     );
                     fetchSettings();
@@ -237,8 +223,8 @@ export function SettingsTab() {
                 <Trash2 className="w-3.5 h-3.5 text-emerald-600" />
                 Run cleanup now
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Expired Plan Maintenance Card */}

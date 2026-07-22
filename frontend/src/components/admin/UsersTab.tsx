@@ -78,14 +78,15 @@ type UserRecord = {
   polar_cancel_at_period_end?: number | null;
   registered_with_invite_id?: string | number | null;
   invite_code?: string | null;
-  signup_method?: "invite" | "purchase" | "admin" | string;
+  signup_method?: "invite" | "purchase" | "admin" | "google" | string;
   plan_source?: "polar" | "admin_set" | "none" | string;
+  has_google?: boolean;
 };
 
 type RoleFilter = "all" | "any_user" | "any_admin" | "free_user" | "general_user" | "pro_user" | "max_user" | "general_admin" | "super_admin";
 type PlanStatusFilter = "all" | "expiring_soon" | "expiring_soon_3d" | "expired";
 type AccountStatusFilter = "all" | "active" | "suspended";
-type JoinMethodFilter = "all" | "invite" | "purchase" | "admin";
+type JoinMethodFilter = "all" | "invite" | "purchase" | "admin" | "google";
 type PlanSourceFilter = "all" | "polar" | "admin_set" | "none";
 type NotificationModalMode = "broadcast" | "user" | null;
 
@@ -149,6 +150,7 @@ const joinMethodTabs = [
   { id: "invite" as const, label: "Joined via Invite", icon: Ticket },
   { id: "purchase" as const, label: "Online Purchase", icon: CreditCard },
   { id: "admin" as const, label: "Admin Created", icon: UserCheck },
+  { id: "google" as const, label: "Google Linked", icon: KeyRound },
 ];
 
 const planSourceTabs = [
@@ -258,8 +260,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
     if (filter === "all") return true;
     return filter === "active" ? user.is_active : !user.is_active;
   };
-  const getSignupMethod = (user: UserRecord): "invite" | "purchase" | "admin" => {
-    if (user.signup_method === "invite" || user.signup_method === "purchase" || user.signup_method === "admin") {
+  const getSignupMethod = (user: UserRecord): "invite" | "purchase" | "admin" | "google" => {
+    if (user.signup_method === "invite" || user.signup_method === "purchase" || user.signup_method === "admin" || user.signup_method === "google") {
       return user.signup_method;
     }
     if (user.registered_with_invite_id) return "invite";
@@ -278,6 +280,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
   const matchesJoinMethod = (user: UserRecord, filter: JoinMethodFilter) => {
     if (filter === "all") return true;
+    // "google" filters on the Google-link flag, not signup_method — a user
+    // can register via invite AND later link Google. SCHOLARDOCX-0169.
+    if (filter === "google") return !!user.has_google;
     return getSignupMethod(user) === filter;
   };
   const matchesPlanSource = (user: UserRecord, filter: PlanSourceFilter) => {
@@ -747,31 +752,48 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                       <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {(() => {
-                        const method = getSignupMethod(user);
-                        if (method === "invite") {
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(() => {
+                          const method = getSignupMethod(user);
+                          if (method === "invite") {
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
+                                title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
+                              >
+                                <Ticket size={13} /> Joined by Invite
+                              </span>
+                            );
+                          }
+                          if (method === "admin") {
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                                <UserCheck size={13} /> Admin Created
+                              </span>
+                            );
+                          }
+                          if (method === "google") {
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                <KeyRound size={13} /> Google Sign-Up
+                              </span>
+                            );
+                          }
                           return (
-                            <span
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/60"
-                              title={user.invite_code ? `Invite Code: ${user.invite_code}` : "Joined with invite code"}
-                            >
-                              <Ticket size={13} /> Joined by Invite
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                              <CreditCard size={13} /> Online Purchase
                             </span>
                           );
-                        }
-                        if (method === "admin") {
-                          return (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                              <UserCheck size={13} /> Admin Created
-                            </span>
-                          );
-                        }
-                        return (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                            <CreditCard size={13} /> Online Purchase
+                        })()}
+                        {user.has_google && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60"
+                            title="User has linked Google as a login method"
+                          >
+                            <KeyRound size={12} /> Google
                           </span>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       {(() => {

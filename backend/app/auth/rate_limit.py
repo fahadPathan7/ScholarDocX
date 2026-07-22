@@ -92,20 +92,6 @@ RATE_LIMIT_RULES: list[dict[str, Any]] = [
         "message": "You can only request one invite code every 24 hours. Please try again later.",
     },
     {
-        # SCHOLARDOCX-0162: open registration path (no invite code). Allows 3 attempts
-        # per IP per 24 hours. A failed attempt still consumes the slot (check_and_record),
-        # matching the invite-request posture.
-        "key": "auth_register_paid",
-        "label": "Register (Paid)",
-        "description": "Create a new account without an invite code by purchasing a plan.",
-        "method": "POST",
-        "path": "/auth/register-paid",
-        "max_requests": 3,
-        "window_seconds": 86400,
-        "scope": "ip",
-        "message": "You can only attempt paid registration 3 times every 24 hours. Please try again later.",
-    },
-    {
         # forgot-password never raises 429 (returns a generic 200 to avoid
         # email enumeration); the rule still exists so it is counted and
         # surfaced in the Info tab. Enforce it via check()/record(), not

@@ -1,52 +1,17 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { UserPlus, ArrowLeft, CreditCard, Ticket } from "lucide-react";
-import { api } from "../lib/api";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { UserPlus, ArrowLeft, Ticket } from "lucide-react";
+import { api, API_BASE } from "../lib/api";
 import { PasswordField } from "./PasswordField";
-import {
-  fetchPublicPlans,
-  TIER_PRESENTATION,
-  TIER_ORDER,
-  type TierKey,
-} from "./LandingPage/plans-data";
 import "./LoginPage.css";
 
-// SCHOLARDOCX-0162: registration supports two paths behind one page —
-// invite-code (unchanged) and paid (purchase a Basic/Pro/Max plan at signup).
-// Which tabs are visible is driven by the `registration_mode` app setting
-// returned by /auth/plans/public:
-//   invite_only    → invite tab only (legacy)
-//   invite_or_paid → both tabs (default)
-//   paid_only      → paid tab only
-// The paid tab submits to /auth/register-paid, which creates an inert account
-// and returns a hosted-checkout URL; the browser leaves the SPA to complete
-// payment, then returns to /registration-complete.
-
-type RegMode = "invite_only" | "invite_or_paid" | "paid_only";
-type PaidPlanSlug = "basic" | "pro" | "max";
-type BillingCycle = "monthly" | "quarterly";
-
-// Tier presentation maps general_user→Basic, pro_user→Pro, max_user→Max. The
-// /auth/register-paid payload uses the short slugs (basic/pro/max), so we map
-// tierKey → slug here. Free is excluded (paid plans only).
-const TIER_TO_PLAN_SLUG: Record<TierKey, PaidPlanSlug | null> = {
-  free_user: null,
-  general_user: "basic",
-  pro_user: "pro",
-  max_user: "max",
-};
-
-const PAID_TIERS = TIER_ORDER.filter((t) => TIER_TO_PLAN_SLUG[t] !== null) as TierKey[];
+// SCHOLARDOCX-0169: registration is simplified to two paths:
+//   1. Invite code — fill the form, get a free account immediately.
+//   2. Google — click "Sign up with Google", get a free account immediately.
+// Paid self-registration was removed; users upgrade to paid plans later
+// via the logged-in plan management flow.
 
 export function RegisterPage() {
-  const [searchParams] = useSearchParams();
-  const initialFromPlan = searchParams.get("plan"); // ?plan=pro deep-link from pricing
-
-  // Default tab: Purchase a plan (paid). Fallback to invite if regMode is invite_only.
-  const [tab, setTab] = useState<"invite" | "paid">("paid");
-  const [regMode, setRegMode] = useState<RegMode>("invite_or_paid");
-
-  // ---- invite form state (unchanged) ----
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -55,43 +20,9 @@ export function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ---- paid form state ----
-  const [pEmail, setPEmail] = useState("");
-  const [pDisplayName, setPDisplayName] = useState("");
-  const [pPassword, setPPassword] = useState("");
-  const [pConfirmPassword, setPConfirmPassword] = useState("");
-  const [plan, setPlan] = useState<PaidPlanSlug>(
-    (initialFromPlan as PaidPlanSlug) || "pro"
-  );
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
-  const [pricing, setPricing] = useState<Record<string, string>>({});
-
   const navigate = useNavigate();
 
-  // Load registration_mode + pricing from the public endpoint (anonymous).
-  useEffect(() => {
-    let cancelled = false;
-    fetchPublicPlans()
-      .then((resp) => {
-        if (cancelled) return;
-        const mode = (resp.registration_mode as RegMode) || "invite_or_paid";
-        setRegMode(mode);
-        if (mode === "paid_only") setTab("paid");
-        if (mode === "invite_only") setTab("invite");
-        setPricing(resp.pricing || {});
-      })
-      .catch(() => {
-        // Network/config error — leave defaults; the invite tab still works.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const showInviteTab = regMode !== "paid_only";
-  const showPaidTab = regMode !== "invite_only";
-
-  const handleInviteSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -122,58 +53,6 @@ export function RegisterPage() {
     }
   };
 
-  const handlePaidSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (pPassword !== pConfirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // The backend creates an inert account and returns a hosted-checkout URL.
-      // Redirecting the full browser (not client-side navigate) is correct here:
-      // checkout is hosted by the payment provider, outside the SPA. The user
-      // returns to /registration-complete after paying.
-      const response = await api.post<any>("/auth/register-paid", {
-        email: pEmail,
-        password: pPassword,
-        display_name: pDisplayName,
-        plan,
-        billing_cycle: billingCycle,
-        success_url: `${window.location.origin}/registration-complete`,
-      });
-
-      if (response && response.status === "success" && response.checkout_url) {
-        window.location.href = response.checkout_url;
-        return; // page is unloading; stay in loading state
-      }
-      setError("Checkout could not be started. Please try again.");
-    } catch (err: any) {
-      setError(
-        err.message ||
-          "Paid registration failed. Please check your inputs and try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const priceFor = (slug: PaidPlanSlug): string => {
-    // polar_product_id_<tier>_<cycle> presence is gated by the backend (UUID
-    // check), so a configured plan always has a price here. Free is excluded.
-    const tierKey: TierKey =
-      slug === "basic" ? "general_user" : slug === "pro" ? "pro_user" : "max_user";
-    const shortTier = tierKey.replace("_user", "");
-    const key = `plan_price_${shortTier}_${billingCycle}`;
-    const raw = pricing[key];
-    if (raw == null || raw === "") return "—";
-    return `${raw} USD`;
-  };
-
   return (
     <div className="auth-page">
       <div className="auth-card auth-card-wide">
@@ -192,246 +71,95 @@ export function RegisterPage() {
           <p className="auth-subtitle">Join ScholarDocX</p>
         </div>
 
-        {/* Tab switcher — only render when both paths are open. In a single-mode
-            config the lone tab still shows so the copy stays consistent. */}
-        {showInviteTab && showPaidTab && (
-          <div className="auth-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "invite"}
-              className={`auth-tab ${tab === "invite" ? "active" : ""}`}
-              onClick={() => {
-                setError("");
-                setTab("invite");
-              }}
-            >
-              <Ticket size={14} /> Invite code
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "paid"}
-              className={`auth-tab ${tab === "paid" ? "active" : ""}`}
-              onClick={() => {
-                setError("");
-                setTab("paid");
-              }}
-            >
-              <CreditCard size={14} /> Purchase a plan
-            </button>
-          </div>
-        )}
-
         {error && <div className="auth-alert error">{error}</div>}
 
-        {/* ---- Invite-code form (unchanged behavior) ---- */}
-        {tab === "invite" && showInviteTab && (
-          <form onSubmit={handleInviteSubmit} className="auth-form auth-form-horizontal">
-            <div className="auth-field auth-field-full">
-              <label className="auth-label" htmlFor="inviteCode">
-                Invite Code
-              </label>
-              <input
-                id="inviteCode"
-                type="text"
-                required
-                className="auth-input"
-                placeholder="e.g. SCHOLARDOCX-2026-XYZ"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="auth-form auth-form-horizontal">
+          <div className="auth-field auth-field-full">
+            <label className="auth-label" htmlFor="inviteCode">
+              Invite Code
+            </label>
+            <input
+              id="inviteCode"
+              type="text"
+              required
+              className="auth-input"
+              placeholder="e.g. SCHOLARDOCX-2026-XYZ"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+            />
+          </div>
 
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="displayName">
-                Display Name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                required
-                className="auth-input"
-                placeholder="Jane Doe"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-            </div>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="displayName">
+              Display Name
+            </label>
+            <input
+              id="displayName"
+              type="text"
+              required
+              className="auth-input"
+              placeholder="Jane Doe"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+          </div>
 
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="email">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                className="auth-input"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              className="auth-input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="password">
-                Password
-              </label>
-              <PasswordField
-                id="password"
-                required
-                placeholder="8+ characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="password">
+              Password
+            </label>
+            <PasswordField
+              id="password"
+              required
+              placeholder="8+ characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="confirmPassword">
-                Confirm Password
-              </label>
-              <PasswordField
-                id="confirmPassword"
-                required
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-            </div>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="confirmPassword">
+              Confirm Password
+            </label>
+            <PasswordField
+              id="confirmPassword"
+              required
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
 
-            <button type="submit" disabled={loading} className="auth-submit">
-              {loading ? "Registering..." : "Create Account"}
-            </button>
-          </form>
-        )}
+          <button type="submit" disabled={loading} className="auth-submit">
+            {loading ? "Registering..." : "Create Account"}
+          </button>
 
-        {/* ---- Paid registration form ---- */}
-        {tab === "paid" && showPaidTab && (
-          <form onSubmit={handlePaidSubmit} className="auth-form auth-form-horizontal">
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="pPlan">
-                Plan
-              </label>
-              <select
-                id="pPlan"
-                className="auth-input"
-                value={plan}
-                onChange={(e) => setPlan(e.target.value as PaidPlanSlug)}
-              >
-                {PAID_TIERS.map((t) => {
-                  const slug = TIER_TO_PLAN_SLUG[t]!;
-                  const pres = TIER_PRESENTATION[t];
-                  return (
-                    <option key={t} value={slug}>
-                      {pres.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="billingCycle">
-                Billing cycle
-              </label>
-              <div className="auth-cycle-toggle" role="group" aria-label="Billing cycle">
-                <button
-                  type="button"
-                  className={`auth-cycle-btn ${billingCycle === "monthly" ? "active" : ""}`}
-                  onClick={() => setBillingCycle("monthly")}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  className={`auth-cycle-btn ${billingCycle === "quarterly" ? "active" : ""}`}
-                  onClick={() => setBillingCycle("quarterly")}
-                >
-                  Quarterly <span className="auth-discount-tag">Save 20%</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="auth-plan-readout auth-field-full">
-              <span className="auth-plan-price">{priceFor(plan)}</span>
-              <span className="auth-plan-dot">•</span>
-              <span className="auth-plan-desc">
-                {TIER_PRESENTATION[
-                  plan === "basic"
-                    ? "general_user"
-                    : plan === "pro"
-                    ? "pro_user"
-                    : "max_user"
-                ].desc}
-              </span>
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="pDisplayName">
-                Display Name
-              </label>
-              <input
-                id="pDisplayName"
-                type="text"
-                required
-                className="auth-input"
-                placeholder="Jane Doe"
-                value={pDisplayName}
-                onChange={(e) => setPDisplayName(e.target.value)}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="pEmail">
-                Email Address
-              </label>
-              <input
-                id="pEmail"
-                type="email"
-                required
-                className="auth-input"
-                placeholder="you@example.com"
-                value={pEmail}
-                onChange={(e) => setPEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="pPassword">
-                Password
-              </label>
-              <PasswordField
-                id="pPassword"
-                required
-                placeholder="8+ characters"
-                value={pPassword}
-                onChange={(e) => setPPassword(e.target.value)}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label" htmlFor="pConfirmPassword">
-                Confirm Password
-              </label>
-              <PasswordField
-                id="pConfirmPassword"
-                required
-                placeholder="••••••••"
-                value={pConfirmPassword}
-                onChange={(e) => setPConfirmPassword(e.target.value)}
-              />
-            </div>
-
-            <button type="submit" disabled={loading} className="auth-submit">
-              {loading ? "Starting secure checkout..." : "Continue to secure checkout"}
-            </button>
-
-            <p className="auth-hint">
-              You won't be able to log in until payment is confirmed. Unpaid
-              accounts are removed after 2 hours.
-            </p>
-          </form>
-        )}
+          <div className="auth-divider"><span>or</span></div>
+          <a href={`${API_BASE}/auth/google/login`} className="auth-google-btn">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+              <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.583-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+              <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+              <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+            </svg>
+            <span>Sign up with Google</span>
+          </a>
+        </form>
 
         <div className="auth-switch-row">
           <span>
@@ -440,21 +168,17 @@ export function RegisterPage() {
               Log in
             </Link>
           </span>
-          {showInviteTab && (
-            <>
-              <span className="auth-switch-sep">•</span>
-              <span>
-                Need an invite code?{" "}
-                <Link
-                  to="/login"
-                  state={{ requestInvite: true }}
-                  className="auth-link-btn"
-                >
-                  Request one here
-                </Link>
-              </span>
-            </>
-          )}
+          <span className="auth-switch-sep">•</span>
+          <span>
+            Need an invite code?{" "}
+            <Link
+              to="/login"
+              state={{ requestInvite: true }}
+              className="auth-link-btn"
+            >
+              Request one here
+            </Link>
+          </span>
         </div>
       </div>
     </div>

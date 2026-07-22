@@ -372,20 +372,22 @@ class AdminService:
                 u.plan_renews_at,
                 u.pending_payment_since,
                 u.registered_with_invite_id,
-                ic.code as invite_code
+                ic.code as invite_code,
+                ei.provider as linked_oauth_provider
             FROM users u
             LEFT JOIN local_profiles lp ON u.id = lp.user_id
             LEFT JOIN invite_codes ic ON u.registered_with_invite_id = ic.id
+            LEFT JOIN external_identities ei ON u.id = ei.user_id AND ei.provider = 'google'
             ORDER BY u.created_at DESC
             """
         ).fetchall()
-        
+
         results = []
         for u in users:
             d = dict(u)
             roles_list = safe_json_loads(d["roles"], default=[])
             d["roles"] = roles_list
-            
+
             is_admin_account = any(r in ["super_admin", "general_admin"] for r in roles_list)
             has_paid_tier_role = any(r in ["general_user", "pro_user", "max_user"] for r in roles_list)
             has_polar_link = bool(d.get("polar_customer_id") or d.get("polar_subscription_id"))
@@ -401,6 +403,11 @@ class AdminService:
                     "purchase" if (d.get("polar_customer_id") or d.get("polar_subscription_id")) else "admin"
                 )
             )
+            # SCHOLARDOCX-0169: surface whether the user has linked Google as a
+            # login method. This is distinct from signup_method (origin) — a
+            # user can register via invite AND later link Google. The admin
+            # panel shows this as an extra badge on the Join Method cell.
+            d["has_google"] = bool(d.pop("linked_oauth_provider", None))
 
             # plan_source — what currently funds/grants the user's plan:
             #   polar      — active Polar subscription (sub ID present).

@@ -60,6 +60,27 @@ class Settings:
         )
         self.jwt_secret_key = os.getenv("JWT_SECRET") or os.getenv("JWT_SECRET_KEY")
 
+        # SCHOLARDOCX-0169: Google OAuth (sign-in). All four are optional —
+        # if GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are unset, the Google
+        # login route returns 503 and the frontend button is hidden.
+        # GOOGLE_REDIRECT_URI must match a URI registered in the Google
+        # Cloud Console and points at the BACKEND (the OAuth callback is a
+        # server-side route), not the frontend.
+        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+        self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+        self.google_redirect_uri = os.getenv(
+            "GOOGLE_REDIRECT_URI",
+            "http://localhost:8000/api/auth/google/callback",
+        ).strip()
+        # Where to send the browser after minting the JWT (the frontend).
+        # Defaults to the Vite dev server; in prod set to the deployed
+        # frontend origin (e.g. https://scholardocx.onrender.com).
+        self.frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").strip().rstrip("/")
+
+    @property
+    def google_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret)
+
     @property
     def database_target(self) -> str:
         """The Postgres connection URL (required).

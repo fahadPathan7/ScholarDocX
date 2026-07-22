@@ -1192,10 +1192,7 @@ svg {
   box-sizing: border-box !important;
 }
 
-.auth-hint,
-.auth-switch-row,
-.auth-plan-desc,
-.auth-plan-readout {
+.auth-switch-row {
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: break-word !important;

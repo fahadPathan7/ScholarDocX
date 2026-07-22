@@ -625,7 +625,7 @@ h2 {
 .sheet-card-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   margin-top: 16px;
 }
 
@@ -807,10 +807,26 @@ h2 {
 .section-head {
   flex-shrink: 0;
   padding: 18px 18px 0;
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.section-head > div:first-child {
+  flex-shrink: 0;
+  min-width: max-content;
+}
+
+.section-head > div:last-child {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 .section-body {
@@ -1022,7 +1038,7 @@ h2 {
   right: 28px;
   top: auto;
   width: min(480px, calc(100vw - 44px));
-  z-index: 30;
+  z-index: 1090;
 }
 
 .assistant-dock.wide {
@@ -1879,10 +1895,13 @@ h2 {
 
 .sheet-toolbar {
   display: flex;
+  flex-direction: row;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: 20px;
   align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet-toolbar-quota {
@@ -2731,12 +2750,12 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .modal-panel.column-form,
 .modal-panel.edit-columns-form {
   max-width: 90vw;
-  max-height: 70vh;
+  max-height: 78vh;
 }
 
 .modal-panel.record-form {
   max-width: 90vw;
-  max-height: 70vh;
+  max-height: 78vh;
 }
 
 /* Wide modal for dense multi-column pricing/token tables (6 columns).
@@ -2848,6 +2867,30 @@ td.collapsed-cell {
 /* Edit Columns Modal Panel Width Adjustment */
 .modal-panel.edit-columns-form {
   width: 860px;
+}
+
+/* Larger Edit Columns modal on wide screens so the full column list,
+   type/group/unique controls, and select-options editor fit comfortably. */
+@media (min-width: 1280px) {
+  .modal-panel.edit-columns-form {
+    width: min(1100px, 92vw);
+    max-height: 78vh !important;
+  }
+  /* Larger Add/Edit Record modal on wide screens for comfortable field
+     spacing and to reduce scrolling on records with many columns. */
+  .modal-panel.record-form {
+    width: min(720px, 92vw);
+    max-height: 68vh !important;
+  }
+}
+
+/* Compact height for Edit Columns and Add/Edit Record modals on smaller
+   screens so they don't dominate the viewport. */
+@media (max-width: 1279px) {
+  .modal-panel.edit-columns-form,
+  .modal-panel.record-form {
+    max-height: 55vh !important;
+  }
 }
 
 /* ================================================================ */

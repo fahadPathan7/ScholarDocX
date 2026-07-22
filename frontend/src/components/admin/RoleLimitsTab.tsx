@@ -382,8 +382,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
 
       {selectedRole && (
         <AdminPortal>
-          <div className="absolute inset-0 z-50 flex items-start justify-center pt-12 backdrop-blur-[10px]" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setSelectedRole(null)}>
-            <div className="modal-panel shadow-2xl flex flex-col mx-4" style={{ width: '900px', maxWidth: '95vw', maxHeight: '85vh', padding: '0' }} onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-6 sm:pt-12 p-4 backdrop-blur-[10px] overflow-y-auto" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setSelectedRole(null)}>
+            <div className="modal-panel shadow-2xl flex flex-col mx-4 overflow-x-auto" style={{ width: '900px', maxWidth: '95vw', maxHeight: '85vh', padding: '0' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Role Limits</p>

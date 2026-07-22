@@ -495,7 +495,7 @@ export function StickyNotesView({ onToast, refreshTrigger }: { onToast: (msg: st
                 </div>
               ) : null}
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ flexWrap: "wrap" }}>
               <button className="secondary" type="button" onClick={resetDraft} disabled={isSaving}>Cancel</button>
               <button className="primary" type="submit" disabled={isSaving}>
                 {editingNote ? <Check size={16} /> : <Plus size={16} />}

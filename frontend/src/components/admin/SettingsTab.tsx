@@ -345,7 +345,7 @@ export function SettingsTab() {
       {showPricingModal && (
         <Modal onClose={() => setShowPricingModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-auto max-w-[95vw]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">
@@ -366,7 +366,7 @@ export function SettingsTab() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+            <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
               <PlanPricingTable />
             </div>
             <div className="modal-footer">
@@ -384,7 +384,7 @@ export function SettingsTab() {
       {showModelPricingModal && (
         <Modal onClose={() => setShowModelPricingModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-auto max-w-[95vw]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">
@@ -405,7 +405,7 @@ export function SettingsTab() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+            <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
               <ModelPricingTab />
             </div>
             <div className="modal-footer">
@@ -422,8 +422,8 @@ export function SettingsTab() {
 
       {showExternalApisModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
               <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
                 <Globe className="w-5 h-5 text-orange-500" />
                 External APIs & Agents Pricing
@@ -432,7 +432,7 @@ export function SettingsTab() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Tavily Search Cost (USD per search)</label>
                 <div className="flex gap-3">
@@ -462,7 +462,7 @@ export function SettingsTab() {
                 </p>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
               <button onClick={() => setShowExternalApisModal(false)} className="px-5 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">
                 Close
               </button>
@@ -473,8 +473,8 @@ export function SettingsTab() {
 
       {showPolarModal && (
         <Modal onClose={() => setShowPolarModal(false)} zIndex={999}>
-          <div className="modal-panel w-full max-w-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <div className="modal-panel w-full max-w-3xl overflow-hidden max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
               <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
                 <Globe className="w-5 h-5 text-sky-500" />
                 Polar.sh Integration
@@ -483,9 +483,9 @@ export function SettingsTab() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
+            <div className="p-6 max-h-[70vh] overflow-y-auto flex-1">
               <h4 className="text-sm font-bold text-slate-800 border-b pb-2 mb-4">Plan Subscriptions</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-700">Basic Plan (Monthly)</label>
                   <div className="flex gap-2">
@@ -493,12 +493,12 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_basic_monthly"] || ""}
                       id="modal-input-polar_product_id_basic_monthly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_basic_monthly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_basic_monthly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -508,12 +508,12 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_basic_quarterly"] || ""}
                       id="modal-input-polar_product_id_basic_quarterly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_basic_quarterly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_basic_quarterly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -523,12 +523,12 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_pro_monthly"] || ""}
                       id="modal-input-polar_product_id_pro_monthly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_pro_monthly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_pro_monthly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -538,12 +538,12 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_pro_quarterly"] || ""}
                       id="modal-input-polar_product_id_pro_quarterly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_pro_quarterly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_pro_quarterly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -553,12 +553,12 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_max_monthly"] || ""}
                       id="modal-input-polar_product_id_max_monthly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_max_monthly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_max_monthly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -568,17 +568,17 @@ export function SettingsTab() {
                       type="text"
                       defaultValue={settings["polar_product_id_max_quarterly"] || ""}
                       id="modal-input-polar_product_id_max_quarterly"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                     />
                     <button onClick={() => {
                         const el = document.getElementById("modal-input-polar_product_id_max_quarterly") as HTMLInputElement;
                         if (el) handleUpdate("polar_product_id_max_quarterly", el.value);
-                      }} className="profile-primary-button px-4 py-2">Save</button>
+                      }} className="profile-primary-button px-4 py-2 shrink-0">Save</button>
                   </div>
                 </div>
               </div>
               <h4 className="text-sm font-bold text-slate-800 border-b pb-2 mt-8 mb-4">Extra Credit Packs</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {[
                   { id: 1, name: "Small Pack" },
                   { id: 2, name: "Medium Pack" },
@@ -592,12 +592,12 @@ export function SettingsTab() {
                         type="text"
                         defaultValue={settings[`polar_extra_credits_id_${pack.id}`] || ""}
                         id={`modal-input-polar_extra_credits_id_${pack.id}`}
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                        className="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-mono"
                       />
                       <button onClick={() => {
                         const idEl = document.getElementById(`modal-input-polar_extra_credits_id_${pack.id}`) as HTMLInputElement;
                         if (idEl) handleUpdate(`polar_extra_credits_id_${pack.id}`, idEl.value);
-                      }} className="profile-primary-button px-4 py-2">
+                      }} className="profile-primary-button px-4 py-2 shrink-0">
                         Save
                       </button>
                     </div>
@@ -617,7 +617,7 @@ export function SettingsTab() {
       {showTokenPacksModal && (
         <Modal onClose={() => setShowTokenPacksModal(false)} zIndex={999} compact>
           <div
-            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-hidden"
+            className="modal-panel pricing-modal-panel max-h-[80vh] overflow-x-auto max-w-[95vw]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header flex items-center justify-between shrink-0">
@@ -638,7 +638,7 @@ export function SettingsTab() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="modal-content overflow-y-auto overflow-x-hidden flex-1 min-h-[360px]">
+            <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
               <TokenPacksTab />
             </div>
             <div className="modal-footer">

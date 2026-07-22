@@ -606,11 +606,9 @@ main {
 
 .project-card-grid,
 .sheet-card-grid {
+  display: grid;
   gap: 14px;
-}
-
-.project-card-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   justify-content: stretch;
 }
 
@@ -1315,11 +1313,11 @@ main {
     grid-template-columns: minmax(0, 1fr) minmax(300px, 0.82fr);
   }
 
-  .profile-meta-col {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  /* NOTE: .profile-meta-col must stay a vertical flex stack (its base style).
+     A previous rule here turned each column into a 3-column sub-grid, which
+     spread cards across the full content width and pushed the last card /
+     logout button flush against the viewport edge at mid-widths (~1200-1400px).
+     Do not re-introduce grid-template-columns on .profile-meta-col. */
 }
 
 @keyframes spin {

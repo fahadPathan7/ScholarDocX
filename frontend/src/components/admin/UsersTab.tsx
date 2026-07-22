@@ -947,8 +947,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
       {notificationModalMode && (
         <AdminPortal>
-          <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 backdrop-blur-[10px]" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={closeNotificationModal}>
-            <form className="modal-panel shadow-2xl" onClick={(event) => event.stopPropagation()} onSubmit={handleSendNotification}>
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-6 sm:pt-16 p-4 backdrop-blur-[10px] overflow-y-auto" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={closeNotificationModal}>
+            <form className="modal-panel shadow-2xl max-h-[90vh] flex flex-col" onClick={(event) => event.stopPropagation()} onSubmit={handleSendNotification}>
               <div className="modal-header">
                 <div>
                   <p className="eyebrow">Notifications</p>
@@ -1053,8 +1053,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
       {editingUser && editingMode && (
         <AdminPortal>
-          <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 backdrop-blur-[10px]" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={() => { setEditingUser(null); setEditingMode(null); }}>
-            <form className="modal-panel shadow-2xl" onClick={(event) => event.stopPropagation()} onSubmit={handleSaveRoles}>
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-6 sm:pt-16 p-4 backdrop-blur-[10px] overflow-y-auto" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={() => { setEditingUser(null); setEditingMode(null); }}>
+            <form className="modal-panel shadow-2xl max-h-[90vh] flex flex-col" onClick={(event) => event.stopPropagation()} onSubmit={handleSaveRoles}>
               <div className="modal-header">
                 <div>
                   <p className="eyebrow">User Management</p>
@@ -1161,10 +1161,10 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
               </div>
 
               <div className="modal-footer">
-                <button type="button" onClick={() => { setEditingUser(null); setEditingMode(null); }} className="secondary">
+                <button className="secondary font-semibold" type="button" onClick={() => { setEditingUser(null); setEditingMode(null); }}>
                   Cancel
                 </button>
-                <button type="submit" className="primary">
+                <button className="primary" type="submit">
                   Save Roles
                 </button>
               </div>
@@ -1175,8 +1175,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
       {creatingUser && (
         <AdminPortal>
-          <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 backdrop-blur-[10px]" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={() => setCreatingUser(false)}>
-            <form className="modal-panel shadow-2xl" onClick={(event) => event.stopPropagation()} onSubmit={handleCreateUser}>
+          <div className="absolute inset-0 z-50 flex items-start justify-center pt-6 sm:pt-16 p-4 backdrop-blur-[10px] overflow-y-auto" style={{ background: "rgba(30, 41, 37, 0.22)" }} onClick={() => setCreatingUser(false)}>
+            <form className="modal-panel shadow-2xl max-h-[90vh] flex flex-col" onClick={(event) => event.stopPropagation()} onSubmit={handleCreateUser}>
               <div className="modal-header">
                 <div>
                   <p className="eyebrow">User Management</p>

@@ -125,7 +125,7 @@ export function TokenPacksTab() {
   };
 
   return (
-    <div className="flex flex-col min-h-0 min-w-0 space-y-3 overflow-x-hidden">
+    <div className="flex flex-col min-h-0 min-w-0 space-y-3 overflow-x-auto">
       <div className="flex flex-wrap items-start justify-between gap-3 min-w-0">
         <div className="bg-indigo-50/70 text-indigo-700 text-xs px-3 py-2 rounded-md border border-indigo-100/80 flex items-start gap-2 min-w-0 flex-1">
           <Info size={14} className="shrink-0 mt-0.5" />
@@ -144,17 +144,17 @@ export function TokenPacksTab() {
         </button>
       </div>
 
-      <div className="profile-system-card glass-panel flex flex-col min-h-0 min-w-0 overflow-hidden" style={{ padding: 0 }}>
-        <div className="overflow-y-auto overflow-x-hidden relative min-h-[240px]">
-          <table className="w-full min-w-0 table-fixed text-sm text-left">
+      <div className="profile-system-card glass-panel flex flex-col min-h-0 min-w-0 overflow-x-auto" style={{ padding: 0 }}>
+        <div className="overflow-x-auto overflow-y-auto relative min-h-[240px]">
+          <table className="w-full min-w-[750px] text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
               <tr>
-                <th className="px-3 py-3 w-[18%]">Code</th>
-                <th className="px-3 py-3 w-[24%]">Display Name</th>
+                <th className="px-3 py-3 w-[15%]">Code</th>
+                <th className="px-3 py-3 w-[22%]">Display Name</th>
                 <th className="px-3 py-3 w-[18%]">Credit Amount</th>
-                <th className="px-3 py-3 w-[14%]">Price (USD)</th>
+                <th className="px-3 py-3 w-[20%]">Price (USD)</th>
                 <th className="px-3 py-3 w-[8%]">Active</th>
-                <th className="px-3 py-3 w-[22%] text-right">Actions</th>
+                <th className="px-3 py-3 w-[17%] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -196,15 +196,15 @@ export function TokenPacksTab() {
                         />
                       </td>
                       <td className="px-3 py-3 min-w-0">
-                        <div className="relative min-w-0">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                        <div className="relative min-w-[90px]">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">$</span>
                           <input
                             type="number"
                             min={0}
                             step="0.01"
                             value={draft.price_usd}
                             onChange={(e) => updateDraft(pack.code, { price_usd: e.target.value })}
-                            className="w-full min-w-0 pl-6 pr-2 py-1.5 bg-white border border-slate-200/60 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+                            className="w-full min-w-[90px] pl-6 pr-2 py-1.5 bg-white border border-slate-200/60 rounded-lg text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
                           />
                         </div>
                       </td>

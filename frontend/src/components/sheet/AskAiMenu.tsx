@@ -5,7 +5,7 @@
 /*  Redesigned with a cleaner, more visual interface for better UX.   */
 /* ------------------------------------------------------------------ */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { 
   ArrowRight, 
   Sparkles, 
@@ -30,6 +30,7 @@ import {
   type AskAiPromptGroup,
 } from "./askAiPrompts";
 import type { ColumnDef } from "./sheetModel";
+import { DropdownPortal } from "./DropdownPortal";
 
 const GROUP_LABELS: Record<AskAiPromptGroup, string> = {
   analyze: "Analyze My Data",
@@ -63,21 +64,14 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState("");
   const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const customInputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setCustom("");
-        setHoveredPrompt(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  function close() {
+    setOpen(false);
+    setCustom("");
+    setHoveredPrompt(null);
+  }
 
   function pick(prompt: AskAiPrompt) {
     onPick(prompt.build(ctx));
@@ -107,8 +101,9 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
   const triggerStyle: React.CSSProperties = { ...btnStyle, color: "var(--ui-primary)" };
 
   return (
-    <div className="ask-ai-menu-container" ref={containerRef} style={{ position: "relative" }}>
+    <div className="ask-ai-menu-container" style={{ position: "relative" }}>
       <button
+        ref={triggerRef}
         className={`secondary ${open ? "active" : ""}`}
         onClick={() => setOpen((v) => !v)}
         style={triggerStyle}
@@ -118,18 +113,15 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
       </button>
 
       {open && (
+        <DropdownPortal triggerRef={triggerRef} onOutsideClick={close}>
         <div
           className="data-dropdown-menu ask-ai-dropdown"
           style={{
-            position: "absolute",
-            top: "100%",
-            right: 0,
-            marginTop: "4px",
             backgroundColor: "var(--ui-paper-strong)",
             border: "1px solid var(--ui-line)",
             borderRadius: "8px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)",
-            zIndex: 100,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            padding: "4px",
             width: "380px",
             maxHeight: "540px",
             display: "flex",
@@ -370,6 +362,7 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
             </div>
           </div>
         </div>
+        </DropdownPortal>
       )}
     </div>
   );

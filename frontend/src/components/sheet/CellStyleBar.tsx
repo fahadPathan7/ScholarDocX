@@ -67,6 +67,18 @@ export function CellStyleBar({
   return (
     <div
       className={`cell-style-bar${compact ? " cell-style-bar--compact" : ""}`}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: "4px",
+        flexWrap: "nowrap",
+        flexShrink: 0,
+        width: "max-content",
+        maxWidth: "100%",
+        overflowX: "auto",
+        boxSizing: "border-box",
+      }}
       role="toolbar"
       aria-label="Cell formatting"
       onKeyDown={stop}
@@ -83,7 +95,7 @@ export function CellStyleBar({
         }
       }}
     >
-      <div className="csb-group" data-keep-editor-open>
+      <div className="csb-group" data-keep-editor-open style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "2px", flexWrap: "nowrap", flexShrink: 0 }}>
         <FormatToggle active={!!style.bold} title="Bold" onClick={() => onChange({ bold: !style.bold })}>
           <Bold size={13} />
         </FormatToggle>
@@ -100,7 +112,7 @@ export function CellStyleBar({
 
       <Divider />
 
-      <div className="csb-group" data-keep-editor-open>
+      <div className="csb-group" data-keep-editor-open style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "2px", flexWrap: "nowrap", flexShrink: 0 }}>
         <ColorButton
           title="Text color"
           active={!!style.color}
@@ -125,7 +137,7 @@ export function CellStyleBar({
 
       <Divider />
 
-      <div className="csb-group" data-keep-editor-open>
+      <div className="csb-group" data-keep-editor-open style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "2px", flexWrap: "nowrap", flexShrink: 0 }}>
         <FormatToggle active={style.align === "left"} title="Align left" onClick={() => onChange({ align: style.align === "left" ? undefined : "left" })}>
           <AlignLeft size={13} />
         </FormatToggle>
@@ -139,7 +151,7 @@ export function CellStyleBar({
 
       <Divider />
 
-      <div className="csb-group" data-keep-editor-open>
+      <div className="csb-group" data-keep-editor-open style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "2px", flexWrap: "nowrap", flexShrink: 0 }}>
         <DropdownButton
           title="Font size"
           label={style.fontSize ? SIZE_LABELS[style.fontSize] : "Size"}
@@ -187,7 +199,7 @@ export function CellStyleBar({
 
       <Divider />
 
-      <div className="csb-group" data-keep-editor-open>
+      <div className="csb-group" data-keep-editor-open style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "2px", flexWrap: "nowrap", flexShrink: 0 }}>
         <button className="csb-btn csb-clear" title="Clear formatting" onClick={onClear}>
           <Eraser size={13} />
         </button>

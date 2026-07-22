@@ -33,6 +33,19 @@ env/
 !.cursor/skills/
 !.cursor/skills/**
 
+# Agent plan / scratch (local only)
+.zcode/
+
+# Playwright MCP & screenshot artifacts
+.playwright-mcp/
+.screenshots/
+**/.screenshots/
+
+# Local probe / screenshot / audit scripts (throwaway)
+frontend/probe-*.mjs
+frontend/shot-*.mjs
+frontend/audit-*.mjs
+
 # Databases
 *.db
 *.sqlite

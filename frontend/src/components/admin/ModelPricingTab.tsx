@@ -131,7 +131,7 @@ export function ModelPricingTab() {
   const activeCount = models.filter((m) => m.is_active).length;
 
   return (
-    <div className="flex flex-col min-h-0 min-w-0 space-y-3 overflow-x-hidden">
+    <div className="flex flex-col min-h-0 min-w-0 space-y-3 overflow-x-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 min-w-0">
         <p className="text-xs text-slate-500 min-w-0">
           Prices drive real-cost metering (cost × tokens-per-dollar).
@@ -149,17 +149,17 @@ export function ModelPricingTab() {
         </button>
       </div>
 
-      <div className="profile-system-card glass-panel flex flex-col min-h-0 min-w-0 overflow-hidden" style={{ padding: 0 }}>
-        <div className="overflow-y-auto overflow-x-hidden relative min-h-[280px]">
-          <table className="w-full min-w-0 table-fixed text-sm text-left">
+      <div className="profile-system-card glass-panel flex flex-col min-h-0 min-w-0 overflow-x-auto" style={{ padding: 0 }}>
+        <div className="overflow-x-auto overflow-y-auto relative min-h-[280px]">
+          <table className="w-full min-w-[750px] text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 sticky top-0 border-b border-slate-200/50 shadow-sm z-10">
               <tr>
-                <th className="px-3 py-3 w-[22%]">Model</th>
-                <th className="px-3 py-3 w-[22%]">Display Name</th>
-                <th className="px-3 py-3 w-[14%]">Input $ / 1M</th>
-                <th className="px-3 py-3 w-[14%]">Output $ / 1M</th>
+                <th className="px-3 py-3 w-[18%]">Model</th>
+                <th className="px-3 py-3 w-[20%]">Display Name</th>
+                <th className="px-3 py-3 w-[19%]">Input $ / 1M</th>
+                <th className="px-3 py-3 w-[19%]">Output $ / 1M</th>
                 <th className="px-3 py-3 w-[8%]">Active</th>
-                <th className="px-3 py-3 w-[22%] text-right">Actions</th>
+                <th className="px-3 py-3 w-[16%] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

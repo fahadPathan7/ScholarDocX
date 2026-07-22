@@ -1073,7 +1073,7 @@ export function ProjectWorkspace({
                 </button>
               </div>
               <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'start' }}>
                   <Field 
                     label="Sheet name" 
                     name="sheet_name" 

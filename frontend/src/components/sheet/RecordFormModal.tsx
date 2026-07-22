@@ -47,7 +47,7 @@ export function RecordFormModal({
           </button>
         </div>
         {validationError ? <p className="validation-error" style={{ margin: "16px 24px 0" }}>{validationError}</p> : null}
-        <div className="modal-content record-form-fields" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="modal-content record-form-fields" style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", flex: 1, maxHeight: "calc(70vh - 120px)" }}>
           {columns.filter(col => col.type !== "group").map((col) => (
             <TypedRecordField
               key={col.name}

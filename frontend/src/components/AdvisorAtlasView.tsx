@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
+  ChevronLeft,
   ChevronRight,
-  Compass,
   History,
   Map,
   Plus,
@@ -38,7 +38,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const [activeRun, setActiveRun] = useState<AdvisorRun | null>(null);
   const [showNewSearch, setShowNewSearch] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [refreshingCandidateId, setRefreshingCandidateId] = useState<string | null>(null);
@@ -217,20 +217,31 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
       <div className={`atlas-shell ${isSidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <aside className="atlas-history-panel">
           <div className="atlas-history-title">
-            {isSidebarOpen && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                <History size={17} />
-                <span>Research history</span>
-              </div>
+            {isSidebarOpen ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                  <History size={17} />
+                  <span>Research history</span>
+                </div>
+                <button 
+                  type="button" 
+                  className="atlas-sidebar-toggle"
+                  onClick={() => setIsSidebarOpen(false)}
+                  title="Collapse sidebar"
+                >
+                  <ChevronLeft size={17} />
+                </button>
+              </>
+            ) : (
+              <button 
+                type="button" 
+                className="atlas-sidebar-toggle"
+                onClick={() => setIsSidebarOpen(true)}
+                title="Expand research history"
+              >
+                <ChevronRight size={17} />
+              </button>
             )}
-            <button 
-              type="button" 
-              className="atlas-sidebar-toggle"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <ChevronRight size={17} className={isSidebarOpen ? "rotated-180" : ""} />
-            </button>
           </div>
           {loadingRuns ? (
             <div className="atlas-history-empty"><span className="atlas-spinner" /> Loading runs</div>
@@ -273,10 +284,6 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
               })}
             </div>
           )}
-          <div className="atlas-history-note">
-            <Compass size={16} />
-            <span>Results stay secure.</span>
-          </div>
         </aside>
 
         <div className="atlas-main">

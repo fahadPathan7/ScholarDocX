@@ -331,14 +331,22 @@ def _validate_id_token(id_token_str: str, expected_nonce: str, client_id: str) -
     jwks_client = PyJWKClient("https://www.googleapis.com/oauth2/v3/certs")
     signing_key = jwks_client.get_signing_key_from_jwt(id_token_str)
 
-    # Decode + verify signature, audience, issuer, and expiry in one call.
+    # Decode + verify signature, audience, and expiry. We validate the
+    # issuer manually below because Google accepts both
+    # "https://accounts.google.com" and "accounts.google.com" as the iss
+    # claim, and passing a list to PyJWT's issuer param can fail on
+    # some versions (observed on Render's PyJWT + Python 3.14).
     claims = _jwt.decode(
         id_token_str,
         signing_key.key,
         algorithms=["RS256"],
         audience=client_id,
-        issuer=["https://accounts.google.com", "accounts.google.com"],
     )
+
+    # Validate issuer manually — supports both Google issuer formats.
+    token_iss = claims.get("iss")
+    if token_iss not in ("https://accounts.google.com", "accounts.google.com"):
+        raise ValueError(f"Invalid issuer: {token_iss}")
 
     # Enforce the nonce we sent at /login (prevents token replay).
     if claims.get("nonce") != expected_nonce:

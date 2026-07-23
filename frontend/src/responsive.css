@@ -27,10 +27,42 @@
 @media (max-width: 1450px) {
   html,
   body {
-    overflow-x: auto;
-    overflow-y: auto;
+    overflow-x: hidden;
+    /* Keep the page scrollbar always reserved so content width never changes
+       when items load (prevents the horizontal shift/blink). A matching
+       custom scrollbar is styled below (see "Page scrollbar styling"). */
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(31, 111, 115, 0.4) rgba(31, 42, 38, 0.05);
     height: auto;
     min-height: 100vh;
+  }
+
+  /* Page scrollbar styling (WebKit). Matches the .section-body/.tab-container
+     scrollbar in styles.css so the smaller-screen page scrollbar looks like the
+     rest of the app instead of the OS default. */
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track {
+    background: rgba(31, 42, 38, 0.05);
+    border-radius: 99px;
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    background: rgba(31, 111, 115, 0.4);
+    border-radius: 99px;
+  }
+
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover {
+    background: rgba(31, 111, 115, 0.6);
   }
 
   .app-shell,
@@ -38,6 +70,10 @@
     display: block !important;
     width: 100% !important;
     min-height: 100vh !important;
+    /* Clear the desktop `overflow: hidden` so the small-screen layout can grow
+       with its content and the sticky topbar (`.main-head`) sticks to the
+       viewport rather than being clipped. */
+    overflow: visible !important;
     height: auto !important;
     position: relative !important;
   }
@@ -202,7 +238,10 @@
   }
 
   .main-head {
-    position: sticky !important;
+    /* `fixed` (not `sticky`) pins the navbar strictly to the viewport so it can
+       never scroll, shift, or move — regardless of ancestor overflow/transforms.
+       `.main-content` is offset below it (padding-top) so content stays clear. */
+    position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -216,6 +255,12 @@
     border-bottom: 1px solid rgba(47, 109, 122, 0.22) !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
+  }
+
+  /* Offset the content below the fixed navbar (mobile topbar ≈ 50px:
+     8px padding + 34px icon button + 8px padding). */
+  .main-content {
+    padding-top: 50px !important;
   }
 
   .main-head::before {
@@ -634,7 +679,11 @@
   min-height: 0 !important;
   flex: 1 !important;
   overflow-x: hidden !important;
-  overflow-y: auto !important;
+  /* `scroll` keeps the scrollbar always visible so content never shifts when
+     items load. Custom styled below to match the app (not the OS default). */
+  overflow-y: scroll !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 111, 115, 0.4) rgba(31, 42, 38, 0.05);
   -webkit-overflow-scrolling: touch;
 }
 

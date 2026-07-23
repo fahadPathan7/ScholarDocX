@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
 import { decodeToken, setToken } from "../lib/auth";
-import { api } from "../lib/api";
-import type { User } from "../lib/auth";
 import { SplashScreen } from "./SplashScreen";
 import "./AuthCompletePage.css";
 
@@ -12,17 +9,19 @@ import "./AuthCompletePage.css";
  *
  * The backend (`/api/auth/google/callback`) mints the existing JWT and
  * redirects the browser here with `?token=...` (success) or `?error=...`
- * (failure). This component:
- *   - success: persists the token, hydrates AuthContext, navigates to /dashboard
- *   - failure: redirects to /login with the error message
+ * (failure).
+ *
+ * On success we store the token and do a **hard redirect** to `/dashboard`
+ * (not a React Router navigate). This forces a full page reload so the
+ * AuthProvider's initAuth() picks up the token from storage on a fresh
+ * mount — avoiding a race where ProtectedRoute sees stale
+ * isAuthenticated=false and bounces to the landing page.
  *
  * SCHOLARDOCX-0169.
  */
 export function AuthCompletePage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [error, setError] = useState<string | null>(null);
   const handled = useRef(false);
 
   useEffect(() => {
@@ -33,8 +32,6 @@ export function AuthCompletePage() {
     const err = params.get("error");
 
     if (err) {
-      // Bounce to /login with the message via router state so the
-      // LoginPage can surface it in its existing alert slot.
       navigate("/login", { replace: true, state: { oauthError: err } });
       return;
     }
@@ -47,9 +44,7 @@ export function AuthCompletePage() {
       return;
     }
 
-    // Optimistically hydrate from the token payload, then refresh from
-    // /auth/me in the background — mirrors the password-login path in
-    // AuthContext.login().
+    // Validate the token is well-formed before storing it.
     const payload = decodeToken(token);
     if (!payload || !payload.user_id) {
       navigate("/login", {
@@ -59,28 +54,12 @@ export function AuthCompletePage() {
       return;
     }
 
+    // Store the token, then hard-redirect. A full page reload ensures
+    // AuthProvider.initAuth() runs on a clean mount WITH the token in
+    // storage, so ProtectedRoute never sees a stale unauthenticated state.
     setToken(token, true);
-    const optimisticUser: User = {
-      id: payload.user_id,
-      email: payload.email,
-      display_name: payload.display_name,
-      roles: payload.roles || [],
-    };
-    login(token, optimisticUser, true);
-
-    // Refresh latest server-side fields, then go to the dashboard.
-    api.get<User>("/auth/me")
-      .then(() => navigate("/dashboard", { replace: true }))
-      .catch(() => navigate("/dashboard", { replace: true }));
-  }, [params, navigate, login]);
-
-  if (error) {
-    return (
-      <div className="auth-complete-page">
-        <p className="auth-complete-error">{error}</p>
-      </div>
-    );
-  }
+    window.location.href = "/dashboard";
+  }, [params, navigate]);
 
   return <SplashScreen message="Completing sign-in…" />;
 }

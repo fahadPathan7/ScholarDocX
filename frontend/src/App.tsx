@@ -504,7 +504,7 @@ export function App() {
       )}
 
       <main>
-        <div className="main-head" style={{ position: 'relative', zIndex: 1000 }}>
+        <div className="main-head" style={{ zIndex: 1000 }}>
           <DeepSpaceBanner />
           <header className="topbar" style={{ position: 'relative', zIndex: 1001 }}>
             <div className="banner-content">

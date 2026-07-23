@@ -832,9 +832,41 @@ h2 {
 .section-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* `scroll` (not `auto`) keeps the scrollbar always visible, so content width
+     never changes when items load and the scrollbar would otherwise appear/
+     vanish — preventing the horizontal shift on load/navigation. */
+  overflow-y: scroll;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 111, 115, 0.4) rgba(31, 42, 38, 0.05);
   padding: 0 18px 18px;
+}
+
+/* Custom scrollbar for the primary content scroll surfaces (desktop .section-body
+   and, on smaller screens, .tab-container and html). Mirrors the styling already
+   used in documents-refresh.css so all scrollbars look consistent and never show
+   the OS default. Kept thin (8px) with a soft teal thumb over a pale track. */
+.section-body::-webkit-scrollbar,
+.tab-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.section-body::-webkit-scrollbar-track,
+.tab-container::-webkit-scrollbar-track {
+  background: rgba(31, 42, 38, 0.05);
+  border-radius: 99px;
+}
+
+.section-body::-webkit-scrollbar-thumb,
+.tab-container::-webkit-scrollbar-thumb {
+  background: rgba(31, 111, 115, 0.4);
+  border-radius: 99px;
+}
+
+.section-body::-webkit-scrollbar-thumb:hover,
+.tab-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 111, 115, 0.6);
 }
 
 .pinned-dashboard-list {

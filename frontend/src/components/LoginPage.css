@@ -576,4 +576,29 @@
   transform: scale(0.99);
 }
 
+.auth-google-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.auth-google-btn-error {
+  border-color: rgba(192, 57, 43, 0.3);
+  background: rgba(192, 57, 43, 0.05);
+  color: #c0392b;
+}
+
+.auth-google-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: auth-google-spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes auth-google-spin {
+  to { transform: rotate(360deg); }
+}
+
 

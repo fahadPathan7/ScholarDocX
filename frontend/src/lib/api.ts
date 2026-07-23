@@ -58,9 +58,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch (e) {}
     
     if (response.status === 401) {
-      localStorage.removeItem("scholar_docx_token");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      // SCHOLARDOCX-0169: Only /auth/me is authoritative for auth state.
+      // A 401 from other endpoints during a Render cold-start race can be
+      // transient — wiping the token there logs users out even though
+      // their token is valid. Let AuthContext.initAuth() (which calls
+      // /auth/me) be the single source of truth for clearing/redirecting.
+      if (path === "/auth/me") {
+        localStorage.removeItem("scholar_docx_token");
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }
     }
     if (response.status === 402) {

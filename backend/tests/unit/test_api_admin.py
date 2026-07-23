@@ -268,9 +268,132 @@ def test_plan_source_none_for_free_user():
     assert result["plan_source"] == "none"
 
 
-def test_plan_source_admin_set_for_admin_created_user():
-    """Admin-created user (even on free_user role) → 'admin_set'."""
+def test_plan_source_none_for_admin_created_free_user():
+    """Admin-created free user → 'none'. Free plans are subscription-free
+    regardless of origin or a stale plan_ends_at (SCHOLARDOCX-0170)."""
     row = _user_row(roles=["free_user"], signup_method="admin", plan_ends_at="2026-08-20")
     result = _make_admin_service_with_rows([row]).list_users()[0]
+    assert result["plan_source"] == "none"
+
+
+def test_plan_source_admin_set_for_admin_created_paid_user():
+    """Admin-created user on a PAID tier → 'admin_set' (origin admin)."""
+    row = _user_row(roles=["pro_user"], signup_method="admin", plan_ends_at="2026-08-20")
+    result = _make_admin_service_with_rows([row]).list_users()[0]
     assert result["plan_source"] == "admin_set"
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# SCHOLARDOCX-0170: free plans must not carry an expiration date.
+#
+# update_user_roles / create_user / resolve_plan_request must set
+# plan_ends_at = NULL when the assigned tier is free_user. Paid tiers keep
+# their duration / custom-date behavior. We capture the UPDATE/INSERT params
+# via a mocked connection and assert the plan_ends_at argument.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def _capture_admin_service():
+    """Build an AdminService whose connection records every execute() call.
+
+    Returns (svc, calls) where `calls` is the list of (sql, params) tuples.
+    The Polar-subscription guard SELECT returns a row with no active sub so
+    role updates are allowed; INSERT calls return a cursor with lastrowid.
+    """
+    from app.db.legacy_db import LegacyConnection
+    fake_connection = MagicMock(spec=LegacyConnection)
+    fake_connection.db = MagicMock()
+
+    calls = []
+
+    def _execute(sql, params=()):
+        calls.append((str(sql), params))
+        result = MagicMock()
+        # fetchone returns None by default: this makes both the Polar-guard
+        # SELECT (update_user_roles) and the email-exists SELECT (create_user)
+        # pass through — no active sub, no pre-existing email.
+        result.fetchone.return_value = None
+        # create_user reads cursor.lastrowid.
+        result.lastrowid = 42
+        return result
+
+    fake_connection.execute.side_effect = _execute
+    svc = AdminService(db=fake_connection)
+    return svc, calls
+
+
+def _find_user_update_call(calls):
+    """Return the params tuple of the UPDATE users ... plan_ends_at call."""
+    for sql, params in calls:
+        if "UPDATE users" in sql and "plan_ends_at" in sql:
+            return params
+    raise AssertionError("No UPDATE users with plan_ends_at was executed")
+
+
+def test_update_user_roles_free_plan_sets_no_end_date():
+    """Setting a user's tier to free_user must NULL plan_ends_at."""
+    svc, calls = _capture_admin_service()
+    svc.get_user_details = MagicMock(return_value={"id": 1, "roles": ["free_user"]})
+    svc.update_user_roles(admin_id=2, user_id=1, roles=["free_user"])
+    params = _find_user_update_call(calls)
+    # UPDATE users SET roles=?, plan_started_at=?, plan_ends_at=?, ... WHERE id=?
+    # plan_ends_at is the 3rd positional param.
+    assert params[2] is None, f"free plan must have NULL plan_ends_at, got {params[2]!r}"
+    assert params[1] is not None, "plan_started_at should be set"
+
+
+def test_update_user_roles_paid_plan_sets_end_date():
+    """Regression guard: paid tier still gets a plan_ends_at (duration path)."""
+    svc, calls = _capture_admin_service()
+    svc.get_user_details = MagicMock(return_value={"id": 1, "roles": ["pro_user"]})
+    svc.update_user_roles(admin_id=2, user_id=1, roles=["pro_user"], plan_duration_days=30)
+    params = _find_user_update_call(calls)
+    assert params[2] is not None, "paid plan must have a plan_ends_at"
+
+
+def test_create_user_free_plan_sets_no_end_date():
+    """Admin-created free user must be inserted with plan_ends_at = NULL."""
+    svc, calls = _capture_admin_service()
+    svc.get_user_details = MagicMock(return_value={"id": 42, "roles": ["free_user"]})
+    svc.create_user(
+        admin_id=2,
+        email="free@test.com",
+        password_hash="hash",
+        display_name="Free",
+        roles=["free_user"],
+        plan_duration="1_month",
+    )
+    insert_params = None
+    for sql, params in calls:
+        if "INSERT INTO users" in sql:
+            insert_params = params
+            break
+    assert insert_params is not None, "No INSERT INTO users was executed"
+    # INSERT INTO users (email, password_hash, display_name, roles, is_active,
+    # plan_started_at, plan_ends_at, signup_method) VALUES (?, ?, ?, ?, 1, ?, ?, 'admin')
+    # Bound params in order: email(0), password_hash(1), display_name(2),
+    # roles_json(3), plan_started_at(4), plan_ends_at(5).
+    assert insert_params[5] is None, f"free plan must have NULL plan_ends_at, got {insert_params[5]!r}"
+    assert insert_params[4] is not None, "plan_started_at should be set"
+
+
+def test_create_user_paid_plan_sets_end_date():
+    """Regression guard: admin-created paid tier still gets plan_ends_at."""
+    svc, calls = _capture_admin_service()
+    svc.get_user_details = MagicMock(return_value={"id": 42, "roles": ["pro_user"]})
+    svc.create_user(
+        admin_id=2,
+        email="pro@test.com",
+        password_hash="hash",
+        display_name="Pro",
+        roles=["pro_user"],
+        plan_duration="1_month",
+    )
+    insert_params = None
+    for sql, params in calls:
+        if "INSERT INTO users" in sql:
+            insert_params = params
+            break
+    assert insert_params is not None
+    assert insert_params[5] is not None, "paid plan must have a plan_ends_at"
 

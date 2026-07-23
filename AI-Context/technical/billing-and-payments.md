@@ -143,7 +143,24 @@ purchase (SCHOLARDOCX-0157 C1 regression; do not reintroduce).
 | `polar_cancel_at_period_end` | 1 if `.canceled` was received |
 | `plan_started_at` | Cycle anchor for monthly AI credit allowance |
 | `plan_renews_at` | `current_period_end` while active |
-| `plan_ends_at` | `current_period_end` while scheduled-to-cancel; set on revoke |
+| `plan_ends_at` | `current_period_end` while scheduled-to-cancel; set on revoke. **NULL for free plans** (SCHOLARDOCX-0170) — free plans never expire; only `plan_started_at` is set. |
+
+### Free plans never expire (SCHOLARDOCX-0170)
+A free plan is the `free_user` role. It is subscription-free, so it carries
+**only `plan_started_at`** and `plan_ends_at` is always `NULL`. This applies
+everywhere a free plan is assigned: admin role update
+(`AdminService.update_user_roles`), admin user creation
+(`AdminService.create_user`), and plan-request resolution
+(`AdminService.resolve_plan_request`). Self-registration paths (invite, Google)
+already set `plan_ends_at = NULL`. The Polar revoke webhook is the one
+exception: it sets `plan_ends_at = now` to mark the cancellation boundary, then
+swaps the role to `free_user`.
+
+Correspondingly, `plan_source` (derived at read time in `list_users`) resolves
+to **`none`** ("not subscribed") for any row whose `roles` contains `free_user`,
+regardless of `signup_method` or a stale `plan_ends_at`. The frontend
+`getPlanSource` fallback in `UsersTab.tsx` mirrors this rule. The admin UI hides
+plan-duration / custom-date controls when `free_user` is the selected tier.
 
 New table `polar_processed_events(id, event_id UNIQUE, event_type, processed_at)`
 is the webhook idempotency log.

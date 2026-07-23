@@ -76,16 +76,41 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
-def _frontend_redirect(path: str, **params: str) -> RedirectResponse:
+def _frontend_redirect(path: str, request: Optional[Request] = None, **params: str) -> RedirectResponse:
     """Build a 302 to the frontend origin with optional query params.
 
     All OAuth completion routes land the browser on the frontend, which
     then reads the token/error from the URL and continues client-side.
+
+    The frontend origin is read from ``FRONTEND_ORIGIN``. If unset, it
+    falls back to the ``Origin`` or ``Referer`` header from the request
+    (the browser sends these on the callback redirect). This makes the
+    flow work even if ``FRONTEND_ORIGIN`` isn't configured on Render.
     """
     from urllib.parse import urlencode
-    base = get_settings().frontend_origin.rstrip("/")
+
+    settings = get_settings()
+    base = (settings.frontend_origin or "").rstrip("/")
+
+    # Fallback: derive the frontend origin from the request headers if
+    # FRONTEND_ORIGIN isn't set. The Google callback request won't have
+    # a useful Origin/Referer (it comes from Google), so this mainly
+    # helps the /login route. For the callback, FRONTEND_ORIGIN is
+    # required — log a warning if it's missing.
+    if not base and request:
+        origin = request.headers.get("origin") or ""
+        if origin:
+            base = origin.rstrip("/")
+    if not base:
+        logger.error(
+            "FRONTEND_ORIGIN is not set — cannot redirect to frontend after "
+            "Google OAuth. Set FRONTEND_ORIGIN on Render."
+        )
+        base = "https://scholardocx.onrender.com"
+
     qs = urlencode({k: v for k, v in params.items() if v})
     location = f"{base}{path}" + (f"?{qs}" if qs else "")
+    logger.info("Google OAuth redirecting to: %s", location)
     resp = RedirectResponse(url=location, status_code=status.HTTP_302_FOUND)
     resp.delete_cookie(_STATE_COOKIE)
     return resp
@@ -276,7 +301,7 @@ def google_callback(
     )
     store.legacy_connection.commit()
 
-    return _frontend_redirect("/auth-complete", token=token)
+    return _frontend_redirect("/auth-complete", request=request, token=token)
 
 
 # ---------------------------------------------------------------------------

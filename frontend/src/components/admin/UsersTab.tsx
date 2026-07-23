@@ -118,6 +118,18 @@ const roleTabs = [
 const userTierRoles = ["free_user", "general_user", "pro_user", "max_user"];
 const adminRoleKeys = ["general_admin", "super_admin"];
 
+// Per-tier badge colors so the "User Plan" column is visually distinguishable
+// at a glance. Free is neutral (it's the "not subscribed" identity), and the
+// paid tiers step up through increasingly saturated hues. The class shape
+// mirrors the existing Admin Role badge (bg/text/border) for consistency.
+const planTierBadgeClass: Record<string, string> = {
+  free_user: "bg-slate-100 text-slate-600 border-slate-200/70",
+  general_user: "bg-indigo-50 text-indigo-700 border-indigo-200/60",
+  pro_user: "bg-violet-50 text-violet-700 border-violet-200/60",
+  max_user: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+};
+const defaultPlanTierBadgeClass = "bg-indigo-50 text-indigo-700 border-indigo-200/60";
+
 /** Single-select within a role group: picking another role replaces the previous
  *  one in that group; re-clicking the selected role clears it (so an admin can
  *  still demote/remove a role). Roles outside the group are left untouched. */
@@ -274,6 +286,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       return user.plan_source;
     }
     if (user.polar_subscription_id) return "polar";
+    // Free plans are subscription-free → "none", regardless of origin or a
+    // stale plan_ends_at (SCHOLARDOCX-0170).
+    if (user.roles.includes("free_user")) return "none";
     if (user.roles.some((r) => ["general_user", "pro_user", "max_user"].includes(r)) || user.signup_method === "admin" || Boolean(user.plan_ends_at)) return "admin_set";
     return "none";
   };
@@ -446,10 +461,12 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const handleSaveRoles = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const hasUserRole = editingUser.roles.some((r: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(r));
+      const hasPaidUserRole = editingUser.roles.some((r: string) => ["general_user", "pro_user", "max_user"].includes(r));
       const payload: any = { roles: editingUser.roles };
 
-      if (hasUserRole && editingMode === "user") {
+      // Free plans never expire — only a start date is set server-side, so no
+      // duration / custom-date payload is sent for them (SCHOLARDOCX-0170).
+      if (hasPaidUserRole && editingMode === "user") {
         if (editPlanDuration === "custom") {
           if (!customStartDate || !customEndDate) {
             emitUiError({ title: "Validation Error", message: "Please select both start and end dates for custom duration.", kind: "general" });
@@ -492,14 +509,16 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const hasUserRole = createRoles.some((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role));
+      const hasPaidUserRole = createRoles.some((role) => ["general_user", "pro_user", "max_user"].includes(role));
       const payload: any = {
         email: createEmail,
         password: createPassword,
         display_name: createDisplayName || "User",
         roles: createRoles,
       };
-      if (hasUserRole) {
+      // Free plans never expire — no duration payload is sent for them
+      // (SCHOLARDOCX-0170).
+      if (hasPaidUserRole) {
         if (planDuration === "custom") {
           if (!createCustomStart || !createCustomEnd) {
             emitUiError({ title: "Validation Error", message: "Please select both start and end dates for custom duration.", kind: "general" });
@@ -799,7 +818,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                       {(() => {
                         const userRole = user.roles.find((role) => userTierRoles.includes(role)) || "free_user";
                         return (
-                          <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${planTierBadgeClass[userRole] || defaultPlanTierBadgeClass}`}>
                             {formatRoleName(userRole)}
                           </span>
                         );
@@ -1120,7 +1139,13 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                           </div>
                         )}
 
-                        {editingUser.roles.some((role: string) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && !editingUser.polar_subscription_id && (
+                        {editingUser.roles.includes("free_user") && !editingUser.polar_subscription_id && (
+                          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                            <span className="text-xs font-medium text-slate-600">Free plan has no expiration date — only a start date is recorded.</span>
+                          </div>
+                        )}
+
+                        {editingUser.roles.some((role: string) => ["general_user", "pro_user", "max_user"].includes(role)) && !editingUser.polar_subscription_id && (
                           <div className="pt-3 border-t border-indigo-200">
                             <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                             <div className="flex gap-2">
@@ -1261,7 +1286,12 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                         </label>
                       ))}
                     </div>
-                    {createRoles.some((role) => ["free_user", "general_user", "pro_user", "max_user"].includes(role)) && (
+                    {createRoles.includes("free_user") && (
+                      <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                        <span className="text-xs font-medium text-slate-600">Free plan has no expiration date — only a start date is recorded.</span>
+                      </div>
+                    )}
+                    {createRoles.some((role) => ["general_user", "pro_user", "max_user"].includes(role)) && (
                       <div className="pt-3 border-t border-indigo-200">
                         <label className="block text-xs font-medium text-indigo-800 mb-2">Duration</label>
                         <div className="flex gap-2">

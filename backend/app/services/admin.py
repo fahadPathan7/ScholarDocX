@@ -389,6 +389,7 @@ class AdminService:
             d["roles"] = roles_list
 
             is_admin_account = any(r in ["super_admin", "general_admin"] for r in roles_list)
+            has_free_tier_role = "free_user" in roles_list
             has_paid_tier_role = any(r in ["general_user", "pro_user", "max_user"] for r in roles_list)
             has_polar_link = bool(d.get("polar_customer_id") or d.get("polar_subscription_id"))
 
@@ -412,9 +413,14 @@ class AdminService:
             # plan_source — what currently funds/grants the user's plan:
             #   polar      — active Polar subscription (sub ID present).
             #   admin_set  — plan created/set by admin (paid-tier role, admin signup, or plan duration set).
-            #   none       — self-registered free users without active Polar sub or admin configuration.
+            #   none       — not subscribed: free plans and self-registered users
+            #                without an active Polar sub or admin configuration.
+            # Free plans are subscription-free, so they are always "none"
+            # regardless of origin or any stale plan_ends_at (SCHOLARDOCX-0170).
             if d.get("polar_subscription_id"):
                 d["plan_source"] = "polar"
+            elif has_free_tier_role:
+                d["plan_source"] = "none"
             elif has_paid_tier_role or d.get("signup_method") == "admin" or bool(d.get("plan_ends_at")):
                 d["plan_source"] = "admin_set"
             else:
@@ -557,8 +563,15 @@ class AdminService:
         has_user_role = any(r in ["free_user", "general_user", "pro_user", "max_user"] for r in roles)
 
         if has_user_role:
-            # Use custom dates if provided, otherwise calculate from duration
-            if plan_start_date and plan_end_date:
+            # Free plans are subscription-free and never expire: they only
+            # carry a start date and have no end date (SCHOLARDOCX-0170).
+            is_free_plan = "free_user" in roles
+            if is_free_plan:
+                plan_started_at = datetime.now(timezone.utc).isoformat()
+                plan_ends_at = None
+                audit_details = {"new_roles": roles, "free_plan": True}
+            elif plan_start_date and plan_end_date:
+                # Use custom dates if provided, otherwise calculate from duration
                 plan_started_at = plan_start_date
                 plan_ends_at = plan_end_date
                 audit_details = {"new_roles": roles, "custom_dates": {"start": plan_start_date, "end": plan_end_date}}
@@ -734,13 +747,14 @@ class AdminService:
         roles_json = json.dumps(roles)
         plan_started_at = datetime.now(timezone.utc).isoformat()
 
-        # Calculate plan_ends_at based on plan_duration
-        if plan_duration == "1_month":
-            plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        # Free plans are subscription-free and never expire: they only carry
+        # a start date and have no end date (SCHOLARDOCX-0170).
+        if "free_user" in roles:
+            plan_ends_at = None
         elif plan_duration == "1_quarter":
             plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
         else:
-            # Default to 1 month if invalid value
+            # Default to 1 month for any other paid tier / invalid value
             plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         
         cursor = self.connection.execute(
@@ -939,7 +953,11 @@ class AdminService:
                 # Add requested plan
                 if req["requested_plan"] not in new_roles:
                     new_roles.append(req["requested_plan"])
-                plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days_to_add)).isoformat()
+                # Free plans never expire (SCHOLARDOCX-0170).
+                if req["requested_plan"] == "free_user":
+                    plan_ends_at = None
+                else:
+                    plan_ends_at = (datetime.now(timezone.utc) + timedelta(days=days_to_add)).isoformat()
                 
                 self.connection.execute(
                     "UPDATE ai_token_balances SET subscription_period = 'FORCE_RESET' WHERE user_id = ?",

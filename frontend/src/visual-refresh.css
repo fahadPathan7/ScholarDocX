@@ -2122,6 +2122,32 @@ main {
   transform: translateY(0);
 }
 
+/* Floating (portaled) variant of the credit-usage tooltip. Rendered at
+   document.body so it escapes any ancestor `overflow: hidden` (fixed navbar,
+   topbar, `.top-actions` pill). Position is set inline via JS; here we only
+   reset the in-flow positioning so it honors the inline coordinates. */
+.custom-tooltip.custom-tooltip-floating {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  font-size: 12px;
+}
+
+.custom-tooltip.custom-tooltip-floating::after {
+  /* Arrow points up toward the badge (tooltip is below it). */
+  top: auto;
+  bottom: 100%;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  border-color: transparent transparent #2b3933 transparent;
+}
+
 /* Tab container transition states to prevent unmounting blinks */
 .tab-container {
   flex: 1;

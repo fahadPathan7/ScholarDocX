@@ -1063,42 +1063,40 @@ main > div {
    15. Admin Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original layout/tab/filter portion of this
+   section targeted phantom classes (.admin-view, .admin-layout,
+   .admin-card-grid, .admin-tabs, .admin-nav, .sub-tabs, .user-filter-group,
+   .pill-row, .filter-row). The AdminView root element is id="admin-view-root"
+   with className "profile-page"; the real classes are .admin-tab-strip,
+   .admin-dashboard-stat-grid, .admin-dashboard-activity-grid. The phantom
+   selectors made the layout collapse + tab-wrap overrides completely inert.
+   Rewritten below to target the real classes. The modal rules further down
+   were already live and remain unchanged. */
+
 @media (max-width: 1450px) {
-  .admin-view,
-  .admin-layout,
-  .admin-card-grid {
-    display: flex !important;
-    flex-direction: column !important;
+  #admin-view-root {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .admin-tabs,
-  .admin-nav,
-  .sub-tabs {
+  .admin-dashboard-stat-grid,
+  .admin-dashboard-activity-grid {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* The tab strip already has overflow-x: auto in admin.css; ensure it wraps
+     rather than overflowing its container on narrow viewports. */
+  .admin-tab-strip {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
   }
 
-  .admin-tabs button,
-  .sub-tabs button {
+  .admin-tab-strip button {
     flex-shrink: 0 !important;
-  }
-
-  .user-filter-group,
-  .filter-group,
-  .pill-row,
-  .filter-row {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    width: 100% !important;
-    max-width: 100% !important;
   }
 
   .modal-panel,

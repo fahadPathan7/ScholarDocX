@@ -6,6 +6,7 @@ import { OpportunityDetailDrawer } from "./OpportunityDetailDrawer";
 
 interface OpportunityCardProps {
   opportunity: ScholarshipOpportunity;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
 }
 
@@ -29,7 +30,7 @@ export function nearestDeadlineOf(opportunity: Pick<ScholarshipOpportunity, "dea
     .sort((a, b) => a.date.localeCompare(b.date))[0];
 }
 
-export function OpportunityCard({ opportunity, huntProfile }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onAddToTracker, huntProfile }: OpportunityCardProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const nearestDeadline = nearestDeadlineOf(opportunity);
   const fit = huntProfile ? computeFitScore(huntProfile, opportunity) : null;
@@ -127,6 +128,7 @@ export function OpportunityCard({ opportunity, huntProfile }: OpportunityCardPro
       {drawerOpen && (
         <OpportunityDetailDrawer
           opportunity={opportunity}
+          onAddToTracker={onAddToTracker}
           huntProfile={huntProfile}
           onClose={() => setDrawerOpen(false)}
         />

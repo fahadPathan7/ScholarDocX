@@ -20,6 +20,7 @@ import {
 
 interface OpportunityDetailDrawerProps {
   opportunity: ScholarshipOpportunity;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   onClose: () => void;
 }

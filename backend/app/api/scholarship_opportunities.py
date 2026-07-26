@@ -120,6 +120,7 @@ def upsert_scholarship_opportunity(
         "normalized_url": normalized,
         "sponsor": extracted["sponsor"],
         "degree_levels_json": _dumps(extracted["degree_levels"]),
+        "fields_of_study_json": _dumps(extracted.get("fields_of_study") or []),
         "destinations_json": _dumps(extracted["destination_countries"]),
         "eligible_nationalities_json": _dumps(extracted["eligible_nationalities"]),
         "funding_json": _dumps(extracted["funding"]),
@@ -251,6 +252,7 @@ def _dumps(value: Any) -> str:
 
 _JSON_FIELD_DEFAULTS: Dict[str, Any] = {
     "degree_levels_json": [],
+    "fields_of_study_json": [],
     "destinations_json": [],
     "eligible_nationalities_json": [],
     "funding_json": {},

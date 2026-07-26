@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2, Lock, RefreshCw, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Clock, Loader2, Lock, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import {
   DeepHuntRun,
   scholarshipDeepHuntApi,
 } from "../../lib/scholarshipDeepHuntApi";
-import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
 import { HuntProfile, isHuntProfileComplete } from "../../lib/huntProfile";
 import { OpportunityCard } from "./OpportunityCard";
+import { Modal } from "../Modal";
 import "./deep-hunt.css";
 
 const POLL_INTERVAL_MS = 3000;
@@ -14,7 +14,6 @@ const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 
 interface DeepHuntViewProps {
   onToast: (msg: string) => void;
-  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   canUseDeepHunt: boolean;
   onRequireHuntProfile: () => void;
@@ -39,6 +38,7 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
   const [activeRun, setActiveRun] = useState<DeepHuntRun | null>(null);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [goal, setGoal] = useState("");
   const [degreeLevel, setDegreeLevel] = useState(huntProfile?.degree_level || "");
   const [destinationsText, setDestinationsText] = useState((huntProfile?.destinations || []).join(", "));
@@ -93,6 +93,7 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
     try {
       const data = await scholarshipDeepHuntApi.getRun(run.id);
       setActiveRun(data);
+      setHistoryModalOpen(false);
     } catch (error) {
       onToast("Failed to load that Deep Hunt run.");
     }
@@ -118,6 +119,7 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
         degree_level: degreeLevel.trim() || undefined,
         destinations,
         intake_term: intakeTerm.trim() || undefined,
+        field_of_study: huntProfile?.field_of_study?.trim() || undefined,
       });
       setRuns((prev) => [created, ...prev]);
       setActiveRun(created);
@@ -181,8 +183,22 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
       {canUseDeepHunt && (
         <div className="deep-hunt-launcher">
           <div className="deep-hunt-launcher-header">
-            <Sparkles size={16} />
-            <span>Start a Deep Hunt run</span>
+            <div className="deep-hunt-launcher-title">
+              <Sparkles size={16} />
+              <span>Start a Deep Hunt run</span>
+            </div>
+            {!isLoadingRuns && runs.length > 0 && (
+              <button
+                type="button"
+                className="deep-hunt-history-btn"
+                onClick={() => setHistoryModalOpen(true)}
+                title="View previous searches"
+              >
+                <Clock size={13} />
+                <span>Previous Searches</span>
+                <span className="deep-hunt-history-count">{runs.length}</span>
+              </button>
+            )}
           </div>
           <textarea
             className="deep-hunt-goal-input"
@@ -224,48 +240,56 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
         </div>
       )}
 
-      <div className="deep-hunt-body">
-        <div className="deep-hunt-run-list">
-          {isLoadingRuns ? (
-            <div className="news-loading">
-              <Loader2 className="icon-spin" size={20} />
-              <span>Loading runs...</span>
-            </div>
-          ) : runs.length === 0 ? (
-            <div className="news-empty-state">
-              <p>No Deep Hunt runs yet.</p>
-            </div>
-          ) : (
-            runs.map((run) => (
-              <div
-                key={run.id}
-                className={`deep-hunt-run-row status-${run.status} ${activeRun?.id === run.id ? "active" : ""}`}
-                onClick={() => openRun(run)}
-              >
-                <div className="deep-hunt-run-row-main">
-                  <span className="deep-hunt-run-goal">{run.goal}</span>
-                  <span className={`deep-hunt-status-badge status-${run.status}`}>{run.status}</span>
-                </div>
-                <div className="deep-hunt-run-row-meta">
-                  <span>{run.result_count} found</span>
-                  <span>{new Date(run.created_at).toLocaleString()}</span>
-                </div>
-                <button
-                  type="button"
-                  className="icon-button"
-                  title="Delete run"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(run);
-                  }}
-                >
-                  <Trash2 size={14} />
-                </button>
+      {/* Previous Searches Modal */}
+      {historyModalOpen && (
+        <Modal onClose={() => setHistoryModalOpen(false)} compact>
+          <div className="deep-hunt-history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="deep-hunt-history-modal-header">
+              <div className="deep-hunt-history-modal-title">
+                <Clock size={16} />
+                <span>Previous Searches</span>
+                <span className="deep-hunt-history-count">{runs.length}</span>
               </div>
-            ))
-          )}
-        </div>
+              <button type="button" className="icon-button" onClick={() => setHistoryModalOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="deep-hunt-history-modal-list">
+              {runs.map((run) => (
+                <div
+                  key={run.id}
+                  className={`deep-hunt-run-row status-${run.status} ${activeRun?.id === run.id ? "active" : ""}`}
+                  onClick={() => openRun(run)}
+                >
+                  <div className="deep-hunt-run-row-main">
+                    <span className="deep-hunt-run-goal" data-tooltip={run.goal}>{run.goal}</span>
+                    <div className="deep-hunt-run-row-actions">
+                      <span className={`deep-hunt-status-badge status-${run.status}`}>{run.status}</span>
+                      <button
+                        type="button"
+                        className="deep-hunt-delete-btn"
+                        title="Delete run"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(run);
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="deep-hunt-run-row-meta">
+                    <span>{run.result_count} found</span>
+                    <span>{new Date(run.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
 
+      <div className="deep-hunt-body">
         {activeRun && (
           <div className="deep-hunt-detail">
             <div className="deep-hunt-detail-header">
@@ -330,13 +354,6 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
                 ))
               )}
             </div>
-          </div>
-        )}
-
-        {!activeRun && !isLoadingRuns && runs.length > 0 && (
-          <div className="deep-hunt-detail-empty">
-            <Search size={28} />
-            <p>Select a run to inspect its results.</p>
           </div>
         )}
       </div>

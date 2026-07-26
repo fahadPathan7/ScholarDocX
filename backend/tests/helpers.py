@@ -48,7 +48,10 @@ def cleanup_user_records(connection, user_id: str | None = None, email: str | No
     be idempotent. Production FKs intentionally do not cascade user deletion;
     tests clean their own rows explicitly.
     """
-    connection.db.rollback()
+    if hasattr(connection, "db"):
+        connection.db.rollback()
+    elif hasattr(connection, "rollback"):
+        connection.rollback()
     user_ids: set[str] = set()
     if user_id:
         user_ids.add(user_id)
@@ -75,10 +78,28 @@ def cleanup_user_records(connection, user_id: str | None = None, email: str | No
     ).fetchall()
 
     for uid in user_ids:
+        # SCHOLARDOCX-0173: the dynamic FK walk below is one-level (tables that
+        # reference ``users`` directly). It does NOT follow child->parent chains
+        # like scholarship_opportunities -> scholarship_deep_hunt_runs, and the
+        # catalog order is alphabetical so the run (parent) gets deleted before
+        # its opportunities (child), triggering an FK violation that rolls back
+        # the whole per-user block and orphans the run. Pre-delete the deep-hunt
+        # chain (child first) so the dynamic walk can succeed.
+        connection.execute(
+            "DELETE FROM scholarship_opportunities WHERE user_id = ?",
+            (uid,),
+        )
+        connection.execute(
+            "DELETE FROM scholarship_deep_hunt_runs WHERE user_id = ?",
+            (uid,),
+        )
         for ref in refs:
             table = str(ref["table_name"])
             column = str(ref["column_name"])
             if table == "users":
+                continue
+            if table in {"scholarship_opportunities", "scholarship_deep_hunt_runs"}:
+                # Already deleted above in correct child-first order.
                 continue
             if table == "invite_codes" and column == "created_by":
                 # Invite codes belong to the fixture admin, while other test

@@ -273,7 +273,21 @@ def _install_pipeline_mocks(monkeypatch, service, *, results_by_query, pages_by_
     async def fake_extract(ai_service, *, source_url, source_title, source_snippet):
         return extraction_by_url.get(source_url, _fake_extraction_result(canonical_name=None))
 
+    # SCHOLARDOCX-0173: stub the intent planner + relevance filter so these
+    # pipeline tests stay deterministic regardless of OPENROUTER_API_KEY. The
+    # planner returns the deterministic fallback queries (which the hardcoded
+    # ``results_by_query`` keys already match), and the relevance filter passes
+    # every well-formed item so the accept gate behaves as it did pre-0173.
+    async def fake_plan_queries(run):
+        from app.services.scholarship_deep_hunt import _fallback_queries
+        return _fallback_queries(run), []
+
+    async def fake_relevance_score(goal, opportunities, *, field_synonyms=None, degree_level=None):
+        return [1.0 for _ in opportunities]
+
     monkeypatch.setattr(service, "_tavily_search", fake_search)
+    monkeypatch.setattr(service, "_plan_queries", fake_plan_queries)
+    monkeypatch.setattr(service.relevance_filter, "score", fake_relevance_score)
     monkeypatch.setattr(service.crawler, "fetch", fake_fetch)
     import app.services.scholarship_deep_hunt as deep_hunt_module
 

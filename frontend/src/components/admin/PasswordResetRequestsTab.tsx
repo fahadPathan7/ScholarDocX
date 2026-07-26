@@ -191,7 +191,7 @@ export function PasswordResetRequestsTab({ refreshTrigger }: Props) {
         <div className="w-px bg-slate-200 self-stretch hidden sm:block ml-auto" />
 
         <div className="flex flex-col gap-1.5 pr-2 sm:ml-0 ml-auto justify-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Count</span>
           <div className="flex items-center px-2 py-2">
             <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
               {visibleRequests.length}

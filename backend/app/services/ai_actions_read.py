@@ -260,16 +260,23 @@ def filter_rows_by_value(
         gt, gte, lt, lte, is_true, is_false, is_empty, is_not_empty
     """
     results = []
-    # Determine column type
+    target_column = column_name
     col_type = "text"
     if columns:
-        for col in columns:
-            if isinstance(col, dict) and col.get("name") == column_name:
-                col_type = col.get("type", "text")
-                break
+        matched_col = find_best_column(column_name, columns)
+        if matched_col and isinstance(matched_col, dict):
+            target_column = matched_col.get("name") or column_name
+            col_type = matched_col.get("type", "text")
+        else:
+            for col in columns:
+                if isinstance(col, dict) and col.get("name") == column_name:
+                    col_type = col.get("type", "text")
+                    break
 
     for idx, row in enumerate(rows):
-        cell = row.get(column_name)
+        cell = row.get(target_column)
+        if cell is None and target_column != column_name:
+            cell = row.get(column_name)
         if _matches(cell, value, operator, col_type):
             results.append({"row_index": idx, "row": row})
 
@@ -525,10 +532,10 @@ def execute_search_rows(
 def execute_filter_rows(
     rows: list[dict[str, Any]],
     columns: list[dict[str, Any]],
-    column_name: str | None,
-    column_query: str | None,
-    value: Any,
-    operator: str,
+    column_name: str | None = None,
+    column_query: str | None = None,
+    value: Any = None,
+    operator: str = "equals",
 ) -> dict[str, Any]:
     """Filter rows by column value with semantic column matching."""
     # Resolve column name

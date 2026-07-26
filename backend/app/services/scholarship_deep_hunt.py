@@ -37,6 +37,10 @@ from app.core.config import Settings
 from app.db.legacy_db import legacy_session
 from app.services.advisor_atlas.crawler import PublicCrawler, canonicalize_url
 from app.services.ai import AiService
+from app.services.deep_hunt_query_planner import (
+    DeepHuntQueryPlanner,
+    DeepHuntRelevanceFilter,
+)
 from app.services.scholarship_extraction import scholarship_extraction_service
 from app.services.store import Store
 
@@ -44,10 +48,16 @@ logger = logging.getLogger(__name__)
 
 STAGES = ["planning", "searching", "crawling", "extracting", "completed"]
 
-SEARCH_PASSES = 3
+# SCHOLARDOCX-0173: bumped 3 -> 4 so the intent planner's extra field-specific
+# query (e.g. "computer science" expansion of "cse") isn't truncated away.
+SEARCH_PASSES = 4
 MAX_RESULTS_PER_PASS = 10
 MAX_CRAWL_PAGES = 12
 MAX_EXTRACTIONS = 12
+
+# Relevance floor below which an extracted opportunity is rejected as off-topic
+# (planner LLM verdict <= 0.25, or deterministic heuristic score 0.1).
+RELEVANCE_FLOOR = 0.3
 
 JSON_FIELDS = {"destinations_json", "progress_json"}
 
@@ -77,8 +87,9 @@ class ScholarshipDeepHuntRepository:
             cursor = db.execute(
                 """
                 INSERT INTO scholarship_deep_hunt_runs (
-                    user_id, goal, degree_level, destinations_json, intake_term, progress_json
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    user_id, goal, degree_level, destinations_json, intake_term,
+                    fields_of_study, progress_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
@@ -86,6 +97,7 @@ class ScholarshipDeepHuntRepository:
                     payload.get("degree_level"),
                     _json(payload.get("destinations", [])),
                     payload.get("intake_term"),
+                    payload.get("field_of_study"),
                     _json({"completed": 0, "total": None, "message": "Queued"}),
                 ),
             )
@@ -121,14 +133,16 @@ class ScholarshipDeepHuntRepository:
                     """
                     SELECT * FROM scholarship_opportunities
                     WHERE deep_hunt_run_id = ? AND user_id = ?
-                    ORDER BY updated_at DESC
+                    ORDER BY relevance_score DESC, updated_at DESC
                     """,
                     (run_id, user_id),
                 ).fetchall()
                 # Left as raw rows (JSON columns still encoded); the API layer
                 # applies the same `_with_parsed_fields` helper the plain
                 # Opportunity Library endpoints use, so parsing stays in one
-                # place.
+                # place. SCHOLARDOCX-0173: ordered by the intent filter's
+                # relevance_score so on-topic results surface first, not by
+                # updated_at.
                 result["opportunities"] = [dict(item) for item in opportunities]
             return result
 
@@ -200,15 +214,36 @@ class ScholarshipDeepHuntRepository:
 
     def delete_run(self, run_id: str, user_id: str) -> bool:
         with legacy_session(self.database_url) as db:
-            cursor = db.execute(
+            # Verify ownership first without deleting anything
+            row = db.execute(
+                "SELECT id FROM scholarship_deep_hunt_runs WHERE id = ? AND user_id = ?",
+                (run_id, user_id),
+            ).fetchone()
+            if not row:
+                return False
+            # Cascade: remove linked opportunities before deleting the run
+            # (FK constraint: scholarship_opportunities.deep_hunt_run_id → scholarship_deep_hunt_runs.id)
+            db.execute(
+                "DELETE FROM scholarship_opportunities WHERE deep_hunt_run_id = ?",
+                (run_id,),
+            )
+            db.execute(
                 "DELETE FROM scholarship_deep_hunt_runs WHERE id = ? AND user_id = ?",
                 (run_id, user_id),
             )
             db.commit()
-            return cursor.rowcount > 0
+            return True
 
 
-def _build_queries(run: dict[str, Any]) -> list[str]:
+def _fallback_queries(run: dict[str, Any]) -> list[str]:
+    """Deterministic baseline queries (SCHOLARDOCX-0173 fallback).
+
+    These are the original hard-coded templates: the goal verbatim plus a few
+    suffixes. The intent planner (`DeepHuntQueryPlanner`) improves on them
+    (acronym expansion, facet decomposition) and falls back to these when
+    OpenRouter is unavailable or returns unusable output, so a run never
+    hard-fails on an AI outage.
+    """
     goal = str(run.get("goal") or "").strip()
     facets = []
     if run.get("degree_level"):
@@ -235,7 +270,16 @@ def _build_queries(run: dict[str, Any]) -> list[str]:
     return queries[:SEARCH_PASSES]
 
 
-def _is_acceptable(extracted: dict[str, Any]) -> bool:
+def _is_acceptable(extracted: dict[str, Any], relevance_score: float = 1.0) -> bool:
+    """Well-formedness gate + relevance precondition (SCHOLARDOCX-0173).
+
+    A result must (a) have a canonical name, (b) carry a deadline or funding
+    signal, AND (c) clear the relevance floor so off-topic pages are rejected
+    even when they are well-formed. ``relevance_score`` defaults to 1.0 so
+    callers that pre-date the intent filter (and tests) keep the old behaviour.
+    """
+    if relevance_score < RELEVANCE_FLOOR:
+        return False
     if not extracted.get("canonical_name"):
         return False
     funding = extracted.get("funding") or {}
@@ -249,6 +293,30 @@ class ScholarshipDeepHuntService:
         self.repository = ScholarshipDeepHuntRepository(settings.database_target)
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
+        # SCHOLARDOCX-0173: intent-aware query planning + relevance filtering,
+        # so Deep Hunt results match the user's goal instead of leaning
+        # entirely on raw Tavily output. Both fall back deterministically.
+        self.query_planner = DeepHuntQueryPlanner(settings)
+        self.relevance_filter = DeepHuntRelevanceFilter(settings)
+
+    async def _plan_queries(self, run: dict[str, Any]) -> tuple[list[str], list[str]]:
+        """Ask the intent planner for diverse, acronym-expanded queries.
+
+        Returns ``(queries, field_synonyms)``. The synonyms feed the
+        relevance filter's deterministic fallback so field matching still
+        works even when the relevance LLM call later fails.
+        """
+        goal = str(run.get("goal") or "").strip()
+        fallback = _fallback_queries(run)
+        plan = await self.query_planner.plan(
+            goal,
+            degree_level=run.get("degree_level"),
+            destinations=run.get("destinations") or [],
+            intake_term=run.get("intake_term"),
+            field_of_study=run.get("fields_of_study"),
+            fallback_queries=fallback,
+        )
+        return plan["queries"][:SEARCH_PASSES], plan.get("field_synonyms") or []
 
     async def run(self, run_id: str, user_id: str) -> None:
         run = self.repository.get_run(run_id, user_id, include_opportunities=False)
@@ -275,7 +343,9 @@ class ScholarshipDeepHuntService:
                 started_at=datetime.now(timezone.utc).isoformat(),
                 progress_json={"completed": 0, "total": None, "message": "Planning search passes"},
             )
-            queries = _build_queries(run)
+            # SCHOLARDOCX-0173: intent-aware query planning (acronym expansion,
+            # facet decomposition) with a deterministic fallback.
+            queries, field_synonyms = await self._plan_queries(run)
 
             if self.repository.is_cancelled(run_id):
                 return
@@ -349,7 +419,11 @@ class ScholarshipDeepHuntService:
                     "message": f"Extracting structured details from {len(extraction_targets)} sources",
                 },
             )
-            accepted = 0
+            # SCHOLARDOCX-0173: collect all extractions first, then run one
+            # batched relevance filter so on-topic results surface and off-topic
+            # pages are rejected before persistence. field_synonyms (from the
+            # query planner) feed the filter's deterministic fallback.
+            extracted_items: list[dict[str, Any]] = []
             for index, item in enumerate(extraction_targets):
                 if self.repository.is_cancelled(run_id):
                     return
@@ -369,24 +443,63 @@ class ScholarshipDeepHuntService:
                     source_title=source_title,
                     source_snippet=source_snippet,
                 )
-                if _is_acceptable(extracted):
-                    upsert_scholarship_opportunity(
-                        store,
-                        source="deep_hunt",
-                        extracted=extracted,
-                        source_url=source_url,
-                        fallback_title=source_title,
-                        extra_fields={"deep_hunt_run_id": run_id},
-                    )
-                    accepted += 1
+                extracted_items.append({
+                    "extracted": extracted,
+                    "source_url": source_url,
+                    "source_title": source_title,
+                    "tavily_score": float(item.get("score") or 0),
+                })
                 self.repository.update_run(
                     run_id,
                     progress_json={
                         "completed": index + 1,
                         "total": len(extraction_targets),
-                        "message": f"Extracted {index + 1} of {len(extraction_targets)} sources ({accepted} accepted)",
+                        "message": f"Extracted {index + 1} of {len(extraction_targets)} sources",
                     },
                 )
+
+            # Relevance filter: one batched LLM call judges every extracted
+            # opportunity against the goal's field/degree/funding intent.
+            # Falls back to a deterministic synonym-keyword match on any error,
+            # so relevance is always enforced even without AI.
+            well_formed = [e["extracted"] for e in extracted_items if e["extracted"].get("canonical_name")]
+            relevance_scores: list[float] = []
+            if well_formed:
+                relevance_scores = await self.relevance_filter.score(
+                    str(run.get("goal") or ""),
+                    well_formed,
+                    field_synonyms=field_synonyms,
+                    degree_level=run.get("degree_level"),
+                )
+            # Map scores back onto the full extracted_items list (non-well-formed
+            # items get 0 so they fail the relevance floor below).
+            score_by_url: dict[str, float] = {}
+            score_iter = iter(relevance_scores)
+            for entry in extracted_items:
+                ext = entry["extracted"]
+                if ext.get("canonical_name"):
+                    score_by_url[entry["source_url"]] = next(score_iter, 0.0)
+                else:
+                    score_by_url[entry["source_url"]] = 0.0
+
+            accepted = 0
+            for entry in extracted_items:
+                extracted = entry["extracted"]
+                source_url = entry["source_url"]
+                relevance = score_by_url.get(source_url, 0.0)
+                if _is_acceptable(extracted, relevance_score=relevance):
+                    upsert_scholarship_opportunity(
+                        store,
+                        source="deep_hunt",
+                        extracted=extracted,
+                        source_url=source_url,
+                        fallback_title=entry["source_title"],
+                        extra_fields={
+                            "deep_hunt_run_id": run_id,
+                            "relevance_score": round(relevance, 3),
+                        },
+                    )
+                    accepted += 1
 
             if self.repository.is_cancelled(run_id):
                 return

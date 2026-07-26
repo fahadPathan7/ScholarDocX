@@ -81,6 +81,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     throw new Error(message || `Request failed: ${response.status}`);
   }
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return null as T;
+  }
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return null as T;
+  }
   return response.json();
 }
 

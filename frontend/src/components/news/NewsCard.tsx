@@ -10,7 +10,6 @@ interface NewsCardProps {
   onAnalyze?: (article: NewsArticle) => void;
   isAnalyzing?: boolean;
   analyzedOpportunity?: ScholarshipOpportunity;
-  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   isNew?: boolean;
 }
@@ -20,7 +19,6 @@ export function NewsCard({
   onAnalyze,
   isAnalyzing = false,
   analyzedOpportunity,
-  onAddToTracker,
   huntProfile,
   isNew = false,
 }: NewsCardProps) {
@@ -66,7 +64,6 @@ export function NewsCard({
         {analyzedOpportunity && (
           <OpportunityCard
             opportunity={analyzedOpportunity}
-            onAddToTracker={onAddToTracker}
             huntProfile={huntProfile}
           />
         )}

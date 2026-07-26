@@ -75,7 +75,8 @@ export function target(ctx: AskAiContext): string {
     : `the sheet "${ctx.sheetName}"`;
   const projectPart = `(project_id: "${ctx.projectId}")`;
   const namePart = ctx.projectName ? ` in project "${ctx.projectName}" ` : " ";
-  return `${sheetPart}${namePart}${projectPart}`;
+  const rowsPart = `[rows: ${ctx.rowCount}]`;
+  return `${sheetPart}${namePart}${projectPart} ${rowsPart}`;
 }
 
 

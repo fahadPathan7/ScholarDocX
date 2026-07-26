@@ -1,11 +1,11 @@
-import React from "react";
-import { CalendarClock, ShieldCheck, Target } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarClock, ChevronRight, ShieldCheck, Target } from "lucide-react";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
 import { HuntProfile, computeFitScore } from "../../lib/huntProfile";
+import { OpportunityDetailDrawer } from "./OpportunityDetailDrawer";
 
 interface OpportunityCardProps {
   opportunity: ScholarshipOpportunity;
-  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
 }
 
@@ -29,85 +29,108 @@ export function nearestDeadlineOf(opportunity: Pick<ScholarshipOpportunity, "dea
     .sort((a, b) => a.date.localeCompare(b.date))[0];
 }
 
-export function OpportunityCard({ opportunity, onAddToTracker, huntProfile }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, huntProfile }: OpportunityCardProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const nearestDeadline = nearestDeadlineOf(opportunity);
   const fit = huntProfile ? computeFitScore(huntProfile, opportunity) : null;
 
   return (
-    <div className="opportunity-card">
-      <div className="opportunity-card-header">
-        <h4>{opportunity.canonical_name}</h4>
-        {opportunity.sponsor && <span className="opportunity-sponsor">{opportunity.sponsor}</span>}
-      </div>
-
-      {fit && (
-        <div className="opportunity-fit-row">
-          <span className={`opportunity-fit-badge fit-${fit.score >= 70 ? "high" : fit.score >= 40 ? "medium" : "low"}`}>
-            <Target size={13} />
-            {fit.score}% fit
-          </span>
-          {fit.matches.map((m, i) => (
-            <span key={`match-${i}`} className="opportunity-fit-chip fit-chip-match">✓ {m}</span>
-          ))}
-          {fit.mismatches.map((m, i) => (
-            <span key={`mismatch-${i}`} className="opportunity-fit-chip fit-chip-mismatch">✗ {m}</span>
-          ))}
+    <>
+      <div
+        className="opportunity-card"
+        role="button"
+        tabIndex={0}
+        onClick={() => setDrawerOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setDrawerOpen(true);
+          }
+        }}
+        aria-label={`View details for ${opportunity.canonical_name}`}
+      >
+        <div className="opportunity-card-header">
+          <h4>{opportunity.canonical_name}</h4>
+          {opportunity.sponsor && <span className="opportunity-sponsor">{opportunity.sponsor}</span>}
         </div>
-      )}
 
-      <div className="opportunity-badges">
-        {nearestDeadline && (
-          <span className={`opportunity-deadline-chip tone-${deadlineTone(nearestDeadline.date)}`}>
-            <CalendarClock size={13} />
-            {nearestDeadline.label ? `${nearestDeadline.label}: ` : "Deadline: "}
-            {nearestDeadline.date}
-          </span>
+        {fit && (
+          <div className="opportunity-fit-row">
+            <span className={`opportunity-fit-badge fit-${fit.score >= 70 ? "high" : fit.score >= 40 ? "medium" : "low"}`}>
+              <Target size={13} />
+              {fit.score}% fit
+            </span>
+            {fit.matches.map((m, i) => (
+              <span key={`match-${i}`} className="opportunity-fit-chip fit-chip-match">✓ {m}</span>
+            ))}
+            {fit.mismatches.map((m, i) => (
+              <span key={`mismatch-${i}`} className="opportunity-fit-chip fit-chip-mismatch">✗ {m}</span>
+            ))}
+          </div>
         )}
-        {opportunity.funding.coverage && (
-          <span className={`opportunity-funding-badge coverage-${opportunity.funding.coverage}`}>
-            <ShieldCheck size={13} />
-            {opportunity.funding.coverage === "full" ? "Full funding" : "Partial funding"}
-          </span>
+
+        <div className="opportunity-badges">
+          {nearestDeadline && (
+            <span className={`opportunity-deadline-chip tone-${deadlineTone(nearestDeadline.date)}`}>
+              <CalendarClock size={13} />
+              {nearestDeadline.label ? `${nearestDeadline.label}: ` : "Deadline: "}
+              {nearestDeadline.date}
+            </span>
+          )}
+          {opportunity.funding.coverage && (
+            <span className={`opportunity-funding-badge coverage-${opportunity.funding.coverage}`}>
+              <ShieldCheck size={13} />
+              {opportunity.funding.coverage === "full" ? "Full funding" : "Partial funding"}
+            </span>
+          )}
+        </div>
+
+        {opportunity.funding.notes && (
+          <p className="opportunity-funding-notes">{opportunity.funding.notes}</p>
         )}
-      </div>
 
-      {opportunity.funding.notes && (
-        <p className="opportunity-funding-notes">{opportunity.funding.notes}</p>
-      )}
-
-      {(opportunity.degree_levels.length > 0 || opportunity.destinations.length > 0) && (
-        <p className="opportunity-eligibility-summary">
-          {opportunity.degree_levels.join(", ")}
-          {opportunity.degree_levels.length > 0 && opportunity.destinations.length > 0 ? " · " : ""}
-          {opportunity.destinations.join(", ")}
-        </p>
-      )}
-
-      {opportunity.requirements.length > 0 && (
-        <ul className="opportunity-requirements">
-          {opportunity.requirements.slice(0, 5).map((req, idx) => (
-            <li key={idx}>{req}</li>
-          ))}
-        </ul>
-      )}
-
-      {opportunity.deadlines.length === 0 &&
-        opportunity.degree_levels.length === 0 &&
-        opportunity.requirements.length === 0 && (
-          <p className="opportunity-empty-note">
-            No structured details could be verified from this page.
+        {(opportunity.degree_levels.length > 0 || opportunity.destinations.length > 0 || opportunity.fields_of_study.length > 0) && (
+          <p className="opportunity-eligibility-summary">
+            {opportunity.degree_levels.join(", ")}
+            {opportunity.degree_levels.length > 0 && opportunity.destinations.length > 0 ? " · " : ""}
+            {opportunity.destinations.join(", ")}
+            {opportunity.fields_of_study.length > 0 && (
+              <>
+                {opportunity.degree_levels.length > 0 || opportunity.destinations.length > 0 ? " · " : ""}
+                {opportunity.fields_of_study.join(", ")}
+              </>
+            )}
           </p>
         )}
 
-      {onAddToTracker && (
-        <button
-          type="button"
-          className="button-secondary opportunity-add-to-tracker-btn"
-          onClick={() => onAddToTracker(opportunity)}
-        >
-          {opportunity.linked_sheet_id ? "Update in tracker" : "Add to tracker"}
-        </button>
+        {opportunity.requirements.length > 0 && (
+          <ul className="opportunity-requirements">
+            {opportunity.requirements.slice(0, 5).map((req, idx) => (
+              <li key={idx}>{req}</li>
+            ))}
+          </ul>
+        )}
+
+        {opportunity.deadlines.length === 0 &&
+          opportunity.degree_levels.length === 0 &&
+          opportunity.requirements.length === 0 && (
+            <p className="opportunity-empty-note">
+              No structured details could be verified from this page.
+            </p>
+          )}
+
+        <span className="opportunity-view-details">
+          View details <ChevronRight size={13} />
+        </span>
+      </div>
+
+      {drawerOpen && (
+        <OpportunityDetailDrawer
+          opportunity={opportunity}
+          huntProfile={huntProfile}
+          onClose={() => setDrawerOpen(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

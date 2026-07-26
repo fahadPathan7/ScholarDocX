@@ -50,6 +50,12 @@ def project_ref(raw_action: dict[str, Any], previous_actions: list[dict[str, Any
     created = [action for action in previous_actions if action.get("type") == "create_project"]
     if len(created) == 1:
         return {"project_name": created[0]["project"]["name"]}
+    for prev in reversed(previous_actions):
+        if prev.get("project_id"):
+            return {"project_id": prev.get("project_id")}
+        prev_pname = clean(prev.get("project_name") or (prev.get("project") or {}).get("name"))
+        if prev_pname:
+            return {"project_name": prev_pname}
     return {}
 
 
@@ -62,6 +68,12 @@ def sheet_ref(raw_action: dict[str, Any], previous_actions: list[dict[str, Any]]
     created = [action for action in previous_actions if action.get("type") == "create_sheet"]
     if len(created) == 1:
         return {"sheet_name": created[0]["sheet"]["name"]}
+    for prev in reversed(previous_actions):
+        if prev.get("sheet_id"):
+            return {"sheet_id": prev.get("sheet_id")}
+        prev_sname = clean(prev.get("sheet_name") or (prev.get("sheet") or {}).get("name"))
+        if prev_sname:
+            return {"sheet_name": prev_sname}
     return {}
 
 

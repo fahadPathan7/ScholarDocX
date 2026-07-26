@@ -182,14 +182,31 @@ export function SplashScreen({ message }: { message: string }) {
             </div>
           ) : (
             <>
-              <div className="splash-loader-container">
-                <div className="splash-loader">
-                  <div className="splash-loader-bar" />
+              {message.startsWith("Failed") || message.includes("404") || message.includes("500") || message.toLowerCase().includes("error") ? (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-left max-w-lg w-full mb-4 backdrop-blur-xl">
+                  <div className="flex items-center gap-2.5 text-rose-300 text-sm font-semibold mb-2">
+                    <AlertCircle size={18} className="text-rose-400 shrink-0" />
+                    <span>Connection Error</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mb-3">{message}</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    Retry Connection
+                  </button>
                 </div>
-                <p className="splash-message-secondary">
-                  The first load after a period of inactivity may take up to a minute while the server wakes up.
-                </p>
-              </div>
+              ) : (
+                <div className="splash-loader-container">
+                  <div className="splash-loader">
+                    <div className="splash-loader-bar" />
+                  </div>
+                  <p className="splash-message-secondary">
+                    The first load after a period of inactivity may take up to a minute while the server wakes up.
+                  </p>
+                </div>
+              )}
 
               <div className="splash-tips-container">
                 <span className="splash-tips-label">Tip</span>

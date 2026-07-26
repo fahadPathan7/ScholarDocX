@@ -8,6 +8,7 @@ export type CreateDeepHuntRunRequest = {
   degree_level?: string;
   destinations?: string[];
   intake_term?: string;
+  field_of_study?: string;
 };
 
 export type DeepHuntRun = {

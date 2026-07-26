@@ -357,15 +357,22 @@ def _resolve_fks(store: Store, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _find_by_name(store: Store, table: str, field: str, name: str) -> dict[str, Any]:
+    all_records = store.list_records(table)
     matches = [
-        record for record in store.list_records(table)
+        record for record in all_records
         if _clean(record.get(field)).lower() == name.lower()
     ]
+    if not matches:
+        matches = [
+            record for record in all_records
+            if name.lower() in _clean(record.get(field)).lower()
+            or _clean(record.get(field)).lower() in name.lower()
+        ]
     if not matches:
         raise ValueError(f"No {table.replace('_', ' ')} record named '{name}' was found.")
     if len(matches) > 1:
         raise ValueError(
-            f"Multiple {table.replace('_', ' ')} records named '{name}'; please make the name unique first."
+            f"Multiple {table.replace('_', ' ')} records matching '{name}'; please refine the name."
         )
     return matches[0]
 

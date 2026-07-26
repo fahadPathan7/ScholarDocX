@@ -30,6 +30,9 @@ class CreateDeepHuntRunRequest(BaseModel):
     degree_level: Optional[str] = Field(default=None, max_length=80)
     destinations: list[str] = Field(default_factory=list, max_length=10)
     intake_term: Optional[str] = Field(default=None, max_length=100)
+    # SCHOLARDOCX-0173: field of study from the Hunt Profile so the intent
+    # planner + relevance filter can match results to the user's field.
+    field_of_study: Optional[str] = Field(default=None, max_length=120)
 
     @field_validator("goal")
     @classmethod
@@ -39,7 +42,7 @@ class CreateDeepHuntRunRequest(BaseModel):
             raise ValueError("Goal must be at least 3 characters.")
         return normalized
 
-    @field_validator("degree_level", "intake_term")
+    @field_validator("degree_level", "intake_term", "field_of_study")
     @classmethod
     def normalize_optional_text(cls, value: Optional[str]) -> Optional[str]:
         if value is None:

@@ -23,6 +23,7 @@ export interface ScholarshipOpportunity {
   status: "Found" | "Vetting" | "Applying" | "Submitted" | "Result";
   sponsor: string | null;
   degree_levels: string[];
+  fields_of_study: string[];
   destinations: string[];
   eligible_nationalities: string[];
   funding: { coverage?: "full" | "partial"; notes?: string | null };

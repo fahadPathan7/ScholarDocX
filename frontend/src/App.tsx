@@ -253,7 +253,7 @@ export function App() {
     api
       .post<RecordMap>("/workspace/init", {})
       .then(refresh)
-      .catch((error) => setMessage(error.message));
+      .catch((error) => setMessage(error?.message || "Failed to connect to backend server. Please check backend status."));
 
 
     // Global instant custom tooltips replacing browser-native title delay

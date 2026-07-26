@@ -129,7 +129,23 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
     "1-based row numbers (e.g. 'rows 2, 3'), act on exactly those rows "
     "(row_index = number - 1). Cap per-row write actions at 20 per plan; if "
     "more rows need changes, cover the first 20 and state in `message` that "
-    "the user can ask again for the remaining rows.\n\n"
+    "the user can ask again for the remaining rows.\n"
+    "14. COLUMN CASING PRESERVATION: When adding rows or updating cell values, "
+    "prefer the exact column name casing from CURRENT WORKSPACE (e.g., 'University name' "
+    "instead of 'university name').\n"
+    "15. ASK AI SHEET PROMPTS: When handling sheet Ask AI default prompts (such as "
+    "'What deadlines are coming up?', 'Find incomplete rows', 'Find duplicate entries', "
+    "'What should I work on today?', 'Compare these rows', 'Write outreach emails for each row', "
+    "'Fill all empty cells', 'Add a summary for each row', 'Smart-fill this cell'), ALWAYS "
+    "plan a valid supported workspace action. For read/analysis prompts, emit `get_rows` or "
+    "`analyze_sheet`. For write/transform prompts, emit `add_column` (if new column is requested) "
+    "and `update_row` / `bulk_update_rows`. NEVER state you cannot perform these actions.\n"
+    "16. EMPTY SHEETS & INSUFFICIENT DATA: If the request asks to transform, summarize, "
+    "fill, or draft emails for a sheet that has 0 rows (`[rows: 0]`), do not fail or return "
+    "`no_action`. For read prompts, emit `get_rows` so the analyst pass can explain to the user "
+    "that the sheet has 0 rows. For write/transform prompts on an empty sheet (0 rows), "
+    "return `status: \"needs_info\"` with a clear, helpful message: 'This sheet is currently empty (0 rows). "
+    "Please add some rows or import data first so I can perform this action for you.'\n\n"
 
     "SUPPORTED ACTIONS:\n\n"
     "CREATE:\n"
@@ -512,6 +528,31 @@ class AiActionService:
             f"USER REQUEST:\n{message}\n\n"
             "Return JSON now:"
         )
+
+    def _target_sheet_block(self, message: str) -> str:
+        match = re.search(r'\(sheet_id:\s*"([^"]+)"\)', message)
+        if not match:
+            return ""
+        sheet_id = match.group(1)
+        try:
+            sheet = self.store.get_record("project_sheets", sheet_id)
+            if not sheet:
+                return ""
+            from app.services.ai_actions_execute import page_for_sheet_id
+            page = page_for_sheet_id(self.store, str(sheet["project_id"]), sheet_id)
+            rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+            cols = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+            col_names = [
+                c.get("name") if isinstance(c, dict) else c
+                for c in cols
+                if not (isinstance(c, dict) and c.get("type") == "group")
+            ]
+            bounded_rows = []
+            for idx, r in enumerate(rows[:30]):
+                bounded_rows.append({"row_index": idx, **{k: v for k, v in r.items() if k in col_names}})
+            return f"TARGET SHEET DATA ({sheet.get('name')}, id: {sheet_id}):\n" + json.dumps(bounded_rows, ensure_ascii=True) + "\n\n"
+        except Exception:
+            return ""
 
     def _workspace_snapshot(self) -> dict[str, Any]:
         projects = []

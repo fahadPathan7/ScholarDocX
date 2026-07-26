@@ -601,7 +601,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
       </div>
 
       <div className="flex flex-col gap-4 bg-slate-100/50 p-3.5 rounded-xl border border-slate-200/50 shrink-0">
-        {/* Row 1: Role, Join Method, Selection */}
+        {/* Row 1: Role, Plan, Count */}
         <div className="flex flex-wrap items-center justify-between gap-4 w-full">
           {/* Role Filters Group */}
           <div className="flex flex-col gap-1.5 flex-1 min-w-[280px]">
@@ -627,16 +627,16 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
           <div className="w-px bg-slate-200/80 h-8 hidden lg:block self-center" />
 
-          {/* Join Method Subgroup */}
+          {/* Plan Subgroup */}
           <div className="flex flex-col gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Join Method</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan</span>
             <div className="flex items-center gap-1.5">
-              {joinMethodTabs.map((tab) => {
-                const isActive = joinMethodFilter === tab.id;
+              {planTabs.map((tab) => {
+                const isActive = planStatusFilter === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setJoinMethodFilter(tab.id)}
+                    onClick={() => setPlanStatusFilter(tab.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
                       ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
@@ -652,9 +652,9 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
           <div className="w-px bg-slate-200/80 h-8 hidden lg:block self-center" />
 
-          {/* Selection Subgroup */}
+          {/* Count Subgroup */}
           <div className="flex flex-col gap-1.5 justify-center shrink-0">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Selection</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Count</span>
             <div className="flex items-center px-2 py-1">
               <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
                 {filteredUsers.length}
@@ -665,18 +665,18 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
         <div className="h-px bg-slate-200/80 w-full" />
 
-        {/* Row 2: Plan, Status, Plan Source */}
+        {/* Row 2: Join Method, Status, Plan Source */}
         <div className="flex flex-wrap gap-4 items-center w-full">
-          {/* Plan Subgroup */}
+          {/* Join Method Subgroup */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Plan</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Join Method</span>
             <div className="flex items-center gap-1.5">
-              {planTabs.map((tab) => {
-                const isActive = planStatusFilter === tab.id;
+              {joinMethodTabs.map((tab) => {
+                const isActive = joinMethodFilter === tab.id;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setPlanStatusFilter(tab.id)}
+                    onClick={() => setJoinMethodFilter(tab.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition-all rounded-lg border border-transparent ${isActive
                       ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/50"
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"

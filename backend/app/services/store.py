@@ -138,6 +138,8 @@ TABLE_COLUMNS = {
         "status",
         "sponsor",
         "degree_levels_json",
+        "fields_of_study_json",
+        "relevance_score",
         "destinations_json",
         "eligible_nationalities_json",
         "funding_json",
@@ -275,6 +277,9 @@ class Store:
             stmt = stmt.where(model.user_id == self.current_user_id)
         obj = self.db.scalar(stmt)
         if obj is None:
+            self.db.expire_all()
+            obj = self.db.scalar(stmt)
+        if obj is None:
             raise LookupError(f"{table} record not found")
         return self._row(obj)
 
@@ -288,9 +293,17 @@ class Store:
         
         model = MODEL_MAP[table]
         obj = model(**{k: self._normalize(v) for k, v in data.items()})
-        self.db.add(obj)
-        self.db.commit()
-        self.db.refresh(obj)
+        try:
+            self.db.add(obj)
+            self.db.flush()
+            self.db.commit()
+        except Exception as err:
+            self.db.rollback()
+            raise err
+        try:
+            self.db.refresh(obj)
+        except Exception:
+            pass
         return self._row(obj)
 
     def update_record(self, table: str, record_id: str, payload: dict[str, Any]) -> dict:
@@ -300,6 +313,9 @@ class Store:
         if self.current_user_id and "user_id" in TABLE_COLUMNS.get(table, {}):
             stmt = stmt.where(model.user_id == self.current_user_id)
         obj = self.db.scalar(stmt)
+        if not obj:
+            self.db.expire_all()
+            obj = self.db.scalar(stmt)
         if not obj:
             raise LookupError(f"{table} record not found")
             
@@ -316,7 +332,10 @@ class Store:
             obj.updated_at = func.current_timestamp()
             
         self.db.commit()
-        self.db.refresh(obj)
+        try:
+            self.db.refresh(obj)
+        except Exception:
+            pass
         return self._row(obj)
 
     def delete_record(self, table: str, record_id: str) -> dict:
@@ -843,8 +862,11 @@ class Store:
         return {str(row["project_id"]): int(row["n"]) for row in rows}
 
     def create_sheet_with_defaults(self, project_id: str, name: str) -> dict:
-        project = self.get_record("projects", project_id)
-        degree_type = (project.get("degree_type") or "phd").lower()
+        try:
+            project = self.get_record("projects", project_id)
+            degree_type = (project.get("degree_type") or "phd").lower()
+        except LookupError:
+            degree_type = "phd"
 
         # Build columns list dynamically based on degree type
         columns = get_columns_for_degree(degree_type)
@@ -885,22 +907,31 @@ class Store:
                 {"name": "LOR3", "type": "file", "group": "Attachments"},
             ]
 
-        for attach in attachments:
-            columns.append(attach)
-
-        sheet = self.create_record("project_sheets", {"project_id": project_id, "name": name})
-        page = self.create_record(
-            "project_pages",
-            {
-                "project_id": project_id,
-                "sheet_id": sheet["id"],
-                "name": name,
-                "columns_json": columns,
-                "rows_json": [],
-                "email_config_json": None,
-            },
+        from uuid import uuid4
+        sheet_obj = models.ProjectSheets(
+            id=str(uuid4()),
+            project_id=project_id,
+            name=name,
+            user_id=self.current_user_id,
         )
-        return {"sheet": sheet, "page": page}
+        page_obj = models.ProjectPages(
+            id=str(uuid4()),
+            project_id=project_id,
+            sheet_id=sheet_obj.id,
+            name=name,
+            columns_json=json.dumps(columns, ensure_ascii=True),
+            rows_json=json.dumps([], ensure_ascii=True),
+            user_id=self.current_user_id,
+        )
+        try:
+            self.db.add(sheet_obj)
+            self.db.add(page_obj)
+            self.db.flush()
+            self.db.commit()
+        except Exception as err:
+            self.db.rollback()
+            raise err
+        return {"sheet": self._row(sheet_obj), "page": self._decode_page(self._row(page_obj))}
 
     def render_template(self, template_id: str, variables: dict[str, Any]) -> dict:
         template = self.get_record("email_templates", template_id)
@@ -954,7 +985,13 @@ class Store:
             return dict(obj._mapping)
         if hasattr(obj, "keys"):
             return dict(obj)
-        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        res = {}
+        for c in obj.__table__.columns:
+            try:
+                res[c.name] = getattr(obj, c.name)
+            except Exception:
+                res[c.name] = obj.__dict__.get(c.name)
+        return res
 
     def _decode_page(self, row: Any) -> dict:
         data = dict(row)

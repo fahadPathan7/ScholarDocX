@@ -1314,10 +1314,497 @@
   align-self: flex-start;
 }
 
+/* "View details" affordance shown at the bottom of an opportunity card; the
+   whole card is clickable (opens the detail drawer), this just signals it. */
+.opportunity-view-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2f6d7a;
+}
+
+/* Make the whole opportunity card feel clickable now that it opens a detail
+   drawer (SCHOLARDOCX-0173 follow-up). Hover hints the affordance. */
+.opportunity-card {
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 10px;
+  margin-inline: -6px;
+  padding-inline: 6px;
+}
+
+.opportunity-card:hover {
+  background: rgba(47, 109, 122, 0.04);
+}
+
+.opportunity-card:focus-visible {
+  outline: 2px solid rgba(47, 109, 122, 0.45);
+  outline-offset: 2px;
+}
+
 .news-analyze-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Opportunity detail drawer (mirrors the Advisor Dossier drawer pattern) */
+
+.opp-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(14, 39, 39, 0.45);
+  backdrop-filter: blur(5px);
+}
+
+.opp-drawer {
+  width: min(720px, calc(100vw - 24px));
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 22px 0 0 22px;
+  background: #f8fbf9;
+  box-shadow: -24px 0 60px rgba(14, 45, 43, 0.24);
+}
+
+.opp-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(42, 99, 94, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.opp-drawer-identity {
+  min-width: 0;
+}
+
+.opp-drawer-eyebrow {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2f6d7a;
+  margin-bottom: 4px;
+}
+
+.opp-drawer-identity h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #17201d;
+  line-height: 1.25;
+}
+
+.opp-drawer-identity p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #70827f;
+}
+
+.opp-drawer-identity a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f4f5a;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.opp-drawer-identity a:hover {
+  text-decoration: underline;
+}
+
+.opp-drawer-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(47, 109, 122, 0.08);
+  color: #1f4f5a;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.opp-drawer-close:hover {
+  background: rgba(47, 109, 122, 0.16);
+}
+
+.opp-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.opp-drawer-fit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(47, 109, 122, 0.05);
+  border: 1px solid rgba(47, 109, 122, 0.1);
+}
+
+.opp-drawer-fit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.opp-drawer-fit-badge.fit-high {
+  background: rgba(56, 163, 127, 0.15);
+  color: #2f7d74;
+}
+
+.opp-drawer-fit-badge.fit-medium {
+  background: rgba(217, 154, 61, 0.15);
+  color: #c98828;
+}
+
+.opp-drawer-fit-badge.fit-low {
+  background: rgba(196, 68, 68, 0.12);
+  color: #a13636;
+}
+
+.opp-drawer-fit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opp-drawer-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #46534d;
+}
+
+/* Collapsible "Extraction confidence" block — sits last in the drawer and
+   starts collapsed (SCHOLARDOCX-0173 follow-up). Its summary mirrors the
+   section-heading look so it reads as a peer heading. */
+.opp-drawer-confidence-details {
+  border-top: 1px dashed rgba(47, 109, 122, 0.18);
+  padding-top: 14px;
+}
+
+.opp-drawer-confidence-details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #46534d;
+  user-select: none;
+}
+
+.opp-drawer-confidence-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.opp-drawer-confidence-details > summary::after {
+  content: "▸";
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #70827f;
+  transition: transform 0.15s ease;
+}
+
+.opp-drawer-confidence-details[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.opp-drawer-confidence-details[open] > summary {
+  margin-bottom: 10px;
+}
+
+.opp-drawer-muted {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: #70827f;
+  margin: 0;
+}
+
+.opp-drawer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opp-drawer-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(47, 109, 122, 0.08);
+  color: #1f4f5a;
+  border: 1px solid rgba(47, 109, 122, 0.12);
+}
+
+.opp-drawer-fit-chips .opp-drawer-chip.chip-match {
+  background: rgba(56, 163, 127, 0.12);
+  color: #2f7d74;
+  border-color: rgba(56, 163, 127, 0.2);
+}
+
+.opp-drawer-fit-chips .opp-drawer-chip.chip-mismatch {
+  background: rgba(196, 68, 68, 0.1);
+  color: #a13636;
+  border-color: rgba(196, 68, 68, 0.18);
+}
+
+.opp-drawer-deadlines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opp-drawer-deadline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(47, 109, 122, 0.08);
+  color: #1f4f5a;
+  border: 1px solid rgba(47, 109, 122, 0.15);
+}
+
+.opp-drawer-deadline-chip.tone-urgent {
+  background: rgba(196, 68, 68, 0.12);
+  color: #a13636;
+  border-color: rgba(196, 68, 68, 0.2);
+}
+
+.opp-drawer-deadline-chip.tone-warning {
+  background: rgba(217, 154, 61, 0.15);
+  color: #c98828;
+  border-color: rgba(217, 154, 61, 0.25);
+}
+
+.opp-drawer-deadline-chip.tone-past {
+  background: rgba(101, 117, 109, 0.1);
+  color: #65756d;
+}
+
+.opp-drawer-past-deadlines {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: #70827f;
+}
+
+.opp-drawer-past-deadlines summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.opp-drawer-past-deadlines ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.opp-drawer-funding {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opp-drawer-coverage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.opp-drawer-coverage.coverage-full {
+  background: rgba(56, 163, 127, 0.12);
+  color: #2f7d74;
+  border: 1px solid rgba(56, 163, 127, 0.2);
+}
+
+.opp-drawer-coverage.coverage-partial {
+  background: rgba(217, 154, 61, 0.1);
+  color: #c98828;
+  border: 1px solid rgba(217, 154, 61, 0.2);
+}
+
+.opp-drawer-funding p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.opp-drawer-requirements {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.opp-drawer-confidence {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.opp-drawer-confidence > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.opp-drawer-confidence dt {
+  font-size: 0.82rem;
+  color: #46534d;
+  text-transform: capitalize;
+}
+
+.opp-drawer-confidence dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex: 1;
+  max-width: 60%;
+}
+
+.opp-drawer-confidence-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(47, 109, 122, 0.12);
+  overflow: hidden;
+}
+
+.opp-drawer-confidence-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38a37f, #2f6d7a);
+}
+
+.opp-drawer-confidence-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2f6d7a;
+  min-width: 34px;
+  text-align: right;
+}
+
+.opp-drawer-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1f4f5a;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.opp-drawer-source-link:hover {
+  text-decoration: underline;
+}
+
+.opp-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(42, 99, 94, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.opp-drawer-status {
+  font-size: 0.8rem;
+  color: #70827f;
+}
+
+.opp-drawer-status strong {
+  color: #1f4f5a;
+}
+
+.opp-drawer-track-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .opp-drawer {
+    width: 100vw;
+    border-radius: 0;
+  }
+
+  .opp-drawer-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .opp-drawer-track-btn {
+    justify-content: center;
+  }
 }
 
 /* Catalog */

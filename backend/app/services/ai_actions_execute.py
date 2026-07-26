@@ -25,51 +25,106 @@ from app.services.ai_actions_read import (
 
 def resolve_project(store, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     if action.get("project_id"):
-        return store.get_record("projects", str(action["project_id"]))
-    project_name = clean(action.get("project_name"))
-    if project_name:
-        ref = refs["projects"].get(project_name.lower())
+        pid = str(action["project_id"])
+        for ref_proj in refs.get("projects", {}).values():
+            if str(ref_proj.get("id")) == pid:
+                return ref_proj
+        return store.get_record("projects", pid)
+    
+    pname = clean(action.get("project_name"))
+    if pname:
+        ref = refs.get("projects", {}).get(pname.lower())
         if ref:
             return ref
-        matches = [project for project in store.list_records("projects") if project.get("name", "").lower() == project_name.lower()]
+    elif refs.get("latest_project"):
+        return refs["latest_project"]
+    
+    projects = store.list_records("projects")
+    if pname:
+        matches = [p for p in projects if (p.get("name") or "").lower() == pname.lower()]
+        if len(matches) == 1:
+            return matches[0]
+        matches = [p for p in projects if pname.lower() in (p.get("name") or "").lower() or (p.get("name") or "").lower() in pname.lower()]
         if len(matches) == 1:
             return matches[0]
         if len(matches) > 1:
-            raise ValueError(f"Multiple projects named {project_name}; open the target project and try again.")
-    if refs.get("latest_project"):
-        return refs["latest_project"]
-    raise ValueError("Project not found. Please provide an existing project name.")
+            raise ValueError(f"Multiple projects matching {pname}; provide the project id.")
+    if projects:
+        return projects[0]
+    raise ValueError("No project found. Please create a project first.")
 
 
 def resolve_page(store, project_id: str, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     if action.get("sheet_id"):
-        sheet = store.get_record("project_sheets", str(action["sheet_id"]))
-        project_id = str(sheet["project_id"])
+        sheet_id = str(action["sheet_id"])
+        ref_page = refs.get("pages", {}).get((str(project_id), sheet_id))
+        if ref_page:
+            return ref_page
+        if refs.get("latest_page") and str(refs["latest_page"].get("sheet_id") or "") == sheet_id:
+            return refs["latest_page"]
+        return page_for_sheet_id(store, str(project_id), sheet_id, refs)
+
     sheet_name = clean(action.get("sheet_name"))
     if sheet_name:
-        ref = refs["sheets"].get((project_id, sheet_name.lower()))
+        ref = refs.get("sheets", {}).get((project_id, sheet_name.lower()))
         if ref:
-            return page_for_sheet_id(store, project_id, ref["sheet"]["id"])
+            sheet_id = str(ref["sheet"]["id"])
+            return page_for_sheet_id(store, project_id, sheet_id, refs)
     elif refs.get("latest_sheet"):
         latest = refs["latest_sheet"]
-        return page_for_sheet_id(store, str(latest["sheet"]["project_id"]), str(latest["sheet"]["id"]))
+        sheet_id = str(latest["sheet"]["id"])
+        return page_for_sheet_id(store, str(latest["sheet"]["project_id"]), sheet_id, refs)
 
     summary = store.project_summary(project_id)
+    sheets = summary.get("sheets", [])
     pages = summary.get("pages", [])
-    if action.get("sheet_id"):
-        matches = [page for page in pages if str(page.get("sheet_id") or "") == str(action["sheet_id"])]
-    else:
-        matches = [page for page in pages if page.get("name", "").lower() == sheet_name.lower()]
-    if len(matches) == 1:
-        return matches[0]
-    if len(matches) > 1:
-        raise ValueError(f"Multiple sheets named {sheet_name}; provide the sheet id.")
+
+    if sheet_name:
+        matched_sheets = [s for s in sheets if s.get("name", "").lower() == sheet_name.lower()]
+        if len(matched_sheets) == 1:
+            return page_for_sheet_id(store, project_id, str(matched_sheets[0]["id"]), refs)
+
+        matches = [p for p in pages if (p.get("name") or "").lower() == sheet_name.lower()]
+        if len(matches) == 1:
+            return matches[0]
+
+        matched_sheets = [
+            s for s in sheets
+            if sheet_name.lower() in s.get("name", "").lower()
+            or s.get("name", "").lower() in sheet_name.lower()
+        ]
+        if len(matched_sheets) == 1:
+            return page_for_sheet_id(store, project_id, str(matched_sheets[0]["id"]), refs)
+
+        matches = [
+            p for p in pages
+            if sheet_name.lower() in (p.get("name") or "").lower()
+            or (p.get("name") or "").lower() in sheet_name.lower()
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1 or len(matched_sheets) > 1:
+            raise ValueError(f"Multiple sheets matching {sheet_name}; provide the sheet id.")
+
+    if pages:
+        return pages[0]
+
     raise ValueError("Sheet not found. Please provide an existing sheet name.")
 
 
-def page_for_sheet_id(store, project_id: str, sheet_id: str) -> dict:
+def page_for_sheet_id(store, project_id: str, sheet_id: str, refs: dict[str, Any] | None = None) -> dict:
+    if refs:
+        ref_page = refs.get("pages", {}).get((str(project_id), str(sheet_id)))
+        if ref_page:
+            return ref_page
+        latest = refs.get("latest_page")
+        if latest and str(latest.get("sheet_id") or "") == str(sheet_id):
+            return latest
     summary = store.project_summary(project_id)
     for page in summary.get("pages", []):
+        if str(page.get("sheet_id") or "") == str(sheet_id):
+            return page
+    for page in store.list_records("project_pages"):
         if str(page.get("sheet_id") or "") == str(sheet_id):
             return page
     raise ValueError("Sheet page not found.")
@@ -79,7 +134,27 @@ def row_for_columns(row: dict[str, Any], column_names: list[str]) -> dict[str, A
     cleaned = clean_row(row)
     if not column_names:
         return cleaned
-    return {key: value for key, value in cleaned.items() if key in column_names}
+    col_map = {col.lower(): col for col in column_names}
+    res = {}
+    for key, value in cleaned.items():
+        matched_col = col_map.get(key.lower())
+        if matched_col:
+            res[matched_col] = value
+        elif key in column_names:
+            res[key] = value
+    return res
+
+
+def normalize_row_updates(updates: dict[str, Any], column_names: list[str]) -> dict[str, Any]:
+    if not column_names or not updates:
+        return updates
+    col_map = {col.lower(): col for col in column_names}
+    normalized = {}
+    for key, val in updates.items():
+        matched_col = col_map.get(key.lower())
+        target_key = matched_col if matched_col else key
+        normalized[target_key] = val
+    return normalized
 
 
 def _enforce_sheet_limits(svc, project_id: str) -> None:
@@ -97,16 +172,21 @@ def _enforce_sheet_limits(svc, project_id: str) -> None:
 def execute_create_project(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     svc.enforce("total_projects", 1)
     project = svc.store.create_record("projects", action["project"])
-    svc.store.create_record(
-        "notifications",
-        {
-            "project_id": project["id"],
-            "title": f"Project created: {project['name']}",
-            "notification_type": "project",
-            "body": "Created by Lumi from a confirmed AI action.",
-        },
-    )
-    refs["projects"][project["name"].lower()] = project
+    try:
+        svc.store.create_record(
+            "notifications",
+            {
+                "project_id": project["id"],
+                "title": f"Project created: {project['name']}",
+                "notification_type": "project",
+                "body": "Created by Lumi from a confirmed AI action.",
+            },
+        )
+    except Exception:
+        pass
+    pname = (project.get("name") or "").lower()
+    if pname:
+        refs["projects"][pname] = project
     refs["latest_project"] = project
     return {"type": "create_project", "project": project}
 
@@ -115,8 +195,14 @@ def execute_create_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> d
     project = resolve_project(svc.store, action, refs)
     _enforce_sheet_limits(svc, project["id"])
     result = svc.store.create_sheet_with_defaults(project["id"], action["sheet"]["name"])
-    refs["sheets"][(project["id"], result["sheet"]["name"].lower())] = result
+    sname = (result.get("sheet", {}).get("name") or "").lower()
+    if sname:
+        refs["sheets"][(project["id"], sname)] = result
     refs["latest_sheet"] = result
+    if "pages" not in refs:
+        refs["pages"] = {}
+    refs["pages"][(str(project["id"]), str(result["sheet"]["id"]))] = result["page"]
+    refs["latest_page"] = result["page"]
     return {"type": "create_sheet", "project": project, "sheet": result["sheet"], "page": result["page"]}
 
 
@@ -142,6 +228,10 @@ def execute_add_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
         page["id"],
         {"columns_json": columns, "rows_json": rows},
     )
+    if "pages" not in refs:
+        refs["pages"] = {}
+    refs["pages"][(str(project["id"]), str(updated.get("sheet_id") or page.get("sheet_id")))] = updated
+    refs["latest_page"] = updated
     return {"type": "add_rows", "project": project, "page": updated, "row_count": len(new_rows)}
 
 
@@ -195,12 +285,24 @@ def execute_update_row(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
     if row_index < 0 or row_index >= len(rows):
         raise ValueError(f"Row index {row_index} is out of range")
 
-    rows[row_index].update(action.get("updates", {}))
+    column_names = [
+        col.get("name") if isinstance(col, dict) else col
+        for col in columns
+        if not (isinstance(col, dict) and col.get("type") == "group")
+    ]
+    norm_updates = normalize_row_updates(action.get("updates", {}), column_names)
+    rows[row_index].update(norm_updates)
     updated = svc.store.update_record(
         "project_pages",
         page["id"],
         {"columns_json": columns, "rows_json": rows},
     )
+    if "pages" not in refs:
+        refs["pages"] = {}
+    sid = str(updated.get("sheet_id") or page.get("sheet_id") or "")
+    if sid:
+        refs["pages"][(str(project["id"]), sid)] = updated
+    refs["latest_page"] = updated
     return {"type": "update_row", "project": project, "page": updated, "row_index": row_index}
 
 
@@ -261,6 +363,12 @@ def execute_add_column(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
         page["id"],
         {"columns_json": columns, "rows_json": rows},
     )
+    if "pages" not in refs:
+        refs["pages"] = {}
+    sid = str(updated.get("sheet_id") or page.get("sheet_id") or "")
+    if sid:
+        refs["pages"][(str(project["id"]), sid)] = updated
+    refs["latest_page"] = updated
     return {"type": "add_column", "project": project, "page": updated, "column_name": column_name}
 
 
@@ -289,22 +397,23 @@ def execute_add_group(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict
 def execute_pin_project(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     pin_type = action.get("pin_type", "sidebar")
-    if pin_type == "sidebar":
-        updated = svc.store.update_record("projects", project["id"], {"pinned_sidebar": True})
-    else:
-        updated = svc.store.update_record("projects", project["id"], {"pinned_dashboard": True})
+    field = "pinned_to_dashboard" if pin_type == "dashboard" else "is_pinned"
+    updated = svc.store.update_record("projects", project["id"], {field: 1})
     return {"type": "pin_project", "project": updated, "pin_type": pin_type}
 
 
 def execute_pin_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
-    page = resolve_page(svc.store, project["id"], action, refs)
-    sheet_id = page.get("sheet_id")
+    sheet_name = clean(action.get("sheet_name"))
+    sheets = svc.store.list_records("project_sheets")
+    matched = [s for s in sheets if str(s.get("project_id")) == str(project["id"]) and (s.get("name") or "").lower() == (sheet_name or "").lower()]
+    sheet_id = matched[0]["id"] if matched else None
+    if not sheet_id:
+        page = resolve_page(svc.store, project["id"], action, refs)
+        sheet_id = page.get("sheet_id") or page.get("id")
     pin_type = action.get("pin_type", "sidebar")
-    if pin_type == "sidebar":
-        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_sidebar": True})
-    else:
-        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_dashboard": True})
+    field = "pinned_to_dashboard" if pin_type == "dashboard" else "is_pinned"
+    updated = svc.store.update_record("project_sheets", sheet_id, {field: 1})
     return {"type": "pin_sheet", "sheet": updated, "project": project, "pin_type": pin_type}
 
 
@@ -312,16 +421,58 @@ def execute_add_to_dashboard(svc, action: dict[str, Any], refs: dict[str, Any]) 
     item_type = action.get("item_type")
     if item_type == "project":
         project = resolve_project(svc.store, action, refs)
-        updated = svc.store.update_record("projects", project["id"], {"pinned_dashboard": True})
+        updated = svc.store.update_record("projects", project["id"], {"pinned_to_dashboard": 1})
         return {"type": "add_to_dashboard", "item_type": "project", "project": updated}
     elif item_type == "sheet":
         project = resolve_project(svc.store, action, refs)
-        page = resolve_page(svc.store, project["id"], action, refs)
-        sheet_id = page.get("sheet_id")
-        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_dashboard": True})
+        sheet_id = action.get("sheet_id")
+        sheet_name = clean(action.get("sheet_name"))
+        if not sheet_id and sheet_name:
+            ref = refs.get("sheets", {}).get((str(project["id"]), sheet_name.lower())) or refs.get("sheets", {}).get((project.get("name", "").lower(), sheet_name.lower()))
+            if ref:
+                sheet_id = ref.get("sheet", {}).get("id") or ref.get("id")
+        if not sheet_id and sheet_name:
+            sheets = svc.store.list_records("project_sheets")
+            matched = [s for s in sheets if str(s.get("project_id")) == str(project["id"]) and (s.get("name") or "").lower() == sheet_name.lower()]
+            sheet_id = matched[0]["id"] if matched else None
+        if not sheet_id:
+            page = resolve_page(svc.store, project["id"], action, refs)
+            sheet_id = page.get("sheet_id")
+        if not sheet_id:
+            raise ValueError(f"Sheet '{sheet_name}' not found for project")
+        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_to_dashboard": 1})
         return {"type": "add_to_dashboard", "item_type": "sheet", "sheet": updated, "project": project}
     else:
         raise ValueError(f"Unsupported item_type for add_to_dashboard: {item_type}")
+
+
+def execute_remove_from_dashboard(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
+    item_type = action.get("item_type")
+    if item_type == "project":
+        project = resolve_project(svc.store, action, refs)
+        updated = svc.store.update_record("projects", project["id"], {"pinned_to_dashboard": 0})
+        return {"type": "remove_from_dashboard", "item_type": "project", "project": updated}
+    elif item_type == "sheet":
+        project = resolve_project(svc.store, action, refs)
+        sheet_id = action.get("sheet_id")
+        sheet_name = clean(action.get("sheet_name"))
+        if not sheet_id and sheet_name:
+            ref = refs.get("sheets", {}).get((str(project["id"]), sheet_name.lower())) or refs.get("sheets", {}).get((project.get("name", "").lower(), sheet_name.lower()))
+            if ref:
+                sheet_id = ref.get("sheet", {}).get("id") or ref.get("id")
+        if not sheet_id and sheet_name:
+            sheets = svc.store.list_records("project_sheets")
+            matched = [s for s in sheets if str(s.get("project_id")) == str(project["id"]) and (s.get("name") or "").lower() == sheet_name.lower()]
+            sheet_id = matched[0]["id"] if matched else None
+        if not sheet_id:
+            page = resolve_page(svc.store, project["id"], action, refs)
+            sheet_id = page.get("sheet_id")
+        if not sheet_id:
+            raise ValueError(f"Sheet '{sheet_name}' not found for project")
+        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_to_dashboard": 0})
+        return {"type": "remove_from_dashboard", "item_type": "sheet", "sheet": updated, "project": project}
+    else:
+        raise ValueError("remove_from_dashboard requires item_type")
 
 
 def execute_get_projects(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
@@ -394,13 +545,26 @@ def execute_bulk_update_rows(svc, action: dict[str, Any], refs: dict[str, Any]) 
     filter_value = action.get("filter_value")
     updates = action["updates"]
 
+    column_names = [
+        col.get("name") if isinstance(col, dict) else col
+        for col in columns
+        if not (isinstance(col, dict) and col.get("type") == "group")
+    ]
+    norm_updates = normalize_row_updates(updates, column_names)
+
     matched = filter_rows_by_value(rows, filter_column, filter_value, "equals", columns)
     for entry in matched:
         row_idx = entry["row_index"]
-        for key, val in updates.items():
+        for key, val in norm_updates.items():
             rows[row_idx][key] = val
 
-    svc.store.update_record("project_pages", page["id"], {"rows_json": rows})
+    updated = svc.store.update_record("project_pages", page["id"], {"rows_json": rows})
+    if "pages" not in refs:
+        refs["pages"] = {}
+    sid = str(updated.get("sheet_id") or page.get("sheet_id") or "")
+    if sid:
+        refs["pages"][(str(project["id"]), sid)] = updated
+    refs["latest_page"] = updated
     return {"type": "bulk_update_rows", "project": project, "updated_count": len(matched),
             "filter_column": filter_column, "filter_value": filter_value}
 
@@ -445,28 +609,40 @@ def execute_unpin_project(svc, action: dict[str, Any], refs: dict[str, Any]) -> 
 
 def execute_unpin_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
-    page = resolve_page(svc.store, project["id"], action, refs)
+    sheet_name = clean(action.get("sheet_name"))
+    sheets = svc.store.list_records("project_sheets")
+    matched = [s for s in sheets if str(s.get("project_id")) == str(project["id"]) and (s.get("name") or "").lower() == (sheet_name or "").lower()]
+    sheet_id = matched[0]["id"] if matched else None
+    if not sheet_id:
+        page = resolve_page(svc.store, project["id"], action, refs)
+        sheet_id = page.get("sheet_id") or page.get("id")
     pin_type = action.get("pin_type", "sidebar")
     updates: dict[str, Any] = {}
     if pin_type == "dashboard":
         updates["pinned_to_dashboard"] = 0
     else:
         updates["is_pinned"] = 0
-    svc.store.update_record("project_sheets", page["sheet_id"], updates)
-    return {"type": "unpin_sheet", "project": project, "pin_type": pin_type}
+    updated = svc.store.update_record("project_sheets", sheet_id, updates)
+    return {"type": "unpin_sheet", "sheet": updated, "project": project, "pin_type": pin_type}
 
 
 def execute_remove_from_dashboard(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     item_type = action.get("item_type")
     if item_type == "project":
         project = resolve_project(svc.store, action, refs)
-        svc.store.update_record("projects", project["id"], {"pinned_to_dashboard": 0})
-        return {"type": "remove_from_dashboard", "item_type": "project", "project": project}
+        updated = svc.store.update_record("projects", project["id"], {"pinned_to_dashboard": 0})
+        return {"type": "remove_from_dashboard", "item_type": "project", "project": updated}
     elif item_type == "sheet":
         project = resolve_project(svc.store, action, refs)
-        page = resolve_page(svc.store, project["id"], action, refs)
-        svc.store.update_record("project_sheets", page["sheet_id"], {"pinned_to_dashboard": 0})
-        return {"type": "remove_from_dashboard", "item_type": "sheet", "project": project}
+        sheet_name = clean(action.get("sheet_name"))
+        sheets = svc.store.list_records("project_sheets")
+        matched = [s for s in sheets if str(s.get("project_id")) == str(project["id"]) and (s.get("name") or "").lower() == (sheet_name or "").lower()]
+        sheet_id = matched[0]["id"] if matched else None
+        if not sheet_id:
+            page = resolve_page(svc.store, project["id"], action, refs)
+            sheet_id = page.get("sheet_id") or page.get("id")
+        updated = svc.store.update_record("project_sheets", sheet_id, {"pinned_to_dashboard": 0})
+        return {"type": "remove_from_dashboard", "item_type": "sheet", "sheet": updated, "project": project}
     else:
         raise ValueError("remove_from_dashboard requires item_type")
 
@@ -505,10 +681,10 @@ def execute_filter_rows_action(svc, action: dict[str, Any], refs: dict[str, Any]
     page = resolve_page(svc.store, project["id"], action, refs)
     rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
     columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    col_query = action.get("column_query") or action.get("column_name")
     result = execute_filter_rows(
         rows, columns,
-        column_name=None,
-        column_query=action.get("column_query"),
+        column_query=col_query,
         value=action.get("value"),
         operator=action.get("operator", "equals"),
     )

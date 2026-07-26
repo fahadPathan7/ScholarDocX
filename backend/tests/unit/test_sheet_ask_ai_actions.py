@@ -37,24 +37,28 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def service_and_sheet():
     """Fresh project + sheet + status column for each test; cleaned up after."""
+    import uuid
     initialize_database(_DATABASE_URL)
     engine = get_engine(_DATABASE_URL)
     session = sessionmaker(bind=engine)()
     store = Store(session)
     svc = AiActionService(Settings(), store)
 
+    unique_proj_name = f"AskAiProbeProj_{uuid.uuid4().hex[:8]}"
+    unique_sheet_name = f"AskAiProbeSheet_{uuid.uuid4().hex[:8]}"
+
     # Create project + sheet, then add a Status column + sample rows.
-    svc.execute(
+    res = svc.execute(
         {"status": "needs_confirmation", "actions": [
-            {"type": "create_project", "project": {"name": "AskAiProbeProj"}},
-            {"type": "create_sheet", "project_name": "AskAiProbeProj", "sheet": {"name": "AskAiProbeSheet"}},
-            {"type": "add_column", "project_name": "AskAiProbeProj", "sheet_name": "AskAiProbeSheet",
+            {"type": "create_project", "project": {"name": unique_proj_name}},
+            {"type": "create_sheet", "project_name": unique_proj_name, "sheet": {"name": unique_sheet_name}},
+            {"type": "add_column", "project_name": unique_proj_name, "sheet_name": unique_sheet_name,
              "column": {"name": "Status", "type": "select"}},
-            {"type": "add_column", "project_name": "AskAiProbeProj", "sheet_name": "AskAiProbeSheet",
+            {"type": "add_column", "project_name": unique_proj_name, "sheet_name": unique_sheet_name,
              "column": {"name": "Funding", "type": "number"}},
-            {"type": "add_column", "project_name": "AskAiProbeProj", "sheet_name": "AskAiProbeSheet",
+            {"type": "add_column", "project_name": unique_proj_name, "sheet_name": unique_sheet_name,
              "column": {"name": "Deadline", "type": "date"}},
-            {"type": "add_rows", "project_name": "AskAiProbeProj", "sheet_name": "AskAiProbeSheet",
+            {"type": "add_rows", "project_name": unique_proj_name, "sheet_name": unique_sheet_name,
              "rows": [
                  {"Status": "Applied", "Funding": "30000"},
                  {"Status": "Applied", "Funding": "50000"},
@@ -63,23 +67,26 @@ def service_and_sheet():
         ]}
     )
 
-    projects = [p for p in store.list_records("projects") if p["name"] == "AskAiProbeProj"]
-    sheets = [s for s in store.list_records("project_sheets") if s["name"] == "AskAiProbeSheet"]
-    project_id = str(projects[0]["id"])
-    sheet_id = str(sheets[0]["id"])
+    project_id = str(res["results"][0]["project"]["id"])
+    sheet_id = str(res["results"][1]["sheet"]["id"])
 
     yield svc, store, project_id, sheet_id
 
-    # Cleanup
+    # Post-clean
     try:
-        svc.execute(
-            {"status": "needs_confirmation", "actions": [
-                {"type": "delete_project", "project_id": project_id}
-            ]}
-        )
+        session.rollback()
+        for page in store.list_records("project_pages"):
+            if str(page.get("project_id")) == project_id:
+                store.delete_record("project_pages", page["id"])
+        for sheet in store.list_records("project_sheets"):
+            if str(sheet.get("project_id")) == project_id:
+                store.delete_record("project_sheets", sheet["id"])
+        store.delete_record("projects", project_id)
+        session.commit()
     except Exception:
-        pass
-    session.close()
+        session.rollback()
+    finally:
+        session.close()
 
 
 def _rows(store, sheet_id):

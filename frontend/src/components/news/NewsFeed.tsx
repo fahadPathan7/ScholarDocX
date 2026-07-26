@@ -16,7 +16,6 @@ interface NewsFeedProps {
   onAnalyze?: (article: NewsArticle) => void;
   analyzingUrl?: string | null;
   opportunitiesByUrl?: Record<string, ScholarshipOpportunity>;
-  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   newArticleIds?: Set<string>;
 }
@@ -32,7 +31,6 @@ export function NewsFeed({
   onAnalyze,
   analyzingUrl,
   opportunitiesByUrl,
-  onAddToTracker,
   huntProfile,
   newArticleIds,
 }: NewsFeedProps) {
@@ -73,7 +71,6 @@ export function NewsFeed({
                 onAnalyze={onAnalyze}
                 isAnalyzing={analyzingUrl === article.link}
                 analyzedOpportunity={opportunitiesByUrl?.[article.link]}
-                onAddToTracker={onAddToTracker}
                 huntProfile={huntProfile}
                 isNew={!!newArticleIds?.has(article.article_id)}
               />

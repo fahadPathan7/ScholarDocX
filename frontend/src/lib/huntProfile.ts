@@ -96,11 +96,83 @@ function normalizedLevelSet(levels: string[]): Set<string> {
   return set;
 }
 
-/** Pure, provider-free fit score (planbook Phase 3): level, destination,
- * deadline feasibility, and funding coverage. No network calls. */
+// Field-of-study synonym groups (SCHOLARDOCX-0173). Used by computeFitScore so
+// "CSE" matches "computer science"/"computer engineering"/"software
+// engineering" and vice-versa. Kept compact — the backend planner emits a
+// richer per-query synonym list; this is the client-side fallback for cards.
+const FIELD_SYNONYM_GROUPS: Record<string, string[]> = {
+  "computer science": ["computer science", "computer engineering", "computing", "cs", "cse", "software engineering", "artificial intelligence", "ai", "machine learning", "data science"],
+  "computer engineering": ["computer engineering", "ce", "computer science", "cs", "cse", "electrical engineering"],
+  "electrical engineering": ["electrical engineering", "ee", "electronics"],
+  "mechanical engineering": ["mechanical engineering", "mechatronics"],
+  "civil engineering": ["civil engineering", "construction"],
+  business: ["business", "business administration", "mba", "management", "finance"],
+  economics: ["economics", "finance", "economy"],
+  biology: ["biology", "biological sciences", "biotechnology", "life sciences"],
+  physics: ["physics", "applied physics"],
+  mathematics: ["mathematics", "math", "statistics", "applied mathematics"],
+  chemistry: ["chemistry", "chemical engineering"],
+};
+
+/** Normalize one field string to lowercase alphanumerics for matching. */
+function normalizeField(field: string): string {
+  return field.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/** Word tokens of a field string, e.g. "Classics" -> {"classics"}. Used so
+ * "cs" does NOT match "classics" (raw substring matching did — "cs" is in
+ * "classics"). SCHOLARDOCX-0173. */
+function fieldTokens(field: string): Set<string> {
+  return new Set(normalizeField(field).split(" ").filter(Boolean));
+}
+
+/** True iff any synonym token set shares a token with any field token set, OR a
+ * multi-word synonym (>2 chars) is a full phrase substring of a field or
+ * vice-versa. Guards short abbreviations ("cs","ai","me") from leaking into
+ * unrelated words. */
+function fieldsOverlap(synonyms: string[], fields: string[]): boolean {
+  const synPhrases = synonyms.map((s) => s.toLowerCase().trim()).filter(Boolean);
+  const fldPhrases = fields.map((f) => f.toLowerCase().trim()).filter(Boolean);
+  for (const s of synPhrases) {
+    for (const f of fldPhrases) {
+      // Require BOTH phrases longer than 2 chars before allowing phrase
+      // substring matching; otherwise short abbreviations ("cs","ai","me")
+      // leak into unrelated words ("cs" is in "classics", "ai" in "brain").
+      if (Math.min(s.length, f.length) > 2 && (s.includes(f) || f.includes(s))) return true;
+    }
+  }
+  const synTokens = new Set<string>();
+  for (const s of synPhrases) for (const t of fieldTokens(s)) synTokens.add(t);
+  for (const f of fldPhrases) {
+    for (const t of fieldTokens(f)) {
+      if (synTokens.has(t)) return true;
+    }
+  }
+  return false;
+}
+
+/** Return all lowercase match tokens for a profile field of study: the raw
+ * text plus any synonyms from the built-in groups. Empty array when nothing
+ * useful could be derived (caller treats as "unstated"). */
+function fieldSynonyms(fieldOfStudy: string): string[] {
+  const raw = fieldOfStudy.trim();
+  if (!raw) return [];
+  const normalized = normalizeField(raw);
+  const tokens = new Set<string>([normalized]);
+  for (const variants of Object.values(FIELD_SYNONYM_GROUPS)) {
+    if (fieldsOverlap([raw], [...variants])) {
+      for (const v of variants) tokens.add(v.toLowerCase());
+    }
+  }
+  return [...tokens].filter(Boolean);
+}
+
+/** Pure, provider-free fit score (planbook Phase 3): level, field of study,
+ * destination, deadline feasibility, and funding coverage. No network calls.
+ * The field-of-study dimension was added in SCHOLARDOCX-0173. */
 export function computeFitScore(
   profile: HuntProfile,
-  opportunity: Pick<ScholarshipOpportunity, "degree_levels" | "destinations" | "deadlines" | "funding">,
+  opportunity: Pick<ScholarshipOpportunity, "degree_levels" | "fields_of_study" | "destinations" | "deadlines" | "funding">,
 ): FitResult {
   const matches: string[] = [];
   const mismatches: string[] = [];
@@ -116,6 +188,23 @@ export function computeFitScore(
     } else {
       score -= 25;
       mismatches.push(`not ${profile.degree_level}`);
+    }
+  }
+
+  if (profile.field_of_study) {
+    const opportunityFields = (opportunity.fields_of_study || []).slice();
+    if (opportunityFields.length === 0) {
+      // unstated — neutral, no evidence either way
+    } else {
+      const profileFieldTokens = fieldSynonyms(profile.field_of_study);
+      const hit = fieldsOverlap(profileFieldTokens, opportunityFields);
+      if (hit) {
+        score += 20;
+        matches.push(profile.field_of_study.toLowerCase());
+      } else {
+        score -= 10;
+        mismatches.push("not in your field");
+      }
     }
   }
 

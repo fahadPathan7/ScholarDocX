@@ -129,6 +129,7 @@ def initialize_database(database_url: str) -> None:
         _drop_legacy_ai_tokens_role_limit(conn)
         _add_pending_payment_column(conn)
         _add_signup_method_column(conn)
+        _add_scholarship_fields_of_study_columns(conn)
         _seed_registration_mode_default(conn)
 
 
@@ -230,6 +231,44 @@ def _add_signup_method_column(conn) -> None:
         text(
             "UPDATE users SET signup_method = 'admin' "
             "WHERE signup_method IS NULL"
+        )
+    )
+
+
+def _add_scholarship_fields_of_study_columns(conn) -> None:
+    """Add field-of-study + relevance columns (SCHOLARDOCX-0173).
+
+    Deep Hunt now surfaces field-of-study end-to-end so results actually match
+    the user's goal (e.g. "cse background") instead of returning generic pages.
+    Three columns across two tables:
+
+    - ``scholarship_opportunities.fields_of_study_json`` — extracted fields
+      (array of strings, default ``'[]'``).
+    - ``scholarship_opportunities.relevance_score`` — 0..1 score from the Deep
+      Hunt intent filter (default ``0``; legacy rows stay neutral).
+    - ``scholarship_deep_hunt_runs.fields_of_study`` — free-text field captured
+      from the Hunt Profile so the planner/filter can match against it
+      (nullable; legacy runs had no field).
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot: fresh installs
+    get the columns from ``create_all`` and this is a no-op.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE scholarship_opportunities "
+            "ADD COLUMN IF NOT EXISTS fields_of_study_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE scholarship_opportunities "
+            "ADD COLUMN IF NOT EXISTS relevance_score DOUBLE PRECISION NOT NULL DEFAULT 0"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE scholarship_deep_hunt_runs "
+            "ADD COLUMN IF NOT EXISTS fields_of_study TEXT"
         )
     )
 

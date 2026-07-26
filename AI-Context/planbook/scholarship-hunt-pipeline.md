@@ -102,11 +102,15 @@ Per result card (from hunt or catalog): **"Analyze"** action.
   nationality is optional and **opt-in** (privacy: profile fields are only
   ever sent to providers as generic query terms; nationality never leaves
   the machine unless the user enables it).
-- **Local fit score** on analyzed opportunities: level match, destination
-  match, deadline feasibility vs intake term, funding coverage. Computed
-  entirely locally from extracted fields — no extra provider calls.
+- **Local fit score** on analyzed opportunities: level match, **field-of-study
+  match (SCHOLARDOCX-0173)**, destination match, deadline feasibility vs intake
+  term, funding coverage. Computed entirely locally from extracted fields — no
+  extra provider calls.
 - Cards get fit badges + "why / why not" chips (e.g. "✓ Master's ✓ Germany
-  ✗ deadline before your Fall 2027 intake").
+  ✓ computer science ✗ deadline before your Fall 2027 intake"). The
+  field-of-study chip is emitted when the Hunt Profile sets a field and the
+  extracted opportunity states its fields (synonym-aware: "CSE" ↔
+  "computer science" / "computer engineering" / "software engineering").
 
 ## Phase 4 — Monitor: watchlists and deadline radar
 
@@ -124,6 +128,25 @@ funding, EU, Fall 2027"): search + crawl official pages → aggregated
 structured report with evidence, persisted/resumable, plan-gated like
 Advisor Atlas. Only worth building after Phases 1–3 prove out extraction
 quality.
+
+**Intent matching (SCHOLARDOCX-0173):** the run no longer leans entirely on
+raw Tavily output. Two small AI calls wrap the web-search ingredient:
+
+1. **Query planner** (`deep_hunt_query_planner.DeepHuntQueryPlanner`) — one
+   call turns the free-text goal into 3–4 diverse, acronym-expanded queries
+   (CSE→Computer Science, EMJM→Erasmus Mundus Joint Masters) targeting
+   official program pages, plus a field-synonym list. Falls back to the
+   deterministic templates (`_fallback_queries`) on any error.
+2. **Relevance filter** (`DeepHuntRelevanceFilter`) — one batched call judges
+   every extracted opportunity RELEVANT/OFF_TOPIC against the goal's field /
+   degree / funding intent. Falls back to a deterministic synonym-keyword
+   match (field-first: 0.1 unrelated field, 0.7 overlap, 0.5 unstated) so
+   relevance is always enforced even without AI.
+
+Results are ordered by `relevance_score DESC` (stored on
+`scholarship_opportunities`), so on-topic results surface first instead of by
+`updated_at`. Both AI calls use the free OpenRouter model with reasoning
+excluded — billing-free; extraction still carries the run's token cost.
 
 ## What changes vs FR-8 (to update on approval)
 

@@ -40,8 +40,7 @@ import {
   ChevronRight,
   Zap,
   Lock,
-  Compass,
-  Layers
+  Compass
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
@@ -168,8 +167,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       cards: [
         { label: "Total Usage", value: stats.counts.tavily_total || 0, icon: Globe, tone: "indigo", infoText: "Total number of Tavily search API requests made across all features." },
         { label: "Web Search", value: stats.counts.tavily_web_search || 0, icon: Search, tone: "blue", infoText: "Total number of general web searches performed via the chat web search feature." },
-        { label: "Scholarship Hunt", value: stats.counts.tavily_scholarship_hunt || 0, icon: GraduationCap, tone: "purple", infoText: "Total number of Tavily searches from the Scholarship Hunt and Deep Hunt features combined." },
-        { label: "Deep Hunt", value: stats.counts.tavily_deep_hunt || 0, icon: Layers, tone: "rose", infoText: "Total number of Tavily searches made specifically by the Deep Hunt feature." },
+        { label: "Scholarship Hunt", value: stats.counts.tavily_scholarship_hunt || 0, icon: GraduationCap, tone: "purple", infoText: "Total Tavily searches from the Scholarship Hunt tab, including Deep Hunt searches. Deep Hunt is part of Scholarship Hunt, so it is not shown separately to avoid double counting." },
         { label: "Advisor Atlas", value: stats.counts.tavily_advisor_atlas || 0, icon: Compass, tone: "amber", infoText: "Total number of academic advisor searches performed via Advisor Atlas." },
       ],
     },

@@ -257,7 +257,6 @@ class AdminService:
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('web_search', 'scholarship_hunt', 'scholarship_deep_hunt_search', 'advisor_atlas_search')) AS tavily_total,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search') AS tavily_web_search,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('scholarship_hunt', 'scholarship_deep_hunt_search')) AS tavily_scholarship_hunt,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'scholarship_deep_hunt_search') AS tavily_deep_hunt,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas
             """
         ).fetchone()
@@ -342,7 +341,6 @@ class AdminService:
                 "tavily_total": _count("tavily_total"),
                 "tavily_web_search": _count("tavily_web_search"),
                 "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
-                "tavily_deep_hunt": _count("tavily_deep_hunt"),
                 "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
             },
             "recent_registrations": recent_registrations,

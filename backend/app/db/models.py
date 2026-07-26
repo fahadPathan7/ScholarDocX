@@ -988,6 +988,12 @@ class ScholarshipOpportunities(Base):
     user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     sponsor: Mapped[Optional[str]] = mapped_column(Text)
     application_url: Mapped[Optional[str]] = mapped_column(Text)
+    # SCHOLARDOCX-0173: extracted fields of study (e.g. ["computer science",
+    # "engineering"]) and the 0..1 relevance score the Deep Hunt intent filter
+    # assigns against the run's goal. Default to empty/0 so legacy rows are
+    # neutral. Added via ALTER TABLE migration helper (see connection.py).
+    fields_of_study_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    relevance_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
     linked_sheet_id: Mapped[Optional[str]] = mapped_column(ForeignKey('project_sheets.id'))
     linked_row_snapshot: Mapped[Optional[str]] = mapped_column(Text)
     last_deadline_notified_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
@@ -1007,6 +1013,10 @@ class ScholarshipDeepHuntRuns(Base):
     goal: Mapped[str] = mapped_column(Text, nullable=False)
     degree_level: Mapped[Optional[str]] = mapped_column(Text)
     destinations_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    # SCHOLARDOCX-0173: free-text field of study captured from the Hunt Profile
+    # so the intent planner and relevance filter can match against it. Optional
+    # for legacy rows. Added via ALTER TABLE migration helper (see connection.py).
+    fields_of_study: Mapped[Optional[str]] = mapped_column(Text)
     intake_term: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
     current_stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))

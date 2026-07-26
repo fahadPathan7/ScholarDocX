@@ -158,3 +158,45 @@ Follow-ups:
 
 - None for this scope. If a future feature wants the About hero map visible below 1024px, the nodes must first be made overflow-safe (e.g. switch from absolute % positioning to a flow layout or scale the map).
 - Other components (topbar, calendar, docs, atlas) still use legacy ad-hoc breakpoints (920/900/980px). They are tolerated but should migrate to the canonical 4-tier system when next touched.
+
+## Project-Wide Mobile Sweep (third commit batch)
+
+After the Profile/About work, a thorough audit of every other view against the
+canonical 4-tier system found a **systemic dead-selector bug**: several
+`responsive.css` sections targeted class names that don't exist in the
+components, making the overrides silent no-ops. Each claim was verified against
+source before fixing. Five confirmed user-visible breakages fixed, one commit
+per view:
+
+1. **Whiteboard toolbar overflow (most severe)** — `responsive.css` §7 targeted
+   `.whiteboard-toolbar`/`.whiteboard-canvas-container`; component renders
+   `.wb-toolbar`/`.wb-canvas-dummy`. Toolbar (~727px, 15 buttons) overflowed
+   ~1.9× a 375px viewport with no wrapping. Fixed selectors; added a Large
+   Mobile `≤767px` rule converting the fixed 260px properties panel into a
+   full-width bottom sheet and shrinking the floating minimap.
+   Verified: toolbar width 347px, flexWrap wrap, 0 overflow at 375px.
+2. **Scholarship Hunt grid stuck single-column** — §13 forced `.news-grid` to
+   flex-column and tried to restore the grid via `.news-card-grid` (phantom).
+   Restructured: only `.scholarship-news-view` collapses; `.news-grid` +
+   `.scholarship-catalog-grid` keep their base news.css grid. Verified: 2 cols
+   at 1024px (was 1), 1 col at 375px.
+3. **Sticky Notes dead selector** — §11 targeted `.notes-grid`; component uses
+   `.sticky-card-grid`. Fixed selector. Verified: minmax(260px) override now
+   applies.
+4. **Admin §15 dead selectors** — nearly the entire admin-layout block targeted
+   phantom classes (`.admin-view`, `.admin-tabs`, etc.). Root is
+   `id="admin-view-root"`; real classes are `.admin-tab-strip`,
+   `.admin-dashboard-stat-grid`, `.admin-dashboard-activity-grid`. Rewrote the
+   dead block to target real classes; kept modal rules (already live).
+   Verified: `.admin-tab-strip` flexWrap wrap, gap 8px.
+5. **DateRangeCalendar `slateigo` typo** — `text-slateigo-600` is not a valid
+   Tailwind color; year-switcher label silently lost styling. Fixed to
+   `indigo-600`. Swept `src/` — no other instances.
+
+Category B (tier-alignment cleanup: calendar.css, system modals, Advisor Atlas
+breakpoint sprawl, HuntProfileModal grid, admin.css) is deferred — these views
+work today; migrating them is a separate cleanup task documented in
+`responsive-design-system.md` section 6.
+
+Build clean, 96/96 tests pass across all five commits. No modal/backdrop-blur
+changes.

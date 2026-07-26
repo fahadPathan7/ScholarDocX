@@ -152,3 +152,37 @@ canonical rules below are the **single source of truth** — do not reintroduce
 - [ ] Confirm Admin settings modals support horizontal left-right scrolling without column collision.
 - [ ] Run `npm run build` to confirm 0 build/CSS syntax errors.
 - [ ] Run `npm test` to confirm all unit tests pass.
+
+---
+
+## 6. Dead-Selector Pitfall (recurring regression)
+
+`responsive.css` is imported LAST and holds the canonical mobile overrides, so
+when a selector there doesn't match the component's actual `className`, the
+override is a **silent no-op** — the page keeps its desktop layout on mobile
+with no error surfaced. This has bitten the project repeatedly. Before adding
+or trusting a `responsive.css` rule, **grep the selector against the component
+JSX** to confirm the class exists.
+
+Known dead-selector bugs found and fixed in the SCHOLARDOCX-0171 project-wide
+sweep (all in `responsive.css`):
+
+| Section | Phantom selector(s) | Real class(es) | Impact |
+|---|---|---|---|
+| §7 Whiteboard | `.whiteboard-toolbar`, `.whiteboard-canvas-container` | `.wb-toolbar`, `.wb-canvas-dummy` | Toolbar (~727px) overflowed ~1.9× viewport on phones |
+| §11 Sticky Notes | `.notes-grid` | `.sticky-card-grid` | Grid width/density override inert |
+| §13 Scholarship Hunt | `.news-card-grid`, `.news-query-bar` | `.news-grid`, `.scholarship-catalog-grid` | News feed stuck single-column on tablet/desktop |
+| §15 Admin | `.admin-view`, `.admin-layout`, `.admin-card-grid`, `.admin-tabs`, `.admin-nav`, `.sub-tabs`, `.user-filter-group`, `.pill-row`, `.filter-row` | `#admin-view-root` (id), `.admin-tab-strip`, `.admin-dashboard-stat-grid`, `.admin-dashboard-activity-grid` | Entire admin layout/tab responsive block inert |
+
+**Lesson:** when a component's class names are renamed (or a view is rewritten),
+audit `responsive.css` for the old selectors. Phantom selectors are worse than
+no CSS — they look like the responsive concern is handled when it isn't.
+
+**Still-deferred tier cleanup (Category B follow-ups — functional but off-tier):**
+- `calendar.css` uses 920px/640px (should migrate to canonical 1023/767/479/374).
+- System-wide modal rules from SCHOLARDOCX-0168 use 768px/480px (1px off the
+  canonical 767px/479px; no tablet 1023px tier).
+- Advisor Atlas uses a sprawl of 520/680/720/800/900/1080/1100px breakpoints.
+- `HuntProfileModal` 2-col grid has no mobile collapse rule.
+- `admin.css` uses 1180/900/640 max-width and 768/1024/1280/1536 min-width.
+These work today; migrating them is a separate cleanup task, not a bugfix.

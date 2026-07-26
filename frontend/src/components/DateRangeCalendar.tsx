@@ -318,7 +318,7 @@ export default function DateRangeCalendar({ startDate, endDate, onChange }: Date
         type="button"
         title="Pick year"
         onClick={() => setNavMode(navMode === "years" ? "days" : "years")}
-        className="text-sm font-bold text-slateigo-600 hover:text-indigo-600 transition-colors px-0.5 rounded hover:bg-indigo-50"
+        className="text-sm font-bold text-indigo-600 hover:text-indigo-600 transition-colors px-0.5 rounded hover:bg-indigo-50"
       >
         {year}
       </button>

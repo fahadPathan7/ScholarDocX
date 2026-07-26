@@ -848,6 +848,13 @@ main > div {
    14. Profile Tab
    ========================================================================= */
 
+/* Canonical device tiers (see AI-Context/technical/responsive-design-system.md):
+     Tablet        768–1023px   -> @media (max-width: 1023px)
+     Large Mobile  480–767px    -> @media (max-width: 767px)
+     Mobile        375–479px    -> @media (max-width: 479px)
+     Small Mobile  320–374px    -> @media (max-width: 374px)
+   The shell-wide sidebar drawer activates earlier at <= 1450px (section 1). */
+
 /* ---- CANONICAL collapse: single-column stack at <= 1450px ----------------
    The Profile "mobile" threshold MUST match the rest of the shell (the
    sidebar drawer activates at <= 1450px, see section 1). Below this width the
@@ -875,13 +882,21 @@ main > div {
   }
 }
 
-/* ---- Hero: stack avatar above text, wrap badges/roles at <= 768px ---- */
-@media (max-width: 768px) {
+/* ---- Tablet (768–1023px, query: <= 1023px): first density reduction --------
+   The hero stops using full desktop sizing; admin roles wrap to a full-width
+   row; the name/email block reflows beside the avatar. Pure density change —
+   the 1-column layout collapse already happened at <= 1450px above. */
+@media (max-width: 1023px) {
   .profile-hero.glass-panel {
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 14px;
-    padding: 18px;
+    padding: 16px 20px;
+  }
+
+  .profile-hero.glass-panel .profile-avatar {
+    width: 52px;
+    height: 52px;
   }
 
   .profile-hero.glass-panel .profile-admin-roles {
@@ -890,7 +905,7 @@ main > div {
     width: 100%;
   }
 
-  /* Allow the name+email block to take remaining width but shrink */
+  /* Allow the name+email block to take remaining width but shrink. */
   .profile-hero-text {
     min-width: 0;
     flex: 1 1 160px;
@@ -907,8 +922,51 @@ main > div {
   }
 }
 
-/* ---- Phone (≤ 430px): compact hero, tighter avatar, full-width badges ---- */
-@media (max-width: 430px) {
+/* ---- Large Mobile (480–767px, query: <= 767px): touch targets + reach -------
+   Action rows grow to comfortable tap heights; the logout button goes
+   full-width for thumb reach. Text wrapping rules keep long labels tidy. */
+@media (max-width: 767px) {
+  /* Prevent row content from being squished; let long labels wrap. */
+  .profile-action-row {
+    min-height: 48px;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .profile-action-content {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  /* Icon + label: let the label text wrap to a second line instead of
+     truncating or forcing horizontal overflow. */
+  .profile-action-content > span,
+  .profile-action-content > div:not(:first-child) {
+    min-width: 0;
+  }
+
+  /* Token widget on the "Buy More AI Credits" row should not crowd the label. */
+  .profile-action-row .token-usage-badge {
+    flex-shrink: 0;
+  }
+
+  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1450px
+     canonical collapse above; no need to repeat it here. */
+
+  /* Make logout button full-width for easier reach. */
+  .profile-page-logout-row {
+    justify-content: stretch;
+  }
+
+  .profile-page-logout-row .profile-logout-button {
+    width: 100%;
+  }
+}
+
+/* ---- Mobile (375–479px, query: <= 479px): centered compact hero -----------
+   Hero becomes a centered vertical stack — avatar on top, name/email/badges
+   centered beneath. Maximizes legibility on a narrow handset. */
+@media (max-width: 479px) {
   .profile-hero.glass-panel {
     flex-direction: column;
     align-items: center;
@@ -940,47 +998,10 @@ main > div {
   }
 }
 
-/* ---- Action rows: readable touch targets + text wrapping at ≤ 768px ---- */
-@media (max-width: 768px) {
-  /* Prevent row content from being squished; let long labels wrap */
-  .profile-action-row {
-    min-height: 48px;
-    padding: 12px 14px;
-    gap: 8px;
-  }
-
-  .profile-action-content {
-    gap: 10px;
-    min-width: 0;
-  }
-
-  /* Icon + label: let the label text wrap to a second line instead of
-     truncating or forcing horizontal overflow. */
-  .profile-action-content > span,
-  .profile-action-content > div:not(:first-child) {
-    min-width: 0;
-  }
-
-  /* Token widget on the "Buy More AI Credits" row should not crowd the label */
-  .profile-action-row .token-usage-badge {
-    flex-shrink: 0;
-  }
-
-  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1450px
-     canonical collapse above; no need to repeat it here. */
-
-  /* Make logout button full-width for easier reach */
-  .profile-page-logout-row {
-    justify-content: stretch;
-  }
-
-  .profile-page-logout-row .profile-logout-button {
-    width: 100%;
-  }
-}
-
-/* ---- Smallest phones (≤ 375px): tighten paddings to avoid crowding ---- */
-@media (max-width: 375px) {
+/* ---- Small Mobile (320–374px, query: <= 374px): tightest density -----------
+   Last-resort padding/font reductions so nothing crowds or overflows on the
+   smallest handsets (iPhone SE / older Androids at 320px). */
+@media (max-width: 374px) {
   .profile-hero.glass-panel {
     padding: 16px 12px;
   }

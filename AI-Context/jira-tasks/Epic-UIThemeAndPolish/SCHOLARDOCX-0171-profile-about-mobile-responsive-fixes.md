@@ -124,24 +124,30 @@ Line-count risk:
 
 Changed files:
 
-- `frontend/src/responsive.css` — section 14: broadened `.profile-page`/`.profile-layout` canonical collapse from ≤768px to **≤1450px** (matches shell drawer); moved `.profile-meta-col` gap rule under the new umbrella and removed the redundant duplicate.
+- `frontend/src/responsive.css` — section 14: broadened `.profile-page`/`.profile-layout` canonical collapse from ≤768px to **≤1450px** (matches shell drawer); moved `.profile-meta-col` gap rule under the new umbrella and removed the redundant duplicate. **Second commit:** remapped the ad-hoc `≤768/≤430/≤375` density blocks onto the **canonical 4-tier device cascade** — Tablet `≤1023px` (hero wrap, avatar 52px, compact padding), Large Mobile `≤767px` (48px touch targets, full-width logout), Mobile `≤479px` (centered column hero), Small Mobile `≤374px` (tightest padding/font). Added a tier-reference comment at the section header.
 - `frontend/src/visual-refresh.css` — removed the buggy `@media (min-width: 1181px) { .profile-layout { 3-col !important } }` rule that created an empty third column on wide screens (JSX only renders 2 children). Left an explanatory comment.
 - `frontend/src/styles.css` — neutralized the dead `≤1200px` and `≤820px` `.profile-layout` grid breakpoints (they lacked `!important`, were beaten by the inline style, and were drift risk). Updated the base `.profile-layout` comment to point at the canonical rule.
-- `frontend/src/about-refresh.css` — added a `≤768px` rule hiding the decorative `.about-map` (and its `.about-map-connections` SVG) so the absolutely-positioned `nowrap` map nodes can no longer trigger horizontal overflow. The `.about-hero-copy` stays fully visible.
+- `frontend/src/about-refresh.css` — first commit: added a `≤768px` rule hiding the decorative `.about-map`. **Second commit:** moved the map-hide to the **Tablet tier `≤1023px`** (the 768–1023 band was still producing clipped/broken node rendering) and added a `.about-hero-copy { padding: 16px 18px }` compact rule at the same tier.
 
 Context updated:
 
-- `AI-Context/technical/responsive-design-system.md` — added section 4 documenting the canonical Profile ≤1450px collapse, the inline-style `!important` requirement, the removal of the 3-column rule, and the About map-hide decision; expanded the verification checklist (section 5).
+- `AI-Context/technical/responsive-design-system.md` — added section 4 documenting the canonical Profile ≤1450px collapse, the inline-style `!important` requirement, the removal of the 3-column rule, and the About map-hide decision; expanded the verification checklist (section 5). **Second commit:** added the canonical 4-tier device table (Tablet ≤1023, Large Mobile ≤767, Mobile ≤479, Small Mobile ≤374) with the non-overlapping-boundary rationale; updated the Profile density-tier list and the About map-hide tier; refreshed the verification checklist with the canonical boundary widths.
 
 Verification completed:
 
 - `npm run build` — 0 CSS/syntax errors (only pre-existing chunk-size warnings, unrelated).
 - `npm test` — 96/96 tests pass.
-- Computed-style checks via Playwright at 320, 375, 1024, 1440, 1450, 1600px:
+- Computed-style checks via Playwright across every canonical tier boundary (320, 374, 375, 479, 480, 767, 768, 1023, 1024, 1450, 1600px):
   - Profile `.profile-layout` = `flex / column / 1fr` at every width ≤1450px ✓
   - Profile `.profile-layout` = `grid / 758.5px 758.5px` (2 equal cols, no empty 3rd) at 1600px ✓
-  - About `.about-map` = `display: none` at ≤768px, `block` at 1600px ✓
-  - About hero produces NO horizontal overflow at 320px (`scrollWidth == viewport`) ✓
+  - Profile Tablet (1023px): hero padding `16px 20px`, gap 14px, avatar 52×52, `row/wrap` ✓
+  - Profile Laptop (1024px): hero padding `20px 28px`, gap 18px, avatar 58×58, `row/nowrap` (desktop density restored) ✓
+  - Profile Large Mobile (767px): action-row `min-height: 48px`, logout full-width ✓
+  - Profile Mobile (479px): hero `column/wrap`, centered, avatar font 18px ✓
+  - Profile Small Mobile (374px): hero padding `16px 12px`, action-row font `0.82rem`, card padding `0.85rem` ✓
+  - About `.about-map` = `display: none` at ≤1023px (Tablet), `block` at 1024px+ ✓
+  - Boundaries non-overlapping: 768px is Tablet (touch targets NOT yet active), 767px is Large Mobile ✓
+  - No horizontal overflow at any tested width (`scrollWidth ≤ viewport`) ✓
 - No modal backdrop blur rules touched → sidebar/TopBar sharpness unaffected.
 
 Unit tests added or updated:
@@ -150,4 +156,5 @@ Unit tests added or updated:
 
 Follow-ups:
 
-- None for this scope. If a future feature wants the About hero map visible on phones, the nodes must first be made overflow-safe (e.g. switch from absolute % positioning to a flow layout or scale the map).
+- None for this scope. If a future feature wants the About hero map visible below 1024px, the nodes must first be made overflow-safe (e.g. switch from absolute % positioning to a flow layout or scale the map).
+- Other components (topbar, calendar, docs, atlas) still use legacy ad-hoc breakpoints (920/900/980px). They are tolerated but should migrate to the canonical 4-tier system when next touched.

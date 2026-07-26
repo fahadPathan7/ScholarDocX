@@ -14,6 +14,30 @@ This document defines the non-negotiable responsive design rules and architectur
 > **Rule 1: System-Wide Sidebar Drawer Breakpoint Set to 1450px**
 > On all screen widths **≤ 1450px** (including 1200px/1440px laptop/split-screen views), the sidebar converts into an off-canvas drawer controlled by the TopBar hamburger button (`≡`). Main content receives **100% of the viewport width** so page views never experience squished content columns.
 
+### Canonical Device Tiers (SCHOLARDOCX-0171)
+
+Below the 1450px drawer threshold, density/visual refinements use a **fixed
+4-tier device cascade**. Every component that adds mobile styles MUST use these
+exact `max-width` values (the upper-bound inclusive of each tier's range) so
+tiers never overlap and the cascade is predictable.
+
+| Tier | Device range | CSS media query | Typical purpose |
+|------|--------------|-----------------|-----------------|
+| **Tablet** | 768–1023px | `@media (max-width: 1023px)` | First density reduction: wrap heros, compact paddings, hide decorative overflow-prone elements |
+| **Large Mobile** | 480–767px | `@media (max-width: 767px)` | Touch targets (≥48px), full-width buttons, stack action rows |
+| **Mobile** | 375–479px | `@media (max-width: 479px)` | Centered compact heros, smaller avatars, single-column everything |
+| **Small Mobile** | 320–374px | `@media (max-width: 374px)` | Tightest padding/font reductions for the smallest handsets |
+
+**Why these `max-width` values:** a CSS `max-width: N` query is inclusive of N,
+so to cover the range 768–1023 the query is `max-width: 1023px`. The next tier
+down (`Large Mobile`) then uses `max-width: 767px` so the two don't overlap at
+the 768 boundary. This gives clean, non-overlapping, cascading tiers.
+
+**Do NOT** introduce ad-hoc breakpoints (`768`, `430`, `960`, `820`, etc.) for
+new mobile work — use the canonical tiers above. (Legacy ad-hoc breakpoints in
+older components are tolerated but should migrate to the canonical tiers when
+touched.)
+
 ---
 
 ## 2. Full-Screen Parity Horizontal Action Toolbar (`.section-head`, `.sheet-toolbar` & `SheetToolbarActions`)
@@ -87,9 +111,15 @@ canonical rules below are the **single source of truth** — do not reintroduce
   There is NO 3-column Profile layout — a legacy `visual-refresh.css` rule
   that forced 3 columns was removed because the JSX only renders 2 children
   (it created an empty third column).
-- **Finer breakpoints (all inside `responsive.css` section 14):**
-  ≤ 768px (hero wraps, action-row 48px touch targets, full-width logout),
-  ≤ 430px (compact hero), ≤ 375px (tighter paddings).
+- **Density tiers (all inside `responsive.css` section 14, canonical cascade):**
+  - **Tablet `≤ 1023px`** — hero wraps, admin-roles full-width, avatar 52px,
+    hero padding `16px 20px` / gap 14px, h2 `1.15rem`.
+  - **Large Mobile `≤ 767px`** — action-row 48px touch targets, full-width
+    logout button, content min-width for wrapping.
+  - **Mobile `≤ 479px`** — hero becomes centered vertical stack (column,
+    center-aligned), avatar font 18px, h2 `1.1rem`.
+  - **Small Mobile `≤ 374px`** — tightest padding (`16px 12px`), card padding
+    `0.85rem`, action-row font `0.82rem`.
 - **Dead rules removed:** the old `styles.css` `≤1200px` and `≤820px`
   `.profile-layout` breakpoints lacked `!important` and were beaten by the
   inline style — they were dead code and have been removed to prevent drift.
@@ -101,21 +131,23 @@ canonical rules below are the **single source of truth** — do not reintroduce
 - **Hero connection map (`.about-map`):** the map is decorative
   (`aria-hidden="true"`). Its `.about-map-node` children are absolutely
   positioned with percentage `--x`/`--y` coordinates and `white-space: nowrap`,
-  which causes horizontal overflow on narrow viewports. The map is therefore
-  **hidden at ≤ 768px** (`display: none !important` in `about-refresh.css`).
-  The `.about-hero-copy` (title, subtitle, icon) stays fully visible.
-  Do NOT un-hide the map on mobile without first making the nodes
-  overflow-safe.
+  which causes horizontal overflow / clipped rendering on narrow viewports.
+  The map is therefore **hidden at the Tablet tier (`≤ 1023px`)** via
+  `display: none !important` in `about-refresh.css`, and the hero-copy padding
+  is compacted to `16px 18px` at the same tier. The `.about-hero-copy` (title,
+  subtitle, icon) stays fully visible. Do NOT un-hide the map below 1024px
+  without first making the nodes overflow-safe.
 
 ---
 
 ## 5. Verification Checklist for AI Agents
 
-- [ ] Test viewports at `320px`, `375px`, `430px`, `768px`, `1092px`, `1200px`, `1440px`, and `1450px`.
+- [ ] Test viewports at `320`, `374`, `375`, `479`, `480`, `767`, `768`, `1023`, `1024`, `1450`, `1600` (covers every canonical tier boundary plus the 1450px drawer threshold).
 - [ ] Confirm sidebar converts to drawer mode at ≤ 1450px (`useIsMobile()` in `useMediaQuery.ts`).
 - [ ] Confirm `.about-page` uses single-column stacked layout with full vertical scroll on viewports ≤ 1450px.
 - [ ] Confirm `.profile-layout` collapses to a single column at ≤ 1450px and is 2-column above (no empty 3rd column).
-- [ ] Confirm `.about-map` is hidden at ≤ 768px (no horizontal overflow on the About hero).
+- [ ] Confirm `.about-map` is hidden at ≤ 1023px (Tablet tier — no horizontal overflow on the About hero).
+- [ ] Confirm the canonical device tiers fire at their boundaries: Tablet ≤1023, Large Mobile ≤767, Mobile ≤479, Small Mobile ≤374.
 - [ ] Confirm Advisor Atlas Research History drawer opens OVER content with high `z-index: 500`.
 - [ ] Confirm Admin settings modals support horizontal left-right scrolling without column collision.
 - [ ] Run `npm run build` to confirm 0 build/CSS syntax errors.

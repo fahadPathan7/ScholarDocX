@@ -13,11 +13,12 @@ import { OpportunityCard } from "./OpportunityCard";
 
 interface ScholarshipCatalogProps {
   onToast: (msg: string) => void;
+  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   onRefreshUsage: () => void;
   huntProfile?: HuntProfile | null;
 }
 
-export function ScholarshipCatalog({ onToast, onRefreshUsage, huntProfile }: ScholarshipCatalogProps) {
+export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, huntProfile }: ScholarshipCatalogProps) {
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [levelFilter, setLevelFilter] = useState("");
@@ -169,6 +170,7 @@ export function ScholarshipCatalog({ onToast, onRefreshUsage, huntProfile }: Sch
                       {opportunitiesByUrl[article.link] ? (
                         <OpportunityCard
                           opportunity={opportunitiesByUrl[article.link]}
+                          onAddToTracker={onAddToTracker}
                           huntProfile={huntProfile}
                         />
                       ) : (

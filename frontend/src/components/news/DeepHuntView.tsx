@@ -4,6 +4,7 @@ import {
   DeepHuntRun,
   scholarshipDeepHuntApi,
 } from "../../lib/scholarshipDeepHuntApi";
+import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
 import { HuntProfile, isHuntProfileComplete } from "../../lib/huntProfile";
 import { OpportunityCard } from "./OpportunityCard";
 import { Modal } from "../Modal";
@@ -14,6 +15,7 @@ const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 
 interface DeepHuntViewProps {
   onToast: (msg: string) => void;
+  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   canUseDeepHunt: boolean;
   onRequireHuntProfile: () => void;

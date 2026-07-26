@@ -20,6 +20,7 @@ const STATUS_OPTIONS: ScholarshipOpportunity["status"][] = [
 
 interface OpportunityLibraryProps {
   onToast: (msg: string) => void;
+  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   refreshTrigger?: number;
   huntProfile?: HuntProfile | null;
 }
@@ -48,7 +49,7 @@ function isWithinRadarThreshold(dateStr: string): boolean {
 // day-granularity check remains the source of truth across page reloads.
 const notifiedThisSession = new Set<string>();
 
-export function OpportunityLibrary({ onToast, refreshTrigger, huntProfile }: OpportunityLibraryProps) {
+export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, huntProfile }: OpportunityLibraryProps) {
   const [opportunities, setOpportunities] = useState<ScholarshipOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -166,7 +167,7 @@ export function OpportunityLibrary({ onToast, refreshTrigger, huntProfile }: Opp
       )}
       {opportunities.map((opportunity) => (
         <div key={opportunity.id} className="opportunity-library-row">
-          <OpportunityCard opportunity={opportunity} huntProfile={huntProfile} />
+          <OpportunityCard opportunity={opportunity} onAddToTracker={onAddToTracker} huntProfile={huntProfile} />
           <div className="opportunity-library-controls">
             <select
               value={opportunity.status}

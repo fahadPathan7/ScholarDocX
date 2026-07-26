@@ -1457,6 +1457,26 @@ tr.rank-bronze .rank-badge {
   }
 }
 
+/* ---- Hero connection map: hide on tablet/mobile to stop horizontal overflow ----
+   The `.about-map` is a decorative (aria-hidden) SVG node graph. Its
+   `.about-map-node` children are absolutely positioned with percentage
+   coordinates and `white-space: nowrap`, so on viewports <= 768px the
+   right-side nodes (x: 62%, 65%) overflow the hero and trigger a horizontal
+   scrollbar. The hero copy (`.about-hero-copy` — title, subtitle, icon) stays
+   fully visible. See SCHOLARDOCX-0171. */
+@media (max-width: 768px) {
+  .about-map,
+  .about-map-connections {
+    display: none !important;
+  }
+
+  /* Without the map filling the hero, drop the hero's enforced min-height so
+     the copy block sits flush under the header. */
+  .about-hero {
+    min-height: 0 !important;
+  }
+}
+
 @media (max-width: 680px) {
   .about-page {
     grid-template-columns: 1fr;

@@ -66,11 +66,56 @@ This document defines the non-negotiable responsive design rules and architectur
 
 ---
 
-## 4. Verification Checklist for AI Agents
+## 4. Profile & About Page Mobile Rules (SCHOLARDOCX-0171)
+
+These two pages had a long history of conflicting responsive rules spread
+across `styles.css`, `visual-refresh.css`, and `responsive.css`. The
+canonical rules below are the **single source of truth** — do not reintroduce
+`.profile-layout { grid-template-columns: ... }` rules in other files.
+
+### Profile (`ProfileView.tsx`, `.profile-layout`)
+
+- **Inline style gotcha:** `ProfileView.tsx` sets an inline
+  `gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)'` on `.profile-layout`.
+  Any CSS that wants to collapse it MUST use `!important`.
+- **Canonical collapse (`responsive.css` section 14):** at **≤ 1450px**
+  `.profile-page` and `.profile-layout` become `display: flex !important;
+  flex-direction: column !important; grid-template-columns: 1fr !important`.
+  This matches the shell-wide sidebar-drawer breakpoint so Profile never
+  stays 2-column while the rest of the app is in mobile mode.
+- **Above 1450px:** the inline 2-column style applies (2 equal columns).
+  There is NO 3-column Profile layout — a legacy `visual-refresh.css` rule
+  that forced 3 columns was removed because the JSX only renders 2 children
+  (it created an empty third column).
+- **Finer breakpoints (all inside `responsive.css` section 14):**
+  ≤ 768px (hero wraps, action-row 48px touch targets, full-width logout),
+  ≤ 430px (compact hero), ≤ 375px (tighter paddings).
+- **Dead rules removed:** the old `styles.css` `≤1200px` and `≤820px`
+  `.profile-layout` breakpoints lacked `!important` and were beaten by the
+  inline style — they were dead code and have been removed to prevent drift.
+
+### About (`AboutView.tsx`, `.about-page`, `.about-hero`)
+
+- **Layout:** desktop (> 1450px) is a 12-column grid; ≤ 1450px collapses to a
+  single-column flex stack (handled in `about-refresh.css`).
+- **Hero connection map (`.about-map`):** the map is decorative
+  (`aria-hidden="true"`). Its `.about-map-node` children are absolutely
+  positioned with percentage `--x`/`--y` coordinates and `white-space: nowrap`,
+  which causes horizontal overflow on narrow viewports. The map is therefore
+  **hidden at ≤ 768px** (`display: none !important` in `about-refresh.css`).
+  The `.about-hero-copy` (title, subtitle, icon) stays fully visible.
+  Do NOT un-hide the map on mobile without first making the nodes
+  overflow-safe.
+
+---
+
+## 5. Verification Checklist for AI Agents
 
 - [ ] Test viewports at `320px`, `375px`, `430px`, `768px`, `1092px`, `1200px`, `1440px`, and `1450px`.
 - [ ] Confirm sidebar converts to drawer mode at ≤ 1450px (`useIsMobile()` in `useMediaQuery.ts`).
 - [ ] Confirm `.about-page` uses single-column stacked layout with full vertical scroll on viewports ≤ 1450px.
+- [ ] Confirm `.profile-layout` collapses to a single column at ≤ 1450px and is 2-column above (no empty 3rd column).
+- [ ] Confirm `.about-map` is hidden at ≤ 768px (no horizontal overflow on the About hero).
 - [ ] Confirm Advisor Atlas Research History drawer opens OVER content with high `z-index: 500`.
 - [ ] Confirm Admin settings modals support horizontal left-right scrolling without column collision.
 - [ ] Run `npm run build` to confirm 0 build/CSS syntax errors.

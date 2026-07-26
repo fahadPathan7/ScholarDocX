@@ -848,12 +848,18 @@ main > div {
    14. Profile Tab
    ========================================================================= */
 
-/* ---- Tablet (≤ 768px): collapse two-column card grid to a single column ----
-   The desktop layout is a 2-col grid (forced via inline gridTemplateColumns on
-   .profile-layout). Switching to flex-column here wins over the inline style.
-   Above 768px the two-column layout is preserved so tablets aren't
-   over-stacked. */
-@media (max-width: 768px) {
+/* ---- CANONICAL collapse: single-column stack at <= 1450px ----------------
+   The Profile "mobile" threshold MUST match the rest of the shell (the
+   sidebar drawer activates at <= 1450px, see section 1). Below this width the
+   two-column card grid (set via inline `gridTemplateColumns` on
+   `.profile-layout` in ProfileView.tsx, and historically via conflicting rules
+   in styles.css + visual-refresh.css) collapses to a single full-width column.
+
+   `!important` is required to win over the inline style. This is the single
+   source of truth for the Profile 1-column collapse — do NOT reintroduce
+   `.profile-layout { grid-template-columns: ... }` rules in other files.
+   Above 1450px the two-column layout is preserved. */
+@media (max-width: 1450px) {
   .profile-page,
   .profile-layout {
     display: flex !important;
@@ -862,9 +868,14 @@ main > div {
     min-width: 0 !important;
     width: 100% !important;
   }
+
+  /* Give the stacked cards consistent vertical rhythm on tablet/laptop. */
+  .profile-meta-col {
+    gap: 0.75rem;
+  }
 }
 
-/* ---- Hero: stack avatar above text, wrap badges/roles at ≤ 768px ---- */
+/* ---- Hero: stack avatar above text, wrap badges/roles at <= 768px ---- */
 @media (max-width: 768px) {
   .profile-hero.glass-panel {
     flex-wrap: wrap;
@@ -955,10 +966,8 @@ main > div {
     flex-shrink: 0;
   }
 
-  /* Stacked cards get a touch more breathing room between them */
-  .profile-meta-col {
-    gap: 0.75rem;
-  }
+  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1450px
+     canonical collapse above; no need to repeat it here. */
 
   /* Make logout button full-width for easier reach */
   .profile-page-logout-row {

@@ -778,15 +778,18 @@ main > div {
    11. Sticky Notes Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original block targeted `.notes-grid`, but
+   StickyNotesView.tsx renders `.sticky-card-grid`. The mismatch made the
+   width/grid overrides inert. Selector corrected below. */
+
 @media (max-width: 1450px) {
   .sticky-notes-view,
-  .notes-grid {
+  .sticky-card-grid {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .notes-grid {
-    display: grid !important;
+  .sticky-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
     gap: 14px !important;
   }

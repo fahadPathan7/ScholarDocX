@@ -606,19 +606,51 @@
    7. Whiteboard Workspace (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original selectors here were
+   `.whiteboard-canvas-container` and `.whiteboard-toolbar`, but the component
+   (WhiteboardView.tsx) actually renders `.wb-canvas-dummy` and `.wb-toolbar`.
+   The mismatch made these overrides completely inert — the toolbar (~727px
+   wide with 15 buttons) rendered full-width with no wrapping on every viewport
+   <= 1450px, overflowing ~1.9x a 375px screen. Selectors corrected below. */
+
 @media (max-width: 1450px) {
   .whiteboard-view,
-  .whiteboard-canvas-container {
+  .wb-canvas-dummy {
     touch-action: pan-x pan-y !important;
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .whiteboard-toolbar {
+  .wb-toolbar {
     width: calc(100vw - 28px) !important;
     max-width: 360px !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
+  }
+}
+
+/* ---- Large Mobile (<= 767px): properties panel becomes a full-width overlay.
+   The desktop panel is a fixed 260px right-side dock; on a phone that crunched
+   the canvas to ~115px when opened. Convert it to a bottom-anchored full-width
+   sheet so the canvas keeps the full viewport. The `.wb-canvas-dummy.expanded`
+   and `.wb-bottom-bar.expanded` already set `right: 0` when the panel is
+   closed, so no offset fight in the default (closed) state. */
+@media (max-width: 767px) {
+  .wb-properties-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    top: auto !important;
+    bottom: 0 !important;
+    max-height: 70vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--wb-panel-border) !important;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  /* Floating minimap (240x180 in hand mode) shrinks so it doesn't dominate. */
+  .wb-floating-minimap {
+    width: 160px !important;
+    height: 120px !important;
   }
 }
 

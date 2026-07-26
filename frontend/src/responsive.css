@@ -606,19 +606,51 @@
    7. Whiteboard Workspace (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original selectors here were
+   `.whiteboard-canvas-container` and `.whiteboard-toolbar`, but the component
+   (WhiteboardView.tsx) actually renders `.wb-canvas-dummy` and `.wb-toolbar`.
+   The mismatch made these overrides completely inert — the toolbar (~727px
+   wide with 15 buttons) rendered full-width with no wrapping on every viewport
+   <= 1450px, overflowing ~1.9x a 375px screen. Selectors corrected below. */
+
 @media (max-width: 1450px) {
   .whiteboard-view,
-  .whiteboard-canvas-container {
+  .wb-canvas-dummy {
     touch-action: pan-x pan-y !important;
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .whiteboard-toolbar {
+  .wb-toolbar {
     width: calc(100vw - 28px) !important;
     max-width: 360px !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
+  }
+}
+
+/* ---- Large Mobile (<= 767px): properties panel becomes a full-width overlay.
+   The desktop panel is a fixed 260px right-side dock; on a phone that crunched
+   the canvas to ~115px when opened. Convert it to a bottom-anchored full-width
+   sheet so the canvas keeps the full viewport. The `.wb-canvas-dummy.expanded`
+   and `.wb-bottom-bar.expanded` already set `right: 0` when the panel is
+   closed, so no offset fight in the default (closed) state. */
+@media (max-width: 767px) {
+  .wb-properties-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    top: auto !important;
+    bottom: 0 !important;
+    max-height: 70vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--wb-panel-border) !important;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  /* Floating minimap (240x180 in hand mode) shrinks so it doesn't dominate. */
+  .wb-floating-minimap {
+    width: 160px !important;
+    height: 120px !important;
   }
 }
 
@@ -746,15 +778,18 @@ main > div {
    11. Sticky Notes Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original block targeted `.notes-grid`, but
+   StickyNotesView.tsx renders `.sticky-card-grid`. The mismatch made the
+   width/grid overrides inert. Selector corrected below. */
+
 @media (max-width: 1450px) {
   .sticky-notes-view,
-  .notes-grid {
+  .sticky-card-grid {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .notes-grid {
-    display: grid !important;
+  .sticky-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
     gap: 14px !important;
   }
@@ -826,21 +861,29 @@ main > div {
    13. Scholarship Hunt Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original block listed `.news-grid` in the
+   flex-column collapse AND targeted `.news-card-grid` for the grid
+   restoration. But `.news-card-grid` does not exist in any component
+   (NewsFeed.tsx uses `.news-grid`; ScholarshipCatalog.tsx uses
+   `.scholarship-catalog-grid`), and `.news-query-bar` is also phantom. So the
+   grid was forced to single-column flex at every viewport <= 1450px and never
+   restored — tablet/laptop users saw 1 card per row where 2-3 should fit.
+   Restructured below: only the outer view collapses to column flow; the actual
+   card grids (.news-grid, .scholarship-catalog-grid) keep their auto-fill grid
+   so cards reflow 2-3 per row on tablet/desktop. */
+
 @media (max-width: 1450px) {
-  .scholarship-news-view,
-  .news-grid,
-  .news-query-bar,
-  .news-card-grid {
+  .scholarship-news-view {
     display: flex !important;
     flex-direction: column !important;
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .news-card-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-    gap: 14px !important;
+  .news-grid,
+  .scholarship-catalog-grid {
+    min-width: 0 !important;
+    width: 100% !important;
   }
 }
 
@@ -848,12 +891,25 @@ main > div {
    14. Profile Tab
    ========================================================================= */
 
-/* ---- Tablet (≤ 768px): collapse two-column card grid to a single column ----
-   The desktop layout is a 2-col grid (forced via inline gridTemplateColumns on
-   .profile-layout). Switching to flex-column here wins over the inline style.
-   Above 768px the two-column layout is preserved so tablets aren't
-   over-stacked. */
-@media (max-width: 768px) {
+/* Canonical device tiers (see AI-Context/technical/responsive-design-system.md):
+     Tablet        768–1023px   -> @media (max-width: 1023px)
+     Large Mobile  480–767px    -> @media (max-width: 767px)
+     Mobile        375–479px    -> @media (max-width: 479px)
+     Small Mobile  320–374px    -> @media (max-width: 374px)
+   The shell-wide sidebar drawer activates earlier at <= 1450px (section 1). */
+
+/* ---- CANONICAL collapse: single-column stack at <= 1450px ----------------
+   The Profile "mobile" threshold MUST match the rest of the shell (the
+   sidebar drawer activates at <= 1450px, see section 1). Below this width the
+   two-column card grid (set via inline `gridTemplateColumns` on
+   `.profile-layout` in ProfileView.tsx, and historically via conflicting rules
+   in styles.css + visual-refresh.css) collapses to a single full-width column.
+
+   `!important` is required to win over the inline style. This is the single
+   source of truth for the Profile 1-column collapse — do NOT reintroduce
+   `.profile-layout { grid-template-columns: ... }` rules in other files.
+   Above 1450px the two-column layout is preserved. */
+@media (max-width: 1450px) {
   .profile-page,
   .profile-layout {
     display: flex !important;
@@ -862,15 +918,28 @@ main > div {
     min-width: 0 !important;
     width: 100% !important;
   }
+
+  /* Give the stacked cards consistent vertical rhythm on tablet/laptop. */
+  .profile-meta-col {
+    gap: 0.75rem;
+  }
 }
 
-/* ---- Hero: stack avatar above text, wrap badges/roles at ≤ 768px ---- */
-@media (max-width: 768px) {
+/* ---- Tablet (768–1023px, query: <= 1023px): first density reduction --------
+   The hero stops using full desktop sizing; admin roles wrap to a full-width
+   row; the name/email block reflows beside the avatar. Pure density change —
+   the 1-column layout collapse already happened at <= 1450px above. */
+@media (max-width: 1023px) {
   .profile-hero.glass-panel {
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 14px;
-    padding: 18px;
+    padding: 16px 20px;
+  }
+
+  .profile-hero.glass-panel .profile-avatar {
+    width: 52px;
+    height: 52px;
   }
 
   .profile-hero.glass-panel .profile-admin-roles {
@@ -879,7 +948,7 @@ main > div {
     width: 100%;
   }
 
-  /* Allow the name+email block to take remaining width but shrink */
+  /* Allow the name+email block to take remaining width but shrink. */
   .profile-hero-text {
     min-width: 0;
     flex: 1 1 160px;
@@ -896,8 +965,51 @@ main > div {
   }
 }
 
-/* ---- Phone (≤ 430px): compact hero, tighter avatar, full-width badges ---- */
-@media (max-width: 430px) {
+/* ---- Large Mobile (480–767px, query: <= 767px): touch targets + reach -------
+   Action rows grow to comfortable tap heights; the logout button goes
+   full-width for thumb reach. Text wrapping rules keep long labels tidy. */
+@media (max-width: 767px) {
+  /* Prevent row content from being squished; let long labels wrap. */
+  .profile-action-row {
+    min-height: 48px;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .profile-action-content {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  /* Icon + label: let the label text wrap to a second line instead of
+     truncating or forcing horizontal overflow. */
+  .profile-action-content > span,
+  .profile-action-content > div:not(:first-child) {
+    min-width: 0;
+  }
+
+  /* Token widget on the "Buy More AI Credits" row should not crowd the label. */
+  .profile-action-row .token-usage-badge {
+    flex-shrink: 0;
+  }
+
+  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1450px
+     canonical collapse above; no need to repeat it here. */
+
+  /* Make logout button full-width for easier reach. */
+  .profile-page-logout-row {
+    justify-content: stretch;
+  }
+
+  .profile-page-logout-row .profile-logout-button {
+    width: 100%;
+  }
+}
+
+/* ---- Mobile (375–479px, query: <= 479px): centered compact hero -----------
+   Hero becomes a centered vertical stack — avatar on top, name/email/badges
+   centered beneath. Maximizes legibility on a narrow handset. */
+@media (max-width: 479px) {
   .profile-hero.glass-panel {
     flex-direction: column;
     align-items: center;
@@ -929,49 +1041,10 @@ main > div {
   }
 }
 
-/* ---- Action rows: readable touch targets + text wrapping at ≤ 768px ---- */
-@media (max-width: 768px) {
-  /* Prevent row content from being squished; let long labels wrap */
-  .profile-action-row {
-    min-height: 48px;
-    padding: 12px 14px;
-    gap: 8px;
-  }
-
-  .profile-action-content {
-    gap: 10px;
-    min-width: 0;
-  }
-
-  /* Icon + label: let the label text wrap to a second line instead of
-     truncating or forcing horizontal overflow. */
-  .profile-action-content > span,
-  .profile-action-content > div:not(:first-child) {
-    min-width: 0;
-  }
-
-  /* Token widget on the "Buy More AI Credits" row should not crowd the label */
-  .profile-action-row .token-usage-badge {
-    flex-shrink: 0;
-  }
-
-  /* Stacked cards get a touch more breathing room between them */
-  .profile-meta-col {
-    gap: 0.75rem;
-  }
-
-  /* Make logout button full-width for easier reach */
-  .profile-page-logout-row {
-    justify-content: stretch;
-  }
-
-  .profile-page-logout-row .profile-logout-button {
-    width: 100%;
-  }
-}
-
-/* ---- Smallest phones (≤ 375px): tighten paddings to avoid crowding ---- */
-@media (max-width: 375px) {
+/* ---- Small Mobile (320–374px, query: <= 374px): tightest density -----------
+   Last-resort padding/font reductions so nothing crowds or overflows on the
+   smallest handsets (iPhone SE / older Androids at 320px). */
+@media (max-width: 374px) {
   .profile-hero.glass-panel {
     padding: 16px 12px;
   }
@@ -990,42 +1063,40 @@ main > div {
    15. Admin Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original layout/tab/filter portion of this
+   section targeted phantom classes (.admin-view, .admin-layout,
+   .admin-card-grid, .admin-tabs, .admin-nav, .sub-tabs, .user-filter-group,
+   .pill-row, .filter-row). The AdminView root element is id="admin-view-root"
+   with className "profile-page"; the real classes are .admin-tab-strip,
+   .admin-dashboard-stat-grid, .admin-dashboard-activity-grid. The phantom
+   selectors made the layout collapse + tab-wrap overrides completely inert.
+   Rewritten below to target the real classes. The modal rules further down
+   were already live and remain unchanged. */
+
 @media (max-width: 1450px) {
-  .admin-view,
-  .admin-layout,
-  .admin-card-grid {
-    display: flex !important;
-    flex-direction: column !important;
+  #admin-view-root {
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .admin-tabs,
-  .admin-nav,
-  .sub-tabs {
+  .admin-dashboard-stat-grid,
+  .admin-dashboard-activity-grid {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* The tab strip already has overflow-x: auto in admin.css; ensure it wraps
+     rather than overflowing its container on narrow viewports. */
+  .admin-tab-strip {
     display: flex !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
     width: 100% !important;
     max-width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
   }
 
-  .admin-tabs button,
-  .sub-tabs button {
+  .admin-tab-strip button {
     flex-shrink: 0 !important;
-  }
-
-  .user-filter-group,
-  .filter-group,
-  .pill-row,
-  .filter-row {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    width: 100% !important;
-    max-width: 100% !important;
   }
 
   .modal-panel,

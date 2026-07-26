@@ -14,6 +14,30 @@ This document defines the non-negotiable responsive design rules and architectur
 > **Rule 1: System-Wide Sidebar Drawer Breakpoint Set to 1450px**
 > On all screen widths **≤ 1450px** (including 1200px/1440px laptop/split-screen views), the sidebar converts into an off-canvas drawer controlled by the TopBar hamburger button (`≡`). Main content receives **100% of the viewport width** so page views never experience squished content columns.
 
+### Canonical Device Tiers (SCHOLARDOCX-0171)
+
+Below the 1450px drawer threshold, density/visual refinements use a **fixed
+4-tier device cascade**. Every component that adds mobile styles MUST use these
+exact `max-width` values (the upper-bound inclusive of each tier's range) so
+tiers never overlap and the cascade is predictable.
+
+| Tier | Device range | CSS media query | Typical purpose |
+|------|--------------|-----------------|-----------------|
+| **Tablet** | 768–1023px | `@media (max-width: 1023px)` | First density reduction: wrap heros, compact paddings, hide decorative overflow-prone elements |
+| **Large Mobile** | 480–767px | `@media (max-width: 767px)` | Touch targets (≥48px), full-width buttons, stack action rows |
+| **Mobile** | 375–479px | `@media (max-width: 479px)` | Centered compact heros, smaller avatars, single-column everything |
+| **Small Mobile** | 320–374px | `@media (max-width: 374px)` | Tightest padding/font reductions for the smallest handsets |
+
+**Why these `max-width` values:** a CSS `max-width: N` query is inclusive of N,
+so to cover the range 768–1023 the query is `max-width: 1023px`. The next tier
+down (`Large Mobile`) then uses `max-width: 767px` so the two don't overlap at
+the 768 boundary. This gives clean, non-overlapping, cascading tiers.
+
+**Do NOT** introduce ad-hoc breakpoints (`768`, `430`, `960`, `820`, etc.) for
+new mobile work — use the canonical tiers above. (Legacy ad-hoc breakpoints in
+older components are tolerated but should migrate to the canonical tiers when
+touched.)
+
 ---
 
 ## 2. Full-Screen Parity Horizontal Action Toolbar (`.section-head`, `.sheet-toolbar` & `SheetToolbarActions`)
@@ -66,12 +90,99 @@ This document defines the non-negotiable responsive design rules and architectur
 
 ---
 
-## 4. Verification Checklist for AI Agents
+## 4. Profile & About Page Mobile Rules (SCHOLARDOCX-0171)
 
-- [ ] Test viewports at `320px`, `375px`, `430px`, `768px`, `1092px`, `1200px`, `1440px`, and `1450px`.
+These two pages had a long history of conflicting responsive rules spread
+across `styles.css`, `visual-refresh.css`, and `responsive.css`. The
+canonical rules below are the **single source of truth** — do not reintroduce
+`.profile-layout { grid-template-columns: ... }` rules in other files.
+
+### Profile (`ProfileView.tsx`, `.profile-layout`)
+
+- **Inline style gotcha:** `ProfileView.tsx` sets an inline
+  `gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)'` on `.profile-layout`.
+  Any CSS that wants to collapse it MUST use `!important`.
+- **Canonical collapse (`responsive.css` section 14):** at **≤ 1450px**
+  `.profile-page` and `.profile-layout` become `display: flex !important;
+  flex-direction: column !important; grid-template-columns: 1fr !important`.
+  This matches the shell-wide sidebar-drawer breakpoint so Profile never
+  stays 2-column while the rest of the app is in mobile mode.
+- **Above 1450px:** the inline 2-column style applies (2 equal columns).
+  There is NO 3-column Profile layout — a legacy `visual-refresh.css` rule
+  that forced 3 columns was removed because the JSX only renders 2 children
+  (it created an empty third column).
+- **Density tiers (all inside `responsive.css` section 14, canonical cascade):**
+  - **Tablet `≤ 1023px`** — hero wraps, admin-roles full-width, avatar 52px,
+    hero padding `16px 20px` / gap 14px, h2 `1.15rem`.
+  - **Large Mobile `≤ 767px`** — action-row 48px touch targets, full-width
+    logout button, content min-width for wrapping.
+  - **Mobile `≤ 479px`** — hero becomes centered vertical stack (column,
+    center-aligned), avatar font 18px, h2 `1.1rem`.
+  - **Small Mobile `≤ 374px`** — tightest padding (`16px 12px`), card padding
+    `0.85rem`, action-row font `0.82rem`.
+- **Dead rules removed:** the old `styles.css` `≤1200px` and `≤820px`
+  `.profile-layout` breakpoints lacked `!important` and were beaten by the
+  inline style — they were dead code and have been removed to prevent drift.
+
+### About (`AboutView.tsx`, `.about-page`, `.about-hero`)
+
+- **Layout:** desktop (> 1450px) is a 12-column grid; ≤ 1450px collapses to a
+  single-column flex stack (handled in `about-refresh.css`).
+- **Hero connection map (`.about-map`):** the map is decorative
+  (`aria-hidden="true"`). Its `.about-map-node` children are absolutely
+  positioned with percentage `--x`/`--y` coordinates and `white-space: nowrap`,
+  which causes horizontal overflow / clipped rendering on narrow viewports.
+  The map is therefore **hidden at the Tablet tier (`≤ 1023px`)** via
+  `display: none !important` in `about-refresh.css`, and the hero-copy padding
+  is compacted to `16px 18px` at the same tier. The `.about-hero-copy` (title,
+  subtitle, icon) stays fully visible. Do NOT un-hide the map below 1024px
+  without first making the nodes overflow-safe.
+
+---
+
+## 5. Verification Checklist for AI Agents
+
+- [ ] Test viewports at `320`, `374`, `375`, `479`, `480`, `767`, `768`, `1023`, `1024`, `1450`, `1600` (covers every canonical tier boundary plus the 1450px drawer threshold).
 - [ ] Confirm sidebar converts to drawer mode at ≤ 1450px (`useIsMobile()` in `useMediaQuery.ts`).
 - [ ] Confirm `.about-page` uses single-column stacked layout with full vertical scroll on viewports ≤ 1450px.
+- [ ] Confirm `.profile-layout` collapses to a single column at ≤ 1450px and is 2-column above (no empty 3rd column).
+- [ ] Confirm `.about-map` is hidden at ≤ 1023px (Tablet tier — no horizontal overflow on the About hero).
+- [ ] Confirm the canonical device tiers fire at their boundaries: Tablet ≤1023, Large Mobile ≤767, Mobile ≤479, Small Mobile ≤374.
 - [ ] Confirm Advisor Atlas Research History drawer opens OVER content with high `z-index: 500`.
 - [ ] Confirm Admin settings modals support horizontal left-right scrolling without column collision.
 - [ ] Run `npm run build` to confirm 0 build/CSS syntax errors.
 - [ ] Run `npm test` to confirm all unit tests pass.
+
+---
+
+## 6. Dead-Selector Pitfall (recurring regression)
+
+`responsive.css` is imported LAST and holds the canonical mobile overrides, so
+when a selector there doesn't match the component's actual `className`, the
+override is a **silent no-op** — the page keeps its desktop layout on mobile
+with no error surfaced. This has bitten the project repeatedly. Before adding
+or trusting a `responsive.css` rule, **grep the selector against the component
+JSX** to confirm the class exists.
+
+Known dead-selector bugs found and fixed in the SCHOLARDOCX-0171 project-wide
+sweep (all in `responsive.css`):
+
+| Section | Phantom selector(s) | Real class(es) | Impact |
+|---|---|---|---|
+| §7 Whiteboard | `.whiteboard-toolbar`, `.whiteboard-canvas-container` | `.wb-toolbar`, `.wb-canvas-dummy` | Toolbar (~727px) overflowed ~1.9× viewport on phones |
+| §11 Sticky Notes | `.notes-grid` | `.sticky-card-grid` | Grid width/density override inert |
+| §13 Scholarship Hunt | `.news-card-grid`, `.news-query-bar` | `.news-grid`, `.scholarship-catalog-grid` | News feed stuck single-column on tablet/desktop |
+| §15 Admin | `.admin-view`, `.admin-layout`, `.admin-card-grid`, `.admin-tabs`, `.admin-nav`, `.sub-tabs`, `.user-filter-group`, `.pill-row`, `.filter-row` | `#admin-view-root` (id), `.admin-tab-strip`, `.admin-dashboard-stat-grid`, `.admin-dashboard-activity-grid` | Entire admin layout/tab responsive block inert |
+
+**Lesson:** when a component's class names are renamed (or a view is rewritten),
+audit `responsive.css` for the old selectors. Phantom selectors are worse than
+no CSS — they look like the responsive concern is handled when it isn't.
+
+**Still-deferred tier cleanup (Category B follow-ups — functional but off-tier):**
+- `calendar.css` uses 920px/640px (should migrate to canonical 1023/767/479/374).
+- System-wide modal rules from SCHOLARDOCX-0168 use 768px/480px (1px off the
+  canonical 767px/479px; no tablet 1023px tier).
+- Advisor Atlas uses a sprawl of 520/680/720/800/900/1080/1100px breakpoints.
+- `HuntProfileModal` 2-col grid has no mobile collapse rule.
+- `admin.css` uses 1180/900/640 max-width and 768/1024/1280/1536 min-width.
+These work today; migrating them is a separate cleanup task, not a bugfix.

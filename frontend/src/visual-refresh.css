@@ -1952,11 +1952,13 @@ main {
   margin-top: -0.25rem;
 }
 
-@media (min-width: 1181px) {
-  .profile-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  }
-}
+/* NOTE: A prior `@media (min-width: 1181px)` rule here forced `.profile-layout`
+   into a 3-column grid (!important). That was buggy — ProfileView.tsx only
+   renders TWO `.profile-meta-col` children, so the 3-col rule produced an empty
+   third column and misaligned cards on wide screens. Removed in
+   SCHOLARDOCX-0171. The canonical Profile layout now lives in responsive.css
+   section 14 (1-col at <= 1450px, 2-col above via the inline style on
+   `.profile-layout` in ProfileView.tsx). Do not reintroduce a 3-col rule. */
 
 @media (max-width: 760px) {
   .profile-page {

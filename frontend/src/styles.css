@@ -3164,11 +3164,16 @@ td.collapsed-cell {
   font-size: 14px;
 }
 
-/* Three-column layout: identity | avatar | system info */
+/* Profile layout base. The actual column count is set inline on `.profile-layout`
+   in ProfileView.tsx (2 columns) and collapsed to 1 column at <= 1450px by the
+   canonical rule in responsive.css section 14. The `grid-template-columns`
+   below is a legacy fallback only (it is overridden by the inline style) and is
+   kept for resilience. Do NOT add `.profile-layout { grid-template-columns }`
+   media queries here — they conflict with responsive.css. See SCHOLARDOCX-0171. */
 .profile-layout {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.95fr) minmax(280px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -3677,21 +3682,21 @@ td.collapsed-cell {
   flex-shrink: 0;
 }
 
+/* SCHOLARDOCX-0171: The `.profile-layout` grid-template-columns rules that
+   previously lived in these <= 1200px and <= 820px blocks were dead code —
+   they lacked !important and were always beaten by the inline
+   gridTemplateColumns on `.profile-layout` in ProfileView.tsx. They are removed
+   to prevent future drift. The canonical Profile collapse (1 column at
+   <= 1450px) now lives in responsive.css section 14. Only the form-card and
+   field-row rules below are still meaningful (they affect the edit-identity
+   modal form, not the main layout grid). */
 @media (max-width: 1200px) {
-  .profile-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
   .profile-form-card {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 820px) {
-  .profile-layout {
-    grid-template-columns: 1fr;
-  }
-
   .profile-form-card {
     grid-column: auto;
   }

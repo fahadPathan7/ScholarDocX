@@ -858,21 +858,29 @@ main > div {
    13. Scholarship Hunt Tab (<= 1450px)
    ========================================================================= */
 
+/* NOTE (SCHOLARDOCX-0171): The original block listed `.news-grid` in the
+   flex-column collapse AND targeted `.news-card-grid` for the grid
+   restoration. But `.news-card-grid` does not exist in any component
+   (NewsFeed.tsx uses `.news-grid`; ScholarshipCatalog.tsx uses
+   `.scholarship-catalog-grid`), and `.news-query-bar` is also phantom. So the
+   grid was forced to single-column flex at every viewport <= 1450px and never
+   restored — tablet/laptop users saw 1 card per row where 2-3 should fit.
+   Restructured below: only the outer view collapses to column flow; the actual
+   card grids (.news-grid, .scholarship-catalog-grid) keep their auto-fill grid
+   so cards reflow 2-3 per row on tablet/desktop. */
+
 @media (max-width: 1450px) {
-  .scholarship-news-view,
-  .news-grid,
-  .news-query-bar,
-  .news-card-grid {
+  .scholarship-news-view {
     display: flex !important;
     flex-direction: column !important;
     min-width: 0 !important;
     width: 100% !important;
   }
 
-  .news-card-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-    gap: 14px !important;
+  .news-grid,
+  .scholarship-catalog-grid {
+    min-width: 0 !important;
+    width: 100% !important;
   }
 }
 

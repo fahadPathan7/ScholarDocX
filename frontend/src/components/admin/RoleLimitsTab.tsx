@@ -156,6 +156,21 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       description: "Limits the total number of whiteboards a user can create.",
       resetInfo: "Never resets. This is a cumulative limit.",
       example: "If limit is 10, user can create up to 10 whiteboards total. Deleting whiteboards does NOT free up quota."
+    },
+    can_use_research_reader: {
+      description: "Controls whether a user can access the AI-assisted single-paper deep analysis and Research Reader workspace.",
+      resetInfo: "This is a permission setting, not a consumable limit. It does not reset.",
+      example: "When enabled (1), Pro and Max users can access Research Reader. When disabled (0), Free and Basic users see a locked tab."
+    },
+    research_papers_per_month: {
+      description: "Limits the total number of research paper PDF uploads in a calendar month.",
+      resetInfo: "Resets on the 1st of each month at midnight UTC.",
+      example: "If limit is 30, user can upload 30 papers per month. Counter resets on the 1st of next month."
+    },
+    max_research_papers_library: {
+      description: "Limits the maximum number of research papers a user can store concurrently in their library.",
+      resetInfo: "Never resets automatically, but deleting an old paper frees up capacity for a new paper.",
+      example: "If limit is 20, the user can have up to 20 papers saved in their library at any one time."
     }
   };
 
@@ -209,6 +224,14 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
         { key: "can_use_scholarship_hunt", label: "Can Use Scholarship Hunt", description: "Controls whether users can access the automated scholarship finding suite, including search, catalog cycle checks, opportunity analysis, and deep hunt." },
         { key: "news_searches_per_day", label: "Maximum Scholarship Hunt Searches Per Day", description: "Limits the number of Scholarship Hunt searches per day." },
         { key: "news_searches_per_month", label: "Maximum Scholarship Hunt Searches Per Month", description: "Limits the total number of Scholarship Hunt searches in a calendar month." }
+      ]
+    },
+    {
+      name: "Research Reader",
+      features: [
+        { key: "can_use_research_reader", label: "Can Use Research Reader", description: "Controls whether users on this plan can access the AI-assisted Research Reader paper workspace." },
+        { key: "research_papers_per_month", label: "Maximum Monthly Research Paper Uploads", description: "Limits the total number of PDF research papers a user can upload in a calendar month." },
+        { key: "max_research_papers_library", label: "Maximum Stored Papers Library Capacity", description: "Limits the maximum number of research papers a user can store concurrently in their library. Deleting a paper frees up capacity." }
       ]
     },
     {

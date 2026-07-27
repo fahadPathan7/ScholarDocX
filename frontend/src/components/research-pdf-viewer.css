@@ -1,0 +1,307 @@
+/* Compound selector (.modal-panel.research-pdf-modal): the global
+   `.modal-panel { width: 600px; max-width: 90vw; }` base rule in styles.css has
+   identical specificity to a lone `.research-pdf-modal` class, so which one wins
+   depends on CSS source order. Doubling the class count guarantees this override
+   always wins regardless of import order. */
+.modal-panel.research-pdf-modal {
+  width: min(1120px, calc(100vw - 56px));
+  max-width: 1120px;
+  height: min(860px, calc(100dvh - 72px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(23, 32, 29, 0.1);
+  background: #fcf9f2;
+}
+
+.research-pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(23, 32, 29, 0.1);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(56, 163, 127, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(246, 240, 231, 0.92));
+}
+
+.research-pdf-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.research-pdf-title-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  color: #173f46;
+  background: rgba(47, 125, 116, 0.12);
+  border: 1px solid rgba(47, 125, 116, 0.18);
+}
+
+.research-pdf-title h3 {
+  margin: 0;
+  max-width: 560px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #17201d;
+}
+
+.research-pdf-title p {
+  margin: 4px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #65756d;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.research-pdf-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.research-pdf-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid rgba(23, 32, 29, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.research-pdf-zoom button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #33463f;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.research-pdf-zoom button:hover:not(:disabled) {
+  background: rgba(47, 125, 116, 0.14);
+  color: #173f46;
+}
+
+.research-pdf-zoom button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.research-pdf-zoom span {
+  min-width: 44px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4a5c54;
+}
+
+.research-pdf-close {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(23, 32, 29, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #4a5c54;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.research-pdf-close:hover {
+  background: #fff3f1;
+  border-color: rgba(204, 72, 57, 0.32);
+  color: #a23d33;
+}
+
+/* ---- Legend bar -------------------------------------------------------- */
+.research-pdf-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(23, 32, 29, 0.08);
+  background: rgba(255, 250, 240, 0.7);
+  color: #55655d;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.research-pdf-legend .legend-swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: rgba(255, 214, 84, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(196, 148, 41, 0.5);
+}
+
+.research-pdf-legend strong {
+  color: #173f46;
+}
+
+.research-pdf-legend .legend-muted {
+  color: #8a978f;
+  font-weight: 500;
+}
+
+/* ---- Scrollable PDF area ---------------------------------------------- */
+.research-pdf-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* Reserve the vertical scrollbar gutter up front so page-fit width stays
+     stable and never triggers a spurious horizontal scrollbar once the full
+     document makes the content tall. */
+  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  background: #e9edeb;
+}
+
+.research-pdf-page {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 4px;
+  box-shadow: 0 6px 22px rgba(20, 30, 26, 0.18);
+  background: #fff;
+  overflow: hidden;
+}
+
+.research-pdf-page canvas {
+  display: block;
+}
+
+.research-pdf-page-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(23, 63, 70, 0.86);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+/* ---- PDF.js text layer (minimal positioning rules) -------------------- */
+.research-pdf-page .textLayer {
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+  --scale-factor: 1;
+  --user-unit: 1;
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.research-pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.research-pdf-page .textLayer > :not(.markedContent),
+.research-pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.research-pdf-page .textLayer .markedContent {
+  display: contents;
+}
+
+/* Highlight the cited passage directly on the real PDF text, like a selection */
+.research-pdf-page .textLayer span.rr-hl {
+  background: rgba(255, 214, 84, 0.5);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(196, 148, 41, 0.35);
+}
+
+.research-pdf-page .textLayer span.rr-hl-focus {
+  background: rgba(255, 196, 40, 0.62);
+}
+
+/* ---- Loading / error states ------------------------------------------ */
+.research-pdf-state {
+  flex: 1;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #4a5c54;
+  font-size: 0.92rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.research-pdf-state.error {
+  color: #a23d33;
+}
+
+@media (max-width: 900px) {
+  .research-pdf-modal {
+    width: min(100%, calc(100vw - 24px));
+    height: calc(100dvh - 56px);
+  }
+
+  .research-pdf-title h3 {
+    max-width: calc(100vw - 220px);
+  }
+
+  .research-pdf-scroll {
+    padding: 12px;
+  }
+}

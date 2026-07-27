@@ -266,6 +266,8 @@ class Store:
         stmt = select(model)
         if self.current_user_id and "user_id" in TABLE_COLUMNS.get(table, {}):
             stmt = stmt.where(model.user_id == self.current_user_id)
+        if table == "static_files":
+            stmt = stmt.where(model.file_type != "research_paper")
         stmt = stmt.order_by(text(order_by))
         return [self._row(obj) for obj in self.db.scalars(stmt).all()]
 
@@ -275,6 +277,8 @@ class Store:
         stmt = select(model).where(model.id == record_id)
         if self.current_user_id and "user_id" in TABLE_COLUMNS.get(table, {}):
             stmt = stmt.where(model.user_id == self.current_user_id)
+        if table == "static_files":
+            stmt = stmt.where(model.file_type != "research_paper")
         obj = self.db.scalar(stmt)
         if obj is None:
             self.db.expire_all()
@@ -312,6 +316,8 @@ class Store:
         stmt = select(model).where(model.id == record_id)
         if self.current_user_id and "user_id" in TABLE_COLUMNS.get(table, {}):
             stmt = stmt.where(model.user_id == self.current_user_id)
+        if table == "static_files":
+            stmt = stmt.where(model.file_type != "research_paper")
         obj = self.db.scalar(stmt)
         if not obj:
             self.db.expire_all()
@@ -344,6 +350,8 @@ class Store:
         stmt = select(model).where(model.id == record_id)
         if self.current_user_id and "user_id" in TABLE_COLUMNS.get(table, {}):
             stmt = stmt.where(model.user_id == self.current_user_id)
+        if table == "static_files":
+            stmt = stmt.where(model.file_type != "research_paper")
         obj = self.db.scalar(stmt)
         if not obj:
             raise LookupError(f"{table} record not found")
@@ -359,10 +367,10 @@ class Store:
         # Build the query to return ALL categories for the user, regardless of whether they have files
         if uid:
             where_dc = "WHERE dc.user_id = :uid"
-            join_condition = f"ON sf.file_type = dc.slug AND sf.user_id = :uid"
+            join_condition = f"ON sf.file_type = dc.slug AND sf.user_id = :uid AND sf.file_type != 'research_paper'"
         else:
             where_dc = ""
-            join_condition = "ON sf.file_type = dc.slug"
+            join_condition = "ON sf.file_type = dc.slug AND sf.file_type != 'research_paper'"
         
         rows = self.db.execute(text(
             f"""
@@ -538,14 +546,23 @@ class Store:
                 f"SELECT status, COUNT(*) as count FROM applications {where_clause} GROUP BY status ORDER BY status"
             ), params).mappings().all()
         ]
+        documents_count_sql = "SELECT COUNT(*) FROM static_files WHERE file_type != 'research_paper'"
+        documents_count_params = {}
+        if uid:
+            documents_count_sql += " AND user_id = :uid"
+            documents_count_params["uid"] = uid
+        documents_count = self.db.execute(
+            text(documents_count_sql), documents_count_params
+        ).scalar() or 0
+
         counts = {
             "applications": self._count("applications"),
             "projects": self._count("projects"),
             "project_sheets": self._count("project_sheets"),
             "universities": self._count("universities"),
             "professors": self._count("professors"),
-            "documents": self._count("static_files"),
-            "files": self._count("static_files"),
+            "documents": documents_count,
+            "files": documents_count,
             "sticky_notes": self._count("sticky_notes"),
             "whiteboards": self._count("whiteboards"),
             "email_drafts": self._count("email_drafts"),

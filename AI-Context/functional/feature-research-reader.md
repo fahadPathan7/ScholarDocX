@@ -1,400 +1,85 @@
-# Feature: Research Reader
+# Feature Specification: Research Expert Workspace (SCHOLARDOCX-0174)
 
 ## Overview
 
-Research Reader is an AI-powered single-paper analysis workspace that helps students and researchers efficiently understand academic papers. Users upload one research paper at a time and use predefined analytical prompts or custom questions to extract insights about methodology, results, model structure, and key findings without manually reading the entire document.
+ScholarDocX Research Expert is a privacy-first, vector-search augmented research paper analysis workspace designed for academic applicants (Master's, PhD, and research-focused candidates). It allows users to upload PDF research papers, extract text, generate 768-dimension vector embeddings using Gemini `text-embedding-004`, perform pgvector cosine similarity search, and analyze papers using 13 predefined analytical prompts or custom questions.
 
-**Premium Feature**: Research Reader is available exclusively to Pro and Max tier subscribers. All AI analysis operations consume credits from the user's token balance, following the existing AI token economy.
+## Access & Role Limits
 
-## User Value
+- **Role Gate**: `can_use_research_reader` (Pro: 1, Max: 1, Free: 0, General: 0).
+- **Upload Quota**: `research_papers_per_month` (Pro: 30, Max: 100, Free/General: 0).
+- **Billing Enforcement**:
+  - Embedding generation calls Gemini REST API `text-embedding-004:batchEmbedContents` and meters tokens via `ai_tokens.charge(..., source="research_paper_embedding")`.
+  - Paper analysis queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, metering input/output tokens via `AiService.charge_tokens`.
+  - Both embedding generation and paper analysis require pre-flight credit checks (`ensure_can_spend`) and fail with HTTP 402 if credits are zero.
 
-- **Time Savings**: Quickly extract specific information from dense academic papers
-- **Focused Analysis**: Predefined prompts guide users to ask the right research questions
-- **Semantic Understanding**: Vector search finds relevant sections even when exact keywords don't match
-- **Source Transparency**: AI responses cite specific paper sections for verification
-- **Learning Aid**: Helps students understand complex research methodology and results
-- **Research Efficiency**: Speeds up literature review and paper comprehension workflows
-- **Cost-Effective**: Pay-as-you-go token consumption means users only pay for what they analyze
-- **Premium Tool**: Exclusive feature that differentiates Pro/Max plans from lower tiers
+## Key Workflows & Features
 
-## User Stories
+1. **PDF Upload & Text Extraction**:
+   - Accepts PDF files up to 10 MB.
+   - Extracts plain text and Author metadata page-by-page using `pdfplumber`.
+   - Stores binary PDF in Supabase Storage via `save_upload` (`research_papers` category) and creates a tracking row in `static_files`.
 
-### US-9.1: Upload Research Paper
-**As a** researcher  
-**I want to** upload a PDF research paper to Research Reader  
-**So that** I can analyze it using AI-powered semantic search
+2. **Semantic Chunking & Embedding Generation**:
+   - Splits document text into overlapping semantic chunks (~1100 characters per chunk, ~150 characters overlap). Smaller chunks give tighter similarity matches and keep unrelated/garbled math out of a single retrieved section.
+   - Every chunk is stamped with the page it starts on (`--- Page N ---`) even when it falls entirely between two page markers, so page-based "View in PDF" jump/highlight always resolves a page.
+   - Analysis retrieves a larger top-k (default 10) to compensate for the smaller chunk size.
+   - Generates 768-dimension float vectors via Gemini `text-embedding-004` API in batches.
+   - Stores chunks and vector embeddings in PostgreSQL `research_paper_chunks` table (`embedding` column type `Vector(768)`).
+   - Uses HNSW index with `vector_cosine_ops` for fast nearest-neighbour queries.
 
-**Acceptance Criteria**:
-- Upload button accepts PDF files up to 10MB
-- Drag-and-drop upload is supported
-- Upload shows progress indicator
-- System extracts text and generates embeddings automatically
-- Paper appears in history after successful upload
-- User receives error message if file is too large or wrong format
+3. **Vector Similarity Search**:
+   - Generates single 768-dimension query embedding for user prompts.
+   - Executes pgvector SQL cosine distance query: `SELECT id, chunk_index, chunk_text, token_count, 1 - (embedding <=> :query_vec) AS similarity FROM research_paper_chunks WHERE paper_id = :pid ORDER BY embedding <=> :query_vec ASC LIMIT :k`.
+   - Retrieves top-k (default 5) most relevant chunks with similarity scores.
 
-### US-9.2: Analyze Paper with Predefined Prompts
-**As a** student reading a machine learning paper  
-**I want to** click "Explain the methodology" prompt  
-**So that** I can quickly understand the research methods without reading the full paper
+4. **Predefined & Custom AI Analysis**:
+   - **13 Predefined Prompts**, tuned for technically-literate readers (they embrace domain terminology and go for analytical depth rather than beginner hand-holding) and ordered most-analytical-first. Each prompt is engineered for rigorous, structured output; kept in sync between `frontend/src/lib/researchPrompts.ts` and backend `PREDEFINED_PROMPTS`.
+     1. *Executive Summary*: Precise, decision-ready synopsis for a technical reader.
+     2. *Contributions & Novelty*: Core contributions and what is truly novel vs prior art (novelty vs. increment).
+     3. *Methodology Analysis*: In-depth dissection of pipeline, data, model/algorithm, and evaluation.
+     4. *Theoretical Foundations & Formulation*: Problem formulation, objectives/losses, assumptions, and guarantees.
+     5. *Key Findings & Results*: Quantitative results, deltas over baselines, and whether evidence justifies claims.
+     6. *Benchmark & Baseline Comparison*: SOTA positioning, fairness of comparison, and significance of gains.
+     7. *Results & Figures Deep-Dive*: Technical interpretation of key figures, tables, and observed trends.
+     8. *Critical Peer Review*: Reviewer-grade critique of novelty, soundness, evidence, and an overall verdict.
+     9. *Limitations & Threats to Validity*: Failure modes, biases, assumptions, and threats to validity.
+     10. *Reproducibility & Implementation Blueprint*: Actionable recipe to re-implement, with missing details flagged.
+     11. *Background & Related Work*: Research lineage, the gap targeted, and key references.
+     12. *Practical Applications & Deployment*: Real-world use, integration needs, and operational constraints.
+     13. *Future Work & Open Problems*: Open problems and concrete next directions.
+   - **Custom Q&A**: Allows users to type arbitrary questions about the paper.
+   - **Citations**: Displays retrieved paper section chunks with chunk numbers, similarity scores (%), and text snippets.
 
-**Acceptance Criteria**:
-- 7 predefined prompts are displayed as clickable buttons
-- Prompts include: Methodology, Results, Model Structure, Limitations, Contributions, Datasets, Related Work
-- Clicking a prompt triggers AI analysis
-- Response cites specific paper sections with similarity scores
-- Response appears within 10 seconds for typical papers
+5. **Paper Management**:
+   - Library view listing uploaded papers with status badges (`processing`, `ready`, `error`), chunk count, and upload date.
+   - Paper deletion removes paper record, chunk embeddings, and Supabase Storage binary file (`delete_file`).
 
-### US-9.3: Ask Custom Questions
-**As a** researcher  
-**I want to** ask custom questions about the paper  
-**So that** I can get specific information not covered by predefined prompts
+6. **Source-to-PDF Review**:
+   - Each cited paper section includes a Research Expert-owned "View in PDF" action.
+   - The action opens the uploaded paper through `/api/research/papers/{paper_id}/pdf` and renders it client-side with **PDF.js** (`ResearchPdfViewer.tsx`, lazy-loaded so the PDF.js bundle only downloads on demand; worker bundled locally, no CDN).
+   - The **whole PDF** is rendered so the user can scroll through the entire document. Pages are painted lazily (canvas + transparent PDF.js **text layer**) via an `IntersectionObserver` as they approach the viewport, so large papers stay responsive. Correctly-sized placeholders are laid out for every page up front so scroll offsets are accurate before painting.
+   - On open, the cited page(s) are rendered eagerly and the viewer highlights the cited passage **directly on the real PDF text** — like a text selection — by matching the section's meaningful tokens against the text-layer spans and highlighting the contiguous run, then **auto-scrolls to focus that passage** (the user can freely scroll away from there). There is no longer a separate re-rendered copy of the (possibly garbled) chunk text beside the PDF.
+   - Includes zoom controls and a legend indicating whether the passage was auto-located. If the exact passage cannot be matched, the correct page is still shown without a highlight.
+   - Research Expert PDFs remain separate from the Documents workspace lists and picker flows. They still count toward the shared storage quota, but they are opened, reviewed, retried, and deleted only inside Research Expert.
 
-**Acceptance Criteria**:
-- Text input accepts custom questions
-- Submit button triggers AI analysis
-- AI searches paper using semantic similarity
-- Response includes relevant sections and citations
-- Response quality matches predefined prompt quality
+7. **Output Readability**:
+   - PDF text extraction preserves honest spacing rather than gluing single glyphs into fake words, avoiding fabricated garbled tokens from math/equation layouts.
+   - Author/metadata parsing runs on a superscript-cleaned copy of the header page(s): isolated small-font glyphs (affiliation superscripts like `a`, `b`, `1`) are dropped before parsing so they aren't glued onto surnames (e.g. `Das` → `Dasa`), while genuine small-font runs (DOI, year) are preserved. The main chunk/embedding text is unaffected.
+   - The analysis system instruction directs the model to describe formulas/algorithms in plain English (or simple inline math) and to never copy raw scrambled equations, algorithm listings, or corrupted character sequences verbatim into the answer.
 
-### US-9.4: View Paper History
-**As a** user with multiple research interests  
-**I want to** see a list of papers I've uploaded  
-**So that** I can return to previous analyses
+8. **Saved Analyses (max 10 per paper)**:
+   - Each generated answer has a **Save output** button. Saved outputs persist in the `research_paper_analyses` table (prompt, answer, sources JSON, model, charged credits, timestamp) so users can revisit an answer later without re-running (and re-paying for) the query.
+   - A per-paper cap of **10** is enforced server-side; saving an 11th returns HTTP 400 asking the user to delete one first. The Save button reflects `N/10`, disables when the current output is already saved (dedupe by prompt+answer), and disables at the cap.
+   - A **Saved** button in the active-paper header (showing `N/10`) opens a **modal** listing saved outputs (newest first). Each item expands to show the rendered answer plus source chips that open the PDF viewer, and can be deleted; the modal shows an empty state until the first save. Rows are removed automatically via `ON DELETE CASCADE` when the paper (or user) is deleted.
+   - Endpoints: `GET/POST /api/research/papers/{paper_id}/analyses`, `DELETE /api/research/papers/{paper_id}/analyses/{analysis_id}`.
 
-**Acceptance Criteria**:
-- History section shows all user's uploaded papers
-- Each entry shows title, upload date, and chunk count
-- User can click a paper to make it "active" for analysis
-- Active paper is highlighted in history
-- History is sorted by most recent first
+9. **Workspace Layout**:
+   - The library sidebar is **collapsible** (collapses to a slim rail with an expand control) to give the analysis workspace more room.
+   - The 13-card predefined-prompts section is **collapsible** and **auto-collapses when an analysis runs**, and the fresh answer **auto-scrolls into view**, so the output is never buried at the very bottom below the prompt grid.
 
-### US-9.5: Delete Papers
-**As a** user managing storage  
-**I want to** delete papers I no longer need  
-**So that** I can free up my quota and keep workspace organized
+## Data Boundaries & Security
 
-**Acceptance Criteria**:
-- Delete button appears on each paper in history
-- Delete requires confirmation
-- Deleting removes paper file, embeddings, and analysis history
-- Deleted paper disappears from history immediately
-- Deleting active paper clears analysis view
-
-### US-9.6: Switch Active Paper
-**As a** researcher comparing multiple papers  
-**I want to** switch between uploaded papers  
-**So that** I can analyze different papers without re-uploading
-
-**Acceptance Criteria**:
-- Clicking a paper in history makes it active
-- Active paper title appears in analysis section
-- Prompts and questions apply to active paper only
-- Switching is instant (no re-processing needed)
-
-### US-9.7: Monitor AI Credit Usage
-**As a** Pro user managing my budget  
-**I want to** see how many credits each analysis costs  
-**So that** I can track my spending and stay within budget
-
-**Acceptance Criteria**:
-- Current credit balance displayed prominently in Research Reader
-- Each analysis response shows token cost (e.g., "Cost: 1,250 tokens")
-- Upload process shows estimated embedding cost before proceeding
-- Low credit warning appears when balance drops below threshold
-- User can navigate to Buy Credits from warning message
-
-### US-9.8: Access Premium Feature
-**As a** Free tier user  
-**I want to** understand why I can't access Research Reader  
-**So that** I know what benefits I'll get by upgrading
-
-**Acceptance Criteria**:
-- Research Reader nav item shows "Pro" badge or lock icon
-- Clicking nav item as Free/General user shows upgrade modal
-- Modal explains feature benefits and pricing tiers
-- Modal includes "Upgrade to Pro" CTA button
-- Direct URL access (e.g., /research-reader) redirects to upgrade modal
-- Pro/Max users see full feature without restrictions
-
-## User Workflow
-
-### First-Time Pro User Flow
-1. User navigates to "Research Reader" from sidebar (sees Pro badge)
-2. User sees empty state with upload prompt and credit balance
-3. User drags PDF or clicks upload button
-4. System shows estimated embedding cost (e.g., "~500 tokens")
-5. User confirms upload
-6. System processes paper (shows progress: "Extracting text... Generating embeddings...")
-7. Upload completes, credits deducted, balance updates
-8. Paper appears as active with title and metadata
-9. 7 predefined prompts appear
-10. User clicks "Summarize the key results" prompt
-11. AI analyzes paper and returns response with citations
-12. Response shows token cost at bottom (e.g., "Analysis used 1,250 tokens")
-13. Credit balance updates in real-time
-14. User asks custom question "What optimizer did they use?"
-15. AI returns answer with relevant sections highlighted and cost
-
-### Free User Blocked Flow
-1. Free user sees "Research Reader 🔒 Pro" in sidebar
-2. User clicks item out of curiosity
-3. Upgrade modal appears: "Research Reader is a Pro feature"
-4. Modal explains: "Upload research papers and get AI-powered analysis with semantic search. Available on Pro ($15/quarter) and Max ($40/quarter) plans."
-5. User clicks "Upgrade to Pro" or "Maybe Later"
-6. If upgrade, redirected to pricing/checkout
-
-### Returning User Flow
-1. User navigates to Research Reader
-2. Last uploaded paper is active by default
-3. Credit balance displayed (e.g., "15,430 credits remaining")
-4. Credit balance displayed (e.g., "15,430 credits remaining")
-5. User sees history sidebar with 5 previous papers
-6. User clicks a different paper from history
-7. That paper becomes active
-8. User uses predefined prompts on new active paper (each costs tokens)
-9. User monitors credit balance as it decreases with usage
-5. Paper appears as active with title and metadata
-6. 7 predefined prompts appear
-7. User clicks "Summarize the key results" prompt
-8. AI analyzes paper and returns response with citations
-9. User asks custom question "What optimizer did they use?"
-10. AI returns answer with relevant sections highlighted
-
-### Returning User Flow
-1. User navigates to Research Reader
-2. Last uploaded paper is active by default
-3. User sees history sidebar with 5 previous papers
-4. User clicks a different paper from history
-5. That paper becomes active
-6. User uses predefined prompts on new active paper
-
-## Predefined Prompt Catalog
-
-The following 7 prompts are always available:
-
-1. **Methodology** (🔬)
-   - Prompt: "Explain the methodology used in this paper"
-   - Focus: Research methods, experimental design, approach
-
-2. **Results** (📊)
-   - Prompt: "Summarize the key results and findings"
-   - Focus: Outcomes, performance metrics, discoveries
-
-3. **Model Structure** (🏗️)
-   - Prompt: "Describe the model structure or architecture"
-   - Focus: System design, algorithms, mathematical formulations
-
-4. **Limitations** (⚠️)
-   - Prompt: "What are the limitations mentioned by the authors?"
-   - Focus: Acknowledged weaknesses, future work, constraints
-
-5. **Contributions** (💡)
-   - Prompt: "What are the main contributions of this paper?"
-   - Focus: Novel ideas, improvements, theoretical advances
-
-6. **Datasets** (🗂️)
-   - Prompt: "What datasets were used in this research?"
-   - Focus: Data sources, benchmarks, evaluation sets
-
-7. **Related Work** (📚)
-   - Prompt: "What related work does the paper reference?"
-   - Focus: Prior research, comparisons, literature context
-
-## UI Layout
-
-### Research Reader View Structure
-
-```
-┌─────────────────────────────────────────────────────┐
-│ 🏠 Research Reader                                   │
-├─────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌──────────────────┐  ┌───────────────────────┐   │
-│  │  History (Left)  │  │  Main Analysis (Right)│   │
-│  │                  │  │                        │   │
-│  │  📄 Paper 1*     │  │  📄 Active Paper       │   │
-│  │  📄 Paper 2      │  │  Title: "Attention..." │   │
-│  │  📄 Paper 3      │  │  Author: Vaswani et al │   │
-│  │                  │  │  Chunks: 45            │   │
-│  │                  │  │                        │   │
-│  │  [Upload New]    │  │  ┌─────┬─────┬─────┐  │   │
-│  │                  │  │  │ 🔬  │ 📊  │ 🏗️  │  │   │
-│  │                  │  │  └─────┴─────┴─────┘  │   │
-│  │                  │  │  ┌─────┬─────┬─────┐  │   │
-│  │                  │  │  │ ⚠️  │ 💡  │ 🗂️  │  │   │
-│  │                  │  │  └─────┴─────┴─────┘  │   │
-│  │                  │  │  ┌─────┐              │   │
-│  │                  │  │  │ 📚  │              │   │
-│  │                  │  │  └─────┘              │   │
-│  │                  │  │                        │   │
-│  │                  │  │  Custom Question:      │   │
-│  │                  │  │  [________________]    │   │
-│  │                  │  │  [Ask]                 │   │
-│  │                  │  │                        │   │
-│  │                  │  │  Analysis Results:     │   │
-│  │                  │  │  ┌─────────────────┐  │   │
-│  │                  │  │  │ AI Response     │  │   │
-│  │                  │  │  │ with citations  │  │   │
-│  │                  │  │  └─────────────────┘  │   │
-│  └──────────────────┘  └───────────────────────┘   │
-└─────────────────────────────────────────────────────┘
-```
-
-## Technical Behavior
-
-### Text Extraction
-- PDF text is extracted using `pdfplumber` or `PyPDF2`
-- Text is cleaned (remove headers, footers, page numbers)
-- Special characters and equations are preserved where possible
-
-### Chunking Strategy
-- Text is split into semantic chunks (~500-1000 tokens each)
-- 100-token overlap between chunks preserves context
-- Chunk boundaries respect paragraph breaks when possible
-- Each chunk is indexed with its position in the document
-
-### Embedding Generation
-- Use Gemini text-embedding-004 (768 dimensions) or Supabase gte-small (384 dimensions)
-- Generate embeddings for all chunks in batch
-- Store embeddings in `research_paper_chunks.embedding` column (pgvector)
-- Embedding generation happens asynchronously during upload
-
-### Vector Search
-- User question is converted to query embedding
-- Cosine similarity search finds top-5 most relevant chunks
-- Results are ranked by similarity score (0.0 to 1.0)
-- Threshold of 0.6 filters out irrelevant chunks
-
-### AI Analysis
-- Top-5 relevant chunks are injected into AI prompt
-- System prompt instructs AI to cite sources
-- AI response includes chunk references (e.g., "[Section 3.2, Chunk 12]")
-- If no relevant chunks found (all below threshold), AI responds "Information not found in paper"
-
-### Privacy & Security
-- Papers are user-scoped (user_id foreign key)
-- Users cannot access other users' papers
-- Paper text is sent to AI provider (Gemini/GLM) for analysis
-- Privacy notice displayed on first upload: "Paper content will be sent to AI provider for analysis"
-
-### Role-Based Access Control
-- **Feature Access**: `can_use_research_reader` permission
-  - Free: false (blocked)
-  - General: false (blocked)
-  - Pro: true (full access)
-  - Max: true (full access)
-- Unauthorized users receive 403 Forbidden error
-- Frontend hides or locks navigation item for Free/General users
-- Upgrade modal explains Pro/Max benefits
-
-### AI Token Consumption
-- **Embedding Generation** (during upload):
-  - Charges based on total paper text tokens processed
-  - Typical 10-page paper: ~3,000-5,000 input tokens (~500-800 credits depending on provider)
-  - Cost estimated and shown before upload confirmation
-- **Analysis Queries** (predefined prompts or custom questions):
-  - Charges based on provider's input (prompt + top-5 chunk context) + output tokens
-  - Typical analysis: ~1,000-2,000 input + 500-1,000 output = 1,500-3,000 tokens total
-  - Cost displayed after each analysis completes
-- **Credit Balance Check**:
-  - Before processing, system checks user has sufficient credits
-  - Insufficient credits returns 402 Payment Required error
-  - User sees clear message: "Insufficient AI credits. [Buy Credits]"
-- **Token Tracking**:
-  - All charges go through `AiService.charge()` or `charge_flat_fee()`
-  - Usage appears in user's stats (`user_usage_stats` table)
-  - Billing history shows Research Reader consumption
-
-### Role Limits
-- **Feature Access**: `can_use_research_reader` (boolean permission, Pro/Max only)
-- **Upload Quota**: `research_papers_per_month` limits uploads per calendar month
-  - Free: 0 (feature blocked)
-  - General: 0 (feature blocked)
-  - Pro: 30 papers/month  
-  - Max: 100 papers/month
-- Existing papers can be re-analyzed unlimited times (each analysis costs tokens)
-- Monthly quota resets on the 1st of each month
-
-### Rate Limiting
-- Upload endpoint: 5 uploads per 5 minutes per user
-- Analysis endpoint: reuses `/ai/research` rate limit (10 requests per minute per user)
-
-## Error Handling
-
-### Upload Errors
-- **File too large**: "Paper must be under 10MB. Please compress or split the document."
-- **Wrong format**: "Only PDF files are supported. Please convert DOCX/LaTeX to PDF first."
-- **Text extraction failed**: "Unable to extract text from PDF. The file may be an image-only scan."
-- **Quota exceeded**: "Monthly upload limit reached (30/30 papers). Resets on [date]."
-- **Insufficient credits**: "Insufficient AI credits for embedding generation (need ~500 credits). [Buy Credits]"
-- **Feature access denied**: "Research Reader is a Pro feature. [Upgrade to Pro]"
-
-### Analysis Errors
-- **No active paper**: "Please upload or select a paper first."
-- **Empty question**: "Please enter a question about the paper."
-- **AI provider error**: "Analysis service temporarily unavailable. Please try again."
-- **No relevant sections**: "No relevant information found for this question. Try rephrasing or use a different prompt."
-- **Rate limit**: "Too many requests. Please wait 30 seconds."
-- **Insufficient credits**: "Insufficient AI credits (need ~1,500 credits). [Buy Credits]"
-- **Feature access denied**: "Research Reader is a Pro feature. [Upgrade to Pro]"
-
-## Future Enhancements (Out of Scope for MVP)
-
-- **Multi-paper comparison**: Analyze multiple papers side-by-side
-- **DOCX/LaTeX support**: Accept non-PDF formats
-- **Citation network**: Visualize paper references
-- **Annotation**: Highlight and comment on paper sections
-- **Export**: Save analysis to documents
-- **Metadata extraction**: Auto-detect authors, journal, DOI
-- **Google Scholar integration**: Import papers directly
-- **Collaboration**: Share papers and analyses with team
-- **Paper recommendations**: Suggest related papers
-
-## Acceptance Testing Checklist
-
-Manual testing steps before marking task complete:
-
-- [ ] Upload a 10-page research paper (PDF)
-- [ ] Verify upload progress indicator appears
-- [ ] Verify paper appears in history with title and date
-- [ ] Click "Explain the methodology" prompt
-- [ ] Verify AI response cites specific paper sections
-- [ ] Verify response appears within 10 seconds
-- [ ] Test all 7 predefined prompts
-- [ ] Ask custom question "What is the learning rate?"
-- [ ] Verify custom question returns relevant answer
-- [ ] Upload a second paper
-- [ ] Verify second paper becomes active
-- [ ] Click first paper in history
-- [ ] Verify first paper becomes active
-- [ ] Delete second paper
-- [ ] Verify paper removed from history
-- [ ] Verify deleted paper's file and data are gone
-- [ ] Test with 15MB paper (should fail with error)
-- [ ] Test with DOCX file (should fail with error)
-- [ ] Test uploading papers until quota reached
-- [ ] Verify quota error message is clear
-- [ ] Test on mobile viewport (responsive design)
-- [ ] Verify no modal backdrop blur issues
-- [ ] Create second test user
-- [ ] Verify User A cannot see User B's papers
-
-## Related Features
-
-- [Feature: AI Assistant](feature-ai-assistant.md) - Shares AI provider and token economy
-- [Feature: Documents](feature-documents.md) - Uses similar upload and storage patterns
-- [Feature: Advisor Atlas](feature-advisor-atlas.md) - Another AI-powered research feature
-
-## Requirements Index
-
-- FR-9.1: Upload research papers (PDF, max 10MB)
-- FR-9.2: Extract text and generate embeddings
-- FR-9.3: Single-paper analysis focus
-- FR-9.4: Predefined analytical prompts (7+)
-- FR-9.5: Custom question support
-- FR-9.6: Vector similarity search
-- FR-9.7: Source citation in responses
-- FR-9.8: Paper analysis history
-- FR-9.9: Delete papers and data
-- FR-9.10: **Role-based access control (Pro and Max users only)**
-- FR-9.11: **AI token consumption and credit charging for all analysis operations**
+- **User Isolation**: All paper records and chunk embeddings have foreign keys to `users.id` with `CASCADE` delete rules. Users cannot access or query papers belonging to other users.
+- **Privacy**: Paper text extraction is local-first server-side. Text chunks are transmitted to AI providers only during explicit user embedding and analysis requests.
+- **Workspace Separation**: `static_files` rows with `file_type='research_paper'` are storage-tracking records for Research Expert, not Documents records. Generic document file lists and category counts exclude them.

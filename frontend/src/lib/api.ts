@@ -79,7 +79,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (uiError) {
       emitUiError(uiError);
     }
-    throw new Error(message || `Request failed: ${response.status}`);
+    // Keep the raw status out of the user-facing message (no "Request failed: 403").
+    // It stays in the console for debugging.
+    console.warn(`[api] ${path} failed with status ${response.status}`);
+    throw new Error(message || "Something went wrong. Please try again.");
   }
   if (response.status === 204 || response.headers.get("content-length") === "0") {
     return null as T;
@@ -100,7 +103,18 @@ export const api = {
   upload: <T>(path: string, formData: FormData) =>
     request<T>(path, { method: "POST", body: formData }),
   delete: <T>(path: string) =>
-    request<T>(path, { method: "DELETE" })
+    request<T>(path, { method: "DELETE" }),
+  /** Download a binary resource with the auth Bearer token. Returns a Blob. */
+  downloadBlob: async (path: string): Promise<Blob> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE}${path}`, { headers });
+    if (!response.ok) {
+      throw new Error(`Failed to download: ${response.status}`);
+    }
+    return response.blob();
+  },
 };
 
 export async function createRecord<T>(table: string, data: RecordMap): Promise<T> {
@@ -169,3 +183,115 @@ export type ApiAiModel = {
 export async function getAiModels(): Promise<ApiAiModel[]> {
   return api.get<ApiAiModel[]>("/ai/models");
 }
+
+export type ResearchPaper = {
+  id: string;
+  title: string;
+  authors?: string;
+  journal_conference?: string;
+  publication_year?: string;
+  volume_issue_pages?: string;
+  doi?: string;
+  chunk_count: number;
+  status: "processing" | "ready" | "error";
+  content_text?: string;
+  created_at: string;
+  updated_at: string;
+  static_file_id?: string;
+  chunks?: { id: string; chunk_index: number; token_count: number; snippet: string }[];
+};
+
+export type PaperAnalysisResult = {
+  paper_id: string;
+  prompt: string;
+  answer: string;
+  sources: { 
+    chunk_id: string; 
+    chunk_index: number; 
+    similarity_score: number; 
+    snippet: string;
+    page_numbers?: number[];
+    full_text?: string;
+  }[];
+  model_used: string;
+  usage: { input_tokens: number; output_tokens: number };
+  /** Actual credits deducted from user balance for this analysis call,
+   *  computed from model pricing (same formula as billing system). */
+  charged_credits?: number;
+};
+
+export async function uploadResearchPaper(file: File): Promise<ResearchPaper> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return api.upload<ResearchPaper>("/research/papers/upload", formData);
+}
+
+export async function listResearchPapers(): Promise<{ papers: ResearchPaper[]; max_library_limit: number }> {
+  const res = await api.get<any>("/research/papers");
+  if (Array.isArray(res)) {
+    return { papers: res, max_library_limit: 20 };
+  }
+  return {
+    papers: res?.papers || [],
+    max_library_limit: res?.max_library_limit || 20,
+  };
+}
+
+export async function getResearchPaper(paperId: string): Promise<ResearchPaper> {
+  return api.get<ResearchPaper>(`/research/papers/${paperId}`);
+}
+
+export async function deleteResearchPaper(paperId: string): Promise<{ status: string; id: string }> {
+  return api.delete<{ status: string; id: string }>(`/research/papers/${paperId}`);
+}
+
+export async function retryResearchPaper(paperId: string): Promise<ResearchPaper> {
+  return api.post<ResearchPaper>(`/research/papers/${paperId}/retry`, {});
+}
+
+export async function analyzeResearchPaper(paperId: string, prompt: string, topK: number = 10): Promise<PaperAnalysisResult> {
+  return api.post<PaperAnalysisResult>(`/research/papers/${paperId}/analyze`, { prompt, top_k: topK });
+}
+
+// ---- Saved analysis outputs (max 10 per paper) --------------------------------
+export type SavedAnalysis = {
+  id: string;
+  paper_id: string;
+  prompt: string;
+  answer: string;
+  sources: PaperAnalysisResult["sources"];
+  model_used?: string;
+  charged_credits?: number;
+  created_at: string;
+};
+
+export async function listSavedAnalyses(
+  paperId: string
+): Promise<{ analyses: SavedAnalysis[]; max: number; count: number }> {
+  return api.get<{ analyses: SavedAnalysis[]; max: number; count: number }>(
+    `/research/papers/${paperId}/analyses`
+  );
+}
+
+export async function saveResearchAnalysis(
+  paperId: string,
+  payload: {
+    prompt: string;
+    answer: string;
+    sources: PaperAnalysisResult["sources"];
+    model_used?: string;
+    charged_credits?: number;
+  }
+): Promise<SavedAnalysis> {
+  return api.post<SavedAnalysis>(`/research/papers/${paperId}/analyses`, payload);
+}
+
+export async function deleteSavedAnalysis(
+  paperId: string,
+  analysisId: string
+): Promise<{ status: string; id: string }> {
+  return api.delete<{ status: string; id: string }>(
+    `/research/papers/${paperId}/analyses/${analysisId}`
+  );
+}
+

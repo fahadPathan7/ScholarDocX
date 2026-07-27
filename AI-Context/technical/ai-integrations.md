@@ -78,12 +78,17 @@ When adding a new AI provider, search provider, or credit-consuming feature:
 
 - GLM AI API for chat, drafting, summarization, and rewriting.
 
-- Google AI Studio Gemini API for optional chat, drafting, summarization, and
-  rewriting fallback.
+- Google AI Studio Gemini API for optional chat, drafting, summarization,
+  rewriting fallback, and Research Expert embeddings (`text-embedding-004`).
 - Tavily API for real-time AI-chat web research and the separate filtered
   Scholarship Hunt web-discovery workspace.
 - OpenRouter Free for generating a Scholarship Hunt query from structured
   filter choices before the existing user-review step.
+- **Research Expert (SCHOLARDOCX-0174)**:
+  - Vector embeddings via Gemini REST API `text-embedding-004:batchEmbedContents` (768 dimensions).
+  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`.
+  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction.
+  - Token consumption is metered via `ai_tokens.charge(...)` for embedding generation and `AiService.charge_tokens` for query analysis.
 
 Gemini support is built around free-tier local use:
 
@@ -472,7 +477,20 @@ web-search ingredient so results actually match the goal:
 3. **Relevance filter is billed**: The OpenRouter Free batched relevance-filtering call MUST charge tokens via `charge_ai_tokens` after extracting all opportunities.
 4. **Extraction is billed**: Each scholarship extraction call (configured provider or OpenRouter Free fallback) MUST charge tokens via `charge_ai_tokens`.
 5. **Background runs are billed**: Deep Hunt runs are asynchronous. They MUST load user context via `load_user_dict(user_id, session)` at run start and charge the user's balance for all provider calls. No system account bypass.
-6. **Pre-flight checks prevent wasteful runs**: Check `can_use_scholarship_hunt`, monthly Deep Hunt run limit (if configured), and token balance BEFORE starting the run. If the user lacks quota or tokens, reject the request without consuming credits.
+### Research Expert Vector Embeddings (Jina AI)
+
+- **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)
+- **Environment Key**: `JINA_API_KEY`
+- **Model**: `jina-embeddings-v4`
+- **Task**: `text-matching`
+- **Dimensions**: `2048`
+- **Policy**: Exclusive provider (no fallback). If Jina API fails or `JINA_API_KEY` is missing/invalid, an explicit HTTP 500/503 exception is raised to the user.
+- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`). Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, called once after each successful Jina HTTP call:
+  - Upload → `charge_flat_fee(..., source="jina_embedding")`
+  - Retry → `charge_flat_fee(..., source="jina_embedding_retry")`
+  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")` (this path was previously unbilled; the gap is now closed).
+  - Pre-flight `ensure_can_spend()` runs before the call and raises `OutOfTokens` (HTTP 402) if the user's combined subscription + purchased balance cannot cover it. Access itself is gated by the existing `can_use_research_reader` role limit (Pro/Max) — no separate Jina gate.
+  - The prior token-metered path (`ai_tokens.charge` with `provider="jina"`) was **removed**; the `ai_models` row for `jina-embeddings-v4` is retained only as a pricing reference and no longer drives billing.
 
 ## Privacy Rules
 

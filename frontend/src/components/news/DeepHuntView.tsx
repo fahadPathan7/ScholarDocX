@@ -14,6 +14,7 @@ const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 
 interface DeepHuntViewProps {
   onToast: (msg: string) => void;
+  onAddToTracker?: (opportunity: any) => void;
   huntProfile?: HuntProfile | null;
   canUseDeepHunt: boolean;
   onRequireHuntProfile: () => void;

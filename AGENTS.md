@@ -23,7 +23,21 @@ Before writing or changing product code:
 ### STRICT ENFORCEMENTS
 - **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
 - **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (for example `technical/frontend-visual-system.md`, `technical/api-boundaries.md`, `technical/project-structure.md`, or `technical/security-privacy.md`) with any new architectural or design decisions. Do not end the session without updating the context.
-- **NO INFRASTRUCTURE EXPOSURE TO USERS**: Never display internal backend technology or infrastructure service names (e.g., Supabase, Render, PostgreSQL) to users in the frontend UI or user-facing copy. Always use domain-appropriate abstractions (e.g., "cloud storage" instead of "Supabase storage buckets").
+- **NO INFRASTRUCTURE OR ALGORITHM JARGON IN USER-FACING COPY**: Never expose internal implementation detail to users in the frontend UI, toasts, error messages, loading text, tooltips, marketing/upgrade copy, or any other string a user reads. This covers TWO categories:
+  1. **Infrastructure / provider names** — e.g. Supabase, Render, PostgreSQL, SQLAlchemy, FastAPI, Vite. Use domain abstractions ("cloud storage" not "Supabase storage buckets").
+  2. **Algorithm / data-pipeline jargon** — e.g. "vector", "embeddings", "vector embeddings", "pgvector", "semantic chunking", "chunks" (as in "X chunks indexed" or "Chunk #3"), "cosine similarity", "similarity search", "HNSW", "IVFFlat", "text extraction", "indexing", "re-indexing", "token count", "synthesizing", provider model IDs ("jina-embeddings-v4", "text-embedding-004"). Users should never see how a feature works under the hood — only what it does for them.
+
+  **Approved plain-language replacements** (use these or equivalent):
+  - "vector embeddings" / "embeddings" → "the paper's content" / "saved analysis"
+  - "chunks" / "chunk history" / "Chunk #3" → "sections" / "Section #3" / "passages"
+  - "vector similarity search" / "similarity search" → "AI-powered search across the paper"
+  - "similarity: 92%" → "relevance: 92%"
+  - "text extraction & semantic chunking" → "full-text reading with AI-powered section analysis"
+  - "re-indexing" → "retrying"
+  - "tokens consumed" → "credits used"
+  - raw HTTP status ("Request failed: 403") → "Something went wrong. Please try again."
+
+  When in doubt, describe the **user outcome**, not the mechanism. A reviewer seeing "vector", "embedding", "chunk", "pgvector", "extraction", or a provider name in rendered UI copy should treat it as a regression to fix. Internal code (variable names, comments, type fields, CSS classes, console logs, API payloads) is exempt.
 - **ABSOLUTE BILLING ENFORCEMENT FOR ALL CREDIT-CONSUMING OPERATIONS**: Every operation that consumes external API credits—AI chat, AI research, Tavily searches, OpenRouter calls, Gemini calls, GLM calls, Groq calls, Mistral calls, scholarship extraction, query generation, Deep Hunt operations, Advisor Atlas research, background AI tasks, and ANY other external provider call—MUST go through the centralized billing system (`ai_tokens.py`) and MUST enforce admin-configured role limits BEFORE making the external call. This is NON-NEGOTIABLE and applies to:
   - **Foreground user-initiated operations**: All `/ai/chat`, `/ai/research`, `/ai/summarize`, `/ai/actions/plan`, `/ai/actions/execute`, `/news/search`, `/news/query-preview` calls.
   - **Background asynchronous operations**: Advisor Atlas runs, Deep Hunt runs, scholarship extraction, automated research, batch processing, scheduled tasks, webhook-triggered AI operations.
@@ -243,7 +257,7 @@ add your own backdrop div.
 Canonical CSS and full spec:
 `AI-Context/technical/frontend-visual-system.md` (“Modal backdrop blur scoping”).
 
-- **Never expose infrastructure names in UI copy.** (See STRICT ENFORCEMENTS above.)
+- **Never expose infrastructure names or algorithm jargon in UI copy** (vectors, embeddings, chunks, pgvector, similarity, extraction, provider/model names, raw HTTP codes). See the "NO INFRASTRUCTURE OR ALGORITHM JARGON" rule above for the approved plain-language replacements.
 
 ## Expected Agent Behavior
 

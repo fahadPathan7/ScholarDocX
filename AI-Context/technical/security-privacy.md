@@ -52,12 +52,14 @@ remain explicit user actions behind backend services.
 - Advisor Atlas may send public page excerpts and user-entered research-profile
   fields to GLM after explicit search action. It must not send private
   documents, transcripts, email history, or application records.
-- Scholarship opportunity extraction ("Analyze") may send only the target
-  card's URL, title, and snippet/excerpt to GLM (or the OpenRouter Free
-  fallback on GLM failure). It must not send private documents, application
-  records, profile details, or other users' data. Extracted fields with no
-  support in the source text must be left empty; the extractor must never
-  invent a deadline, amount, or eligibility fact.
+- Research Expert (SCHOLARDOCX-0174) extracts text from user-uploaded PDF papers locally server-side. Text chunks are sent to Google AI Studio Gemini API for 768-dim embedding generation (`text-embedding-004`). During analytical queries, top-k relevant text chunks are sent to the configured LLM provider for context-bounded analysis. User papers and vector embeddings are strictly user-scoped (`user_id` foreign key isolation). Papers and embeddings cannot be accessed by other users and are permanently removed upon user deletion or paper deletion.
+- Research Expert PDF viewing is isolated from the Documents workspace. The
+  browser opens cited papers through `/api/research/papers/{paper_id}/pdf`,
+  which resolves the PDF from a user-owned `research_papers` row and its linked
+  `static_files` storage record. Generic document lists, category counts, and
+  `/files/{file_id}/content` do not expose `file_type='research_paper'` rows.
+  Research papers still count toward the shared `total_documents_bytes` storage
+  limit.
 - The Hunt Profile's optional nationality field (Phase 3) is local-only: it
   is read only by the client-side fit-score function and must never appear
   in a Tavily query, an "Analyze" extraction request, or any other

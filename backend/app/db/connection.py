@@ -131,6 +131,8 @@ def initialize_database(database_url: str) -> None:
         _add_signup_method_column(conn)
         _add_scholarship_fields_of_study_columns(conn)
         _seed_registration_mode_default(conn)
+        _ensure_pgvector_extension(conn)
+        _create_vector_index(conn)
 
 
 def _migrate_yearly_to_quarterly(conn) -> None:
@@ -368,6 +370,7 @@ def _seed_ai_token_defaults(conn) -> None:
         "mistral-medium-3-5": (0.50, 1.50),
         "devstral-2512": (0.20, 0.60),
         "openrouter": (0.08, 0.20),
+        "jina-embeddings-v4": (0.02, 0.00),
     }
 
     model_stmt = text(
@@ -388,6 +391,7 @@ def _seed_ai_token_defaults(conn) -> None:
         ("groq", DEFAULT_GROQ_MODELS),
         ("mistral", DEFAULT_MISTRAL_MODELS),
         ("openrouter", ["openrouter"]),
+        ("jina", ["jina-embeddings-v4"]),
     ):
         for model_id in model_ids:
             in_price, out_price = prices.get(model_id, (0.0, 0.0))
@@ -429,3 +433,87 @@ def _seed_ai_token_defaults(conn) -> None:
     ]
     if pack_rows:
         conn.execute(pack_stmt, pack_rows)
+
+
+def _ensure_pgvector_extension(conn) -> None:
+    """Ensure the pgvector extension is enabled (SCHOLARDOCX-0174).
+
+    The user has already enabled this manually on Supabase. This is a safety net
+    for fresh installs or test environments. ``CREATE EXTENSION IF NOT EXISTS``
+    is idempotent. On Supabase (where only the dashboard can manage extensions),
+    a permission error is caught and logged — the extension is already live.
+
+    Runs inside a SAVEPOINT so a permission failure does not abort the parent
+    transaction (which would cause every later DDL/seed statement to no-op).
+    """
+    try:
+        with conn.begin_nested():
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    except Exception as e:
+        # Supabase free tier may not allow CREATE EXTENSION from SQL;
+        # the user enables it through the dashboard instead.
+        print(f"pgvector extension note: {e} (expected on Supabase — enable via dashboard)")
+
+
+def _create_vector_index(conn) -> None:
+    """Create HNSW index and ensure schema columns for research_papers (SCHOLARDOCX-0174).
+
+    Each DDL statement runs in its own SAVEPOINT so a failure on one (e.g. the
+    embedding type already being vector(2048), or a missing pgvector extension)
+    cannot abort the parent transaction and silently skip the later ADD COLUMN
+    statements — which previously left journal_conference / publication_year /
+    volume_issue_pages / doi un-created and broke paper uploads entirely.
+    """
+    # Migration strategy: Use 1024 dimensions for Jina AI embeddings to stay under
+    # pgvector's 2000-dim limit for HNSW and IVFFlat indexes.
+    # Only migrate if dimension is wrong (768 or 2048), not on every startup.
+    try:
+        with conn.begin_nested():
+            # Check current vector dimension
+            result = conn.execute(text(
+                "SELECT atttypmod FROM pg_attribute "
+                "WHERE attrelid = 'research_paper_chunks'::regclass "
+                "AND attname = 'embedding'"
+            )).scalar()
+            
+            # atttypmod for vector(N) is N + 4 (pgvector internal representation)
+            # If the column exists and is significantly wrong, migrate
+            if result is not None:
+                current_dim = result - 4 if result > 4 else 768
+                # Only migrate if dimension is 768 or 2048 (old configs)
+                # Don't migrate for 1020-1024 range (pgvector internal variance)
+                if current_dim < 1000 or current_dim > 1500:
+                    print(f"Migrating research_paper_chunks embedding from vector({current_dim}) to vector(1024)...")
+                    # Delete all existing chunks with wrong-dimension embeddings
+                    conn.execute(text("DELETE FROM research_paper_chunks WHERE embedding IS NOT NULL"))
+                    # Update all papers (both 'ready' and 'processing') to 'error' status so they can be retried
+                    conn.execute(text(
+                        "UPDATE research_papers SET status = 'error', chunk_count = 0 "
+                        "WHERE status IN ('ready', 'processing')"
+                    ))
+                    # Now alter the column type to 1024 dims
+                    conn.execute(text("ALTER TABLE research_paper_chunks ALTER COLUMN embedding TYPE vector(1024)"))
+                    print("Migration complete: All papers set to 'error' status and must be retried with Jina 1024-dim embeddings.")
+    except Exception as e:
+        print(f"Vector dimension migration note: {e}")
+    
+    # Removed: One-time cleanup for stuck papers (now use fix_paper_status_once.py)
+
+    for col in ["journal_conference", "publication_year", "volume_issue_pages", "doi"]:
+        try:
+            with conn.begin_nested():
+                conn.execute(text(f"ALTER TABLE research_papers ADD COLUMN IF NOT EXISTS {col} TEXT"))
+        except Exception:
+            pass
+
+    try:
+        with conn.begin_nested():
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_research_chunks_embedding_hnsw "
+                    "ON research_paper_chunks "
+                    "USING hnsw (embedding vector_cosine_ops)"
+                )
+            )
+    except Exception as e:
+        print(f"Vector index creation note: {e}")

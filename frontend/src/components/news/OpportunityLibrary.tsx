@@ -20,6 +20,7 @@ const STATUS_OPTIONS: ScholarshipOpportunity["status"][] = [
 
 interface OpportunityLibraryProps {
   onToast: (msg: string) => void;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   refreshTrigger?: number;
   huntProfile?: HuntProfile | null;
 }

@@ -13,6 +13,7 @@ import { OpportunityCard } from "./OpportunityCard";
 
 interface ScholarshipCatalogProps {
   onToast: (msg: string) => void;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   onRefreshUsage: () => void;
   huntProfile?: HuntProfile | null;
 }

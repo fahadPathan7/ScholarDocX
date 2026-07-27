@@ -154,3 +154,18 @@ for the complete workflow and requirements.
 - FR-9.21: Provide responsive and accessible workflow states.
 - FR-9.53: Enforce and display tiered monthly Advisor Atlas search/refresh
   quotas: General 3, Pro 10, Max 30.
+
+## FR-10: Research Expert (Single Paper Analysis Workspace)
+
+- FR-10.1: Pro and Max tier users can upload single PDF research papers (max 10 MB). Free and General users see an upgrade prompt.
+- FR-10.2: The backend extracts PDF text using `pdfplumber` and splits it into semantic overlapping chunks (~2000 chars per chunk).
+- FR-10.3: The system generates 768-dimension vector embeddings for each chunk via Gemini API `text-embedding-004` and stores them in PostgreSQL `research_paper_chunks` via pgvector.
+- FR-10.4: Embedding generation meters AI tokens against the user's credit balance via `ai_tokens.charge(...)`.
+- FR-10.5: The UI provides 13 predefined analytical prompt buttons tuned for technically-literate readers, ordered most-analytical-first (*Executive Summary, Contributions & Novelty, Methodology Analysis, Theoretical Foundations & Formulation, Key Findings & Results, Benchmark & Baseline Comparison, Results & Figures Deep-Dive, Critical Peer Review, Limitations & Threats to Validity, Reproducibility & Implementation Blueprint, Background & Related Work, Practical Applications & Deployment, Future Work & Open Problems*).
+- FR-10.6: Users can submit custom questions about an active paper.
+- FR-10.7: Analytical queries use pgvector cosine distance (`<=>`) to retrieve top-k relevant text chunks and pass them to the LLM for context-bounded answer generation.
+- FR-10.8: AI responses cite specific paper chunks with relevance percentages and snippets.
+- FR-10.9: Users can manage a library of uploaded papers, select active papers, and delete papers (which cleans up static storage files, embeddings, and paper metadata).
+- FR-10.10: The system enforces user-scoped data boundary (users cannot view or analyze other users' research papers).
+- FR-10.11: Uploads enforce monthly quota limits (`research_papers_per_month`), and queries check token balance (`ensure_can_spend`) failing with HTTP 402 if credits are zero.
+

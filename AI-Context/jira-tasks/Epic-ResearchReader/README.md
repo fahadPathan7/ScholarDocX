@@ -43,4 +43,4 @@ How do we know this Epic is completed successfully?
 ## Stories
 
 List the individual Jira stories (features) that belong to this Epic.
-- [ ] SCHOLARDOCX-0174: Research Reader - Single Paper Analysis Workspace
+- [ ] SCHOLARDOCX-0174: Research Expert - Single Paper Analysis Workspace

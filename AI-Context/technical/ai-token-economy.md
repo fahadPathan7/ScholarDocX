@@ -90,14 +90,10 @@ negative and hid the real consumption the ledger recorded.
 `chat()` adds `usage`, `model_id`, `provider` to its return dict. `research()`
 and `summarize_memory()` inherit usage via the `chat()` dict they return.
 
-**Charging (Phase 2, implemented):** `AiService` takes optional `user`+`session`
-billing context (constructor or `set_billing()`). When set, `chat()` runs
-`ai_tokens.ensure_can_spend()` before each provider call and `ai_tokens.charge()`
-after — so research / summarize / action-planner / Advisor Atlas all meter
-automatically through the single `chat()` funnel, per-call and per-model, with
-no method-signature threading. Endpoints pass `user=current_user, session=store.db`.
-Advisor Atlas background runs open a dedicated `sessionmaker` session and call
-`set_billing()` (the request store is closed by then). The OpenRouter
+- **Research Expert (SCHOLARDOCX-0174)**:
+  - Paper embedding generation calls Gemini `text-embedding-004:batchEmbedContents` and meters tokens via `ai_tokens.charge(..., source="research_paper_embedding")`.
+  - Analytical paper queries call `AiService.chat(..., request_label="research_paper_analysis")` which automatically meters input/output tokens via `AiService.charge_tokens`.
+  - Both embedding generation and paper analysis require pre-flight token balance validation (`ensure_can_spend`) and fail with HTTP 402 if credits are zero.
 scholarship-query generator is not an `AiService` call, so `/news/query-preview`
 charges it explicitly from the surfaced `usage`.
 
@@ -346,6 +342,39 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   the same reason `can_use_scholarship_analyze` didn't get one: count limits
   on AI-metered actions were removed project-wide in the Phase 5 teardown
   above in favor of gate + token cost.
+
+## Research Expert Jina embedding billing (SCHOLARDOCX-0174)
+
+Jina AI (`jina-embeddings-v4`) generates the vector embeddings used by the
+Research Expert feature for paper chunk storage and analysis-query retrieval.
+Unlike the AI-metered providers above, Jina is billed as a **flat fee per user
+operation** — the same model Tavily uses for web/Scholarship Hunt searches.
+
+- **Setting key**: `app_settings.jina_call_cost_usd` (default `0.002`), seeded
+  by `schema.py` SEED_SQL and editable in the admin **Settings → External APIs
+  & Agents Pricing** modal (`SettingsTab.tsx`). Read at call time via
+  `get_jina_call_cost_usd(session)` in `ai_tokens.py`.
+- **Charge**: `charge_flat_fee(user, session, cost_usd, source=...)`, one fee
+  per operation, raised **after** the Jina HTTP call returns successfully (so
+  failed embeddings don't debit the user). Lives in
+  `ResearchPaperService._charge_jina_embedding()`, called from:
+  - upload → `source="jina_embedding"`
+  - retry → `source="jina_embedding_retry"`
+  - analyze query embedding → `source="jina_embedding_query"` (this path was
+    previously unbilled; the gap was closed here).
+- **Pre-flight**: `ensure_can_spend()` runs before each call and raises
+  `OutOfTokens` (HTTP 402) on insufficient balance.
+- **Gate**: no separate Jina role limit — access is covered by the existing
+  `can_use_research_reader` gate (Pro/Max). Jina is a hard dependency of the
+  feature, so disabling Research Expert disables Jina transitively.
+- **Dashboard**: the admin dashboard reports `jina_total` — count of ledger
+  rows whose `source` is one of the three Jina labels (alongside the existing
+  `tavily_*` counts).
+- **What changed**: the prior token-metered path (`ai_tokens.charge(...,
+  provider="jina", model_id="jina-embeddings-v4")`) was **removed** in favor of
+  the flat fee so pricing is admin-configurable in one place. The `ai_models`
+  row for `jina-embeddings-v4` remains as a pricing reference only and no
+  longer drives billing.
 
 ## Remaining phases
 

@@ -6,6 +6,7 @@ import { OpportunityDetailDrawer } from "./OpportunityDetailDrawer";
 
 interface OpportunityCardProps {
   opportunity: ScholarshipOpportunity;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
 }
 

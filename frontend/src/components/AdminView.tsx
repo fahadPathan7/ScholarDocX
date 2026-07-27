@@ -40,7 +40,10 @@ import {
   ChevronRight,
   Zap,
   Lock,
-  Compass
+  Compass,
+  BookOpen,
+  Folder,
+  Cpu
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
@@ -129,9 +132,9 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
       key: "documents",
       label: "Documents & Storage",
       cards: [
-        { label: "Uploaded Files", value: stats.counts.total_documents || 0, icon: FileText, tone: "indigo", infoText: "Total number of uploaded files (PDFs, documents, etc.) across all users." },
+        { label: "Total Uploaded Files", value: stats.counts.total_documents || 0, icon: FileText, tone: "indigo", infoText: "Total number of uploaded files across all features." },
         {
-          label: "Storage Used",
+          label: "Total Storage Used",
           value: (
             <>
               {((stats.counts.storage_bytes || 0) / 1024 / 1024).toFixed(2)}
@@ -140,7 +143,33 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
           ),
           icon: HardDrive,
           tone: "amber",
-          infoText: "Total cloud storage space consumed by user files and attachments."
+          infoText: "Total cloud storage space consumed by all user files combined."
+        },
+        { label: "Files in Documents", value: stats.counts.documents_files || 0, icon: Folder, tone: "blue", infoText: "Total number of files in the Documents workspace." },
+        {
+          label: "Storage in Documents",
+          value: (
+            <>
+              {((stats.counts.documents_bytes || 0) / 1024 / 1024).toFixed(2)}
+              <span>MB</span>
+            </>
+          ),
+          icon: Database,
+          tone: "sky",
+          infoText: "Cloud storage space consumed by files in the Documents workspace."
+        },
+        { label: "Files in Research", value: stats.counts.research_files || 0, icon: BookOpen, tone: "purple", infoText: "Total number of PDF research papers in the Research Reader." },
+        {
+          label: "Storage in Research",
+          value: (
+            <>
+              {((stats.counts.research_bytes || 0) / 1024 / 1024).toFixed(2)}
+              <span>MB</span>
+            </>
+          ),
+          icon: Cpu,
+          tone: "emerald",
+          infoText: "Cloud storage space consumed by PDF papers in the Research Reader."
         },
       ],
     },

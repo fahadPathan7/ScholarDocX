@@ -212,6 +212,25 @@ Implications:
 - Bookmarks are migrated into the Opportunity Library additively; the
   underlying `bookmarked_news` table and endpoints are not removed.
 
+## BD-010: Research Expert Workspace (SCHOLARDOCX-0174)
+
+Status: Accepted
+
+Decision:
+
+ScholarDocX introduces a Research Expert workspace allowing applicants to upload PDF research papers for text extraction, 768-dim vector embedding generation (Gemini `text-embedding-004`), pgvector cosine similarity search, and AI-assisted paper analysis. Access is restricted to Pro and Max tier users (`can_use_research_reader`), with monthly paper upload limits (`research_papers_per_month`: Pro 30, Max 100). All embedding and analysis calls consume AI tokens from the user's balance.
+
+Rationale:
+
+Academic applicants (especially Master's/PhD candidates) spend significant time reading literature for SOPs, research proposals, and professor outreach. Providing vector-search augmented paper reading directly inside ScholarDocX accelerates research prep while retaining user privacy and metering consumption.
+
+Implications:
+
+- Pro/Max exclusive feature. Free/General users see an upgrade prompt.
+- PDF text extraction is local-first using `pdfplumber`.
+- Vector embeddings (768 Float dimensions) live in Supabase PostgreSQL via pgvector extension (`Vector(768)`).
+- All AI calls are metered and gated by user token balances.
+
 ## Pending Decisions
 
 - Final desktop/local delivery model: browser app with local backend vs packaged desktop shell.

@@ -20,6 +20,8 @@ class Settings:
         self.glm_api_key = os.getenv("GLM_API_KEY", "")
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
+        self.jina_api_key = os.getenv("JINA_API_KEY", "").strip()
+        self.jina_base_url = os.getenv("JINA_BASE_URL", "https://api.jina.ai/v1/embeddings").strip()
         self.tavily_api_key = os.getenv("TAVILY_API_KEY", "")
         self.tavily_api_key_scholarship_hunt = os.getenv(
             "TAVILY_API_KEY_SCHOLARSHIP_HUNT",

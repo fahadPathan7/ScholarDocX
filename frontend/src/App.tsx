@@ -77,6 +77,7 @@ import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
+import { ResearchReaderView } from "./components/ResearchReaderView";
 import { CalendarMonthView } from "./components/CalendarMonthView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
@@ -207,6 +208,11 @@ export function App() {
           break;
 
         case "projects":
+          break;
+
+        case "research":
+          // Research Expert manages its own paper list; the refreshTrigger
+          // bump above signals ResearchReaderView to reload.
           break;
 
         case "documents":
@@ -350,6 +356,7 @@ export function App() {
     ["whiteboard", "Whiteboard", Square],
     ["atlas", "Advisor Atlas", Map],
     ["news", "Scholarship Hunt", Compass],
+    ["research", "Research Expert", BookOpen],
     ["profile", "Profile", User],
     ["about", "About", Info]
   ] as const;
@@ -383,8 +390,12 @@ export function App() {
     ? (usageData.limits?.can_use_scholarship_hunt ?? 0) === 1
     : isProOrMaxRole;
 
+  const canUseResearchReader = usageData
+    ? (usageData.limits?.can_use_research_reader ?? 0) === 1
+    : isProOrMaxRole;
+
   useEffect(() => {
-    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news"].includes(activeTab)) {
+    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news", "research"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
     }
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
@@ -403,12 +414,12 @@ export function App() {
 
   let navItems: any[] = [];
   if (currentHasUserPlan) {
-    navItems.push(...baseNavItems.slice(0, 7));
+    navItems.push(...baseNavItems.slice(0, 8));
   }
   if (currentIsAdmin) {
     navItems.push(adminItem);
   }
-  navItems.push(...baseNavItems.slice(7));
+  navItems.push(...baseNavItems.slice(8));
 
   const handleSidebarNav = (key: string) => {
     if (key === "atlas" && !canUseAdvisorAtlas) {
@@ -422,6 +433,13 @@ export function App() {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan"; // Scholarship Hunt is also typically on pro/max
       setActiveTab("plans");
       showToast(`Scholarship Hunt is available on ${phrase}.`);
+      setMobileNavOpen(false);
+      return;
+    }
+    if (key === "research" && !canUseResearchReader) {
+      const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
+      setActiveTab("plans");
+      showToast(`Research Expert is available on ${phrase}.`);
       setMobileNavOpen(false);
       return;
     }
@@ -476,15 +494,16 @@ export function App() {
             const [key, label, Icon] = item;
             const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
             const newsLocked = key === "news" && !canUseScholarshipHunt;
-            const isLocked = atlasLocked || newsLocked;
+            const researchLocked = key === "research" && !canUseResearchReader;
+            const isLocked = atlasLocked || newsLocked || researchLocked;
             return (
               <Fragment key={key}>
-                {currentHasUserPlan && i === 7 && <div className="nav-spacer" />}
+                {currentHasUserPlan && i === 8 && <div className="nav-spacer" />}
                 <button
                   aria-label={label}
                   className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}
                   onClick={() => handleSidebarNav(key)}
-                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
                   style={isLocked ? { opacity: 0.55 } : undefined}
                 >
                   <Icon size={18} />
@@ -610,6 +629,10 @@ export function App() {
               <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
             </div>
           )}
+
+          <div className={`tab-container ${activeTab === "research" ? "" : "hidden-tab"}`}>
+            <ResearchReaderView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
+          </div>
 
           <div className={`tab-container ${activeTab === "profile" ? "" : "hidden-tab"}`}>
             <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />

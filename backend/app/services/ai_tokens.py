@@ -28,6 +28,10 @@ RATE_SETTING = "ai_token_rate_tokens_per_dollar"
 DEFAULT_TOKEN_RATE = 10000
 TAVILY_COST_SETTING = "tavily_call_cost_usd"
 DEFAULT_TAVILY_COST = 0.01
+# SCHOLARDOCX-0174: flat fee per Jina embedding operation in Research Expert
+# (paper upload, retry, or analysis). Configurable in admin Settings.
+JINA_COST_SETTING = "jina_call_cost_usd"
+DEFAULT_JINA_COST = 0.002
 
 # SCHOLARDOCX-0140: monthly AI credit allowance now lives in app_settings,
 # keyed per user tier (managed in Settings → Plan Pricing, not Role Limits).
@@ -112,6 +116,24 @@ def get_tavily_call_cost_usd(session: Session) -> float:
         except ValueError:
             pass
     return DEFAULT_TAVILY_COST
+
+
+def get_jina_call_cost_usd(session: Session) -> float:
+    """Fetch the Jina embedding flat fee (USD) from settings.
+
+    One fee per Research Expert operation (upload / retry / analyze),
+    configurable in admin Settings → External APIs & Agents Pricing.
+    """
+    row = session.execute(
+        text("SELECT value FROM app_settings WHERE key = :k"),
+        {"k": JINA_COST_SETTING},
+    ).scalar()
+    if row is not None:
+        try:
+            return float(row)
+        except ValueError:
+            pass
+    return DEFAULT_JINA_COST
 
 
 def get_role_monthly_allowance(user: dict, session: Session) -> int:

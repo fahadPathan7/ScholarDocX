@@ -10,7 +10,7 @@ import { Modal } from "../Modal";
 import { 
   CheckCircle, XCircle, Info, Copy, Settings,
   ShieldAlert, Clock, Trash2, Check, X, Shield, Activity
-, ChevronRight, CircleDollarSign, Package, Globe, EyeOff, Eye} from "lucide-react";
+, ChevronRight, CircleDollarSign, Package, Globe, EyeOff, Eye, BookOpen} from "lucide-react";
 
 export function SettingsTab() {
   const { showAlert } = useDialog();

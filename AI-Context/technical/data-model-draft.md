@@ -4,6 +4,65 @@ This is a draft model for planning. Implementation may refine it, but changes mu
 
 ## Core Tables
 
+## research_papers (SCHOLARDOCX-0174)
+
+Purpose:
+
+Store uploaded research paper metadata, extracted full text, and processing status.
+
+Fields:
+
+- id (String 36, PK)
+- user_id (FK -> users.id, CASCADE)
+- title (Text)
+- authors (Text, optional)
+- static_file_id (FK -> static_files.id, SET NULL)
+- content_text (Text, extracted PDF text)
+- chunk_count (Integer, default 0)
+- embedding_model (Text, default 'text-embedding-004')
+- status (Text: 'processing', 'ready', 'error')
+- created_at (DateTime)
+- updated_at (DateTime)
+
+## research_paper_chunks (SCHOLARDOCX-0174)
+
+Purpose:
+
+Store semantic text chunks and 768-dimension vector embeddings for pgvector cosine similarity search.
+
+Fields:
+
+- id (String 36, PK)
+- paper_id (FK -> research_papers.id, CASCADE)
+- chunk_index (Integer)
+- chunk_text (Text)
+- token_count (Integer)
+- embedding (Vector(768), pgvector column)
+- created_at (DateTime)
+
+
+## research_paper_analyses (SCHOLARDOCX-0174)
+
+Purpose:
+
+Persist saved AI analysis outputs so users can revisit an answer without re-running the query. Capped at 10 rows per paper (enforced in `ResearchPaperService.save_analysis`).
+
+Fields:
+
+- id (String 36, PK)
+- paper_id (FK -> research_papers.id, ON DELETE CASCADE)
+- user_id (FK -> users.id, ON DELETE CASCADE)
+- prompt (Text)
+- answer (Text)
+- sources_json (Text, JSON-serialized citation/source array)
+- model_used (Text, nullable)
+- charged_credits (Integer, default 0)
+- created_at (DateTime)
+
+Index: idx_research_paper_analyses_paper_id (paper_id).
+Rows are removed automatically via the database-level cascade when the parent paper or user is deleted.
+
+
 ## degree_workspaces
 
 Purpose:

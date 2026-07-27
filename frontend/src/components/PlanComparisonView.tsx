@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot, BookOpen, Library, FileText } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
 import { useAuth } from "../contexts/AuthContext";
@@ -222,9 +222,12 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "can_use_agents", label: "AI Agents Usage", icon: Bot, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
     { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
+    { key: "can_use_research_reader", label: "Research Reader", icon: BookOpen, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [
+    { key: "research_papers_per_month", label: "Monthly Research Papers", icon: FileText },
+    { key: "max_research_papers_library", label: "Library Capacity Limit", icon: Library },
     { key: "ai_messages_per_session", label: "AI Messages / Session", icon: MessageSquare },
     { key: "total_sheets", label: "Total Sheets", icon: Table },
     { key: "total_records", label: "Total Records", icon: Database },

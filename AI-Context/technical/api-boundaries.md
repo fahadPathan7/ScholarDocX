@@ -208,6 +208,19 @@ no-migration variant for pre-existing tables.
 - `/applications`
 - `/deadlines`
 - `/documents`
+- `/research/papers/{paper_id}/pdf` returns the authenticated user's uploaded
+  Research Expert PDF bytes from the paper record, not from the generic
+  Documents file route. The service verifies `can_use_research_reader`, paper
+  ownership, and the linked storage record before streaming the PDF inline.
+  The frontend uses this endpoint for cited-section review so Research Expert
+  papers do not need to appear in the Documents workspace.
+- `/research/papers/{paper_id}/analyses` (`GET`/`POST`) and
+  `/research/papers/{paper_id}/analyses/{analysis_id}` (`DELETE`) manage **saved
+  analysis outputs**. `GET` lists saved outputs plus `{max, count}`; `POST`
+  persists an output (prompt, answer, sources, model, charged credits) and
+  enforces a **10-per-paper cap** (HTTP 400 when full); `DELETE` removes one.
+  All verify `can_use_research_reader` and paper ownership. No AI/billing call is
+  made on save — it is a pure persistence of an already-generated answer.
 - `/document_categories`
 - `/files`
 - `/sticky_notes`
@@ -425,4 +438,3 @@ no-migration variant for pre-existing tables.
   throttled endpoints (the four `/auth/*` limits plus contact-admin, AI
   chat/research/summarize, scholarship deep-hunt and advisor-atlas run starts,
   and news search/query-preview).
-

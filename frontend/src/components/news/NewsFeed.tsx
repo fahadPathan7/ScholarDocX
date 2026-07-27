@@ -14,9 +14,9 @@ interface NewsFeedProps {
   hasFilters?: boolean;
   onLoadMore: () => void;
   onAnalyze?: (article: NewsArticle) => void;
+  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   analyzingUrl?: string | null;
   opportunitiesByUrl?: Record<string, ScholarshipOpportunity>;
-  onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
   huntProfile?: HuntProfile | null;
   newArticleIds?: Set<string>;
 }

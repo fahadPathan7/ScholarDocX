@@ -250,15 +250,16 @@ class ResearchPaperService:
         self.db.add(paper)
         self.db.commit()
 
-        # Increment quota count now that paper record is initialized
-        check_and_increment_limit(self.user, "research_papers_per_month", 1, self.db)
+        # NOTE: the monthly quota slot is deliberately NOT consumed here. It is
+        # incremented only after the paper reaches "ready" below, so a paper that
+        # fails extraction or embedding does not permanently burn one of the
+        # user's monthly uploads for a failure that wasn't their fault.
 
         # Extract text & generate embeddings
         try:
             text_content, authors = self._extract_text_from_pdf(file_bytes)
             if not text_content.strip():
-                paper.status = "error"
-                self.db.commit()
+                # Status is set by the handler below, which owns every failure path.
                 raise HTTPException(
                     status_code=400,
                     detail="Could not extract readable text from PDF. The document may be scanned or empty.",
@@ -292,12 +293,13 @@ class ResearchPaperService:
             # Pre-flight check token balance before calling Jina AI API
             ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
 
-            # Batch generate embeddings via Jina AI jina-embeddings-v4 (1024 dims)
-            embeddings, input_tokens = await self._generate_embeddings(chunks)
-
-            # Note: Jina embedding generation is treated as infrastructure cost
-            # (like database operations). Users are only charged for AI analysis
-            # tokens when they query the paper, not for the indexing itself.
+            # Batch generate embeddings via Jina AI jina-embeddings-v4 (1024 dims).
+            # Charges exactly one "jina_embedding" flat fee for the whole indexing
+            # pass, regardless of how many API batches the paper required, and
+            # only if every batch succeeded.
+            embeddings, input_tokens = await self._generate_embeddings(
+                chunks, charge_source="jina_embedding"
+            )
 
             # Store chunks with vector embeddings
             for idx, (chunk_text_str, emb_vector) in enumerate(zip(chunks, embeddings)):
@@ -314,15 +316,54 @@ class ResearchPaperService:
             paper.status = "ready"
             self.db.commit()
 
+            # Consume the monthly quota slot only now that the paper is genuinely
+            # usable. See the note above the try block.
+            #
+            # Never fatal: the paper is indexed and the user has already paid for
+            # the embeddings. UsageLimitExceeded subclasses HTTPException, so
+            # letting it escape here would hit the handler below and mark a
+            # perfectly good paper as "error" — e.g. if an admin lowered the limit
+            # or a concurrent upload consumed the last slot mid-run. The counter
+            # is self-healing; the user's paper is not.
+            try:
+                check_and_increment_limit(self.user, "research_papers_per_month", 1, self.db)
+            except Exception as quota_exc:
+                logger.warning(
+                    "Paper %s processed but monthly quota increment failed: %s",
+                    paper_id,
+                    quota_exc,
+                )
+
             return self.get_paper_details(paper_id)
 
         except HTTPException:
+            self._mark_paper_error(paper_id)
             raise
         except Exception as exc:
             logger.error("Failed processing paper %s: %s", paper_id, exc, exc_info=True)
-            paper.status = "error"
-            self.db.commit()
+            self._mark_paper_error(paper_id)
             raise HTTPException(status_code=500, detail=f"Failed to process research paper: {str(exc)}") from exc
+
+    def _mark_paper_error(self, paper_id: str) -> None:
+        """Flag a paper as failed, surviving a poisoned session.
+
+        The failure may itself have been a database error, leaving the session
+        unusable — a plain ``commit()`` would then also fail and strand the row in
+        "processing" forever (what the fix_stuck_papers scripts clean up). Roll
+        back and re-fetch so the status write is reliable.
+        """
+        try:
+            self.db.rollback()
+            paper = (
+                self.db.query(ResearchPapers)
+                .filter(ResearchPapers.id == paper_id)
+                .first()
+            )
+            if paper is not None:
+                paper.status = "error"
+                self.db.commit()
+        except Exception as err:  # pragma: no cover - defensive
+            logger.error("Could not mark paper %s as error: %s", paper_id, err)
 
     async def retry_paper_processing(self, paper_id: str) -> dict[str, Any]:
         """Retry text extraction, chunking, and embedding generation for a paper in error state."""
@@ -369,8 +410,6 @@ class ResearchPaperService:
                             authors = extracted_authors
 
             if not text_content.strip():
-                paper.status = "error"
-                self.db.commit()
                 raise HTTPException(
                     status_code=400,
                     detail="Could not extract readable text from PDF. The document may be scanned or empty.",
@@ -386,11 +425,13 @@ class ResearchPaperService:
             # Pre-flight check token balance before calling Jina AI API
             ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
 
-            # Generate embeddings via Jina AI jina-embeddings-v4 (1024 dims)
-            embeddings, input_tokens = await self._generate_embeddings(chunks)
-
-            # Note: Jina embedding generation is treated as infrastructure cost
-            # Users are only charged for AI analysis tokens, not indexing.
+            # Generate embeddings via Jina AI jina-embeddings-v4 (1024 dims).
+            # Labelled "jina_embedding_retry" so retries are distinguishable from
+            # first-time indexing in the ledger and the admin dashboard's
+            # jina_total breakdown (which already counts this source).
+            embeddings, input_tokens = await self._generate_embeddings(
+                chunks, charge_source="jina_embedding_retry"
+            )
 
             import uuid
             for idx, (chunk_text_str, emb_vector) in enumerate(zip(chunks, embeddings)):
@@ -410,13 +451,11 @@ class ResearchPaperService:
             return self.get_paper_details(paper_id)
 
         except HTTPException:
-            paper.status = "error"
-            self.db.commit()
+            self._mark_paper_error(paper_id)
             raise
         except Exception as exc:
             logger.error("Failed retry processing paper %s: %s", paper_id, exc, exc_info=True)
-            paper.status = "error"
-            self.db.commit()
+            self._mark_paper_error(paper_id)
             raise HTTPException(status_code=500, detail=f"Failed to retry research paper: {str(exc)}") from exc
 
     def _read_stored_file_bytes(self, relative_path: str) -> Optional[bytes]:
@@ -757,26 +796,36 @@ class ResearchPaperService:
         return chunks
 
     def _charge_jina_embedding(self, source: str = "jina_embedding") -> dict:
-        """Charge flat fee for Jina embedding call based on admin app_settings."""
-        cost_usd = 0.005
-        row = self.db.execute(
-            text("SELECT value FROM app_settings WHERE key = 'research_paper_jina_cost_usd'")
-        ).mappings().fetchone()
-        if row and row.get("value") is not None:
-            try:
-                cost_usd = float(row["value"])
-            except (ValueError, TypeError):
-                pass
+        """Charge the flat fee for one Jina embedding operation.
+
+        Price comes from the admin-configurable ``jina_call_cost_usd`` setting via
+        ``ai_tokens.get_jina_call_cost_usd``. Do not re-introduce a local key
+        lookup here: the previous version read a ``research_paper_jina_cost_usd``
+        key that is seeded nowhere, so it always fell back to a hardcoded 0.005
+        and ignored whatever the admin had configured.
+        """
+        cost_usd = ai_tokens.get_jina_call_cost_usd(self.db)
         return ai_tokens.charge_flat_fee(user=self.user, session=self.db, cost_usd=cost_usd, source=source)
 
-    async def _generate_embeddings(self, text_chunks: list[str]) -> tuple[list[list[float]], int]:
+    async def _generate_embeddings(
+        self,
+        text_chunks: list[str],
+        *,
+        charge_source: Optional[str] = "jina_embedding",
+    ) -> tuple[list[list[float]], int]:
         """Generate 1024-dim float embeddings exclusively via Jina AI API (jina-embeddings-v4).
 
         Per strict requirement: NO fallback. If Jina API fails or key is missing,
         raise an explicit error detailing the failure.
-        
+
         Uses 1024 dimensions (configurable in Jina v4) to stay under pgvector's 2000-dim limit
         for HNSW and IVFFlat indexes.
+
+        Billing: this is the ONLY place a Jina fee is raised, and it raises at
+        most one — labelled ``charge_source``, only after every batch succeeded.
+        So a 20-batch paper costs one fee and a failed run costs nothing. Pass
+        ``charge_source=None`` when a caller owns the charge, so one user-visible
+        operation is never billed by two layers (SCHOLARDOCX-0180).
         """
         api_key = self.settings.jina_api_key
         if not api_key:
@@ -839,15 +888,22 @@ class ResearchPaperService:
                 detail=f"Jina AI returned incomplete embeddings ({len(all_embeddings)} / {len(text_chunks)}).",
             )
 
-        self._charge_jina_embedding(source="jina_embedding")
+        if charge_source:
+            self._charge_jina_embedding(source=charge_source)
         return all_embeddings, total_input_tokens
 
     async def _generate_single_embedding(self, query_text: str) -> list[float]:
-        """Generate single 1024-dim embedding for a query string."""
-        embeddings, _ = await self._generate_embeddings([query_text])
+        """Generate a single 1024-dim embedding for an analysis query string.
+
+        Charging is delegated to ``_generate_embeddings`` via ``charge_source``;
+        adding a charge here too is what double-billed every question before
+        SCHOLARDOCX-0180.
+        """
+        embeddings, _ = await self._generate_embeddings(
+            [query_text], charge_source="jina_embedding_query"
+        )
         if not embeddings:
             raise HTTPException(status_code=500, detail="Failed to generate embedding for query.")
-        self._charge_jina_embedding(source="jina_embedding_query")
         return embeddings[0]
 
     # ------------------------------------------------------------------ Vector Similarity Search
@@ -927,17 +983,24 @@ class ResearchPaperService:
             section_terms.extend(["methodology", "method", "experimental", "dataset", "architecture"])
 
         if section_terms:
+            # Guarantee the named section is considered, but rank keyword hits by
+            # real cosine distance and report their true similarity. Ordering by
+            # chunk_index (as before) picked the earliest mention — a methodology
+            # query got the intro's passing reference, not the methods section.
+            # And the old fixed 0.85 meant the "Relevance: 85%" badge the UI shows
+            # beside each citation was fabricated rather than measured.
             keyword_clauses = " OR ".join([f"chunk_text ILIKE :kw_{i}" for i in range(len(section_terms))])
-            params: dict[str, Any] = {"pid": paper_id}
+            params: dict[str, Any] = {"pid": paper_id, "vec": str(query_vector)}
             for i, term in enumerate(section_terms):
                 params[f"kw_{i}"] = f"%{term}%"
 
             matched_rows = self.db.execute(
                 text(
-                    f"SELECT id, chunk_index, chunk_text, token_count "
+                    f"SELECT id, chunk_index, chunk_text, token_count, "
+                    f"1 - (embedding <=> CAST(:vec AS vector)) AS similarity "
                     f"FROM research_paper_chunks "
-                    f"WHERE paper_id = :pid AND ({keyword_clauses}) "
-                    f"ORDER BY chunk_index ASC LIMIT 4"
+                    f"WHERE paper_id = :pid AND embedding IS NOT NULL AND ({keyword_clauses}) "
+                    f"ORDER BY embedding <=> CAST(:vec AS vector) ASC LIMIT 4"
                 ),
                 params,
             ).mappings().fetchall()
@@ -949,7 +1012,11 @@ class ResearchPaperService:
                         "chunk_index": mr["chunk_index"],
                         "chunk_text": mr["chunk_text"],
                         "token_count": mr["token_count"],
-                        "similarity_score": 0.85,
+                        "similarity_score": (
+                            round(float(mr["similarity"]), 4)
+                            if mr["similarity"] is not None
+                            else 0.0
+                        ),
                         "page_numbers": self._extract_page_numbers(mr["chunk_text"]),
                     }
                     final_chunks.append(b_dict)
@@ -970,9 +1037,14 @@ class ResearchPaperService:
                     if len(final_chunks) >= top_k or not wants_references:
                         break
 
-        # Sort by chunk_index so sequential reading order is preserved in AI context
+        # Trim to top_k by *relevance* first, then sort the survivors by
+        # chunk_index so the AI sees them in reading order. Sorting before
+        # trimming would have discarded by document position, which can drop the
+        # strongest matches when top_k is small relative to the boosted set.
+        final_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
+        final_chunks = final_chunks[:top_k]
         final_chunks.sort(key=lambda x: x["chunk_index"])
-        return final_chunks[:top_k]
+        return final_chunks
 
     def _extract_page_numbers(self, chunk_text: str) -> list[int]:
         """Extract page numbers from '--- Page N ---' markers in chunk text."""
@@ -1007,7 +1079,11 @@ class ResearchPaperService:
         # Users are only charged for the actual AI analysis call below via AiService.chat()
 
         if not chunks:
-            # Fallback to initial chunks if vector search finds none
+            # Vector search matched nothing (e.g. a paper indexed before
+            # embeddings existed). Use the opening chunks so the user still gets
+            # an answer, but report similarity 0.0: these were picked by position,
+            # not relevance, and the UI shows this value as a "Relevance" badge.
+            # The old 0.5 claimed the answer was half-grounded when nothing matched.
             initial_chunks = (
                 self.db.query(ResearchPaperChunks)
                 .filter(ResearchPaperChunks.paper_id == paper_id)
@@ -1021,7 +1097,7 @@ class ResearchPaperService:
                     "chunk_index": c.chunk_index,
                     "chunk_text": c.chunk_text,
                     "token_count": c.token_count,
-                    "similarity_score": 0.5,
+                    "similarity_score": 0.0,
                     "page_numbers": self._extract_page_numbers(c.chunk_text),
                 }
                 for c in initial_chunks
@@ -1378,6 +1454,12 @@ class ResearchPaperService:
         self.db.delete(paper)
         self.db.commit()
 
+        # Storage bytes only. `research_papers_per_month` is deliberately NOT
+        # resynced: it counts uploads made this period, not papers currently held,
+        # so recomputing it from a live COUNT(*) would let a user cycle
+        # upload → delete → upload past the monthly quota. The real complaint —
+        # a *failed* upload burning a slot — is fixed in
+        # upload_and_process_paper(), which increments only on success.
         from app.auth.limits import resync_usage_counts
         resync_usage_counts(self.user["id"], self.db, ["total_documents_bytes"])
 

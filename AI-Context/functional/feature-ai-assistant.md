@@ -133,7 +133,16 @@ Agentic action rules:
 - If required information is missing, the assistant asks a focused follow-up
   question instead of guessing.
 - Executed actions use normal backend storage services so data stays local.
-- Analytical reads use local logic (e.g. `CURRENT_DATE` and column semantic mapping) instead of sending large tables to the LLM.
+- Analytical reads use local logic (e.g. `CURRENT_DATE` and column semantic mapping) for filtering/aggregation; the model itself never scans a full table to compute an answer.
+- SCHOLARDOCX-0179: the sheet Ask AI menu sends narrowly-scoped requests only
+  (one row, one column, or a small user-selected set of rows), never a
+  whole-sheet request needing unique generated content per row. This is a
+  hard constraint, not a style preference — the planner's JSON output is
+  capped at 1200 tokens in one completion, so generating unique content
+  (an email, a summary) for more than a handful of rows in one shot
+  reliably fails. Every Ask AI preset's prompt text explicitly instructs
+  the model to say so, and name what's missing, when the row/column it
+  was asked to act on doesn't have enough data — never guess or fabricate.
 - Unsupported actions should fall back to ordinary chat or explain what is
   currently supported.
 - `can_use_agents` remains a boolean permission guard only. Opening the action

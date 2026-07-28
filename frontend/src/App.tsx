@@ -77,7 +77,7 @@ import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
-import { ResearchReaderView } from "./components/ResearchReaderView";
+import { ResearchExpertView } from "./components/ResearchExpertView";
 import { CalendarMonthView } from "./components/CalendarMonthView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
@@ -212,7 +212,7 @@ export function App() {
 
         case "research":
           // Research Expert manages its own paper list; the refreshTrigger
-          // bump above signals ResearchReaderView to reload.
+          // bump above signals ResearchExpertView to reload.
           break;
 
         case "documents":
@@ -390,7 +390,7 @@ export function App() {
     ? (usageData.limits?.can_use_scholarship_hunt ?? 0) === 1
     : isProOrMaxRole;
 
-  const canUseResearchReader = usageData
+  const canUseResearchExpert = usageData
     ? (usageData.limits?.can_use_research_reader ?? 0) === 1
     : isProOrMaxRole;
 
@@ -436,7 +436,7 @@ export function App() {
       setMobileNavOpen(false);
       return;
     }
-    if (key === "research" && !canUseResearchReader) {
+    if (key === "research" && !canUseResearchExpert) {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
       setActiveTab("plans");
       showToast(`Research Expert is available on ${phrase}.`);
@@ -494,7 +494,7 @@ export function App() {
             const [key, label, Icon] = item;
             const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
             const newsLocked = key === "news" && !canUseScholarshipHunt;
-            const researchLocked = key === "research" && !canUseResearchReader;
+            const researchLocked = key === "research" && !canUseResearchExpert;
             const isLocked = atlasLocked || newsLocked || researchLocked;
             return (
               <Fragment key={key}>
@@ -631,7 +631,7 @@ export function App() {
           )}
 
           <div className={`tab-container ${activeTab === "research" ? "" : "hidden-tab"}`}>
-            <ResearchReaderView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
+            <ResearchExpertView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
           </div>
 
           <div className={`tab-container ${activeTab === "profile" ? "" : "hidden-tab"}`}>

@@ -4,7 +4,7 @@ Status: In Progress (Phase 1 complete)
 
 Owner: AI Agent
 
-Epic: Epic-ResearchReader
+Epic: Epic-ResearchExpert
 
 Created: 2026-07-27
 
@@ -285,7 +285,7 @@ Out of scope:
    - `technical/security-privacy.md` - Document paper text privacy (sent to AI provider)
    - `functional/requirements-index.md` - Add FR-9.x requirements (including FR-9.10 and FR-9.11)
    - `business/decisions.md` - Document Pro/Max-only feature decision and AI credit consumption model
-   - Create `functional/feature-research-reader.md` - Full feature specification
+   - Create `functional/feature-research-expert.md` - Full feature specification
 
 2. **Update root rules**:
    - `CODE_RULES.md` - Add vector search patterns if needed
@@ -446,7 +446,7 @@ Changed files:
 - `AI-Context/technical/security-privacy.md` — Documented local-first PDF extraction, user-scoped `user_id` data isolation, and privacy rules.
 - `AI-Context/functional/requirements-index.md` — Added FR-10 functional requirements for Research Expert.
 - `AI-Context/business/decisions.md` — Added BD-010 business decision for Research Expert workspace.
-- `AI-Context/functional/feature-research-reader.md` — Created full feature specification context document.
+- `AI-Context/functional/feature-research-expert.md` — Created full feature specification context document.
 
 ### Phase 5 — Testing & Verification (Done)
 
@@ -467,7 +467,7 @@ Unit tests added or updated:
 
 ### Jina Embedding Flat-Fee Billing (Follow-up — SCHOLARDOCX-0174)
 
-Jina AI (`jina-embeddings-v4`) generates all Research Reader embeddings. The
+Jina AI (`jina-embeddings-v4`) generates all Research Expert embeddings. The
 billing model was migrated from token-metered to a **flat fee per operation**,
 admin-configurable, and the previously-unbilled analyze query-embedding path
 was closed.
@@ -509,7 +509,7 @@ Billing decisions:
   Jina HTTP request and NOT token-metered. Cost scales by user action, not by
   paper size, for predictable pricing.
 - **No separate `can_use_jina_embeddings` gate** — Jina is a hard dependency
-  of Research Reader, so the existing `can_use_research_reader` gate covers it.
+  of Research Expert, so the existing `can_use_research_reader` gate covers it.
 - The `ai_models` row for `jina-embeddings-v4` is retained as a pricing
   reference only; it no longer drives billing.
 
@@ -711,7 +711,7 @@ Files changed:
 - `frontend/src/components/ResearchReaderView.tsx` (lazy-load viewer)
 - `frontend/src/lib/api.ts` (default topK 10)
 - `frontend/package.json` / lockfile (`pdfjs-dist` dependency)
-- `AI-Context/functional/feature-research-reader.md`,
+- `AI-Context/functional/feature-research-expert.md`,
   `AI-Context/technical/frontend-visual-system.md`
 
 Verification:

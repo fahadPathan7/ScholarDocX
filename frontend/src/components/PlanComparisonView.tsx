@@ -222,7 +222,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "can_use_agents", label: "AI Agents Usage", icon: Bot, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
     { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
-    { key: "can_use_research_reader", label: "Research Reader", icon: BookOpen, boolean: true },
+    { key: "can_use_research_reader", label: "Research Expert", icon: BookOpen, boolean: true },
   ];
 
   const extendedFeatures: PlanFeature[] = [

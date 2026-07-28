@@ -54,7 +54,7 @@ import {
 import { PREDEFINED_RESEARCH_PROMPTS } from "../lib/researchPrompts";
 import { Modal } from "./Modal";
 import { useUsage } from "../contexts/UsageContext";
-import "./research-reader.css";
+import "./research-expert.css";
 
 // Lazy-loaded so the heavy PDF.js bundle is only fetched when the user actually
 // opens "View in PDF", keeping the main app bundle lean.
@@ -322,7 +322,7 @@ function renderFormattedMarkdown(text: string, onChunkClick?: (chunkIndex: numbe
   return elements;
 }
 
-export function ResearchReaderView({
+export function ResearchExpertView({
   refreshTrigger,
   onNavigateToPlans
 }: {
@@ -433,17 +433,17 @@ export function ResearchReaderView({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Access check from usage limits
-  const canUseReader = (usageData?.limits?.can_use_research_reader ?? 0) === 1;
+  const canUseExpert = (usageData?.limits?.can_use_research_reader ?? 0) === 1;
   const papersPerMonthLimit = usageData?.limits?.research_papers_per_month ?? 0;
   const papersUsed = usageData?.usage?.research_papers_per_month ?? 0;
 
   useEffect(() => {
-    if (canUseReader) {
+    if (canUseExpert) {
       loadPapers();
     } else {
       setLoadingList(false);
     }
-  }, [canUseReader]);
+  }, [canUseExpert]);
 
   const loadPapers = async () => {
     setLoadingList(true);
@@ -475,7 +475,7 @@ export function ResearchReaderView({
   // React to the global header "Refresh data" button (App.tsx refreshActiveTab),
   // so Research Expert reloads its paper list alongside every other view.
   useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0 && canUseReader) {
+    if (refreshTrigger && refreshTrigger > 0 && canUseExpert) {
       loadPapers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -717,11 +717,11 @@ export function ResearchReaderView({
   };
 
   // Render Upgrade Prompt if user tier is Free / General
-  if (!canUseReader) {
+  if (!canUseExpert) {
     const planPhrase = usageData?.advisor_atlas_plan_phrase || "the Pro or Max plan";
     return (
-      <div className="research-reader-wrapper">
-        <div className="research-reader-upgrade-card">
+      <div className="research-expert-wrapper">
+        <div className="research-expert-upgrade-card">
           <div className="upgrade-icon-badge">
             <BookOpen size={36} />
             <Lock size={18} className="lock-sub-icon" />
@@ -762,10 +762,10 @@ export function ResearchReaderView({
   }
 
   return (
-    <div className="research-reader-container">
+    <div className="research-expert-container">
       {/* Header Bar */}
-      <div className="reader-header-bar">
-        <div className="reader-header-title">
+      <div className="expert-header-bar">
+        <div className="expert-header-title">
           <div className="title-icon-box">
             <BookOpen size={24} />
           </div>
@@ -775,7 +775,7 @@ export function ResearchReaderView({
           </div>
         </div>
 
-        <div className="reader-header-meta">
+        <div className="expert-header-meta">
           <div className="quota-pill" title="Monthly paper upload quota">
             <Layers size={14} />
             <span>
@@ -812,7 +812,7 @@ export function ResearchReaderView({
       </div>
 
       {errorMsg && (
-        <div className="reader-error-banner">
+        <div className="expert-error-banner">
           <AlertTriangle size={18} />
           <span>{errorMsg}</span>
           <button onClick={() => setErrorMsg(null)} className="error-close-btn">&times;</button>
@@ -820,12 +820,12 @@ export function ResearchReaderView({
       )}
 
       {/* Main Grid: Sidebar vs Main Workspace */}
-      <div className={`reader-workspace-grid ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <div className={`expert-workspace-grid ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         {/* Collapsed library rail */}
         {sidebarCollapsed && (
           <button
             type="button"
-            className="reader-sidebar collapsed"
+            className="expert-sidebar collapsed"
             onClick={() => setSidebarCollapsed(false)}
             title="Expand library"
             aria-label="Expand library"
@@ -843,7 +843,7 @@ export function ResearchReaderView({
 
         {/* Left Sidebar: Paper Library */}
         {!sidebarCollapsed && (
-        <div className="reader-sidebar">
+        <div className="expert-sidebar">
           <div className="sidebar-section-header">
             <div>
               <h3>Library ({papers.length} / {maxLibraryLimit})</h3>
@@ -940,7 +940,7 @@ export function ResearchReaderView({
         )}
 
         {/* Right Main Content: Paper Workspace */}
-        <div className="reader-main-panel">
+        <div className="expert-main-panel">
           {!activePaper ? (
             <div className="no-active-paper-placeholder">
               <BookOpen size={48} className="placeholder-icon" />

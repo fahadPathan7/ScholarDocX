@@ -91,7 +91,7 @@ negative and hid the real consumption the ledger recorded.
 and `summarize_memory()` inherit usage via the `chat()` dict they return.
 
 - **Research Expert (SCHOLARDOCX-0174)**:
-  - Paper embedding generation calls Gemini `text-embedding-004:batchEmbedContents` and meters tokens via `ai_tokens.charge(..., source="research_paper_embedding")`.
+  - Paper embedding generation calls the Jina AI API (`jina-embeddings-v4`, 1024 dims) and is billed as a flat fee, not token-metered — see "Research Expert Jina embedding billing" below.
   - Analytical paper queries call `AiService.chat(..., request_label="research_paper_analysis")` which automatically meters input/output tokens via `AiService.charge_tokens`.
   - Both embedding generation and paper analysis require pre-flight token balance validation (`ensure_can_spend`) and fail with HTTP 402 if credits are zero.
 scholarship-query generator is not an `AiService` call, so `/news/query-preview`
@@ -357,14 +357,27 @@ operation** — the same model Tavily uses for web/Scholarship Hunt searches.
   by `schema.py` SEED_SQL and editable in the admin **Settings → External APIs
   & Agents Pricing** modal (`SettingsTab.tsx`). Read at call time via
   `get_jina_call_cost_usd(session)` in `ai_tokens.py`.
-- **Charge**: `charge_flat_fee(user, session, cost_usd, source=...)`, one fee
-  per operation, raised **after** the Jina HTTP call returns successfully (so
-  failed embeddings don't debit the user). Lives in
-  `ResearchPaperService._charge_jina_embedding()`, called from:
+- **Charge**: `charge_flat_fee(user, session, cost_usd, source=...)`, **exactly
+  one** fee per user-visible operation, raised **after** every Jina HTTP batch
+  for that operation has returned successfully (so a paper needing 20 batches
+  still costs one fee, and a failed run costs nothing). Lives in
+  `ResearchPaperService._charge_jina_embedding()`, invoked via the
+  `charge_source` parameter of `_generate_embeddings()`:
   - upload → `source="jina_embedding"`
   - retry → `source="jina_embedding_retry"`
-  - analyze query embedding → `source="jina_embedding_query"` (this path was
-    previously unbilled; the gap was closed here).
+  - analyze query embedding → `source="jina_embedding_query"`
+- **Single-charge invariant**: `_generate_embeddings()` is the only place a Jina
+  fee is raised, and it raises at most one. Callers that wrap it (such as
+  `_generate_single_embedding()`) pass their own `charge_source` rather than
+  charging separately. Fixed in SCHOLARDOCX-0180: the query path previously
+  charged inside `_generate_embeddings` *and* again in
+  `_generate_single_embedding`, billing every analysis question twice.
+- **Correct setting key**: `_charge_jina_embedding()` reads the price through
+  `ai_tokens.get_jina_call_cost_usd()`. Also fixed in SCHOLARDOCX-0180: it
+  previously queried a `research_paper_jina_cost_usd` key that is seeded nowhere,
+  so it always fell through to a hardcoded `0.005` and silently ignored whatever
+  an admin had configured. Combined with the double charge, an analysis query
+  cost `2 × 0.005 = 0.01` USD-equivalent against a configured price of `0.002`.
 - **Pre-flight**: `ensure_can_spend()` runs before each call and raises
   `OutOfTokens` (HTTP 402) on insufficient balance.
 - **Gate**: no separate Jina role limit — access is covered by the existing

@@ -158,9 +158,9 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       example: "If limit is 10, user can create up to 10 whiteboards total. Deleting whiteboards does NOT free up quota."
     },
     can_use_research_reader: {
-      description: "Controls whether a user can access the AI-assisted single-paper deep analysis and Research Reader workspace.",
+      description: "Controls whether a user can access the AI-assisted single-paper deep analysis and Research Expert workspace.",
       resetInfo: "This is a permission setting, not a consumable limit. It does not reset.",
-      example: "When enabled (1), Pro and Max users can access Research Reader. When disabled (0), Free and Basic users see a locked tab."
+      example: "When enabled (1), Pro and Max users can access Research Expert. When disabled (0), Free and Basic users see a locked tab."
     },
     research_papers_per_month: {
       description: "Limits the total number of research paper PDF uploads in a calendar month.",
@@ -227,9 +227,9 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       ]
     },
     {
-      name: "Research Reader",
+      name: "Research Expert",
       features: [
-        { key: "can_use_research_reader", label: "Can Use Research Reader", description: "Controls whether users on this plan can access the AI-assisted Research Reader paper workspace." },
+        { key: "can_use_research_reader", label: "Can Use Research Expert", description: "Controls whether users on this plan can access the AI-assisted Research Expert paper workspace." },
         { key: "research_papers_per_month", label: "Maximum Monthly Research Paper Uploads", description: "Limits the total number of PDF research papers a user can upload in a calendar month." },
         { key: "max_research_papers_library", label: "Maximum Stored Papers Library Capacity", description: "Limits the maximum number of research papers a user can store concurrently in their library. Deleting a paper frees up capacity." }
       ]

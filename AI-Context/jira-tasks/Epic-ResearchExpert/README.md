@@ -1,4 +1,4 @@
-# Epic-ResearchReader
+# Epic-ResearchExpert
 
 Status: Draft
 

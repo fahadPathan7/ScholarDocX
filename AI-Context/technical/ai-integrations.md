@@ -78,17 +78,18 @@ When adding a new AI provider, search provider, or credit-consuming feature:
 
 - GLM AI API for chat, drafting, summarization, and rewriting.
 
-- Google AI Studio Gemini API for optional chat, drafting, summarization,
-  rewriting fallback, and Research Expert embeddings (`text-embedding-004`).
+- Google AI Studio Gemini API for optional chat, drafting, summarization, and
+  rewriting fallback. (Research Expert embeddings moved off Gemini to Jina AI —
+  see the Research Expert Vector Embeddings section below.)
 - Tavily API for real-time AI-chat web research and the separate filtered
   Scholarship Hunt web-discovery workspace.
 - OpenRouter Free for generating a Scholarship Hunt query from structured
   filter choices before the existing user-review step.
 - **Research Expert (SCHOLARDOCX-0174)**:
-  - Vector embeddings via Gemini REST API `text-embedding-004:batchEmbedContents` (768 dimensions).
-  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`.
-  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction.
-  - Token consumption is metered via `ai_tokens.charge(...)` for embedding generation and `AiService.charge_tokens` for query analysis.
+  - Vector embeddings via the Jina AI REST API (`jina-embeddings-v4`, `task="text-matching"`, 1024 dimensions, batches of 16). No fallback provider.
+  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`, including the keyword section-boost pass, which is ranked by the same cosine distance so every relevance score shown to the user is measured rather than assumed.
+  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, using a GLM-5.2 → Groq compound model cascade.
+  - Billing: one flat fee per Jina operation (`jina_call_cost_usd`), plus standard `AiService` token metering for the analysis call. See [ai-token-economy.md](ai-token-economy.md).
 
 Gemini support is built around free-tier local use:
 
@@ -519,6 +520,70 @@ or call cloud storage.
 2. **Execution is quota-gated but not double-billed**: `/ai/actions/execute` enforces workspace limits (`total_projects`, etc.) via `check_and_increment_limit` but does NOT make additional AI calls or charge additional tokens (the plan was already billed). However, role limits must be enforced before mutating.
 3. **Background agent tasks do not exist**: Agent actions are always user-initiated. There are no background or admin-triggered agent executions that bypass the user context or billing flow.
 
+## Sheet Ask AI menu: scale constraints and row-targeting (SCHOLARDOCX-0179)
+
+The sheet **Ask AI** dropdown (`frontend/src/components/sheet/askAiPrompts.ts`,
+`AskAiMenu.tsx`) feeds the plan-confirm-execute pipeline above one preset
+message at a time. Two hard constraints shape what a preset can safely ask
+for, discovered via a user report that the prior whole-sheet catalog was
+"too heavy for AI":
+
+1. **`AiActionService.plan` caps the planner's completion at
+   `max_tokens=1200`** for the entire JSON plan. A request needing unique
+   generated text per row (an email, a summary) turns into one `update_row`
+   action per row, each carrying that text — this reliably exceeds the
+   budget past roughly 5-8 rows. This is a token ceiling, not a prompt-
+   wording problem, so presets must not ask for unique per-row content
+   across "every row."
+2. **`_build_planner_prompt` injects real cell data for at most the first
+   30 rows of the target sheet** (`_target_sheet_block`, added
+   SCHOLARDOCX-0156) when the message carries `(sheet_id: "...")`. A preset
+   aimed at a specific row beyond that window had zero visibility into it.
+   SCHOLARDOCX-0179 fixed this: a message can also carry a structured
+   `(row_index: N)` or `(row_indices: [N,M,...])` marker (embedded by
+   `askAiPrompts.ts`'s `rowTarget()`/`selectedRowsTarget()` helpers), and
+   `_target_sheet_block` guarantees those specific rows are included even
+   outside the first-30 window (capped at 20 extra rows, parsed by the
+   `_extract_targeted_row_indices` static method).
+
+Given these constraints, every Ask AI preset is scoped to one of:
+- **One row** (`fill-cell`, `row-summary`, `row-email-draft`,
+  `row-next-step`) — visible only when a cell is focused (that's the only
+  reliable single-row reference point today).
+- **One column** (`column-missing`, `column-breakdown`) — visible only
+  when a cell is focused (its column is the target); routes through
+  `filter_rows`/`get_column_values`, which are backend-computed over the
+  full row set via `Store` and are NOT limited by the 30-row injection
+  window, so these are accurate at any sheet size.
+- **A small user-selected set of rows** (`compare-selected`) — visible
+  only with 2+ selected rows; the actual selected row indices are now sent
+  explicitly (`AskAiContext.selectedRowIndices`, previously only a count
+  was sent, so "compare the selected rows" had no way to know which rows
+  those were).
+- **A single always-available column scan** (`deadline-risk`) — safe at
+  any scale because it's backend-computed (`get_deadlines`/`analyze_sheet`)
+  and the read results go through the bounded, truncation-honest
+  `analyze_results` second pass (see below), not the 1200-token planner
+  output.
+
+Every preset's `build()` text explicitly instructs the model to say so —
+and name what's missing — when the targeted row/column doesn't have
+enough data, rather than guessing (reinforced by planner Parsing Rule 18 in
+`ACTION_PLANNER_SYSTEM_PROMPT`).
+
+### Post-execution analysis pass (SCHOLARDOCX-0156, still in use)
+
+For auto-executed read-only plans, `AiActionService.analyze_results` runs a
+**second** LLM call (`max_tokens=2048`) over the executed results so the
+final answer is a real analysis, not a raw row dump. `serialize_results_for_
+analysis` (`ai_actions_analyze.py`) hard-bounds the payload (~150-200 rows,
+12k chars, 120-char cells) and sets a `truncated` flag; the analyst system
+prompt (`ACTION_ANALYST_SYSTEM_PROMPT`) requires the model to state plainly
+when results are truncated or when the supplied data can't answer the
+question — this is the existing, general-purpose form of the "say so, don't
+guess" pattern SCHOLARDOCX-0179 extended into the planner phase for
+row/column-scoped presets.
+
 ## Agent Execution & Normalization Enhancements (SCHOLARDOCX-0172)
 
 To ensure high performance and zero multi-step failures in agent execution:
@@ -582,10 +647,11 @@ web-search ingredient so results actually match the goal:
 - **Task**: `text-matching`
 - **Dimensions**: `2048`
 - **Policy**: Exclusive provider (no fallback). If Jina API fails or `JINA_API_KEY` is missing/invalid, an explicit HTTP 500/503 exception is raised to the user.
-- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`). Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, called once after each successful Jina HTTP call:
+- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174, corrected in SCHOLARDOCX-0180)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`) and is read through `ai_tokens.get_jina_call_cost_usd()`. Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, raised exactly once per operation via the `charge_source` parameter of `_generate_embeddings()`, after all batches for that operation succeed:
   - Upload → `charge_flat_fee(..., source="jina_embedding")`
   - Retry → `charge_flat_fee(..., source="jina_embedding_retry")`
-  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")` (this path was previously unbilled; the gap is now closed).
+  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")`
+  - **Do not add a second charge in a wrapper.** `_generate_embeddings()` is the single charging point. The analyze path previously charged there *and* again in `_generate_single_embedding()`, double-billing every question; and `_charge_jina_embedding()` read a non-existent `research_paper_jina_cost_usd` key, so the admin-configured price was ignored in favour of a hardcoded `0.005`.
   - Pre-flight `ensure_can_spend()` runs before the call and raises `OutOfTokens` (HTTP 402) if the user's combined subscription + purchased balance cannot cover it. Access itself is gated by the existing `can_use_research_reader` role limit (Pro/Max) — no separate Jina gate.
   - The prior token-metered path (`ai_tokens.charge` with `provider="jina"`) was **removed**; the `ai_models` row for `jina-embeddings-v4` is retained only as a pricing reference and no longer drives billing.
 

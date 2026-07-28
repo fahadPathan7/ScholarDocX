@@ -13,6 +13,7 @@ exact action shapes the planner would emit. This isolates the
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import date, timedelta
 
@@ -268,3 +269,61 @@ def test_fill_focused_cell_update_row(service_and_sheet):
     assert result["status"] == "done"
     rows = _rows(store, sid)
     assert rows[2]["Funding"] == "25000"
+
+
+# ── Row-index injection for row-scoped prompts (SCHOLARDOCX-0179) ──────────
+
+
+def test_extract_targeted_row_indices_parses_single_and_multi():
+    """Pure parsing — no DB needed."""
+    single = AiActionService._extract_targeted_row_indices(
+        'Look at row 5 (sheet_id: "abc") (row_index: 4).'
+    )
+    assert single == [4]
+
+    multi = AiActionService._extract_targeted_row_indices(
+        'Compare rows (sheet_id: "abc") (row_indices: [0, 12, 47]).'
+    )
+    assert multi == [0, 12, 47]
+
+    none_present = AiActionService._extract_targeted_row_indices(
+        'Show upcoming deadlines (sheet_id: "abc").'
+    )
+    assert none_present == []
+
+
+def test_target_sheet_block_includes_row_beyond_default_window(service_and_sheet):
+    """SCHOLARDOCX-0179: a row-scoped prompt naming a row past the first-30
+    window (e.g. row_index 33 on a 35-row sheet) must still get that row's
+    real data injected, not just the first 30 rows."""
+    svc, store, pid, sid = service_and_sheet
+
+    # Bulk-add rows so the sheet has 35 total (3 already exist from the fixture).
+    svc.execute(
+        {"status": "needs_confirmation", "actions": [
+            {"type": "add_rows", "project_id": pid, "sheet_id": sid,
+             "rows": [{"Status": "Researching", "Funding": str(i)} for i in range(32)]},
+        ]}
+    )
+    rows = _rows(store, sid)
+    assert len(rows) == 35
+
+    message = f'Summarize row 34 (sheet_id: "{sid}") (row_index: 33).'
+    block = svc._target_sheet_block(message)
+    payload = json.loads(block.split(":\n", 1)[1].strip())
+    by_index = {entry["row_index"]: entry for entry in payload}
+
+    assert 33 in by_index, "targeted row beyond the first-30 window must be injected"
+    assert by_index[33]["Funding"] == rows[33]["Funding"]
+    assert 0 in by_index  # default first-30 window is still included
+    assert 30 not in by_index  # rows between the window and the target are not pulled in for free
+
+
+def test_target_sheet_block_without_row_marker_stays_within_default_window(service_and_sheet):
+    """No `(row_index: N)` marker present → behaves exactly as before
+    (first 30 rows only), confirming the new parsing is additive."""
+    svc, store, pid, sid = service_and_sheet
+    message = f'Show upcoming deadlines (sheet_id: "{sid}").'
+    block = svc._target_sheet_block(message)
+    assert '"row_index": 0' in block
+    assert '"row_index": 2' in block  # last of the fixture's 3 seeded rows

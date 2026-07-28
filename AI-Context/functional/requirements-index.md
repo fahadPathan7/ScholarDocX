@@ -40,6 +40,7 @@
 - FR-5.4: AI actions should show enough context for user review before saving changes.
 - FR-5.5: AI can prepare project, sheet, row, and sticky-note actions, but only execute them after user confirmation.
 - FR-5.6 (SCHOLARDOCX-0178): Ask AI chat history is capped at 10 saved sessions per user (client-side, browser storage only); starting a new chat past the cap deletes the oldest saved session first (FIFO).
+- FR-5.7 (SCHOLARDOCX-0179): the sheet Ask AI menu's presets are scoped to one row, one column, or a small user-selected set of rows — never a whole-sheet request needing unique generated content per row (the planner's 1200-token output budget cannot fit that). Every preset tells the model to say so, and name what's missing, when it lacks the data to complete the request.
 
 ## FR-6: Authentication And Identity
 

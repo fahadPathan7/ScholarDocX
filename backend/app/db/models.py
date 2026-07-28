@@ -1149,7 +1149,7 @@ class ResearchPapers(Base):
     static_file_id: Mapped[Optional[str]] = mapped_column(ForeignKey('static_files.id', ondelete='SET NULL'))
     content_text: Mapped[Optional[str]] = mapped_column(Text)
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    embedding_model: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'text-embedding-004'"))
+    embedding_model: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'jina-embeddings-v4'"))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'processing'"))
     authors: Mapped[Optional[str]] = mapped_column(Text)
     journal_conference: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

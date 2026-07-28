@@ -313,14 +313,31 @@ explicit `FAMILY_ADJACENCY` bridge covers the real cases. Family-level adjacency
 was also demoted from 68/"adjacent" to 58/"interdisciplinary" so coarse bridges
 rank below same-family and shared-term matches rather than crowding them out.
 
-### Not verified by execution
+### Verified under pytest (updated during SCHOLARDOCX-0183)
 
-As with SCHOLARDOCX-0180, the pytest suite could not be run here: `backend/.venv`
-is a macOS virtualenv that will not execute in this Linux sandbox, and these tests
-require a live Postgres. Every assertion above was instead verified by executing
-the real `intelligence.py` and the `crawler.py` helper functions directly, which
-is why the numbers are quoted rather than described. **Run
-`pytest tests/unit/test_advisor_atlas.py` before merging.**
+Initially shipped unverified — see the note below. During SCHOLARDOCX-0183 the
+blocker was solved: `tests/conftest.py` demands a live Postgres for *every* test,
+including pure-function ones, so running with `--noconftest` makes this file's
+tests executable.
+
+```
+python3 -m pytest tests/unit/test_advisor_atlas.py --noconftest -o addopts="" \
+  -k "related_unit or related_department or concept_family or semantic_fallback \
+      or unit_pattern or unit_name or clean_person_name or discovery_uses_ai \
+      or falls_back_when_unit"
+→ 47 passed
+```
+
+Every recall, precision, unit-extraction, Unicode-name, and AI-mapping test in
+this task passes. The only failures in the wider file are repository and
+run-persistence tests failing on `DATABASE_URL is required` — environmental, not
+logic.
+
+*Original note:* the pytest suite could not be run here because `backend/.venv` is
+a macOS virtualenv that will not execute in this Linux sandbox and the suite's
+conftest requires Postgres. Assertions were instead verified by executing
+`intelligence.py` and the `crawler.py` helpers directly, which is why the numbers
+above are quoted rather than described.
 
 The GLM mapper itself (`map_related_units_with_glm`) has no live-model coverage —
 only the fallback and error paths are exercised. Its prompt and JSON handling

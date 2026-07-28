@@ -277,7 +277,8 @@ class AdminService:
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search') AS tavily_web_search,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('scholarship_hunt', 'scholarship_deep_hunt_search')) AS tavily_scholarship_hunt,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('jina_embedding', 'jina_embedding_retry', 'jina_embedding_query')) AS jina_total
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('jina_embedding', 'jina_embedding_retry', 'jina_embedding_query')) AS jina_total,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_author_lookup') AS openalex_total
             """
         ).fetchone()
         c = dict(counts_row) if counts_row else {}
@@ -367,6 +368,7 @@ class AdminService:
                 "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
                 "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
                 "jina_total": _count("jina_total"),
+                "openalex_total": _count("openalex_total"),
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,

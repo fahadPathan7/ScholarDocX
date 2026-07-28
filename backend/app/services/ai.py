@@ -144,6 +144,58 @@ class AiService:
             self._billing_user, self._billing_session, 0.0, source=source
         )
 
+    def charge_external_call(self, *, cost_usd: float, source: str) -> bool:
+        """Bill a flat-fee external API call against the attached billing context.
+
+        The billing counterpart to `record_external_search`, which records a
+        zero-cost counter row. Used by metered third-party calls that are not
+        token-based — OpenAlex author resolution (SCHOLARDOCX-0183).
+
+        Returns True when a charge was raised. No-op (False) when no billing
+        context is attached, which is how internal/system calls stay unbilled.
+        Never raises: a billing failure must not sink an otherwise good run.
+        """
+        if self._billing_user is None or self._billing_session is None:
+            return False
+        if cost_usd <= 0:
+            return False
+        from app.services import ai_tokens
+
+        try:
+            ai_tokens.charge_flat_fee(
+                self._billing_user, self._billing_session, cost_usd, source=source
+            )
+            return True
+        except Exception:
+            logger.warning("External call charge failed for source=%s", source, exc_info=True)
+            return False
+
+    def external_billing_cost(self, getter) -> float:
+        """Read an admin-configured flat fee using the attached billing session.
+
+        `getter` is one of the `ai_tokens.get_*_cost_usd` accessors. Returns 0.0
+        when no billing context is attached, so an unbilled context cannot
+        accidentally charge a default price.
+        """
+        if self._billing_session is None:
+            return 0.0
+        try:
+            return float(getter(self._billing_session))
+        except Exception:
+            return 0.0
+
+    def can_spend_external(self) -> bool:
+        """Pre-flight for a billable external call. True when unbilled or funded."""
+        if self._billing_user is None or self._billing_session is None:
+            return True
+        from app.services import ai_tokens
+
+        try:
+            ai_tokens.ensure_can_spend(self._billing_user, self._billing_session, min_tokens=1)
+            return True
+        except Exception:
+            return False
+
     async def chat(
         self,
         message: str,

@@ -38,6 +38,13 @@ DEFAULT_JINA_COST = 0.002
 # Configurable in admin Settings → External APIs & Agents Pricing.
 BRAVE_COST_SETTING = "brave_call_cost_per_hit_usd"
 DEFAULT_BRAVE_COST = 0.015
+# SCHOLARDOCX-0183: flat fee per OpenAlex author resolution in Advisor Atlas.
+# Only the metered `search` call is charged — OpenAlex bills searches at
+# $1/1,000 ($0.001 each) and single-entity lookups at nothing, so the default
+# mirrors OpenAlex's own list price. Configurable in admin Settings → External
+# APIs & Agents Pricing.
+OPENALEX_COST_SETTING = "openalex_call_cost_usd"
+DEFAULT_OPENALEX_COST = 0.001
 
 # SCHOLARDOCX-0140: monthly AI credit allowance now lives in app_settings,
 # keyed per user tier (managed in Settings → Plan Pricing, not Role Limits).
@@ -159,6 +166,25 @@ def get_brave_call_cost_per_hit_usd(session: Session) -> float:
         except ValueError:
             pass
     return DEFAULT_BRAVE_COST
+
+
+def get_openalex_call_cost_usd(session: Session) -> float:
+    """Fetch the OpenAlex author-resolution flat fee (USD) from settings.
+
+    One fee per metered author `search`; the follow-on single-entity lookups are
+    free at OpenAlex and are not charged here. Configurable in admin Settings →
+    External APIs & Agents Pricing. See SCHOLARDOCX-0183.
+    """
+    row = session.execute(
+        text("SELECT value FROM app_settings WHERE key = :k"),
+        {"k": OPENALEX_COST_SETTING},
+    ).scalar()
+    if row is not None:
+        try:
+            return float(row)
+        except ValueError:
+            pass
+    return DEFAULT_OPENALEX_COST
 
 
 def get_role_monthly_allowance(user: dict, session: Session) -> int:

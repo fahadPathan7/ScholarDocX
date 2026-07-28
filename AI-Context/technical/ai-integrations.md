@@ -639,6 +639,62 @@ web-search ingredient so results actually match the goal:
 3. **Relevance filter is billed**: The OpenRouter Free batched relevance-filtering call MUST charge tokens via `charge_ai_tokens` after extracting all opportunities.
 4. **Extraction is billed**: Each scholarship extraction call (configured provider or OpenRouter Free fallback) MUST charge tokens via `charge_ai_tokens`.
 5. **Background runs are billed**: Deep Hunt runs are asynchronous. They MUST load user context via `load_user_dict(user_id, session)` at run start and charge the user's balance for all provider calls. No system account bypass.
+### Advisor Atlas Scholarly Graph (OpenAlex) — SCHOLARDOCX-0183
+
+- **Provider**: OpenAlex (`https://api.openalex.org`), client in
+  `app/services/advisor_atlas/openalex.py`.
+- **Environment Keys**: `OPENALEX_API_KEY` (**optional**), `OPENALEX_BASE_URL`.
+- **Cost model**: freemium, *not* free-and-keyless. **$0.10/day of usage without
+  a key, $1/day with a free key** (account only, no payment details). Within the
+  budget: single-entity lookups unlimited, ~10,000 list+filter calls, ~1,000
+  searches. The CC0 bulk snapshot is entirely free but is hundreds of GB and
+  quarterly. See https://developers.openalex.org/guides/authentication.
+- **Spend discipline**: a dossier costs **one metered search** to resolve the
+  author, then unlimited single-entity lookups. Enrichment runs on **deep runs
+  only** — a Discovery run screening 80 candidates would exhaust the daily budget
+  on names it may never surface.
+- **BILLING (flat fee per author lookup)**: charged like Tavily/Jina/Brave via
+  `charge_flat_fee(..., source="openalex_author_lookup")`, admin-configurable at
+  **Settings → External APIs & Agents Pricing** (`app_settings.openalex_call_cost_usd`,
+  default `0.001`, matching OpenAlex's own $1/1,000 search list price), read via
+  `ai_tokens.get_openalex_call_cost_usd()`.
+  - Charged **once per metered author `search`**, and on the *call*, not on a
+    successful match — OpenAlex bills the search whether or not we accept the
+    result. `OpenAlexClient.attempted_metered_call` is the flag the service bills
+    on.
+  - The follow-on single-entity record lookups are **free at OpenAlex and are not
+    charged**.
+  - Never billed when: the name is blank, the budget guard has tripped, or a 429
+    was latched — in all three cases no request is issued.
+  - Pre-flight `AiService.can_spend_external()` runs first, so a user at zero
+    credits skips enrichment rather than being charged into the negative.
+  - Billing goes through `AiService.charge_external_call()` /
+    `.external_billing_cost()` rather than reaching into the service's private
+    billing context, and never raises — a billing failure must not sink a run.
+- **Budget guard**: OpenAlex does **not** hard-stop at the daily budget — usage
+  beyond it draws on any prepaid balance, so running to zero can cost real money.
+  The client reads `X-RateLimit-Limit` / `-Remaining` / `-Credits-Used` and
+  `meta.cost_usd` from every response and stops issuing metered calls once
+  remaining drops below `BUDGET_RESERVE_FRACTION` (5%) of the daily limit. This
+  also leaves headroom for browsing openalex.org, which draws on the same budget.
+- **Admin dashboard**: reports `openalex_total` — count of ledger rows with
+  `source = 'openalex_author_lookup'` (alongside `tavily_*` and `jina_total`).
+- **Degradation is mandatory**: missing key, exhausted budget (429), rejected
+  credentials (401/403), outage, or timeout all return `None` and leave the run
+  exactly as capable as it is without OpenAlex. Never fails a run.
+- **Identity safety**: an author record is attached only above a confidence floor
+  combining full-name, given-name, and institution matching. A surname-only match
+  or two near-tied candidates attach **nothing** — the wrong researcher's h-index
+  beside a professor's name is worse than no h-index.
+- **Privacy**: only the professor's name and institution are sent — public facts
+  already sent to Tavily on every run. The applicant's interests, documents, SOP
+  and profile never leave the machine; topic matching happens locally afterwards.
+  The `api_key` identifies the deployment, never the end user.
+- **Fields consumed**: `summary_stats.h_index` / `.i10_index` /
+  `.2yr_mean_citedness`, `works_count`, `cited_by_count`, `counts_by_year`
+  (publication cadence), `topics[]`, `affiliations[].institution` +
+  `.years` (structured career timeline), `orcid`, `works_api_url`.
+
 ### Research Expert Vector Embeddings (Jina AI)
 
 - **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)

@@ -5,6 +5,10 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.services.advisor_atlas.crawler import EMAIL_PATTERN, canonicalize_url
+from app.services.advisor_atlas.professor_facts import (
+    build_enrichment,
+    name_tokens,
+)
 
 
 PUBLICATION_BLOCKLIST = re.compile(
@@ -152,11 +156,10 @@ def professor_query_plan(
 
 def candidate_source_relevance(source: dict[str, Any], candidate_name: str) -> bool:
     haystack = f"{source.get('title', '')} {source.get('content', '')}".lower()
-    name_parts = [
-        part.lower()
-        for part in re.findall(r"[A-Za-z][A-Za-z'-]+", candidate_name)
-        if len(part) > 2
-    ]
+    # Unicode-aware tokenisation. `[A-Za-z]` split "Jürgen Müller" into the
+    # fragments "rgen"/"ller", so that professor's own sources failed this check
+    # and were discarded before any extraction ran (SCHOLARDOCX-0182).
+    name_parts = name_tokens(candidate_name)
     if not name_parts:
         return True
     return sum(part in haystack for part in name_parts) >= min(2, len(name_parts))
@@ -442,6 +445,11 @@ def extract_verified_professor_facts(
     research = {"summary": "", "themes": [], "methods": [], "applications": []}
     recent_activity: list[str] = []
     publications: list[dict[str, Any]] = []
+    career_history: list[str] = []
+    lab_members: list[str] = []
+    graduates: list[str] = []
+    courses: list[str] = []
+    service_summary = ""
 
     for source in sources:
         if not candidate_source_relevance(source, name):
@@ -457,68 +465,47 @@ def extract_verified_professor_facts(
             or ".edu." in host
             or source.get("source_kind") == "official_profile"
         )
-        if trusted_identity_source and "key research areas:" in lower:
-            areas = _extract_after_label(
-                excerpt,
-                "Key Research Areas:",
-                (
-                    "Key Research Areas:",
-                    "Profile picture",
-                    "Assistant Professor",
-                    "Associate Professor",
-                    "Professor ",
-                    "STAFF",
-                ),
-            )
-            research["themes"].extend(_split_topics(areas))
-        if trusted_identity_source and "research interests" in lower:
-            interest_summary = _extract_after_label(
-                excerpt,
-                "Research Interests",
-                ("Recent Updates", "Education", "My Schedule"),
-            )
-            if interest_summary and len(interest_summary) > len(research["summary"]):
-                research["summary"] = interest_summary
-                research["themes"].extend(
-                    _topic_phrases(
-                        interest_summary,
-                        (
-                            "self-supervised learning",
-                            "few-shot learning",
-                            "transfer learning",
-                            "deep learning",
-                            "computer vision",
-                            "machine learning",
-                            "visual understanding",
-                            "limited supervision",
-                        ),
-                    )
-                )
         if trusted_identity_source:
-            for degree in re.findall(
-                r"(Ph\.?D\.? in [^.()]{3,100}?(?:19|20)\d{2}|"
-                r"Ph\.?D\.? in [^(]{3,80}\([^)]{4,40}\)|"
-                r"B\.?Tech in [^(]{3,80}\([^)]{4,40}\))",
-                excerpt,
-                re.IGNORECASE,
+            # Discipline-agnostic extraction (SCHOLARDOCX-0182). This replaced:
+            #   * a hardcoded eight-phrase computer-vision vocabulary, which made
+            #     `themes: []` the guaranteed result for every professor outside
+            #     that subfield;
+            #   * degree patterns covering only "Ph.D. in …" and "B.Tech in …";
+            #   * position patterns covering only student-level roles plus a
+            #     blanket `if "assistant professor" in text` that asserted that
+            #     rank, at the candidate's institution, from any mention anywhere
+            #     on the page — reporting the wrong seniority at the wrong
+            #     university.
+            enrichment = build_enrichment(excerpt, name)
+
+            for entry in enrichment["current_positions"]:
+                label = entry["rank"]
+                if entry.get("institution"):
+                    label += f", {entry['institution']}"
+                background["positions"].append(label)
+            for entry in enrichment["career_history"]:
+                label = entry["rank"]
+                if entry.get("institution"):
+                    label += f", {entry['institution']}"
+                if entry.get("period"):
+                    label += f" ({entry['period']})"
+                career_history.append(label)
+
+            background["education"].extend(
+                item["label"] for item in enrichment["education"]
+            )
+            research["themes"].extend(enrichment["topics"])
+            if enrichment["interests_text"] and len(enrichment["interests_text"]) > len(
+                research["summary"]
             ):
-                background["education"].append(re.sub(r"\s+", " ", degree).strip())
-            for position in re.findall(
-                r"((?:Machine Learning|Data Science) Intern\b[^()]{0,40}"
-                r"(?:\([^)]{2,30}\))?,[^()]{3,100}\([^)]{4,40}\)|"
-                r"Graduate Research Assistant[^()]{3,150}\([^)]{4,40}\)|"
-                r"Research Assistant[^()]{3,150}\([^)]{4,40}\)|"
-                r"\bIntern\b,?[^()]{3,150}\([^)]{4,40}\))",
-                excerpt,
-                re.IGNORECASE,
-            ):
-                background["positions"].append(re.sub(r"\s+", " ", position).strip())
-        if trusted_identity_source and "assistant professor" in lower:
-            position = "Assistant Professor"
-            institution = _institution_label(candidate, source)
-            if institution:
-                position += f", {institution}"
-            background["positions"].append(position)
+                research["summary"] = enrichment["interests_text"]
+
+            lab_members.extend(enrichment["lab_members"])
+            graduates.extend(enrichment["graduates"])
+            courses.extend(enrichment["courses"])
+            if enrichment["service"] and len(enrichment["service"]) > len(service_summary):
+                service_summary = enrichment["service"]
+
         new_faculty_evidence = (
             "incoming" in lower and "faculty" in lower
         ) or "new faculty" in f"{source.get('title', '')} {excerpt}".lower()
@@ -545,16 +532,17 @@ def extract_verified_professor_facts(
         publications.extend(_publications_from_table(source, name))
 
     research["themes"] = _unique(research["themes"])[:10]
-    research["methods"] = [
-        value
-        for value in research["themes"]
-        if any(term in value.lower() for term in ("learning", "supervision", "vision"))
-    ][:6]
+    # Methods used to be themes filtered by ("learning", "supervision", "vision"),
+    # which could only ever fire for machine-learning researchers. Method-vs-topic
+    # separation is a judgement call, so it is left to the GLM specialist passes
+    # rather than guessed from a keyword list here.
+    research["methods"] = []
     if not research["summary"] and research["themes"]:
         research["summary"] = "Verified research areas: " + ", ".join(research["themes"]) + "."
     research["summary"] = normalize_professor_research_voice(research["summary"], name)
     background["education"] = _dedupe_education(background["education"])[:8]
     background["positions"] = _dedupe_positions(background["positions"])[:8]
+    background["career_history"] = _unique(career_history)[:8]
     if background["education"] or background["positions"]:
         background["summary"] = "Verified education and appointment evidence from professor-owned or official sources."
 
@@ -568,6 +556,16 @@ def extract_verified_professor_facts(
             "items": _unique(recent_activity)[:8],
         },
         "publications": _dedupe_publications(publications)[:8],
+        # New enrichment dimensions (FR-9.29e). Each is omitted by the consumer
+        # when empty rather than rendered as an empty promise.
+        "lab_and_advisees": {
+            "current_members": _unique(lab_members)[:15],
+            "recent_graduates": _unique(graduates)[:15],
+        },
+        "teaching_and_service": {
+            "courses": _unique(courses)[:10],
+            "service_summary": service_summary,
+        },
     }
 
 
@@ -738,19 +736,6 @@ def _extract_after_label(text: str, label: str, stop_labels: tuple[str, ...]) ->
     return remainder[: min(stops) if stops else 700].strip(" :-")
 
 
-def _split_topics(value: str) -> list[str]:
-    return [
-        re.sub(r"\s+", " ", item).strip(" .")
-        for item in re.split(r",|;|\band\b", value)
-        if 2 < len(item.strip()) < 90
-    ]
-
-
-def _topic_phrases(text: str, phrases: tuple[str, ...]) -> list[str]:
-    lower = text.lower()
-    return [phrase.title() for phrase in phrases if phrase in lower]
-
-
 def _publications_from_table(
     source: dict[str, Any],
     candidate_name: str,
@@ -826,21 +811,6 @@ def _dedupe_publications(publications: list[dict[str, Any]]) -> list[dict[str, A
         key=lambda item: item.get("publication_year") or 0,
         reverse=True,
     )
-
-
-def _institution_label(
-    candidate: dict[str, Any],
-    source: dict[str, Any],
-) -> str:
-    institution = str(candidate.get("institution") or "").strip()
-    if institution and not institution.lower().startswith(("http://", "https://")):
-        return institution
-    title_parts = [
-        part.strip()
-        for part in re.split(r"\s*[|–—]\s*", str(source.get("title") or ""))
-        if part.strip()
-    ]
-    return title_parts[-1] if len(title_parts) > 1 else ""
 
 
 def _dedupe_education(values: list[str]) -> list[str]:

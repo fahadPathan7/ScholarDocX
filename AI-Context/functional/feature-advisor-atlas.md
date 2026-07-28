@@ -95,6 +95,36 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.28: Discovery must report coverage: mapped units, directories inspected,
   inaccessible or missing sources, verified faculty count, and whether
   completeness can be guaranteed.
+- FR-9.30: The dossier may include verified scholarly-record data from OpenAlex —
+  publication count, citation count, h-index, i10-index, publication cadence by
+  year, topics, and affiliation history with years.
+- FR-9.31: Every scholarly-record value is attributed to its source and omitted
+  when unavailable. No metric is estimated, interpolated, or inferred from a
+  search snippet. A missing metric renders as absent, never as zero.
+- FR-9.32: A scholarly record is attached only when identity is confidently
+  resolved. A weak or ambiguous name match yields nothing — attaching another
+  researcher's citation profile is a worse failure than showing none.
+- FR-9.33: Scholarly enrichment degrades silently. A missing key, exhausted daily
+  budget, rate limit, or outage leaves the run exactly as capable as it is
+  without it, never failed or blocked.
+- FR-9.29a: A rank or title may be attributed to the professor only when the
+  evidence ties that rank to that person, and to the institution named alongside
+  it. A rank held previously or at another institution is career history, never
+  the current appointment. Seniority is what an applicant uses to judge whether a
+  professor can independently admit students, so a wrong rank is worse than a
+  missing one.
+- FR-9.29b: Deterministic extraction and AI extraction are merged, never
+  replaced. Neither layer may silently discard the other's supported facts.
+- FR-9.29c: Position, degree, and research-theme extraction must be
+  discipline-agnostic. No hardcoded subject vocabulary may gate whether a
+  professor's themes are found.
+- FR-9.29d: Source-relevance matching must be Unicode-aware, so professors with
+  accented or non-Latin names do not have their own sources discarded.
+- FR-9.29e: The dossier provides a career timeline (rank, institution, period), a
+  lab and advisee section (current members, recent graduates and placements,
+  frequent collaborators), and a teaching and service section (courses,
+  supervision, administrative roles). Each item carries its source and is omitted
+  rather than guessed.
 - FR-9.29: Professor mode must provide granular background, lab, member,
   publication, academic-profile, funding, recruitment, trajectory, and source
   sections while clearly marking unavailable information. It must also compare

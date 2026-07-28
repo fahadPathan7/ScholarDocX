@@ -392,6 +392,47 @@ operation** — the same model Tavily uses for web/Scholarship Hunt searches.
   row for `jina-embeddings-v4` remains as a pricing reference only and no
   longer drives billing.
 
+## Advisor Atlas OpenAlex billing (SCHOLARDOCX-0183)
+
+OpenAlex supplies the scholarly record shown in the professor dossier (h-index,
+i10, citation counts, publication cadence, topics, affiliation history). Like
+Tavily/Jina/Brave it is billed as a **flat fee per user operation**, not
+token-metered.
+
+- **Setting key**: `app_settings.openalex_call_cost_usd` (default `0.001`),
+  seeded by `schema.py` SEED_SQL and editable in admin **Settings → External APIs
+  & Agents Pricing**. Read at call time via
+  `ai_tokens.get_openalex_call_cost_usd(session)`. The default deliberately
+  mirrors OpenAlex's own list price for a search ($1 per 1,000 calls).
+- **What is metered**: OpenAlex charges `search` at $1/1,000, `list+filter` at
+  $0.10/1,000, and **single-entity lookups at nothing**. A dossier costs exactly
+  one search (author resolution); everything after it is a free lookup. So the
+  fee is raised once per professor resolved, not once per field retrieved.
+- **Charged on the call, not the match**: OpenAlex bills the search whether or
+  not the result clears our identity-confidence floor, so the user is charged
+  when `OpenAlexClient.attempted_metered_call` is set. Declining an ambiguous
+  match does not refund a request that was already made.
+- **Never charged** when no request is issued: blank professor name, budget guard
+  tripped, or a latched 429.
+- **Pre-flight**: `AiService.can_spend_external()` runs before the call; a user at
+  zero credits skips enrichment rather than going negative.
+- **Plumbing**: `AiService.charge_external_call()` and `.external_billing_cost()`
+  encapsulate the billing context, mirroring the existing
+  `record_external_search()` (which stays zero-cost, for unbilled counters).
+  Neither raises — a billing error must never fail an Advisor Atlas run.
+- **Scope**: deep runs only. A Discovery run screening 80 candidates would both
+  exhaust the OpenAlex daily budget and bill the user 80 times for candidates
+  that may never surface.
+- **Dashboard**: admin reports `openalex_total` — ledger rows with
+  `source = 'openalex_author_lookup'`.
+
+### Single-charge invariant
+
+As with Jina (SCHOLARDOCX-0180, where a wrapper double-billed every query), there
+is exactly **one** charge site for OpenAlex: `_attach_scholarly_record` in
+`advisor_atlas/service.py`. `OpenAlexClient` itself never bills. Do not add a
+charge inside the client or inside `resolve_author`.
+
 ## Remaining phases
 
 - None — Phases 1–5 complete (metering, teardown, model pricing, packs +

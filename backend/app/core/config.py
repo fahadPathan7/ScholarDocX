@@ -22,6 +22,14 @@ class Settings:
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
         self.jina_api_key = os.getenv("JINA_API_KEY", "").strip()
         self.jina_base_url = os.getenv("JINA_BASE_URL", "https://api.jina.ai/v1/embeddings").strip()
+        # SCHOLARDOCX-0183: OpenAlex scholarly graph for Advisor Atlas dossiers.
+        # Optional. OpenAlex is freemium — $0.10/day of usage without a key and
+        # $1/day with a free one — so the feature works unconfigured and simply
+        # gets 10x the daily budget when a key is present.
+        self.openalex_api_key = os.getenv("OPENALEX_API_KEY", "").strip()
+        self.openalex_base_url = os.getenv(
+            "OPENALEX_BASE_URL", "https://api.openalex.org"
+        ).strip()
         self.tavily_api_key = os.getenv("TAVILY_API_KEY", "")
         self.tavily_api_key_scholarship_hunt = os.getenv(
             "TAVILY_API_KEY_SCHOLARSHIP_HUNT",

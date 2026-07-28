@@ -437,6 +437,22 @@ async def analyze_professor_specialists(
             ),
         ),
         (
+            "career_teaching",
+            "Advisor Atlas · Career & Teaching",
+            {"identity", "official_profile", "research", "news_activity"},
+            (
+                "Extract the professor's career timeline and teaching/advising load. "
+                "For the timeline, list every academic rank held with institution and "
+                "period, ordered most recent first, and mark exactly one as current. "
+                "A rank held previously or at a different institution is history, never "
+                "the current appointment. Also extract courses taught, supervision "
+                "record (current students, recent graduates and their placements), and "
+                "administrative or editorial roles. Return JSON only. Omit anything the "
+                "evidence does not support rather than inferring it, and keep source "
+                "URLs attached to every item."
+            ),
+        ),
+        (
             "funding_recruitment",
             "Advisor Atlas · Funding & Recruitment",
             {"funding", "recruitment", "news_activity", "official_profile"},

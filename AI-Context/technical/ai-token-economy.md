@@ -314,10 +314,13 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   This follows the same direction as the Phase 5 teardown below: count limits
   on AI-metered actions were removed in favor of a boolean plan gate + token
   cost, and a new count key would work against that.
-- "Check current cycle" on a catalog entry reuses the existing
+- ~~"Check current cycle" on a catalog entry reuses the existing
   `can_use_scholarship_hunt` gate and flat-fee Tavily billing
   (`_charge_scholarship_hunt` in `backend/app/api/news.py`) — no new quota
-  key.
+  key.~~ SUPERSEDED (SCHOLARDOCX-0176): the catalog is static-only. The
+  "Check current cycle" endpoint, `_charge_scholarship_hunt`, and the
+  Tavily-backed catalog path are all removed. Browsing the catalog is free
+  and makes zero network calls.
 
 ## Deep Hunt run billing (SCHOLARDOCX-0125, Phase 5)
 

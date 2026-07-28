@@ -2,10 +2,10 @@
 Scholarship Hunt pipeline).
 
 One AI call turns a Hunt result card's URL/title/snippet into a structured
-opportunity. Mirrors ``news_query_generator.ScholarshipQueryGenerator``'s
-provider shape: the token-metered configured provider (via ``AiService``,
-same default-provider chain and billing as `/ai/chat`) runs first; an
-unmetered OpenRouter Free call with a strict JSON contract is the fallback
+opportunity. Provider shape: the token-metered configured provider (via
+``AiService``, same default-provider chain and billing as `/ai/chat`) runs
+first; an unmetered OpenRouter Free call with a strict JSON contract is the
+fallback
 when the configured provider is unavailable or returns unusable output.
 Fields the source text does not support must stay empty — never invented.
 """
@@ -28,6 +28,8 @@ Return only JSON matching the requested schema.
 Rules:
 - Use only information present in the supplied text. Never infer, guess, or invent a deadline, amount, sponsor, or eligibility fact that is not stated.
 - If a field is not supported by the supplied text, set it to null (or an empty array/object for list/object fields) rather than guessing.
+- SPONSOR ACCURACY: "sponsor" is the organization that actually funds or administers the SPECIFIC opportunity described, and only when the text explicitly says so. Many pages are third-party listing, directory, or database sites that describe or aggregate scholarships funded by other organizations (for example, a national exchange agency's public scholarship database routinely lists programs it does not itself fund). Do not name the hosting or listing site as the sponsor just because its name, logo, or navigation text appears on the page — only when the text states that organization funds or administers this specific opportunity. When the true funder is unclear or unstated, leave sponsor null rather than guessing from the domain or branding.
+- APPLICATION URL ACCURACY: "application_url" must be a specific application or official-information page named in the text. Do not assume the current page itself is the official application portal for a program that a different organization administers — leave it null if the text does not name one.
 - For every non-null field you return, include a confidence score from 0 to 1 in "field_confidence" reflecting how directly the text supports that value.
 - Deadlines must be actual stated dates or date ranges, not assumed application cycles.
 - Do not include commentary, markdown, or text outside the JSON object."""

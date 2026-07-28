@@ -32,6 +32,12 @@ DEFAULT_TAVILY_COST = 0.01
 # (paper upload, retry, or analysis). Configurable in admin Settings.
 JINA_COST_SETTING = "jina_call_cost_usd"
 DEFAULT_JINA_COST = 0.002
+# SCHOLARDOCX-0175: per-hit fee for Brave Search results in Scholarship
+# Hunt. Users are charged per raw Brave result scanned (before filtering),
+# so the charge scales with how many sources a deep search touches.
+# Configurable in admin Settings → External APIs & Agents Pricing.
+BRAVE_COST_SETTING = "brave_call_cost_per_hit_usd"
+DEFAULT_BRAVE_COST = 0.015
 
 # SCHOLARDOCX-0140: monthly AI credit allowance now lives in app_settings,
 # keyed per user tier (managed in Settings → Plan Pricing, not Role Limits).
@@ -134,6 +140,25 @@ def get_jina_call_cost_usd(session: Session) -> float:
         except ValueError:
             pass
     return DEFAULT_JINA_COST
+
+
+def get_brave_call_cost_per_hit_usd(session: Session) -> float:
+    """Fetch the per-result Brave Search fee (USD) from settings.
+
+    Scholarship Hunt charges one fee per raw Brave result scanned (before
+    filtering), configurable in admin Settings → External APIs & Agents
+    Pricing. See SCHOLARDOCX-0175.
+    """
+    row = session.execute(
+        text("SELECT value FROM app_settings WHERE key = :k"),
+        {"k": BRAVE_COST_SETTING},
+    ).scalar()
+    if row is not None:
+        try:
+            return float(row)
+        except ValueError:
+            pass
+    return DEFAULT_BRAVE_COST
 
 
 def get_role_monthly_allowance(user: dict, session: Session) -> int:

@@ -1,18 +1,11 @@
-import { api, listRecords, createRecord, deleteRecord } from "./api";
+import { api, listRecords } from "./api";
 
-export interface NewsSearchParams {
-  levels?: string[];
-  countries?: string[];
-  seasons?: string[];
-  years?: string[];
-  funding_types?: string[];
-  fields_of_study?: string[];
-  popular_scholarships?: string[];
-  custom_prompt?: string;
-  language?: string;
-  sort_by?: string;
-  page?: string;
-}
+// SCHOLARDOCX-0175: the filter-based search endpoints (/news/search,
+// /news/query-preview) are deleted. Scholarship Hunt now has a single deep
+// search surface at /scholarship-deep-hunt/runs (see scholarshipDeepHuntApi).
+// This module retains only the shared types (NewsArticle / NewsResponse,
+// used by the catalog + opportunity APIs) and the bookmark / saved-query
+// (watchlist) CRUD that the Opportunity Library depends on.
 
 export interface NewsArticle {
   article_id: string;
@@ -31,41 +24,6 @@ export interface NewsResponse {
   results: NewsArticle[];
   nextPage?: string;
 }
-
-export interface NewsQueryPreview {
-  preview_feedback_id: string;
-  initial_query: string;
-  max_length: number;
-  generation_source: "openrouter" | "fallback";
-  generation_model: string;
-  generation_notice: string;
-}
-
-const cleanSearchParams = (params: NewsSearchParams): NewsSearchParams => {
-  const { page: _page, ...filters } = params;
-  return filters;
-};
-
-export const previewNewsQuery = async (
-  params: NewsSearchParams,
-): Promise<NewsQueryPreview> => {
-  return api.post<NewsQueryPreview>("/news/query-preview", {
-    filters: cleanSearchParams(params),
-  });
-};
-
-export const searchNews = async (
-  params: NewsSearchParams,
-  previewFeedbackId: string,
-  approvedQuery: string,
-): Promise<NewsResponse> => {
-  return api.post<NewsResponse>("/news/search", {
-    filters: cleanSearchParams(params),
-    preview_feedback_id: previewFeedbackId,
-    approved_query: approvedQuery,
-    query_approved: true,
-  });
-};
 
 export const getBookmarkedNews = async (): Promise<any[]> => {
   return listRecords("news/bookmarks");

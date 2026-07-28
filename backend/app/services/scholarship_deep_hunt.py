@@ -1,25 +1,34 @@
-"""Deep Hunt runs (Phase 5 of the Scholarship Hunt pipeline, SCHOLARDOCX-0125).
+"""Scholarship Hunt deep search runs (SCHOLARDOCX-0175 v2 restructure).
 
-A Deep Hunt run takes one free-text funding goal (optionally scoped by
-degree level / destinations / intake term) and runs a bounded, persisted,
-resumable search -> crawl -> extract -> persist loop, producing several
-evidence-backed `scholarship_opportunities` rows tagged with the run that
-found them.
+A run takes one free-text funding goal (optionally scoped by degree level /
+destinations / intake term / field of study) and runs a bounded, persisted,
+resumable search -> hard-filter -> crawl -> extract -> relevance-filter loop,
+producing several evidence-backed results stored on the run itself
+(`results_json`). SCHOLARDOCX-0178: results are NOT auto-saved into
+`scholarship_opportunities` — the user explicitly picks which ones to keep
+via `POST /scholarship-deep-hunt/runs/{id}/results/save`.
+
+This is the ONLY search surface in Scholarship Hunt as of SCHOLARDOCX-0175.
+The former filter-based "Hunt" tab and its query-building machinery are
+deleted; this single deep pipeline replaces both.
 
 This composes existing pieces rather than a parallel subsystem:
+- Web search uses `BraveSearchService` (SCHOLARDOCX-0175; replaces Tavily).
+  Tavily remains only for /ai/research.
 - Crawling reuses `app.services.advisor_atlas.crawler.PublicCrawler`
   (politeness/robots handling already built for Advisor Atlas).
-- Extraction reuses `scholarship_extraction_service` (Phase 1's "Analyze"
+- Extraction reuses `scholarship_extraction_service` (the "Analyze"
   extraction, same anti-hallucination contract: missing stays missing).
-- Persistence reuses `upsert_scholarship_opportunity` (Phase 1/2's
-  insert-or-update-by-normalized-URL logic).
+- The explicit "save result" endpoint (`app/api/scholarship_deep_hunt.py`)
+  reuses `upsert_scholarship_opportunity` (insert-or-update-by-normalized-URL
+  logic, including the Opportunity Library's 100-entry cap).
 - Run lifecycle (progress_json, cancellation, resume) mirrors
   `AdvisorAtlasRepository`/`AdvisorAtlasService`.
 
-Cost model matches Advisor Atlas, not the plain Hunt tab: a boolean plan
-gate + AI-token metering per extraction call. Tavily search calls are
-recorded as zero-cost ledger rows via `AiService.record_external_search`,
-not charged a flat fee.
+Cost model (SCHOLARDOCX-0175): per-hit user billing. Each Brave result
+scanned is charged at the admin-configured `brave_call_cost_per_hit_usd`
+(default $0.015), pre-flighted at worst case (4 passes x 20 = 80 hits)
+before the run starts. Extraction calls are AI-token-metered separately.
 """
 
 from __future__ import annotations
@@ -27,6 +36,8 @@ from __future__ import annotations
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
 import logging
+import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -37,27 +48,118 @@ from app.core.config import Settings
 from app.db.legacy_db import legacy_session
 from app.services.advisor_atlas.crawler import PublicCrawler, canonicalize_url
 from app.services.ai import AiService
+from app.services.brave_search_service import BraveSearchService
 from app.services.deep_hunt_query_planner import (
     DeepHuntQueryPlanner,
     DeepHuntRelevanceFilter,
 )
+from app.services.news_service import (
+    _has_explicit_closed_status,
+    _is_stale_cycle,
+)
+from app.services.news_filter_rules import (
+    matches_destinations,
+    has_conflicting_fields,
+)
+from app.services.scholarship_catalog import normalize_url
 from app.services.scholarship_extraction import scholarship_extraction_service
-from app.services.store import Store
 
 logger = logging.getLogger(__name__)
 
 STAGES = ["planning", "searching", "crawling", "extracting", "completed"]
 
-# SCHOLARDOCX-0173: bumped 3 -> 4 so the intent planner's extra field-specific
-# query (e.g. "computer science" expansion of "cse") isn't truncated away.
-SEARCH_PASSES = 4
-MAX_RESULTS_PER_PASS = 10
+# SCHOLARDOCX-0175 (tuned): funnel ends at the crawl/extract budget (12), so
+# there is no value in scanning 40 raw hits just to throw 28 away. 2 passes ×
+# 8 results = 16 raw hits, of which ~12 survive hard filters and feed the
+# crawl/extract cap. Every scanned source now has a real chance of being
+# vetted, and per-pass dup-billing is halved vs the 4-pass config.
+SEARCH_PASSES = 2
+MAX_RESULTS_PER_PASS = 8
 MAX_CRAWL_PAGES = 12
 MAX_EXTRACTIONS = 12
 
+# SCHOLARDOCX-0175: per-hit billing worst case. Computed from the actual
+# per-pass caps (PASSES × RESULTS), so the pre-flight checks users against
+# the real ceiling — not a stale hardcoded number.
+MAX_RAW_HITS_PER_RUN = SEARCH_PASSES * MAX_RESULTS_PER_PASS
+
+# SCHOLARDOCX-0178: "Previous Searches" keeps at most this many runs per user.
+# Starting a new search past the cap deletes the oldest run first (FIFO).
+# Saved Library opportunities from an evicted run are detached, not deleted.
+MAX_STORED_RUNS = 10
+
 # Relevance floor below which an extracted opportunity is rejected as off-topic
 # (planner LLM verdict <= 0.25, or deterministic heuristic score 0.1).
-RELEVANCE_FLOOR = 0.3
+# SCHOLARDOCX-0177: raised from 0.3 -> 0.4. A run's biggest quality complaint
+# was not "off-topic" results (those were already rejected) but generic,
+# near-duplicate ones that cleared a low bar without being a close match.
+RELEVANCE_FLOOR = 0.4
+
+_YEAR_RANGE_RE = re.compile(r"\b(?:19|20)\d{2}\s*[-–/]\s*(?:19|20)?\d{2,4}\b")
+_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+def _dedup_key(canonical_name: str) -> str:
+    """Coarse dedup key for collapsing near-duplicate scholarship titles.
+
+    SCHOLARDOCX-0177: a single generic program (e.g. "Erasmus Mundus Joint
+    Master's Scholarship") is often described by several low-signal source
+    pages whose titles differ only by year, plural/possessive punctuation, or
+    filler words ("...Scholarships 2026" vs "...Scholarship 2026-2027" vs
+    "...Scholarship"). Stripping those trivial differences lets the run
+    collapse them into one entry. Distinctly-named programs (e.g. a specific
+    joint-master consortium acronym) keep their own key because their core
+    wording differs, not just the year/punctuation.
+    """
+    text = (canonical_name or "").casefold().replace("’", "").replace("'", "")
+    text = _YEAR_RANGE_RE.sub(" ", text)
+    text = _YEAR_RE.sub(" ", text)
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    text = re.sub(r"\bscholarships\b", "scholarship", text)
+    text = re.sub(r"\bprogrammes\b", "programme", text)
+    text = re.sub(r"\bprograms\b", "program", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _extraction_completeness(extracted: dict[str, Any]) -> int:
+    """Rough count of populated evidence fields, used as a dedup tie-breaker
+    so the most informative extraction wins when two sources tie on
+    relevance."""
+    funding = extracted.get("funding") or {}
+    signals = (
+        extracted.get("sponsor"),
+        extracted.get("fields_of_study"),
+        extracted.get("destination_countries"),
+        extracted.get("deadlines"),
+        extracted.get("requirements"),
+        funding.get("coverage") or funding.get("notes"),
+    )
+    return sum(1 for value in signals if value)
+
+
+def _is_better_candidate(candidate: dict[str, Any], current: dict[str, Any]) -> bool:
+    if candidate["relevance"] != current["relevance"]:
+        return candidate["relevance"] > current["relevance"]
+    return _extraction_completeness(candidate["extracted"]) > _extraction_completeness(current["extracted"])
+
+
+def estimate_run_cost(session) -> dict[str, Any]:
+    """Worst-case cost estimate for one Scholarship Hunt run (SCHOLARDOCX-0175).
+
+    Returns the max sources scanned and max credits (tokens) a run could cost,
+    used for the pre-flight balance check and the user-facing estimate shown
+    before submit. Actual charges scale with real Brave hits per pass.
+    """
+    from app.services.ai_tokens import get_brave_call_cost_per_hit_usd, get_token_rate
+
+    per_hit_cost = get_brave_call_cost_per_hit_usd(session)
+    token_rate = get_token_rate(session)
+    max_credits = math.ceil(MAX_RAW_HITS_PER_RUN * per_hit_cost * token_rate)
+    return {
+        "max_sources": MAX_RAW_HITS_PER_RUN,
+        "max_credits": max_credits,
+        "per_hit_cost_usd": per_hit_cost,
+    }
 
 JSON_FIELDS = {"destinations_json", "progress_json"}
 
@@ -75,6 +177,10 @@ def _decode_row(row: Any) -> dict[str, Any]:
             except (TypeError, ValueError):
                 item[field.removesuffix("_json")] = {} if item[field].startswith("{") else []
             del item[field]
+    # results_json is deliberately not auto-decoded here: get_run builds the
+    # enriched `results` list itself (with live in_library flags), and
+    # list_runs has no use for the raw blob, so it's just dropped.
+    item.pop("results_json", None)
     return item
 
 
@@ -84,6 +190,8 @@ class ScholarshipDeepHuntRepository:
 
     def create_run(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         with legacy_session(self.database_url) as db:
+            # SCHOLARDOCX-0178: FIFO-cap "Previous Searches" at MAX_STORED_RUNS.
+            self._evict_oldest_over_cap(db, user_id)
             cursor = db.execute(
                 """
                 INSERT INTO scholarship_deep_hunt_runs (
@@ -127,23 +235,31 @@ class ScholarshipDeepHuntRepository:
             ).fetchone()
             if not row:
                 raise LookupError("Deep Hunt run not found.")
+            raw_results_json = row.get("results_json", "[]")
             result = _decode_row(row)
             if include_opportunities:
-                opportunities = db.execute(
-                    """
-                    SELECT * FROM scholarship_opportunities
-                    WHERE deep_hunt_run_id = ? AND user_id = ?
-                    ORDER BY relevance_score DESC, updated_at DESC
-                    """,
-                    (run_id, user_id),
-                ).fetchall()
-                # Left as raw rows (JSON columns still encoded); the API layer
-                # applies the same `_with_parsed_fields` helper the plain
-                # Opportunity Library endpoints use, so parsing stays in one
-                # place. SCHOLARDOCX-0173: ordered by the intent filter's
-                # relevance_score so on-topic results surface first, not by
-                # updated_at.
-                result["opportunities"] = [dict(item) for item in opportunities]
+                # SCHOLARDOCX-0178: results live on the run row (no auto-save).
+                # `in_library`/`opportunity_id` are computed live against the
+                # user's saved opportunities, same pattern as the Catalog's
+                # `in_library` badge, so a re-opened run correctly reflects
+                # anything saved since it last completed.
+                stored_results = safe_json_loads(raw_results_json, default=[])
+                owned = {
+                    saved["normalized_url"]: saved["id"]
+                    for saved in db.execute(
+                        "SELECT id, normalized_url FROM scholarship_opportunities WHERE user_id = ?",
+                        (user_id,),
+                    ).fetchall()
+                }
+                results = []
+                for item in stored_results:
+                    entry = dict(item)
+                    opportunity_id = owned.get(entry.get("normalized_url"))
+                    entry["in_library"] = opportunity_id is not None
+                    entry["opportunity_id"] = opportunity_id
+                    results.append(entry)
+                results.sort(key=lambda r: r.get("relevance_score") or 0, reverse=True)
+                result["results"] = results
             return result
 
     def update_run(self, run_id: str, **values: Any) -> None:
@@ -152,10 +268,12 @@ class ScholarshipDeepHuntRepository:
         allowed = {
             "status", "current_stage", "progress_json", "result_count",
             "error_message", "started_at", "completed_at", "cancelled_at",
+            "results_json",
         }
         clean = {key: value for key, value in values.items() if key in allowed}
-        if "progress_json" in clean and not isinstance(clean["progress_json"], str):
-            clean["progress_json"] = _json(clean["progress_json"])
+        for json_field in ("progress_json", "results_json"):
+            if json_field in clean and not isinstance(clean[json_field], str):
+                clean[json_field] = _json(clean[json_field])
         assignments = [f"{key} = ?" for key in clean]
         assignments.append("updated_at = CURRENT_TIMESTAMP")
         params = [*clean.values(), run_id]
@@ -221,18 +339,47 @@ class ScholarshipDeepHuntRepository:
             ).fetchone()
             if not row:
                 return False
-            # Cascade: remove linked opportunities before deleting the run
-            # (FK constraint: scholarship_opportunities.deep_hunt_run_id → scholarship_deep_hunt_runs.id)
-            db.execute(
-                "DELETE FROM scholarship_opportunities WHERE deep_hunt_run_id = ?",
-                (run_id,),
-            )
+            self._detach_saved_opportunities(db, run_id)
             db.execute(
                 "DELETE FROM scholarship_deep_hunt_runs WHERE id = ? AND user_id = ?",
                 (run_id, user_id),
             )
             db.commit()
             return True
+
+    @staticmethod
+    def _detach_saved_opportunities(db: Any, run_id: str) -> None:
+        """Clear `deep_hunt_run_id` on any opportunities the user explicitly
+        saved from this run (SCHOLARDOCX-0178), satisfying the FK constraint
+        (`scholarship_opportunities.deep_hunt_run_id -> ...runs.id`) without
+        deleting a saved, user-curated Library entry just because its source
+        run is being removed — deleting or FIFO-evicting old runs must never
+        delete something the user chose to keep.
+        """
+        db.execute(
+            "UPDATE scholarship_opportunities SET deep_hunt_run_id = NULL WHERE deep_hunt_run_id = ?",
+            (run_id,),
+        )
+
+    def _evict_oldest_over_cap(self, db: Any, user_id: str) -> None:
+        """FIFO-evict the oldest runs so the user never has more than
+        MAX_STORED_RUNS - 1 before a new one is inserted (SCHOLARDOCX-0178:
+        "Previous Searches" is capped at 10; starting an 11th search deletes
+        the oldest first). Saved opportunities from evicted runs are
+        detached, not deleted (see `_detach_saved_opportunities`).
+        """
+        overflow = db.execute(
+            """
+            SELECT id FROM scholarship_deep_hunt_runs
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            OFFSET ?
+            """,
+            (user_id, MAX_STORED_RUNS - 1),
+        ).fetchall()
+        for row in overflow:
+            self._detach_saved_opportunities(db, row["id"])
+            db.execute("DELETE FROM scholarship_deep_hunt_runs WHERE id = ?", (row["id"],))
 
 
 def _fallback_queries(run: dict[str, Any]) -> list[str]:
@@ -294,10 +441,12 @@ class ScholarshipDeepHuntService:
         self.crawler = PublicCrawler()
         self.ai_service = AiService(settings)
         # SCHOLARDOCX-0173: intent-aware query planning + relevance filtering,
-        # so Deep Hunt results match the user's goal instead of leaning
-        # entirely on raw Tavily output. Both fall back deterministically.
+        # so results match the user's goal instead of leaning entirely on raw
+        # search output. Both fall back deterministically.
         self.query_planner = DeepHuntQueryPlanner(settings)
         self.relevance_filter = DeepHuntRelevanceFilter(settings)
+        # SCHOLARDOCX-0175: Brave replaces Tavily as the search provider.
+        self.brave = BraveSearchService(settings)
 
     async def _plan_queries(self, run: dict[str, Any]) -> tuple[list[str], list[str]]:
         """Ask the intent planner for diverse, acronym-expanded queries.
@@ -329,19 +478,21 @@ class ScholarshipDeepHuntService:
             billing_session = sessionmaker(
                 autocommit=False, autoflush=False, bind=get_engine(self.settings.database_target)
             )()
-            store = Store(billing_session, current_user_id=user_id)
             self.ai_service.set_billing(load_user_dict(user_id, billing_session), billing_session)
-            # Deferred import: avoids a module-load-time cycle with
-            # app.api.scholarship_opportunities (an API module importing a
-            # service module).
-            from app.api.scholarship_opportunities import upsert_scholarship_opportunity
 
             self.repository.update_run(
                 run_id,
                 status="running",
                 current_stage="planning",
                 started_at=datetime.now(timezone.utc).isoformat(),
-                progress_json={"completed": 0, "total": None, "message": "Planning search passes"},
+                progress_json={
+                    "completed": 0,
+                    "total": None,
+                    "message": "Planning search passes",
+                    "sources_scanned": 0,
+                    "sources_filtered": 0,
+                    "opportunities_extracted": 0,
+                },
             )
             # SCHOLARDOCX-0173: intent-aware query planning (acronym expansion,
             # facet decomposition) with a deterministic fallback.
@@ -353,13 +504,47 @@ class ScholarshipDeepHuntService:
             self.repository.update_run(
                 run_id,
                 current_stage="searching",
-                progress_json={"completed": 0, "total": len(queries), "message": "Searching for opportunities"},
+                progress_json={
+                    "completed": 0,
+                    "total": len(queries),
+                    "message": "Searching for opportunities",
+                    "sources_scanned": 0,
+                    "sources_filtered": 0,
+                    "opportunities_extracted": 0,
+                },
             )
+            # SCHOLARDOCX-0175: Brave search + per-hit billing + hard-filter.
+            # Each pass charges the user for the raw Brave results scanned
+            # (before filtering), per the per-hit billing contract. Hard
+            # filters then reject pages that explicitly contradict intent
+            # (closed status, stale cycle, destination/field mismatch),
+            # retiring FR-8.27's no-filter rule.
+            from app.services.ai_tokens import (
+                charge_flat_fee,
+                get_brave_call_cost_per_hit_usd,
+                get_token_rate,
+            )
+
+            per_hit_cost = get_brave_call_cost_per_hit_usd(billing_session)
             results: dict[str, dict[str, Any]] = {}
+            total_scanned = 0
             for index, query in enumerate(queries):
                 if self.repository.is_cancelled(run_id):
                     return
-                for item in await self._tavily_search(query, MAX_RESULTS_PER_PASS):
+                pass_items = await self._brave_search(query, MAX_RESULTS_PER_PASS)
+                # Per-hit billing: charge for every raw result this pass
+                # returned, before any filtering. Brave bills us per result
+                # too, so this matches our upstream cost shape.
+                hits_this_pass = len(pass_items)
+                if hits_this_pass > 0:
+                    charge_flat_fee(
+                        load_user_dict(user_id, billing_session),
+                        billing_session,
+                        hits_this_pass * per_hit_cost,
+                        source="scholarship_hunt_hit",
+                    )
+                total_scanned += hits_this_pass
+                for item in pass_items:
                     canon = canonicalize_url(item["url"])
                     if canon not in results:
                         results[canon] = item
@@ -369,17 +554,63 @@ class ScholarshipDeepHuntService:
                         "completed": index + 1,
                         "total": len(queries),
                         "message": f"Completed search pass {index + 1} of {len(queries)}",
+                        "sources_scanned": total_scanned,
+                        "sources_filtered": 0,
+                        "opportunities_extracted": 0,
                     },
                 )
+            # SCHOLARDOCX-0175: hard filters (FR-8.27 retirement). Deterministic,
+            # free, never invent — they only reject pages that explicitly
+            # contradict the user's intent. The relevance filter later handles
+            # softer (AI-judged) on-topic scoring.
+            selected_destinations = run.get("destinations") or []
+            selected_fields_raw = run.get("fields_of_study")
+            selected_fields = (
+                [selected_fields_raw] if isinstance(selected_fields_raw, str) and selected_fields_raw else []
+            )
+            today = datetime.now(timezone.utc).date()
+            filtered: dict[str, dict[str, Any]] = {}
+            for canon, item in results.items():
+                article = {
+                    "title": item.get("title") or "",
+                    "description": item.get("content") or item.get("description") or "",
+                    "content": item.get("content") or "",
+                    "link": item.get("url") or "",
+                }
+                if _has_explicit_closed_status(article):
+                    continue
+                if _is_stale_cycle(article, today):
+                    continue
+                if selected_destinations and not matches_destinations(article, selected_destinations):
+                    continue
+                if selected_fields and has_conflicting_fields(article, selected_fields):
+                    continue
+                filtered[canon] = item
+            total_filtered = len(filtered)
             ranked_results = sorted(
-                results.values(), key=lambda item: item.get("score") or 0, reverse=True
+                filtered.values(),
+                key=lambda item: item.get("score") or item.get("_search_score") or 0,
+                reverse=True,
             )
             if self.repository.is_cancelled(run_id):
                 return
             if not ranked_results:
-                raise ValueError(
-                    "No search results were found for this goal. Try a broader or more specific goal."
+                self.repository.update_run(
+                    run_id,
+                    status="completed",
+                    current_stage="completed",
+                    completed_at=datetime.now(timezone.utc).isoformat(),
+                    result_count=0,
+                    progress_json={
+                        "completed": len(queries),
+                        "total": len(queries),
+                        "message": "No on-target opportunities matched your filters.",
+                        "sources_scanned": total_scanned,
+                        "sources_filtered": total_filtered,
+                        "opportunities_extracted": 0,
+                    },
                 )
+                return
 
             crawl_targets = ranked_results[:MAX_CRAWL_PAGES]
             self.repository.update_run(
@@ -389,6 +620,9 @@ class ScholarshipDeepHuntService:
                     "completed": 0,
                     "total": len(crawl_targets),
                     "message": f"Inspecting {len(crawl_targets)} pages",
+                    "sources_scanned": total_scanned,
+                    "sources_filtered": total_filtered,
+                    "opportunities_extracted": 0,
                 },
             )
             crawled_pages: dict[str, dict[str, Any]] = {}
@@ -399,13 +633,16 @@ class ScholarshipDeepHuntService:
                     page = await self.crawler.fetch(item["url"])
                     crawled_pages[canonicalize_url(page["url"])] = page
                 except (httpx.HTTPError, PermissionError, ValueError) as exc:
-                    logger.info("Deep Hunt crawl skipped for %s: %s", item["url"], exc)
+                    logger.info("Scholarship Hunt crawl skipped for %s: %s", item["url"], exc)
                 self.repository.update_run(
                     run_id,
                     progress_json={
                         "completed": index + 1,
                         "total": len(crawl_targets),
                         "message": f"Inspected {index + 1} of {len(crawl_targets)} pages",
+                        "sources_scanned": total_scanned,
+                        "sources_filtered": total_filtered,
+                        "opportunities_extracted": 0,
                     },
                 )
 
@@ -417,6 +654,9 @@ class ScholarshipDeepHuntService:
                     "completed": 0,
                     "total": len(extraction_targets),
                     "message": f"Extracting structured details from {len(extraction_targets)} sources",
+                    "sources_scanned": total_scanned,
+                    "sources_filtered": total_filtered,
+                    "opportunities_extracted": 0,
                 },
             )
             # SCHOLARDOCX-0173: collect all extractions first, then run one
@@ -447,7 +687,7 @@ class ScholarshipDeepHuntService:
                     "extracted": extracted,
                     "source_url": source_url,
                     "source_title": source_title,
-                    "tavily_score": float(item.get("score") or 0),
+                    "tavily_score": float(item.get("score") or item.get("_search_score") or 0),
                 })
                 self.repository.update_run(
                     run_id,
@@ -455,6 +695,9 @@ class ScholarshipDeepHuntService:
                         "completed": index + 1,
                         "total": len(extraction_targets),
                         "message": f"Extracted {index + 1} of {len(extraction_targets)} sources",
+                        "sources_scanned": total_scanned,
+                        "sources_filtered": total_filtered,
+                        "opportunities_extracted": index + 1,
                     },
                 )
 
@@ -482,24 +725,48 @@ class ScholarshipDeepHuntService:
                 else:
                     score_by_url[entry["source_url"]] = 0.0
 
-            accepted = 0
+            # SCHOLARDOCX-0177: collapse near-duplicate opportunities (the same
+            # generic program surfaced by several low-signal source pages,
+            # differing only by year/punctuation in the title) down to the
+            # single best-evidenced entry before persisting, so a run does not
+            # spam the library with repeats of the same program.
+            best_by_key: dict[str, dict[str, Any]] = {}
             for entry in extracted_items:
                 extracted = entry["extracted"]
                 source_url = entry["source_url"]
                 relevance = score_by_url.get(source_url, 0.0)
-                if _is_acceptable(extracted, relevance_score=relevance):
-                    upsert_scholarship_opportunity(
-                        store,
-                        source="deep_hunt",
-                        extracted=extracted,
-                        source_url=source_url,
-                        fallback_title=entry["source_title"],
-                        extra_fields={
-                            "deep_hunt_run_id": run_id,
-                            "relevance_score": round(relevance, 3),
-                        },
-                    )
-                    accepted += 1
+                if not _is_acceptable(extracted, relevance_score=relevance):
+                    continue
+                key = _dedup_key(extracted["canonical_name"])
+                candidate = {**entry, "relevance": relevance}
+                current = best_by_key.get(key)
+                if current is None or _is_better_candidate(candidate, current):
+                    best_by_key[key] = candidate
+
+            # SCHOLARDOCX-0178: results are stored on the run, NOT auto-saved
+            # into scholarship_opportunities. The user picks which ones to
+            # keep via the "save result" endpoint.
+            results: list[dict[str, Any]] = []
+            for candidate in best_by_key.values():
+                extracted = candidate["extracted"]
+                funding = extracted.get("funding") or {}
+                results.append({
+                    "normalized_url": normalize_url(candidate["source_url"]),
+                    "source_url": candidate["source_url"],
+                    "source_title": candidate["source_title"],
+                    "relevance_score": round(candidate["relevance"], 3),
+                    "canonical_name": extracted.get("canonical_name"),
+                    "sponsor": extracted.get("sponsor"),
+                    "degree_levels": extracted.get("degree_levels") or [],
+                    "fields_of_study": extracted.get("fields_of_study") or [],
+                    "destination_countries": extracted.get("destination_countries") or [],
+                    "eligible_nationalities": extracted.get("eligible_nationalities") or [],
+                    "funding": funding,
+                    "deadlines": extracted.get("deadlines") or [],
+                    "requirements": extracted.get("requirements") or [],
+                    "application_url": extracted.get("application_url"),
+                })
+            accepted = len(results)
 
             if self.repository.is_cancelled(run_id):
                 return
@@ -509,52 +776,64 @@ class ScholarshipDeepHuntService:
                 current_stage="completed",
                 completed_at=datetime.now(timezone.utc).isoformat(),
                 result_count=accepted,
+                results_json=results,
                 progress_json={
                     "completed": len(extraction_targets),
                     "total": len(extraction_targets),
-                    "message": f"Deep Hunt found {accepted} opportunit{'y' if accepted == 1 else 'ies'}",
+                    "message": f"Found {accepted} opportunit{'y' if accepted == 1 else 'ies'}",
+                    "sources_scanned": total_scanned,
+                    "sources_filtered": total_filtered,
+                    "opportunities_extracted": accepted,
                 },
             )
         except Exception as exc:
-            logger.exception("Deep Hunt run %s failed", run_id)
+            logger.exception("Scholarship Hunt run %s failed", run_id)
             if not self.repository.is_cancelled(run_id):
                 self.repository.update_run(
                     run_id,
                     status="failed",
                     current_stage="failed",
                     error_message=str(exc),
-                    progress_json={"completed": 0, "total": None, "message": "The run stopped before completion"},
+                    progress_json={
+                        "completed": 0,
+                        "total": None,
+                        "message": "The search stopped before completion",
+                        "sources_scanned": 0,
+                        "sources_filtered": 0,
+                        "opportunities_extracted": 0,
+                    },
                 )
         finally:
             if billing_session is not None:
                 billing_session.close()
 
-    async def _tavily_search(self, query: str, max_results: int) -> list[dict[str, Any]]:
-        if not self.settings.tavily_api_key:
+    async def _brave_search(self, query: str, max_results: int) -> list[dict[str, Any]]:
+        """Run one Brave web-search pass and return pipeline-shaped items.
+
+        Maps the Brave adapter's card contract into the {title, url, content,
+        score} shape the rest of the pipeline expects. Returns [] if Brave is
+        unconfigured. Per-hit billing is handled by the caller (the run loop),
+        not here, so this method stays a pure search + normalize step.
+        """
+        if not self.brave.configured:
             return []
-        payload = {
-            "api_key": self.settings.tavily_api_key,
-            "query": query[:1200],
-            "search_depth": "advanced",
-            "topic": "general",
-            "max_results": max_results,
-            "include_answer": False,
-            "include_raw_content": False,
-            "include_images": False,
-        }
-        async with httpx.AsyncClient(timeout=35) as client:
-            response = await client.post("https://api.tavily.com/search", json=payload)
-            response.raise_for_status()
-        # Zero-cost ledger row, mirroring Advisor Atlas: Deep Hunt is gated by
-        # the plan check + AI-token metering on extraction, not per-search fees.
-        self.ai_service.record_external_search(source="scholarship_deep_hunt_search")
-        return [
-            {
-                "title": item.get("title") or "Untitled source",
-                "url": canonicalize_url(item.get("url") or ""),
-                "content": (item.get("content") or "")[:5000],
-                "score": item.get("score"),
-            }
-            for item in response.json().get("results", [])
-            if item.get("url")
-        ]
+        try:
+            response = await self.brave.search(query, count=max_results, freshness="py")
+        except httpx.HTTPError as exc:
+            logger.info("Scholarship Hunt Brave search failed: %s", exc)
+            return []
+        items: list[dict[str, Any]] = []
+        for card in response.get("results", []):
+            link = card.get("link") or ""
+            if not link:
+                continue
+            items.append(
+                {
+                    "title": card.get("title") or "Untitled source",
+                    "url": canonicalize_url(link),
+                    "content": (card.get("description") or "")[:5000],
+                    "description": card.get("description") or "",
+                    "score": card.get("_search_score"),
+                }
+            )
+        return items

@@ -385,6 +385,25 @@ for table_name in (
     _crud_routes(table_name)
 
 
+# SCHOLARDOCX-0178: fixed cap on stored Documents per user, independent of
+# the existing total_documents_bytes byte-size role limit. Not admin-
+# configurable — a static ceiling, documented as information in the Admin
+# panel's Info tab (matches the Opportunity Library / Research Expert
+# saved-analysis cap pattern). Research papers are a separate feature with
+# their own library cap (max_research_papers_library) and are excluded here.
+MAX_DOCUMENTS_PER_USER = 100
+
+
+def _count_user_documents(store: Store) -> int:
+    return store.db.execute(
+        text(
+            "SELECT COUNT(*) FROM static_files "
+            "WHERE user_id = :uid AND file_type != 'research_paper'"
+        ),
+        {"uid": store.current_user_id},
+    ).scalar()
+
+
 @router.post("/files/upload")
 def upload_file(
     category: str = Form("other"),
@@ -398,6 +417,14 @@ def upload_file(
 ) -> dict:
     rate_limiter.check_and_record("files_upload", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, UsageLimitExceeded
+    if _count_user_documents(store) >= MAX_DOCUMENTS_PER_USER:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Your Documents storage is full (max {MAX_DOCUMENTS_PER_USER}). "
+                "Remove an existing document before uploading a new one."
+            ),
+        )
     file_size = file.size or 0
     check_and_increment_limit(current_user, "total_documents_bytes", file_size, store.db)
     charged_bytes = file_size

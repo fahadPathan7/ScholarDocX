@@ -334,3 +334,200 @@ def test_permission_only_check_commits_bootstrap_row(tmp_path):
         assert usage_count(session, user["id"], "can_use_scholarship_hunt") == 0
     finally:
         session.close()
+
+
+# ── SCHOLARDOCX-0175: Scholarship Hunt per-hit billing guards ────────────────
+
+# STRICT RULE (SCHOLARDOCX-0178 incident): app_settings is GLOBAL, shared,
+# admin-configured state — not per-test or per-user data. This test suite
+# runs against a real shared database (see tests/conftest.py's load_dotenv),
+# so a test that mutates a row here and never restores it corrupts the real
+# admin configuration for everyone, indefinitely (this exact bug left
+# brave_call_cost_per_hit_usd stuck at a test-inserted 0.025 and
+# jina_call_cost_usd stuck at 0.02 until caught and fixed). Any test that
+# needs to change an app_settings row MUST snapshot the value that was
+# actually there beforehand (not assume "the default") and restore exactly
+# that value in a finally block — see _snapshot_app_setting/_restore_app_setting.
+
+
+def _snapshot_app_setting(session, key: str) -> str | None:
+    """Read the current value of an app_settings key, or None if unset."""
+    row = session.execute(
+        text("SELECT value FROM app_settings WHERE key = :key"), {"key": key}
+    ).mappings().fetchone()
+    return row["value"] if row else None
+
+
+def _restore_app_setting(session, key: str, value: str | None) -> None:
+    """Put an app_settings key back exactly as `_snapshot_app_setting` found
+    it — deleted if it was unset, or its prior value if it existed. Never
+    hardcode a "default" here: whatever was actually configured before the
+    test ran (by a real admin, by seeding, or by nothing at all) is the only
+    correct thing to restore."""
+    if value is None:
+        session.execute(text("DELETE FROM app_settings WHERE key = :key"), {"key": key})
+    else:
+        session.execute(
+            text(
+                "INSERT INTO app_settings (key, value) VALUES (:key, :value) "
+                "ON CONFLICT (key) DO UPDATE SET value = excluded.value"
+            ),
+            {"key": key, "value": value},
+        )
+    session.commit()
+
+
+def test_brave_per_hit_price_default_when_unset(tmp_path):
+    """get_brave_call_cost_per_hit_usd returns the $0.015 default if no row."""
+    settings = make_settings(tmp_path)
+    session = get_session(settings)
+    key = "brave_call_cost_per_hit_usd"
+    before = _snapshot_app_setting(session, key)
+    try:
+        # Delete any seeded row so the default path is exercised.
+        session.execute(text("DELETE FROM app_settings WHERE key = :key"), {"key": key})
+        session.commit()
+        price = ai_tokens.get_brave_call_cost_per_hit_usd(session)
+        assert price == 0.015
+    finally:
+        _restore_app_setting(session, key, before)
+        session.close()
+
+
+def test_brave_per_hit_price_admin_overridable(tmp_path):
+    """The admin-configured price is respected when set."""
+    settings = make_settings(tmp_path)
+    session = get_session(settings)
+    key = "brave_call_cost_per_hit_usd"
+    before = _snapshot_app_setting(session, key)
+    try:
+        session.execute(
+            text(
+                "INSERT INTO app_settings (key, value) VALUES (:key, '0.025') "
+                "ON CONFLICT (key) DO UPDATE SET value = excluded.value"
+            ),
+            {"key": key},
+        )
+        session.commit()
+        assert ai_tokens.get_brave_call_cost_per_hit_usd(session) == 0.025
+    finally:
+        _restore_app_setting(session, key, before)
+        session.close()
+
+
+def test_deep_hunt_pre_flight_rejects_insufficient_balance(tmp_path, monkeypatch):
+    """create_run rejects with 402 when the user can't afford the worst case."""
+    import asyncio
+    from fastapi import HTTPException, BackgroundTasks
+    from app.api import scholarship_deep_hunt as deep_hunt_api
+    from app.api import routes as routes_api
+
+    settings = make_settings(tmp_path)
+    session = get_session(settings)
+    _seed_brave_pricing(session)
+    session.close()
+
+    user = make_user(settings, ["max_user"])
+
+    class FakeRepo:
+        def create_run(self, *a, **k):
+            raise AssertionError("must not create the run when balance is insufficient")
+
+    class FakeService:
+        repository = FakeRepo()
+
+    class FakeStore:
+        db = object()
+
+    # Plan gate passes; verify_model_permission passes.
+    monkeypatch.setattr(deep_hunt_api, "check_and_increment_limit", lambda *a, **k: True)
+    monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
+    # Per-hit price lookups must not touch the fake session.
+    monkeypatch.setattr(
+        ai_tokens, "get_brave_call_cost_per_hit_usd", lambda session: 0.015
+    )
+    monkeypatch.setattr(ai_tokens, "get_token_rate", lambda session: 10000)
+
+    def fail_ensure(user, session, min_tokens=1):
+        raise ai_tokens.OutOfTokens("not enough credits")
+
+    monkeypatch.setattr(ai_tokens, "ensure_can_spend", fail_ensure)
+
+    payload = deep_hunt_api.CreateDeepHuntRunRequest(goal="fully funded CS PhD Germany")
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.new_event_loop().run_until_complete(
+            deep_hunt_api.create_run(
+                payload,
+                BackgroundTasks(),
+                user=user,
+                service=FakeService(),  # type: ignore
+                store=FakeStore(),  # type: ignore
+                settings=settings,
+            )
+        )
+    assert exc_info.value.status_code == 402
+    # No provider/algorithm jargon in the user-facing message (AGENTS.md).
+    detail = str(exc_info.value.detail).casefold()
+    assert "brave" not in detail
+    assert "hit" not in detail
+    assert "scan" in detail  # plain-language word
+
+
+def test_deep_hunt_denied_when_plan_lacks_scholarship_hunt(tmp_path, monkeypatch):
+    """A user without can_use_scholarship_hunt gets 403 before any spend."""
+    import asyncio
+    from fastapi import HTTPException, BackgroundTasks
+    from app.api import scholarship_deep_hunt as deep_hunt_api
+
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["free_user"])  # free_user has no Scholarship Hunt
+
+    class FakeRepo:
+        def create_run(self, *a, **k):
+            raise AssertionError("must not create the run when plan denies access")
+
+    class FakeService:
+        repository = FakeRepo()
+
+    class FakeStore:
+        db = object()
+
+    # Stub the plan gate so it denies access (the real check would need a real
+    # session; here we exercise the 403 branch directly).
+    def deny(user, feature, increment=0, session=None):
+        raise UsageLimitExceeded("Permission denied.")
+
+    monkeypatch.setattr(deep_hunt_api, "check_and_increment_limit", deny)
+    monkeypatch.setattr(deep_hunt_api, "feature_plan_phrase", lambda *a, **k: "the Pro and Max plans")
+
+    payload = deep_hunt_api.CreateDeepHuntRunRequest(goal="fully funded CS PhD Germany")
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.new_event_loop().run_until_complete(
+            deep_hunt_api.create_run(
+                payload,
+                BackgroundTasks(),
+                user=user,
+                service=FakeService(),  # type: ignore
+                store=FakeStore(),  # type: ignore
+                settings=settings,
+            )
+        )
+    assert exc_info.value.status_code == 403
+
+
+def _seed_brave_pricing(session) -> None:
+    """Ensure the per-hit Brave pricing row exists (fresh-install seed path).
+
+    DO NOTHING on conflict — this only fills in a missing row for a fresh
+    test database. It must never overwrite a value that's already there
+    (which could be a real admin-configured price), unlike the old
+    DO UPDATE version that caused the SCHOLARDOCX-0178 app_settings
+    corruption incident.
+    """
+    session.execute(
+        text(
+            "INSERT INTO app_settings (key, value) VALUES ('brave_call_cost_per_hit_usd', '0.015') "
+            "ON CONFLICT (key) DO NOTHING"
+        )
+    )
+    session.commit()

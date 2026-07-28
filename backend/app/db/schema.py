@@ -45,7 +45,8 @@ INSERT INTO app_settings (key, value) VALUES
   ('plan_is_active_max', '1'),
   ('ai_token_rate_tokens_per_dollar', '10000'),
   ('tavily_call_cost_usd', '0.01'),
-  ('jina_call_cost_usd', '0.002')
+  ('jina_call_cost_usd', '0.002'),
+  ('brave_call_cost_per_hit_usd', '0.015')
 ON CONFLICT (key) DO NOTHING;
 
 """

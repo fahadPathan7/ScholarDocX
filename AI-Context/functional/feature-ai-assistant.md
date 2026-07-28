@@ -66,6 +66,15 @@ The memory summary is for continuity, not permanent records. It should preserve
 user goals, unresolved tasks, important constraints, and decisions, while
 dropping casual filler.
 
+- **FR-5.x (SCHOLARDOCX-0178)**: Chat history (`FloatingAssistant.tsx`,
+  `MAX_HISTORY`) is capped at 10 saved sessions per user, stored in the
+  browser only (not the backend `ai_conversations` table, which this
+  feature does not currently use). Starting a new chat past the cap
+  deletes the oldest saved session first (FIFO) — see the "capped list ->
+  FIFO eviction" design principle in `AI-Context/CODE_RULES.md`. This is a
+  fixed limit, documented as information in the Admin panel's Info tab
+  ("Save & Storage Caps").
+
 ## Context-Aware Drafting
 
 AI may use:

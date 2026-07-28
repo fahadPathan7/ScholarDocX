@@ -1,10 +1,29 @@
 # Planbook: Scholarship Hunt → Scholarship Pipeline
 
-Status: PROPOSED (planning only — no implementation approved yet)
+Status: IMPLEMENTED — v2 restructure (SCHOLARDOCX-0175, 2026-07-28).
 
-Related: functional/feature-scholarship-news.md (FR-8), feature-project-workspace.md
-(FR-7 sheets/calendar), feature-advisor-atlas.md (FR-9 run model),
-technical/ai-token-economy.md, Epic-AdvisorAtlas/SCHOLARDOCX-0077.
+Related: functional/feature-scholarship-news.md (FR-8, with SCHOLARDOCX-0175
+supersession banner), feature-project-workspace.md (FR-7 sheets/calendar),
+feature-advisor-atlas.md (FR-9 run model), technical/ai-token-economy.md,
+technical/ai-integrations.md (Scholarship Hunt Search section).
+
+## SCHOLARDOCX-0175 v2 — what shipped
+
+- **Provider**: Tavily → Brave Search API for Scholarship Hunt (Tavily
+  remains for `/ai/research`).
+- **Single search surface**: the filter-based "Hunt" tab + query-review flow
+  are deleted; the former "Deep Hunt" is renamed "Search" and is the only
+  search. One natural-language goal runs plan → search → hard-filter → crawl
+  → extract → relevance-filter → persist.
+- **Per-hit billing**: every raw Brave result is billed (including filtered-
+  out sources) at admin-configured `brave_call_cost_per_hit_usd` (default
+  $0.015). Pre-flighted at worst case (80 sources ≈ 1,200 credits).
+- **Hard filters re-enabled** (retires FR-8.27): closed/stale/destination/
+  field-mismatch results are rejected before extraction.
+- **Search transparency**: cost ceiling before submit + live
+  "scanned → on-target → opportunities" funnel during the run.
+
+## Diagnosis — why the current feature has low value
 
 ## Diagnosis — why the current feature has low value
 
@@ -53,16 +72,23 @@ ingredient, not the product.
 
 ## Phase 0 — Curated catalog (zero provider cost, instant value)
 
-A code-shipped, local catalog of ~60–100 major scholarships (Erasmus Mundus,
-DAAD, Fulbright, Chevening, MEXT, CSC, Commonwealth, …) built out from the
-existing alias data, with per-entry metadata: levels, destination regions,
-funding coverage, typical cycle months, official portal URL, brief blurb.
+A code-shipped, local catalog of major scholarships (Erasmus Mundus, DAAD,
+Fulbright, Chevening, MEXT, CSC, Commonwealth, …) built out from the
+existing alias data, with per-entry metadata: category (program/central vs
+university-specific), levels, destination regions, funding coverage, typical
+cycle months, multiple official links, tags, blurb, and an enriched
+description.
 
-- Browsable/filterable with the existing filter dimensions, **without
-  consuming any quota** — the tab is useful the moment it opens, even offline.
-- Each entry has "Check current cycle" → one quota-charged Tavily search
-  scoped with the canonical name + official domain bias.
-- Catalog data lives in a versioned local JSON/py module; no remote service.
+- Browsable/filterable with the existing filter dimensions **plus** a
+  text search and topic-tag chips, **without consuming any quota** — the
+  tab is useful the moment it opens, even offline.
+- **SCHOLARDOCX-0176**: the catalog is now static-only. The paid
+  "Check current cycle" action is removed; entries carry 1-N official
+  links instead. Split into "Program & Central" and "University-Specific"
+  sections (~49 entries: 27 program + 22 university).
+- Catalog data lives in versioned Python modules
+  (`scholarship_catalog_data.py` + `scholarship_catalog.py`); no remote
+  service.
 
 ## Phase 1 — Vet: structured opportunity extraction
 

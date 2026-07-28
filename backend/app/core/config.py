@@ -27,6 +27,13 @@ class Settings:
             "TAVILY_API_KEY_SCHOLARSHIP_HUNT",
             "",
         )
+        # SCHOLARDOCX-0175: Brave Search API powers Scholarship Hunt's deep
+        # search. Tavily remains for /ai/research only.
+        self.brave_api_key = os.getenv("BRAVE_API_KEY", "")
+        self.brave_base_url = os.getenv(
+            "BRAVE_BASE_URL",
+            "https://api.search.brave.com/res/v1/web/search",
+        )
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
         self.openrouter_base_url = os.getenv(
             "OPENROUTER_BASE_URL",

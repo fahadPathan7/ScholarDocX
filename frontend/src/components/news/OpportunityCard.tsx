@@ -1,13 +1,11 @@
 import React, { useState } from "react";
-import { CalendarClock, ChevronRight, ShieldCheck, Target } from "lucide-react";
+import { CalendarClock, ChevronRight, ShieldCheck } from "lucide-react";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
-import { HuntProfile, computeFitScore } from "../../lib/huntProfile";
 import { OpportunityDetailDrawer } from "./OpportunityDetailDrawer";
 
 interface OpportunityCardProps {
   opportunity: ScholarshipOpportunity;
   onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
-  huntProfile?: HuntProfile | null;
 }
 
 export const DEADLINE_RADAR_THRESHOLD_DAYS = 7;
@@ -30,10 +28,9 @@ export function nearestDeadlineOf(opportunity: Pick<ScholarshipOpportunity, "dea
     .sort((a, b) => a.date.localeCompare(b.date))[0];
 }
 
-export function OpportunityCard({ opportunity, onAddToTracker, huntProfile }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onAddToTracker }: OpportunityCardProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const nearestDeadline = nearestDeadlineOf(opportunity);
-  const fit = huntProfile ? computeFitScore(huntProfile, opportunity) : null;
 
   return (
     <>
@@ -54,21 +51,6 @@ export function OpportunityCard({ opportunity, onAddToTracker, huntProfile }: Op
           <h4>{opportunity.canonical_name}</h4>
           {opportunity.sponsor && <span className="opportunity-sponsor">{opportunity.sponsor}</span>}
         </div>
-
-        {fit && (
-          <div className="opportunity-fit-row">
-            <span className={`opportunity-fit-badge fit-${fit.score >= 70 ? "high" : fit.score >= 40 ? "medium" : "low"}`}>
-              <Target size={13} />
-              {fit.score}% fit
-            </span>
-            {fit.matches.map((m, i) => (
-              <span key={`match-${i}`} className="opportunity-fit-chip fit-chip-match">✓ {m}</span>
-            ))}
-            {fit.mismatches.map((m, i) => (
-              <span key={`mismatch-${i}`} className="opportunity-fit-chip fit-chip-mismatch">✗ {m}</span>
-            ))}
-          </div>
-        )}
 
         <div className="opportunity-badges">
           {nearestDeadline && (
@@ -129,7 +111,6 @@ export function OpportunityCard({ opportunity, onAddToTracker, huntProfile }: Op
         <OpportunityDetailDrawer
           opportunity={opportunity}
           onAddToTracker={onAddToTracker}
-          huntProfile={huntProfile}
           onClose={() => setDrawerOpen(false)}
         />
       )}

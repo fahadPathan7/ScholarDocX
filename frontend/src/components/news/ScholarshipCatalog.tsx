@@ -1,31 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CalendarSearch, ExternalLink, Loader2 } from "lucide-react";
+import { CalendarClock, ExternalLink, Loader2 } from "lucide-react";
 import {
   CatalogEntry,
-  ScholarshipOpportunity,
-  analyzeScholarshipOpportunity,
-  checkScholarshipCycle,
   getScholarshipCatalog,
 } from "../../lib/scholarshipOpportunitiesApi";
-import { NewsArticle } from "../../lib/newsApi";
-import { HuntProfile } from "../../lib/huntProfile";
-import { OpportunityCard } from "./OpportunityCard";
 
+// SCHOLARDOCX-0176: the catalog is static-only. The paid "Check current
+// cycle" action is removed; each card shows enriched descriptions, tags,
+// and 1-N official links. Entries are split into Program/Central and
+// University-specific sections. Discovery is via tag chips only.
 interface ScholarshipCatalogProps {
   onToast: (msg: string) => void;
-  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
-  onRefreshUsage: () => void;
-  huntProfile?: HuntProfile | null;
 }
 
-export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, huntProfile }: ScholarshipCatalogProps) {
+export function ScholarshipCatalog({ onToast }: ScholarshipCatalogProps) {
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [levelFilter, setLevelFilter] = useState("");
-  const [checkingId, setCheckingId] = useState<string | null>(null);
-  const [analyzingUrl, setAnalyzingUrl] = useState<string | null>(null);
-  const [cycleResults, setCycleResults] = useState<Record<string, NewsArticle[]>>({});
-  const [opportunitiesByUrl, setOpportunitiesByUrl] = useState<Record<string, ScholarshipOpportunity>>({});
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     load();
@@ -43,44 +34,46 @@ export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, hu
     }
   };
 
-  const levels = useMemo(() => {
-    const set = new Set<string>();
-    entries.forEach((e) => e.levels.forEach((lv) => set.add(lv)));
-    return Array.from(set).sort();
+  const allTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    entries.forEach((e) =>
+      e.tags.forEach((t) => counts.set(t, (counts.get(t) || 0) + 1))
+    );
+    // Surface the most common tags first; cap to keep the chip row usable.
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 16)
+      .map(([tag]) => tag);
   }, [entries]);
 
-  const visibleEntries = levelFilter
-    ? entries.filter((e) => e.levels.includes(levelFilter))
-    : entries;
-
-  const handleCheckCycle = async (entry: CatalogEntry) => {
-    setCheckingId(entry.id);
-    try {
-      const response = await checkScholarshipCycle(entry.id);
-      setCycleResults((prev) => ({ ...prev, [entry.id]: response.results || [] }));
-      await onRefreshUsage();
-    } catch (error) {
-      onToast("Failed to check the current cycle.");
-    } finally {
-      setCheckingId(null);
+  // Client-side filter: active tags (AND semantics across selected tags).
+  const filterEntry = (e: CatalogEntry): boolean => {
+    if (activeTags.size === 0) return true;
+    const entryTags = new Set(e.tags.map((t) => t.toLowerCase()));
+    for (const wanted of activeTags) {
+      if (!entryTags.has(wanted.toLowerCase())) return false;
     }
+    return true;
   };
 
-  const handleAnalyze = async (article: NewsArticle) => {
-    setAnalyzingUrl(article.link);
-    try {
-      const opportunity = await analyzeScholarshipOpportunity({
-        source_url: article.link,
-        source_title: article.title,
-        source_snippet: article.description || "",
-      });
-      setOpportunitiesByUrl((prev) => ({ ...prev, [article.link]: opportunity }));
-      onToast("Analyzed. Structured details are ready below.");
-    } catch (error) {
-      onToast("Could not analyze this page.");
-    } finally {
-      setAnalyzingUrl(null);
-    }
+  const programEntries = useMemo(
+    () => entries.filter((e) => e.category === "program" && filterEntry(e)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, activeTags]
+  );
+  const universityEntries = useMemo(
+    () => entries.filter((e) => e.category === "university" && filterEntry(e)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, activeTags]
+  );
+
+  const toggleTag = (tag: string) => {
+    setActiveTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
   };
 
   if (isLoading) {
@@ -92,103 +85,158 @@ export function ScholarshipCatalog({ onToast, onAddToTracker, onRefreshUsage, hu
     );
   }
 
+  const totalVisible = programEntries.length + universityEntries.length;
+
   return (
     <div className="scholarship-catalog">
-      <div className="scholarship-catalog-toolbar">
-        <p className="scholarship-catalog-hint">
-          {entries.length} curated scholarships. Browsing is free — "Check current cycle" uses one
-          Scholarship Hunt credit.
-        </p>
-        <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}>
-          <option value="">All levels</option>
-          {levels.map((lv) => (
-            <option key={lv} value={lv}>
-              {lv}
-            </option>
+      {allTags.length > 0 && (
+        <div className="scholarship-catalog-tags" aria-label="Filter by topic">
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`scholarship-catalog-tag-chip ${
+                activeTags.has(tag) ? "active" : ""
+              }`}
+              onClick={() => toggleTag(tag)}
+            >
+              {tag}
+            </button>
           ))}
-        </select>
-      </div>
+          {activeTags.size > 0 && (
+            <button
+              type="button"
+              className="scholarship-catalog-tag-clear"
+              onClick={() => setActiveTags(new Set())}
+            >
+              Clear tags
+            </button>
+          )}
+        </div>
+      )}
 
+
+      <p className="scholarship-catalog-hint">
+        {totalVisible === entries.length
+          ? `${entries.length} scholarships · free reference, links open in a new tab`
+          : `${totalVisible} of ${entries.length} shown`}
+      </p>
+
+      {totalVisible === 0 && (
+        <p className="news-empty-subtext">
+          No scholarships match the selected tags. Clear the tags to see everything.
+        </p>
+      )}
+
+      {/* Section: Program & Central scholarships */}
+      {programEntries.length > 0 && (
+        <CatalogSection
+          title="Program & Central Scholarships"
+          subtitle="Government, foundation, and multilateral programs open to broad applicant pools."
+          count={programEntries.length}
+          entries={programEntries}
+        />
+      )}
+
+      {/* Section: University-specific scholarships */}
+      {universityEntries.length > 0 && (
+        <CatalogSection
+          title="University-Specific Scholarships"
+          subtitle="Awards bound to a single host institution — apply directly to the university."
+          count={universityEntries.length}
+          entries={universityEntries}
+        />
+      )}
+    </div>
+  );
+}
+
+function CatalogSection({
+  title,
+  subtitle,
+  count,
+  entries,
+}: {
+  title: string;
+  subtitle: string;
+  count: number;
+  entries: CatalogEntry[];
+}) {
+  return (
+    <section className="scholarship-catalog-section">
+      <header className="scholarship-catalog-section-header">
+        <div className="scholarship-catalog-section-title-row">
+          <h3>{title}</h3>
+          <span className="scholarship-catalog-section-count">{count}</span>
+        </div>
+        <p className="scholarship-catalog-section-subtitle">{subtitle}</p>
+      </header>
       <div className="scholarship-catalog-grid">
-        {visibleEntries.map((entry) => (
-          <div key={entry.id} className="scholarship-catalog-card">
-            <div className="scholarship-catalog-card-header">
-              <h4>{entry.canonical_name}</h4>
-              {entry.in_library && <span className="opportunity-in-library-badge">In library</span>}
-            </div>
-            <p className="scholarship-catalog-sponsor">{entry.sponsor}</p>
-            <p className="scholarship-catalog-blurb">{entry.blurb}</p>
-            <div className="opportunity-badges">
-              <span className={`opportunity-funding-badge coverage-${entry.funding.coverage}`}>
-                {entry.funding.coverage === "full" ? "Full funding" : "Partial funding"}
-              </span>
-              {entry.levels.map((lv) => (
-                <span key={lv} className="scholarship-catalog-level-chip">
-                  {lv}
-                </span>
-              ))}
-            </div>
-            {entry.cycle_months.length > 0 && (
-              <p className="scholarship-catalog-cycle">
-                Typical cycle: {entry.cycle_months.join(", ")} — confirm the current deadline below.
-              </p>
-            )}
-            <div className="scholarship-catalog-card-actions">
-              <a
-                href={entry.portal_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="catalog-btn-outline"
-              >
-                Official page <ExternalLink size={14} />
-              </a>
-              <button
-                type="button"
-                className="catalog-btn-solid"
-                onClick={() => handleCheckCycle(entry)}
-                disabled={checkingId === entry.id}
-              >
-                {checkingId === entry.id ? (
-                  <Loader2 size={14} className="icon-spin" />
-                ) : (
-                  <CalendarSearch size={14} />
-                )}
-                Check cycle
-              </button>
-            </div>
+        {entries.map((entry) => (
+          <CatalogCard key={entry.id} entry={entry} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
-            {cycleResults[entry.id] && (
-              <div className="scholarship-catalog-cycle-results">
-                {cycleResults[entry.id].length === 0 ? (
-                  <p className="opportunity-empty-note">No current pages found for this cycle.</p>
-                ) : (
-                  cycleResults[entry.id].map((article) => (
-                    <div key={article.article_id} className="scholarship-catalog-cycle-result">
-                      <a href={article.link} target="_blank" rel="noopener noreferrer">
-                        {article.title}
-                      </a>
-                      {opportunitiesByUrl[article.link] ? (
-                        <OpportunityCard
-                          opportunity={opportunitiesByUrl[article.link]}
-                          onAddToTracker={onAddToTracker}
-                          huntProfile={huntProfile}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className="button-secondary"
-                          onClick={() => handleAnalyze(article)}
-                          disabled={analyzingUrl === article.link}
-                        >
-                          {analyzingUrl === article.link ? "Analyzing..." : "Analyze"}
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
+function CatalogCard({ entry }: { entry: CatalogEntry }) {
+  return (
+    <div className="scholarship-catalog-card">
+      <div className="scholarship-catalog-card-header">
+        <h4>{entry.canonical_name}</h4>
+        {entry.in_library && (
+          <span className="opportunity-in-library-badge">In library</span>
+        )}
+      </div>
+      <p className="scholarship-catalog-sponsor">{entry.sponsor}</p>
+      <p className="scholarship-catalog-description">{entry.description}</p>
+      <div className="opportunity-badges">
+        <span
+          className={`opportunity-funding-badge coverage-${entry.funding.coverage}`}
+        >
+          {entry.funding.coverage === "full" ? "Full funding" : "Partial funding"}
+        </span>
+        {entry.levels.map((lv) => (
+          <span key={lv} className="scholarship-catalog-level-chip">
+            {lv}
+          </span>
+        ))}
+      </div>
+      {entry.destinations.length > 0 && (
+        <p className="scholarship-catalog-destinations">
+          {entry.destinations.join(" · ")}
+        </p>
+      )}
+      {entry.funding.notes && (
+        <p className="scholarship-catalog-funding-notes">{entry.funding.notes}</p>
+      )}
+      {entry.cycle_months.length > 0 && (
+        <p className="scholarship-catalog-cycle">
+          <CalendarClock size={13} />
+          <span>Typical window: {entry.cycle_months.join(", ")}</span>
+        </p>
+      )}
+      {entry.tags.length > 0 && (
+        <div className="scholarship-catalog-card-tags">
+          {entry.tags.map((tag) => (
+            <span key={tag} className="scholarship-catalog-card-tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="scholarship-catalog-card-actions">
+        {entry.links.map((link) => (
+          <a
+            key={link.url}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="catalog-btn-outline"
+          >
+            {link.label} <ExternalLink size={14} />
+          </a>
         ))}
       </div>
     </div>

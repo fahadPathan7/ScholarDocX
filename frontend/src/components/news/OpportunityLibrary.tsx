@@ -8,7 +8,6 @@ import {
 } from "../../lib/scholarshipOpportunitiesApi";
 import { notify } from "../../lib/api";
 import { OpportunityCard, DEADLINE_RADAR_THRESHOLD_DAYS, deadlineTone, nearestDeadlineOf } from "./OpportunityCard";
-import { HuntProfile } from "../../lib/huntProfile";
 
 const STATUS_OPTIONS: ScholarshipOpportunity["status"][] = [
   "Found",
@@ -22,7 +21,6 @@ interface OpportunityLibraryProps {
   onToast: (msg: string) => void;
   onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
   refreshTrigger?: number;
-  huntProfile?: HuntProfile | null;
 }
 
 function nearestDeadlineDate(opportunity: ScholarshipOpportunity): string {
@@ -49,7 +47,7 @@ function isWithinRadarThreshold(dateStr: string): boolean {
 // day-granularity check remains the source of truth across page reloads.
 const notifiedThisSession = new Set<string>();
 
-export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, huntProfile }: OpportunityLibraryProps) {
+export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger }: OpportunityLibraryProps) {
   const [opportunities, setOpportunities] = useState<ScholarshipOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -148,7 +146,7 @@ export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, hu
       <div className="news-empty-state">
         <p>Your Opportunity Library is empty.</p>
         <p className="news-empty-subtext">
-          Analyze a Scholarship Hunt or Catalog result to add structured opportunities here.
+          Run a Search and save the results you want to keep — they'll show up here.
         </p>
       </div>
     );
@@ -167,7 +165,7 @@ export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger, hu
       )}
       {opportunities.map((opportunity) => (
         <div key={opportunity.id} className="opportunity-library-row">
-          <OpportunityCard opportunity={opportunity} onAddToTracker={onAddToTracker} huntProfile={huntProfile} />
+          <OpportunityCard opportunity={opportunity} onAddToTracker={onAddToTracker} />
           <div className="opportunity-library-controls">
             <select
               value={opportunity.status}

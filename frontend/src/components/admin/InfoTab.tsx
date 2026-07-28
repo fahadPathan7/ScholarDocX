@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
-import { ShieldAlert, RefreshCw, Upload, Clock } from "lucide-react";
+import { ShieldAlert, RefreshCw, Upload, Clock, Library } from "lucide-react";
 
 type RateLimitRule = {
   rule_key: string;
@@ -81,6 +81,72 @@ export function InfoTab() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-500">Per document upload</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Save & Storage Caps */}
+      <div className="shrink-0 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <Library size={18} className="text-indigo-500" />
+          Save & Storage Caps
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border border-slate-200 rounded-lg">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Constraint</th>
+                <th className="px-4 py-3 font-semibold">Value</th>
+                <th className="px-4 py-3 font-semibold">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Opportunity Library (Scholarship Hunt)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    100 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Saving beyond it is rejected until an existing entry is removed.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Saved Analyses per Paper (Research Expert)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    10 per paper
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Saving beyond it is rejected until an existing saved analysis is removed.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Documents</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    100 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Separate from the per-role storage byte quota. Uploading beyond it is rejected until an existing document is removed.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Previous Searches (Scholarship Hunt)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    10 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Starting a search past the cap deletes the oldest run first (FIFO) — saved Library opportunities are kept.</td>
+              </tr>
+              <tr className="hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Ask AI Chat History</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    10 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, stored in the browser only (not the backend). Starting a new chat past the cap deletes the oldest session first (FIFO).</td>
               </tr>
             </tbody>
           </table>

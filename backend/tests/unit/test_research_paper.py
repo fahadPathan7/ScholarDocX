@@ -298,13 +298,29 @@ async def test_analyze_paper_with_mocked_ai(db_session):
 # ── Jina embedding flat-fee billing (SCHOLARDOCX-0174) ────────────────────────
 
 
-def _set_jina_cost(settings, cost_usd: float) -> None:
-    """Override the admin-configured Jina flat fee for a test.
+def _snapshot_jina_cost(settings) -> str | None:
+    """Read the current jina_call_cost_usd value so a test can restore it
+    exactly afterward.
 
-    The default row is seeded by schema.py's SEED_SQL, so a plain UPDATE is
-    sufficient (the connect() compat wrapper appends RETURNING id, which the
-    key-less app_settings table does not support for an INSERT).
+    STRICT RULE (SCHOLARDOCX-0178 incident): app_settings is global, shared,
+    admin-configured state, and this suite runs against a real shared
+    database (see tests/conftest.py's load_dotenv) — a test that overwrites
+    a row here and never restores it corrupts the real admin configuration
+    indefinitely, for every user. This exact bug left jina_call_cost_usd
+    stuck at a test-inserted 0.02 until caught and fixed. Always snapshot
+    the value that was actually there before mutating it — never assume
+    "the default" is what to restore.
     """
+    with connect(settings.database_target) as db:
+        row = db.execute(
+            "SELECT value FROM app_settings WHERE key = 'jina_call_cost_usd'"
+        ).fetchone()
+        return row["value"] if row else None
+
+
+def _set_jina_cost(settings, cost_usd: float) -> None:
+    """Override the admin-configured Jina flat fee for a test. Callers MUST
+    restore the value `_snapshot_jina_cost` returned in a finally block."""
     with connect(settings.database_target) as db:
         db.execute(
             "UPDATE app_settings SET value = ? WHERE key = 'jina_call_cost_usd'",
@@ -317,6 +333,7 @@ def test_charge_jina_embedding_records_flat_fee(db_session):
     """`_charge_jina_embedding` debits balance and writes a ledger row."""
     settings, session = db_session
     user = make_user(settings, roles=["pro_user"])
+    jina_cost_before = _snapshot_jina_cost(settings)
     try:
         ai_tokens.refresh_balance(user, session)
         balance_before = get_balance(settings, user["id"])
@@ -337,6 +354,8 @@ def test_charge_jina_embedding_records_flat_fee(db_session):
         spent = balance_before["subscription_remaining"] - balance_after["subscription_remaining"]
         assert spent == 50  # 0.005 * 10000 tokens/dollar
     finally:
+        if jina_cost_before is not None:
+            _set_jina_cost(settings, float(jina_cost_before))
         with connect(settings.database_target) as conn:
             cleanup_user_records(conn, user["id"])
 
@@ -345,6 +364,7 @@ def test_charge_jina_embedding_uses_admin_configured_cost(db_session):
     """A custom admin cost is respected on the charge."""
     settings, session = db_session
     user = make_user(settings, roles=["pro_user"])
+    jina_cost_before = _snapshot_jina_cost(settings)
     try:
         ai_tokens.refresh_balance(user, session)
         _set_jina_cost(settings, 0.02)  # 0.02 USD * 10000 = 200 tokens
@@ -356,6 +376,8 @@ def test_charge_jina_embedding_uses_admin_configured_cost(db_session):
         assert len(rows) == 1
         assert rows[0]["cost_usd"] == pytest.approx(0.02)
     finally:
+        if jina_cost_before is not None:
+            _set_jina_cost(settings, float(jina_cost_before))
         with connect(settings.database_target) as conn:
             cleanup_user_records(conn, user["id"])
 

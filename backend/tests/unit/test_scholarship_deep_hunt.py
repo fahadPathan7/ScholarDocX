@@ -14,12 +14,13 @@ from fastapi import BackgroundTasks
 from app.api import scholarship_deep_hunt as deep_hunt_api
 from app.auth.limits import UsageLimitExceeded
 from app.core.config import Settings
-from app.db.connection import connect, initialize_database
+from app.db.connection import connect, get_engine, initialize_database
 from app.services.scholarship_deep_hunt import (
     ScholarshipDeepHuntRepository,
     ScholarshipDeepHuntService,
     _is_acceptable,
 )
+from app.services.store import Store
 
 
 def make_settings(tmp_path: Path) -> Settings:
@@ -150,6 +151,77 @@ def test_repository_delete(tmp_path):
     assert repo.delete_run(run["id"], user_id) is False
 
 
+def test_repository_fifo_evicts_oldest_run_past_cap(tmp_path):
+    """SCHOLARDOCX-0178: "Previous Searches" is capped at MAX_STORED_RUNS
+    (10). An 11th run deletes the oldest first."""
+    from app.services.scholarship_deep_hunt import MAX_STORED_RUNS
+
+    settings = make_settings(tmp_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
+    user_id = _seed_user(settings, "fifo@example.com")
+
+    created_ids = [
+        repo.create_run(user_id, {"goal": f"goal {i}"})["id"]
+        for i in range(MAX_STORED_RUNS + 1)
+    ]
+
+    remaining = repo.list_runs(user_id)
+    assert len(remaining) == MAX_STORED_RUNS
+    remaining_ids = {r["id"] for r in remaining}
+    assert created_ids[0] not in remaining_ids  # oldest evicted
+    assert created_ids[-1] in remaining_ids  # newest kept
+    assert all(cid in remaining_ids for cid in created_ids[1:])
+
+
+def test_repository_delete_run_detaches_not_deletes_saved_opportunity(tmp_path):
+    """SCHOLARDOCX-0178: deleting (or FIFO-evicting) a run must never delete
+    an opportunity the user explicitly saved from it — only the run link is
+    cleared."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.connection import get_engine
+    from app.services.store import Store
+
+    settings = make_settings(tmp_path)
+    repo = ScholarshipDeepHuntRepository(settings.database_target)
+    user_id = _seed_user(settings, "detach@example.com")
+    run = repo.create_run(user_id, {"goal": "test goal"})
+
+    engine = get_engine(settings.database_target)
+    session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    store = Store(session, current_user_id=user_id)
+    try:
+        saved = store.create_record(
+            "scholarship_opportunities",
+            {
+                "source": "deep_hunt",
+                "canonical_name": "Saved From Run",
+                "normalized_url": "example.edu/saved-from-run",
+                "status": "Found",
+                "deep_hunt_run_id": run["id"],
+                "degree_levels_json": "[]",
+                "destinations_json": "[]",
+                "eligible_nationalities_json": "[]",
+                "funding_json": "{}",
+                "deadlines_json": "[]",
+                "requirements_json": "[]",
+                "field_confidence_json": "{}",
+            },
+        )
+    finally:
+        session.close()
+
+    assert repo.delete_run(run["id"], user_id) is True
+
+    with connect(settings.database_target) as db:
+        row = db.execute(
+            "SELECT deep_hunt_run_id FROM scholarship_opportunities WHERE id = ?",
+            (saved["id"],),
+        ).fetchone()
+        assert row is not None, "saved opportunity must survive its source run being deleted"
+        assert row["deep_hunt_run_id"] is None
+
+
 # --- Plan gate (API layer) --------------------------------------------------
 
 
@@ -212,6 +284,13 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
 
     monkeypatch.setattr(deep_hunt_api, "check_and_increment_limit", lambda *a, **k: True)
     monkeypatch.setattr(deep_hunt_api.ai_tokens, "ensure_can_spend", lambda *a, **k: True)
+    # SCHOLARDOCX-0175: per-hit pre-flight reads the Brave price + token rate.
+    monkeypatch.setattr(
+        deep_hunt_api.ai_tokens, "get_brave_call_cost_per_hit_usd", lambda session: 0.015
+    )
+    monkeypatch.setattr(
+        deep_hunt_api.ai_tokens, "get_token_rate", lambda session: 10000
+    )
     import app.api.routes as routes_api
     monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
 
@@ -285,17 +364,39 @@ def _install_pipeline_mocks(monkeypatch, service, *, results_by_query, pages_by_
     async def fake_relevance_score(goal, opportunities, *, field_synonyms=None, degree_level=None):
         return [1.0 for _ in opportunities]
 
-    monkeypatch.setattr(service, "_tavily_search", fake_search)
+    # SCHOLARDOCX-0175: per-hit billing stubs. The run loop charges per Brave
+    # pass; tests just need it not to touch the DB. charge_calls is exposed for
+    # tests that want to assert on the per-hit charge shape.
+    charge_calls = []
+    import app.services.scholarship_deep_hunt as deep_hunt_module
+    from app.services import ai_tokens as ai_tokens_mod
+
+    def fake_charge_flat_fee(user, session, cost_usd, source, ref_id=None):
+        charge_calls.append({"cost_usd": cost_usd, "source": source})
+
+    monkeypatch.setattr(service, "_brave_search", fake_search)
     monkeypatch.setattr(service, "_plan_queries", fake_plan_queries)
     monkeypatch.setattr(service.relevance_filter, "score", fake_relevance_score)
     monkeypatch.setattr(service.crawler, "fetch", fake_fetch)
-    import app.services.scholarship_deep_hunt as deep_hunt_module
-
+    # Per-hit billing runs inside the run loop via a deferred import, so patch
+    # the source module's symbol.
+    monkeypatch.setattr(ai_tokens_mod, "charge_flat_fee", fake_charge_flat_fee)
+    monkeypatch.setattr(
+        ai_tokens_mod,
+        "get_brave_call_cost_per_hit_usd",
+        lambda session: 0.015,
+    )
+    monkeypatch.setattr(ai_tokens_mod, "get_token_rate", lambda session: 10000)
     monkeypatch.setattr(deep_hunt_module.scholarship_extraction_service, "extract", fake_extract)
+    # Stash for tests that assert on billing.
+    service._test_charge_calls = charge_calls  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
-async def test_service_run_persists_accepted_opportunities_tagged_with_run(tmp_path, monkeypatch):
+async def test_service_run_stores_accepted_results_without_auto_saving(tmp_path, monkeypatch):
+    """SCHOLARDOCX-0178: a completed run stores its accepted results on the
+    run itself (results_json) and does NOT upsert them into
+    scholarship_opportunities — the user must explicitly save a result."""
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
     user_id = _seed_user(settings, "svc-persist@example.com")
@@ -320,11 +421,19 @@ async def test_service_run_persists_accepted_opportunities_tagged_with_run(tmp_p
     finished = service.repository.get_run(run["id"], user_id)
     assert finished["status"] == "completed"
     assert finished["result_count"] == 1
-    assert len(finished["opportunities"]) == 1
-    opportunity = finished["opportunities"][0]
-    assert opportunity["source"] == "deep_hunt"
-    assert opportunity["deep_hunt_run_id"] == run["id"]
-    assert opportunity["canonical_name"] == "Example Deep Hunt Scholarship"
+    assert len(finished["results"]) == 1
+    result_entry = finished["results"][0]
+    assert result_entry["canonical_name"] == "Example Deep Hunt Scholarship"
+    assert result_entry["normalized_url"] == "example.edu/scholarship"
+    # Not saved yet — no scholarship_opportunities row exists for it.
+    assert result_entry["in_library"] is False
+    assert result_entry["opportunity_id"] is None
+    with connect(settings.database_target) as db:
+        rows = db.execute(
+            "SELECT COUNT(*) AS n FROM scholarship_opportunities WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        assert rows["n"] == 0
 
 
 @pytest.mark.asyncio
@@ -354,7 +463,7 @@ async def test_service_run_rejects_results_with_no_name_or_signal(tmp_path, monk
     finished = service.repository.get_run(run["id"], user_id)
     assert finished["status"] == "completed"
     assert finished["result_count"] == 0
-    assert finished["opportunities"] == []
+    assert finished["results"] == []
 
 
 @pytest.mark.asyncio
@@ -406,7 +515,58 @@ async def test_service_run_dedupes_same_url_across_search_passes(tmp_path, monke
     assert extract_calls == [result["url"]]
     finished = service.repository.get_run(run["id"], user_id)
     assert finished["result_count"] == 1
-    assert len(finished["opportunities"]) == 1
+    assert len(finished["results"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_service_run_collapses_near_duplicate_titles_across_urls(tmp_path, monkeypatch):
+    """SCHOLARDOCX-0177: two different source pages describing the same generic
+    program (titles differing only by year/punctuation) must collapse into one
+    persisted opportunity, keeping the higher-relevance extraction."""
+    settings = make_settings(tmp_path)
+    service = ScholarshipDeepHuntService(settings)
+    user_id = _seed_user(settings, "svc-namededupe@example.com")
+    run = service.repository.create_run(user_id, {"goal": "emjm scholarships for cse background"})
+
+    weak_url = "aggregator.example/emjm-list"
+    strong_url = "ec.europa.eu/emjm-official"
+    weak_result = {"title": "Erasmus Mundus Scholarship 2026", "url": weak_url, "content": "snippet", "score": 0.5}
+    strong_result = {"title": "Erasmus Mundus Scholarship 2026-2027", "url": strong_url, "content": "snippet", "score": 0.9}
+    weak_page = {"title": "Erasmus Mundus Scholarship 2026", "url": weak_url, "text": "text"}
+    strong_page = {"title": "Erasmus Mundus Scholarship 2026-2027", "url": strong_url, "text": "text"}
+
+    fallback_query = "emjm scholarships for cse background scholarship funding official application"
+
+    _install_pipeline_mocks(
+        monkeypatch,
+        service,
+        results_by_query={fallback_query: [weak_result, strong_result]},
+        pages_by_url={weak_url: weak_page, strong_url: strong_page},
+        extraction_by_url={
+            weak_url: _fake_extraction_result(canonical_name="Erasmus Mundus Scholarship 2026", sponsor=None),
+            strong_url: _fake_extraction_result(canonical_name="Erasmus Mundus Scholarship 2026-2027", sponsor="European Commission"),
+        },
+    )
+
+    # Give the two near-duplicate titles different relevance scores so the
+    # test can assert the higher-scoring one wins the dedup.
+    async def fake_relevance_score(goal, opportunities, *, field_synonyms=None, degree_level=None):
+        scores = []
+        for opp in opportunities:
+            scores.append(0.5 if "2026-2027" in (opp.get("canonical_name") or "") else 0.9)
+        return scores
+
+    monkeypatch.setattr(service.relevance_filter, "score", fake_relevance_score)
+
+    await service.run(run["id"], user_id)
+
+    finished = service.repository.get_run(run["id"], user_id)
+    assert finished["status"] == "completed"
+    assert finished["result_count"] == 1
+    assert len(finished["results"]) == 1
+    # The weak-URL extraction scored higher (0.9) and wins the dedup even
+    # though the strong-URL extraction was more complete (has a sponsor).
+    assert finished["results"][0]["canonical_name"] == "Erasmus Mundus Scholarship 2026"
 
 
 @pytest.mark.asyncio
@@ -424,7 +584,7 @@ async def test_service_run_stops_when_cancelled_mid_run(tmp_path, monkeypatch):
     async def fail_extract(ai_service, **kwargs):
         raise AssertionError("extraction must not run after cancellation")
 
-    monkeypatch.setattr(service, "_tavily_search", fake_search)
+    monkeypatch.setattr(service, "_brave_search", fake_search)
     import app.services.scholarship_deep_hunt as deep_hunt_module
 
     monkeypatch.setattr(deep_hunt_module.scholarship_extraction_service, "extract", fail_extract)
@@ -436,7 +596,10 @@ async def test_service_run_stops_when_cancelled_mid_run(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_service_run_fails_gracefully_with_no_search_results(tmp_path, monkeypatch):
+async def test_service_run_completes_with_zero_when_no_results_match(tmp_path, monkeypatch):
+    """SCHOLARDOCX-0175: an empty result set completes cleanly (no on-target
+    matches) rather than failing. A scary 'failed' state is reserved for real
+    errors; 'no matches' is an honest, friendly outcome."""
     settings = make_settings(tmp_path)
     service = ScholarshipDeepHuntService(settings)
     user_id = _seed_user(settings, "svc-empty@example.com")
@@ -445,13 +608,25 @@ async def test_service_run_fails_gracefully_with_no_search_results(tmp_path, mon
     async def _empty_impl(query, max_results):
         return []
 
-    monkeypatch.setattr(service, "_tavily_search", _empty_impl)
+    monkeypatch.setattr(service, "_brave_search", _empty_impl)
+    # Stub billing so the run loop doesn't touch the DB.
+    from app.services import ai_tokens as ai_tokens_mod
+
+    monkeypatch.setattr(
+        ai_tokens_mod, "charge_flat_fee", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        ai_tokens_mod, "get_brave_call_cost_per_hit_usd", lambda session: 0.015
+    )
+    monkeypatch.setattr(ai_tokens_mod, "get_token_rate", lambda session: 10000)
 
     await service.run(run["id"], user_id)
 
     finished = service.repository.get_run(run["id"], user_id, include_opportunities=False)
-    assert finished["status"] == "failed"
-    assert finished["error_message"]
+    assert finished["status"] == "completed"
+    assert finished["result_count"] == 0
+    # No scary error message on a clean empty result.
+    assert not finished.get("error_message")
 
 
 # --- Acceptance filter (no invented fields contract) ------------------------
@@ -474,3 +649,132 @@ def test_is_acceptable_requires_name_and_a_concrete_signal():
         )
         is True
     )
+
+
+# --- Explicit save-to-library endpoint (SCHOLARDOCX-0178) -------------------
+
+
+def _store_for(settings: Settings, user_id: str) -> Store:
+    engine = get_engine(settings.database_target)
+    from sqlalchemy.orm import sessionmaker
+
+    session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    return Store(session, current_user_id=user_id)
+
+
+async def _run_with_one_accepted_result(tmp_path, monkeypatch, email: str):
+    """Shared setup: a completed run with exactly one accepted, unsaved result."""
+    settings = make_settings(tmp_path)
+    service = ScholarshipDeepHuntService(settings)
+    user_id = _seed_user(settings, email)
+    run = service.repository.create_run(user_id, {"goal": "fully funded CS PhD funding, EU"})
+
+    result_url = "example.edu/save-me"
+    result = {"title": "Save Me Scholarship", "url": result_url, "content": "snippet", "score": 0.9}
+    page = {"title": "Save Me Scholarship", "url": result_url, "text": "text"}
+
+    _install_pipeline_mocks(
+        monkeypatch,
+        service,
+        results_by_query={
+            "fully funded CS PhD funding, EU scholarship funding official application": [result],
+        },
+        pages_by_url={result_url: page},
+        extraction_by_url={result_url: _fake_extraction_result(canonical_name="Save Me Scholarship")},
+    )
+    await service.run(run["id"], user_id)
+    return settings, service, user_id, run["id"]
+
+
+@pytest.mark.asyncio
+async def test_save_result_persists_and_marks_result_saved(tmp_path, monkeypatch):
+    settings, service, user_id, run_id = await _run_with_one_accepted_result(
+        tmp_path, monkeypatch, "svc-save@example.com"
+    )
+    store = _store_for(settings, user_id)
+    try:
+        saved = deep_hunt_api.save_result(
+            run_id,
+            deep_hunt_api.SaveDeepHuntResultRequest(normalized_url="example.edu/save-me"),
+            user={"id": user_id, "roles": ["max_user"]},
+            service=service,
+            store=store,
+        )
+        assert saved["canonical_name"] == "Save Me Scholarship"
+        assert saved["source"] == "deep_hunt"
+        assert saved["deep_hunt_run_id"] == run_id
+
+        finished = service.repository.get_run(run_id, user_id)
+        result_entry = finished["results"][0]
+        assert result_entry["in_library"] is True
+        assert result_entry["opportunity_id"] == saved["id"]
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_save_result_404_for_unknown_normalized_url(tmp_path, monkeypatch):
+    settings, service, user_id, run_id = await _run_with_one_accepted_result(
+        tmp_path, monkeypatch, "svc-save-404@example.com"
+    )
+    store = _store_for(settings, user_id)
+    try:
+        with pytest.raises(deep_hunt_api.HTTPException) as error:
+            deep_hunt_api.save_result(
+                run_id,
+                deep_hunt_api.SaveDeepHuntResultRequest(normalized_url="example.edu/not-a-result"),
+                user={"id": user_id, "roles": ["max_user"]},
+                service=service,
+                store=store,
+            )
+        assert error.value.status_code == 404
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_save_result_returns_409_when_library_full(tmp_path, monkeypatch):
+    import app.api.scholarship_opportunities as opp_api
+    from app.api.scholarship_opportunities import upsert_scholarship_opportunity
+
+    # SCHOLARDOCX-0178 perf fix: patch the cap down to a small number so this
+    # test exercises the exact same boundary check without ~100 sequential
+    # real-network round trips (see the equivalent note in
+    # test_scholarship_opportunities.py).
+    monkeypatch.setattr(opp_api, "MAX_LIBRARY_ENTRIES", 3)
+
+    settings, service, user_id, run_id = await _run_with_one_accepted_result(
+        tmp_path, monkeypatch, "svc-save-full@example.com"
+    )
+    store = _store_for(settings, user_id)
+    try:
+        for i in range(opp_api.MAX_LIBRARY_ENTRIES):
+            upsert_scholarship_opportunity(
+                store,
+                source="hunt",
+                extracted={
+                    "canonical_name": f"Filler {i}",
+                    "sponsor": None,
+                    "degree_levels": [],
+                    "fields_of_study": [],
+                    "destination_countries": [],
+                    "eligible_nationalities": [],
+                    "funding": {},
+                    "deadlines": [],
+                    "requirements": [],
+                    "application_url": None,
+                    "field_confidence": {},
+                },
+                source_url=f"https://example.org/filler{i}",
+            )
+        with pytest.raises(deep_hunt_api.HTTPException) as error:
+            deep_hunt_api.save_result(
+                run_id,
+                deep_hunt_api.SaveDeepHuntResultRequest(normalized_url="example.edu/save-me"),
+                user={"id": user_id, "roles": ["max_user"]},
+                service=service,
+                store=store,
+            )
+        assert error.value.status_code == 409
+    finally:
+        store.db.close()

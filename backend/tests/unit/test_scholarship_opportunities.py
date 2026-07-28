@@ -64,41 +64,33 @@ async def test_catalog_endpoint_makes_zero_network_calls(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_check_cycle_makes_exactly_one_tavily_call(tmp_path, monkeypatch):
-    connection, store = _store(tmp_path)
-    search_calls = []
-
-    async def fake_search(**kwargs):
-        search_calls.append(kwargs)
-        return {"status": "success", "totalResults": 1, "results": []}
-
-    monkeypatch.setattr(opp_api.news_service, "api_key", "test-key")
-    monkeypatch.setattr(opp_api.news_service, "search_scholarships", fake_search)
-    monkeypatch.setattr(
-        opp_api, "_charge_scholarship_hunt", lambda user, store: None
-    )
-
-    try:
-        result = await opp_api.check_scholarship_cycle("chevening", user=MAX_USER, store=store)
-        assert result["status"] == "success"
-        assert len(search_calls) == 1
-        assert "Chevening Scholarship" in search_calls[0]["approved_query"]
-    finally:
-        store.db.close()
-
-
-@pytest.mark.asyncio
-async def test_check_cycle_unknown_catalog_id_returns_404(tmp_path):
+async def test_catalog_endpoint_filters_by_category(tmp_path):
+    """SCHOLARDOCX-0176: GET /scholarship-catalog?category=university returns
+    only university-specific scholarships. Static-only — no network calls."""
     connection, store = _store(tmp_path)
     try:
-        with pytest.raises(opp_api.HTTPException) as error:
-            await opp_api.check_scholarship_cycle("not-a-real-id", user=MAX_USER, store=store)
-        assert error.value.status_code == 404
+        all_entries = await opp_api.get_scholarship_catalog(user=MAX_USER, store=store)
+        university = await opp_api.get_scholarship_catalog(
+            category="university", user=MAX_USER, store=store
+        )
+        program = await opp_api.get_scholarship_catalog(
+            category="program", user=MAX_USER, store=store
+        )
+        assert len(all_entries) == len(university) + len(program)
+        assert all(e["category"] == "university" for e in university)
+        assert all(e["category"] == "program" for e in program)
+        # Every entry has the new schema: links[], tags[], description.
+        for e in all_entries:
+            assert isinstance(e["links"], list) and e["links"]
+            assert isinstance(e["tags"], list) and e["tags"]
+            assert e["description"]
+            assert "in_library" in e
     finally:
         store.db.close()
 
 
 # --- Analyze -------------------------------------------------------------
+
 
 
 @pytest.mark.asyncio
@@ -165,7 +157,14 @@ async def test_analyze_charges_tokens_exactly_once_and_creates_opportunity(tmp_p
         assert result["funding"] == {"coverage": "full", "notes": None}
         assert result["status"] == "Found"
 
-        rows = connection.execute(text("SELECT * FROM scholarship_opportunities")).mappings().fetchall()
+        # Scoped to this test's user_id — the table is shared across the
+        # whole test suite (real database, not per-test isolated), so an
+        # unscoped table-wide query is fragile and can spuriously fail on
+        # leftover rows from unrelated tests (SCHOLARDOCX-0178 hardening).
+        rows = connection.execute(
+            text("SELECT * FROM scholarship_opportunities WHERE user_id = :uid"),
+            {"uid": _TEST_USER_UUID},
+        ).mappings().fetchall()
         assert len(rows) == 1
         assert rows[0]["normalized_url"] == "example.org/scholarship"
     finally:
@@ -195,7 +194,11 @@ async def test_analyze_upserts_instead_of_duplicating_on_same_url(tmp_path, monk
         await opp_api.analyze_scholarship_opportunity(request, user=MAX_USER, store=store)
         await opp_api.analyze_scholarship_opportunity(request, user=MAX_USER, store=store)
 
-        rows = connection.execute(text("SELECT * FROM scholarship_opportunities")).mappings().fetchall()
+        # Scoped to this test's user_id (see SCHOLARDOCX-0178 hardening note above).
+        rows = connection.execute(
+            text("SELECT * FROM scholarship_opportunities WHERE user_id = :uid"),
+            {"uid": _TEST_USER_UUID},
+        ).mappings().fetchall()
         assert len(rows) == 1
     finally:
         store.db.close()
@@ -297,6 +300,126 @@ async def test_update_and_delete_opportunity(tmp_path, monkeypatch):
         await opp_api.delete_scholarship_opportunity(created["id"], user=MAX_USER, store=store)
         remaining = await opp_api.list_scholarship_opportunities(user=MAX_USER, store=store)
         assert remaining == []
+    finally:
+        store.db.close()
+
+
+# --- Library cap (SCHOLARDOCX-0178) ---------------------------------------
+
+
+def _minimal_extracted(name: str) -> dict:
+    return {
+        "canonical_name": name,
+        "sponsor": None,
+        "degree_levels": [],
+        "fields_of_study": [],
+        "destination_countries": [],
+        "eligible_nationalities": [],
+        "funding": {},
+        "deadlines": [],
+        "requirements": [],
+        "application_url": None,
+        "field_confidence": {},
+    }
+
+
+def _count_opportunities(connection, user_id: str) -> int:
+    """Scoped to one user_id — the table is shared across the whole test
+    suite (real database, not per-test isolated), so an unscoped table-wide
+    COUNT is fragile and can spuriously fail on rows from unrelated tests
+    (SCHOLARDOCX-0178 hardening)."""
+    return connection.execute(
+        text("SELECT COUNT(*) FROM scholarship_opportunities WHERE user_id = :uid"),
+        {"uid": user_id},
+    ).scalar()
+
+
+def test_library_cap_rejects_a_brand_new_opportunity_past_the_limit(tmp_path, monkeypatch):
+    # SCHOLARDOCX-0178 perf fix: this test only needs to prove the boundary
+    # check works, not that it works specifically at 100. Patching the
+    # constant to a small number keeps the exact same code path (still
+    # `len(existing_rows) >= MAX_LIBRARY_ENTRIES`) while cutting ~100
+    # sequential real-network round trips down to ~3 — the loop count was
+    # making this test (and its two siblings below) by far the slowest in
+    # the suite for no added coverage.
+    monkeypatch.setattr(opp_api, "MAX_LIBRARY_ENTRIES", 3)
+    connection, store = _store(tmp_path)
+    try:
+        for i in range(opp_api.MAX_LIBRARY_ENTRIES):
+            opp_api.upsert_scholarship_opportunity(
+                store,
+                source="hunt",
+                extracted=_minimal_extracted(f"Scholarship {i}"),
+                source_url=f"https://example.org/s{i}",
+            )
+        assert _count_opportunities(connection, _TEST_USER_UUID) == opp_api.MAX_LIBRARY_ENTRIES
+
+        with pytest.raises(opp_api.LibraryFullError):
+            opp_api.upsert_scholarship_opportunity(
+                store,
+                source="hunt",
+                extracted=_minimal_extracted("One Too Many"),
+                source_url="https://example.org/overflow",
+            )
+
+        assert _count_opportunities(connection, _TEST_USER_UUID) == opp_api.MAX_LIBRARY_ENTRIES
+    finally:
+        store.db.close()
+
+
+def test_library_cap_does_not_block_updating_an_already_owned_url(tmp_path, monkeypatch):
+    monkeypatch.setattr(opp_api, "MAX_LIBRARY_ENTRIES", 3)  # see perf note above
+    connection, store = _store(tmp_path)
+    try:
+        for i in range(opp_api.MAX_LIBRARY_ENTRIES):
+            opp_api.upsert_scholarship_opportunity(
+                store,
+                source="hunt",
+                extracted=_minimal_extracted(f"Scholarship {i}"),
+                source_url=f"https://example.org/s{i}",
+            )
+        # Re-saving a URL the user already owns (re-analyzing, or the deep
+        # hunt pipeline re-finding the same page) is never blocked by the cap.
+        updated = opp_api.upsert_scholarship_opportunity(
+            store,
+            source="hunt",
+            extracted=_minimal_extracted("Scholarship 0 Updated"),
+            source_url="https://example.org/s0",
+        )
+        assert updated["canonical_name"] == "Scholarship 0 Updated"
+        assert _count_opportunities(connection, _TEST_USER_UUID) == opp_api.MAX_LIBRARY_ENTRIES
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_analyze_endpoint_returns_409_when_library_full(tmp_path, monkeypatch):
+    monkeypatch.setattr(opp_api, "MAX_LIBRARY_ENTRIES", 3)  # see perf note above
+    connection, store = _store(tmp_path)
+
+    async def fake_extract(ai_service, **kwargs):
+        return _fake_extraction_result(canonical_name="Overflow Scholarship")
+
+    monkeypatch.setattr(opp_api.scholarship_extraction_service, "extract", fake_extract)
+    monkeypatch.setattr(opp_api, "verify_model_permission", lambda *a, **k: None)
+    monkeypatch.setattr(
+        opp_api.ai_tokens, "ensure_can_spend", lambda user, session, min_tokens=1: True
+    )
+    try:
+        for i in range(opp_api.MAX_LIBRARY_ENTRIES):
+            opp_api.upsert_scholarship_opportunity(
+                store,
+                source="hunt",
+                extracted=_minimal_extracted(f"Scholarship {i}"),
+                source_url=f"https://example.org/fill{i}",
+            )
+        with pytest.raises(opp_api.HTTPException) as error:
+            await opp_api.analyze_scholarship_opportunity(
+                opp_api.AnalyzeRequest(source_url="https://example.org/overflow-analyze"),
+                user=MAX_USER,
+                store=store,
+            )
+        assert error.value.status_code == 409
     finally:
         store.db.close()
 

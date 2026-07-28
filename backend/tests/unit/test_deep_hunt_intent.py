@@ -26,6 +26,7 @@ from app.services.deep_hunt_query_planner import (
 )
 from app.services.scholarship_deep_hunt import (
     RELEVANCE_FLOOR,
+    _dedup_key,
     _fallback_queries,
     _is_acceptable,
 )
@@ -125,6 +126,75 @@ def test_relevance_off_topic_score_below_floor():
     # The heuristic's 0.1 off-topic score must fall under RELEVANCE_FLOOR so
     # _is_acceptable rejects it. This is the guarantee that ties the two.
     assert 0.1 < RELEVANCE_FLOOR
+
+
+def test_relevance_heuristic_scores_broad_umbrella_program_below_floor():
+    # SCHOLARDOCX-0177: a field overlap buried in a 5+ field umbrella listing
+    # (e.g. a generic Erasmus Mundus program covering nearly every discipline)
+    # must score under RELEVANCE_FLOOR even though the goal's field
+    # technically appears in the list — it is not the close, field-specific
+    # match a normal overlap signals.
+    f = DeepHuntRelevanceFilter(settings=_no_openrouter_settings())
+    scores = f._heuristic_scores(
+        [
+            _opp(
+                "Erasmus Mundus Joint Master's Scholarship",
+                [
+                    "Engineering and Technology",
+                    "Environmental and Climate Sciences",
+                    "Data Science and Artificial Intelligence",
+                    "Public Policy and International Relations",
+                    "Health and Life Sciences",
+                    "Social Sciences and Humanities",
+                ],
+            )
+        ],
+        field_synonyms=["computer science", "cs", "cse"],
+        degree_level=None,
+    )
+    assert scores == [pytest.approx(0.2)]
+    assert scores[0] < RELEVANCE_FLOOR
+
+
+def test_relevance_heuristic_still_rewards_specific_field_match():
+    # A specific, non-umbrella match keeps its normal high score.
+    f = DeepHuntRelevanceFilter(settings=_no_openrouter_settings())
+    scores = f._heuristic_scores(
+        [_opp("CS Scholarship", ["Computer Science", "Software Engineering"])],
+        field_synonyms=["computer science", "cs", "cse"],
+        degree_level=None,
+    )
+    assert scores[0] > RELEVANCE_FLOOR
+
+
+# --- Canonical-name dedup key (SCHOLARDOCX-0177) ---------------------------
+
+
+def test_dedup_key_collapses_year_and_punctuation_variants():
+    variants = [
+        "Erasmus Mundus Joint Master's Scholarships",
+        "Erasmus Mundus Joint Masters Scholarship",
+        "Erasmus Mundus Joint Master's Scholarship 2026",
+    ]
+    keys = {_dedup_key(name) for name in variants}
+    assert len(keys) == 1
+
+
+def test_dedup_key_collapses_year_range_variants():
+    assert _dedup_key("Erasmus Mundus Scholarship 2026") == _dedup_key(
+        "Erasmus Mundus Scholarship 2026–2027"
+    )
+    assert _dedup_key("Erasmus Mundus Scholarship 2026") == _dedup_key(
+        "Erasmus Mundus Scholarship"
+    )
+
+
+def test_dedup_key_keeps_distinctly_named_programs_separate():
+    # A specifically-named consortium/program is not a punctuation/year
+    # variant of the generic umbrella name and must not collapse into it.
+    generic = _dedup_key("Erasmus Mundus Scholarship 2026")
+    specific = _dedup_key("EDISS Erasmus (EMJM) Scholarship 2026-2028 Batch")
+    assert generic != specific
 
 
 # --- Accept gate: relevance precondition + well-formedness -----------------

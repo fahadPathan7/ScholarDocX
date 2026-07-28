@@ -56,6 +56,10 @@ Also in scope (this delivery):
 - [x] SCHOLARDOCX-0123: Hunt Profile + local fit score (Phase 3)
 - [x] SCHOLARDOCX-0124: Watchlists + deadline radar (Phase 4)
 - [x] SCHOLARDOCX-0125: Deep Hunt runs (Phase 5)
+- [x] SCHOLARDOCX-0173: Deep Hunt intent matching (field-of-study relevance)
+- [x] SCHOLARDOCX-0175: Search v2 restructure (Brave + unified deep search + per-hit billing)
+- [x] SCHOLARDOCX-0176: Catalog static-only restructure + Search autofill fix
+- [x] SCHOLARDOCX-0177: Search result quality — dedup, relevance, sponsor accuracy
 
 All seven stories (Phases 0-5) shipped and were verified end-to-end with
 live, authenticated browser runs against real Tavily search, real AI

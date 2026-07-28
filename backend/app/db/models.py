@@ -370,7 +370,9 @@ class LocalProfiles(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
     avatar: Mapped[Optional[str]] = mapped_column(Text)
     notification_settings: Mapped[Optional[str]] = mapped_column(Text, server_default=text('\'{"project_create": true, "project_delete": true, "project_pin": false, "sheet_create": true, "sheet_delete": true, "sheet_pin": false, "record_create": false, "record_delete": true, "whiteboard_create": false, "whiteboard_delete": true, "sticky_note_create": false, "sticky_note_update": false, "sticky_note_delete": true, "scheduled_email": true, "system": true, "announcements": true, "billing": true, "plans": true}\''))
-    hunt_profile_json: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'{}'"))
+    # SCHOLARDOCX-0178: hunt_profile_json column removed from the ORM model
+    # (Hunt Profile is deleted). The physical Postgres column is left in
+    # place, orphaned, rather than a live DROP COLUMN migration.
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='local_profiles')
 
@@ -1015,8 +1017,8 @@ class ScholarshipDeepHuntRuns(Base):
     goal: Mapped[str] = mapped_column(Text, nullable=False)
     degree_level: Mapped[Optional[str]] = mapped_column(Text)
     destinations_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
-    # SCHOLARDOCX-0173: free-text field of study captured from the Hunt Profile
-    # so the intent planner and relevance filter can match against it. Optional
+    # SCHOLARDOCX-0173: free-text field of study (manual Search-form facet) so
+    # the intent planner and relevance filter can match against it. Optional
     # for legacy rows. Added via ALTER TABLE migration helper (see connection.py).
     fields_of_study: Mapped[Optional[str]] = mapped_column(Text)
     intake_term: Mapped[Optional[str]] = mapped_column(Text)
@@ -1024,6 +1026,10 @@ class ScholarshipDeepHuntRuns(Base):
     current_stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'queued'"))
     progress_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
     result_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    # SCHOLARDOCX-0178: accepted, deduped results live here until the user
+    # explicitly saves one to the Opportunity Library (no more auto-save).
+    # Added via ALTER TABLE migration helper (see connection.py).
+    results_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     error_message: Mapped[Optional[str]] = mapped_column(Text)
     started_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))

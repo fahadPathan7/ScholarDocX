@@ -7,7 +7,54 @@ and academic funding opportunities found across the public web. Results may
 come from official scholarship, university, government, foundation, or article
 pages; they do not need to be newspaper stories.
 
-## Requirements
+## SCHOLARDOCX-0175 v2 restructure (Brave + unified deep search + per-hit billing)
+
+Supersedes the filter-based "Hunt" tab and its query-building flow. The single
+"Search" tab runs the full deep pipeline (plan → search → hard-filter → crawl
+→ extract → relevance-filter → persist) on one natural-language goal.
+
+**Retired FRs** (superseded 2026-07-28 by SCHOLARDOCX-0175):
+- **FR-8.5 / FR-8.7 / FR-8.14 / FR-8.17 / FR-8.21 / FR-8.26 / FR-8.33 / FR-8.45 / FR-8.46**: replace "Tavily" with "search provider" (now Brave for Scholarship Hunt).
+- **FR-8.6**: superseded — quota is no longer consumed on query-preview success; per-hit billing charges on confirmed run, post-search.
+- **FR-8.12**: superseded — a search is no longer one flat-fee provider call; it is a multi-pass deep pipeline billed per raw hit.
+- **FR-8.24 – FR-8.31**: superseded — the filter-based query-preview/review flow is deleted. The single search takes a free-text goal + facets.
+- **FR-8.27**: superseded — Scholarship Hunt is no longer "query-first, no manual filtering". Hard filters (closed/stale/destination/field) and the AI relevance filter now reject off-topic results.
+
+**New FRs (SCHOLARDOCX-0175)**:
+- **FR-8.47 — Unified deep search**: One natural-language goal (+ optional degree/destinations/intake/field facets) runs the full pipeline. There is no separate "basic Hunt"; the deep pipeline is the only search surface.
+- **FR-8.48 — Per-hit billing**: Every raw search result scanned is billed to the user at the admin-configured `brave_call_cost_per_hit_usd` (default $0.015), including sources later filtered out. The run is pre-flighted against the worst-case ceiling (2 passes × 8 = 16 sources ≈ 2,400 credits ≈ $0.24 at default price); insufficient balance → HTTP 402 with a plain-language message.
+- **FR-8.49 — Hard-filter re-enable**: Results that are explicitly closed, stale-cycle, or destination/field mismatches are rejected before extraction (retires FR-8.27).
+- **FR-8.50 — Search transparency**: Pre-submit, the UI shows the cost ceiling ("Up to 80 sources · up to 1,200 credits"). During the run, a live funnel shows "N scanned → M on-target → K opportunities". User-facing copy contains no provider/algorithm jargon.
+
+## SCHOLARDOCX-0177 result quality fix (dedup, relevance, sponsor accuracy)
+
+User-reported bug: a Search run for a specific field (e.g. "emjm scholarships
+for cse background") returned many near-identical generic results (the same
+umbrella program described by several low-signal pages) and at least one
+card with a wrong sponsor/link (a non-DAAD scholarship shown with "DAAD" as
+its sponsor, because DAAD hosts a public database that lists scholarships it
+does not itself fund).
+
+- **FR-8.51 — Canonical-name dedup**: in addition to URL dedup during search,
+  extracted opportunities are grouped by a normalized canonical-name key
+  (year/punctuation/plural-insensitive) before persistence; only the
+  highest-relevance (then most-complete) entry per group is kept. Distinctly
+  named programs are never merged into a generic one.
+- **FR-8.52 — Broad/umbrella program down-ranking**: an opportunity whose
+  stated fields of study span five or more unrelated disciplines with no
+  field named as a specific track/consortium matching the goal is treated as
+  a generic umbrella program, not a field-specific match, and is scored
+  below the relevance floor (raised from 0.3 to 0.4) even when the goal's
+  field is technically among the many listed.
+- **FR-8.53 — Sponsor/link accuracy**: opportunity extraction must not name a
+  hosting/aggregator/directory site as the sponsor, or assume its own URL is
+  the official application page, unless the crawled text explicitly states
+  that organization funds/administers the specific opportunity described.
+- No hard cap was added on result count per run — dedup plus the tightened
+  relevance floor are the only quality gates (explicit product decision:
+  rely on precision, not an arbitrary ceiling).
+
+## Requirements (legacy FR-8.1 – FR-8.31 — see SCHOLARDOCX-0175 banner above for supersessions)
 
 - FR-8.1: Users can run Scholarship Hunt searches using structured academic,
   funding, geography, season, and named-scholarship filters.
@@ -96,12 +143,17 @@ bookmarks.
 
 - FR-8.32: A "Catalog" sub-view lists a curated, code-shipped set of major
   scholarships (levels, destination regions, funding coverage, typical cycle
-  months, official portal URL, blurb) with zero provider calls to browse or
-  filter.
-- FR-8.33: Each catalog entry has a "Check current cycle" action that makes
-  exactly one Tavily basic search scoped to the canonical name and official
-  domain, using the existing `can_use_scholarship_hunt` quota/billing gate
-  (no new quota key for this action).
+  months, official links, blurb, enriched description, tags) with zero
+  provider calls to browse or filter. **SCHOLARDOCX-0176**: split into two
+  sections — "Program & Central Scholarships" and "University-Specific
+  Scholarships" — via a `category` field. Each entry carries 1-N official
+  `links` (label + URL), a `tags` list, and a richer `description`. ~49
+  entries (27 program + 22 university).
+- ~~FR-8.33: Each catalog entry has a "Check current cycle" action...~~
+  **SUPERSEDED (SCHOLARDOCX-0176, 2026-07-28)**: the catalog is now
+  static-only. The paid "Check current cycle" action, its endpoint, the
+  `news_service.search_catalog` wrapper, and the
+  `scholarship_catalog_check_cycle` rate-limit rule are all removed.
 - FR-8.34: Any Scholarship Hunt result card (and any catalog entry after
   "Check current cycle") can be sent to "Analyze": one AI extraction call
   produces a structured opportunity (name, sponsor, degree levels, destination
@@ -129,18 +181,18 @@ bookmarks.
   primary saved-opportunities view. Existing bookmarks (`bookmarked_news`)
   are migrated in additively (not deleted) the first time the Library loads.
 
-## Hunt Profile And Fit Score (FR-8.39+, Phase 3)
+## Hunt Profile And Fit Score (FR-8.39/8.40) — REMOVED (SCHOLARDOCX-0178)
 
-- FR-8.39: Users can maintain one local Hunt Profile (degree level, target
-  destinations, field of study, intake term, and an opt-in nationality)
-  prefilled from an existing project's degree/intake fields when empty.
-  Nationality is off by default; when enabled it is stored locally only and
-  is never sent to any AI or search provider (see security-privacy.md).
-- FR-8.40: When a Hunt Profile is set, analyzed opportunities show a local
-  fit score and "why/why not" chips computed entirely client-side from
-  level, destination, deadline-feasibility, and funding-coverage matches
-  against the profile — no additional provider calls. Cards render
-  unchanged when no profile is set.
+~~FR-8.39: local Hunt Profile (degree, destinations, field, intake, opt-in
+nationality).~~ ~~FR-8.40: client-side fit score + why/why-not chips against
+the profile.~~ **REMOVED 2026-07-28 (SCHOLARDOCX-0178)**: the user judged
+Hunt Profile had no real use — it only gated the Search form behind a setup
+modal and powered a fit score nobody used. The modal, the `hunt_profile_json`
+field, the required-profile gate before running a Search, the "Use Hunt
+Profile" prefill button, and all fit-score UI (badges, match/mismatch chips)
+are deleted. The Search form's degree/destinations/intake/field inputs
+remain — they were always independent manual facets, not derived from Hunt
+Profile.
 
 ## Watchlists And Deadline Radar (FR-8.41+, Phase 4)
 
@@ -158,10 +210,11 @@ bookmarks.
 
 - FR-8.43: A "Deep Hunt" sub-tab lets a user start a run from one free-text
   funding goal (e.g. "fully funded CS PhD funding, EU, Fall 2027") plus
-  optional degree level, destinations, and intake term, prefilled (editable)
-  from the Hunt Profile when set. Available only on plans with
-  `can_use_scholarship_deep_hunt` (Pro/Max by default); ineligible plans see
-  a locked upsell in the sub-tab instead of the launcher form.
+  optional degree level, destinations, and intake term (manual, independent
+  fields — SCHOLARDOCX-0178 removed the former Hunt Profile prefill).
+  Available only on plans with `can_use_scholarship_deep_hunt` (Pro/Max by
+  default); ineligible plans see a locked upsell in the sub-tab instead of
+  the launcher form.
 - FR-8.44: A run persists across page reloads (queued/running/completed/
   failed/cancelled), reports stage progress
   (planning/searching/crawling/extracting), can be cancelled mid-run, and a
@@ -169,14 +222,34 @@ bookmarks.
 - FR-8.45: A run does a bounded multi-pass search (up to 3 passes derived
   from the goal and any set facets), crawls the top unique result pages, and
   runs the same structured extraction used by "Analyze" (FR-8.31-8.36) on
-  each — missing fields stay missing, nothing is invented. Accepted results
-  (a name plus at least one deadline or funding signal) are saved into the
-  Opportunity Library tagged `source: "deep_hunt"` and linked to the run
-  that found them, so they immediately support fit scoring (FR-8.40) and
-  "Add to tracker" (FR-8.37) with no separate UI.
+  each — missing fields stay missing, nothing is invented. Accepted,
+  deduped results are shown in the Search tab (see FR-8.54 — no longer
+  auto-saved).
 - FR-8.46: Deep Hunt is metered like Advisor Atlas, not the plain Hunt tab:
   the plan gate above plus AI-token cost per extraction call. Search calls
   inside a run are not charged a separate Tavily fee.
+
+## Explicit Save + Library Cap (FR-8.54/8.55, SCHOLARDOCX-0178)
+
+- FR-8.54: A completed Search run's accepted results are shown in the
+  Search tab without being persisted. Each result has a "Save to Library"
+  action; only a saved result becomes an Opportunity Library entry (tagged
+  `source: "deep_hunt"`, linked to the run). "Add to tracker" (FR-8.37) is
+  only available from the Library tab, not from unsaved Search results.
+  Re-opening a past run still shows its results (stored on the run itself),
+  with already-saved ones marked as saved.
+- FR-8.55: The Opportunity Library is capped at 100 saved opportunities per
+  user. Saving a 101st entry is rejected with a plain-language message;
+  existing entries are never silently removed to make room. The Admin
+  panel's Info tab ("Save & Storage Caps" section, alongside the Research
+  Expert library and per-paper saved-analysis caps) documents this fixed
+  cap (informational — not an editable role limit).
+- FR-8.56: "Previous Searches" (Deep Hunt runs) is capped at 10 per user.
+  Starting an 11th search deletes the oldest run first (FIFO), before the
+  new run is created. If the deleted run had any results the user had
+  saved to the Library, those saved opportunities are kept — only their
+  link back to the (now-deleted) run is cleared, never the saved record
+  itself.
 
 ## Relevance Behavior
 

@@ -130,6 +130,7 @@ def initialize_database(database_url: str) -> None:
         _add_pending_payment_column(conn)
         _add_signup_method_column(conn)
         _add_scholarship_fields_of_study_columns(conn)
+        _add_deep_hunt_results_column(conn)
         _seed_registration_mode_default(conn)
         _ensure_pgvector_extension(conn)
         _create_vector_index(conn)
@@ -271,6 +272,23 @@ def _add_scholarship_fields_of_study_columns(conn) -> None:
         text(
             "ALTER TABLE scholarship_deep_hunt_runs "
             "ADD COLUMN IF NOT EXISTS fields_of_study TEXT"
+        )
+    )
+
+
+def _add_deep_hunt_results_column(conn) -> None:
+    """Add scholarship_deep_hunt_runs.results_json if missing (SCHOLARDOCX-0178).
+
+    A run's accepted, deduped results now live on the run row until the user
+    explicitly saves one to the Opportunity Library — Deep Hunt no longer
+    auto-upserts into ``scholarship_opportunities``. ``ADD COLUMN IF NOT
+    EXISTS`` makes this safe on every boot; fresh installs get the column
+    from ``create_all`` and this is a no-op.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE scholarship_deep_hunt_runs "
+            "ADD COLUMN IF NOT EXISTS results_json TEXT NOT NULL DEFAULT '[]'"
         )
     )
 

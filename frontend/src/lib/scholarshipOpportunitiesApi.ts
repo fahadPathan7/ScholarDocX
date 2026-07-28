@@ -1,8 +1,16 @@
 import { api, listRecords, updateRecord, deleteRecord } from "./api";
-import { NewsResponse } from "./newsApi";
+
+// SCHOLARDOCX-0176: catalog is static-only. Entries carry category (program |
+// university), multiple official links, tags, and a richer description.
+// The paid "Check current cycle" action and its NewsResponse dependency are removed.
+export interface CatalogLink {
+  label: string;
+  url: string;
+}
 
 export interface CatalogEntry {
   id: string;
+  category: "program" | "university";
   canonical_name: string;
   aliases: string[];
   sponsor: string;
@@ -10,8 +18,10 @@ export interface CatalogEntry {
   destinations: string[];
   funding: { coverage: "full" | "partial"; notes?: string | null };
   cycle_months: string[];
-  portal_url: string;
+  links: CatalogLink[];
+  tags: string[];
   blurb: string;
+  description: string;
   in_library: boolean;
 }
 
@@ -43,17 +53,15 @@ export const getScholarshipCatalog = async (filters?: {
   levels?: string[];
   destinations?: string[];
   funding_coverage?: string[];
+  category?: "program" | "university";
 }): Promise<CatalogEntry[]> => {
   const params = new URLSearchParams();
   (filters?.levels || []).forEach((v) => params.append("levels", v));
   (filters?.destinations || []).forEach((v) => params.append("destinations", v));
   (filters?.funding_coverage || []).forEach((v) => params.append("funding_coverage", v));
+  if (filters?.category) params.append("category", filters.category);
   const qs = params.toString();
   return api.get<CatalogEntry[]>(`/scholarship-catalog${qs ? `?${qs}` : ""}`);
-};
-
-export const checkScholarshipCycle = async (catalogId: string): Promise<NewsResponse> => {
-  return api.post<NewsResponse>(`/scholarship-catalog/${catalogId}/check-cycle`, {});
 };
 
 export const analyzeScholarshipOpportunity = async (payload: {

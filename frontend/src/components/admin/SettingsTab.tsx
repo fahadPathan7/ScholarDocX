@@ -420,6 +420,34 @@ export function SettingsTab() {
             </div>
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
               <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700">Brave Search Cost (USD per result)</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      defaultValue={settings["brave_call_cost_per_hit_usd"] || "0.015"}
+                      id="modal-input-brave_call_cost_per_hit_usd"
+                      className="w-full pl-7 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("modal-input-brave_call_cost_per_hit_usd") as HTMLInputElement;
+                      if (el && el.value) handleUpdate("brave_call_cost_per_hit_usd", el.value);
+                    }}
+                    className="profile-primary-button px-5"
+                  >
+                    Save
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Scholarship Hunt charges this fee per result scanned (before filtering), so the cost scales with how many sources a deep search touches. Default 0.015.
+                </p>
+              </div>
+              <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-700">Tavily Search Cost (USD per search)</label>
                 <div className="flex gap-3">
                   <div className="relative flex-1">
@@ -444,7 +472,7 @@ export function SettingsTab() {
                   </button>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Controls the amount deducted from a user's AI credit balance (converted via credit rate) for each Web Search and Scholarship Hunt API call.
+                  Controls the amount deducted from a user's AI credit balance (converted via credit rate) for each AI Research web search call.
                 </p>
               </div>
             </div>

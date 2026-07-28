@@ -319,6 +319,15 @@ def test_admin_resolve_blocks_without_permission(tmp_path):
             "plan_started_at": None,
             "plan_ends_at": None,
         }
+        # STRICT RULE (SCHOLARDOCX-0178 incident): role_limits is global,
+        # shared, admin-configured state — this suite runs against a real
+        # shared database, so this row must be restored to whatever it held
+        # before this test, not left at the test-forced 0 (this exact test
+        # previously left general_admin.admin_manage_password_resets stuck
+        # at 0 in the live database).
+        before = connection.execute(
+            "SELECT limit_count FROM role_limits WHERE role = 'general_admin' AND feature = 'admin_manage_password_resets'"
+        ).fetchone()["limit_count"]
         connection.execute(
             "UPDATE role_limits SET limit_count = 0 WHERE role = 'general_admin' AND feature = 'admin_manage_password_resets'"
         )
@@ -336,6 +345,12 @@ def test_admin_resolve_blocks_without_permission(tmp_path):
         except HTTPException as exc:
             assert exc.status_code == 403
     finally:
+        connection.execute(
+            "UPDATE role_limits SET limit_count = ? WHERE role = 'general_admin' AND feature = 'admin_manage_password_resets'",
+            (before,),
+        )
+        connection.commit()
+        invalidate_limits_cache()
         store.db.close()
 
 

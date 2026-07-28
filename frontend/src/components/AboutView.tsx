@@ -63,14 +63,18 @@ const flowItems = [
   { icon: BookOpen,      title: "Discover your dream universities" },
   { icon: CalendarCheck, title: "Build a clear plan with deadlines" },
   { icon: FileText,      title: "Keep all your documents organized" },
-  { icon: UserCheck,     title: "Track applications & professor outreach" }
+  { icon: UserCheck,     title: "Track applications & professor outreach" },
+  { icon: Bell,          title: "Get timely deadline & reminder alerts" },
+  { icon: Clock,         title: "Monitor progress across every application" }
 ];
 
 const aiGuideItems = [
-  { icon: Bot,        title: "Fully agentic — just tell Lumi what to do" },
-  { icon: Globe,      title: "Searches the web to power your research" },
-  { icon: FolderPlus, title: "Spins up projects & updates sheet rows" },
-  { icon: Trash2,     title: "Cleans up data on your command" }
+  { icon: Bot,           title: "Fully agentic — just tell Lumi what to do" },
+  { icon: Globe,         title: "Searches the web to power your research" },
+  { icon: FolderPlus,    title: "Spins up projects & updates sheet rows" },
+  { icon: Trash2,        title: "Cleans up data on your command" },
+  { icon: PencilLine,    title: "Drafts SOPs, LORs & outreach emails for you" },
+  { icon: MessageCircle, title: "Remembers context across your whole workspace" }
 ];
 
 export function AboutView() {

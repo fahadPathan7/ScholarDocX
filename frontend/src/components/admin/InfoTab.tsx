@@ -131,6 +131,15 @@ export function InfoTab() {
                 <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Separate from the per-role storage byte quota. Uploading beyond it is rejected until an existing document is removed.</td>
               </tr>
               <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Research History (Advisor Atlas)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    100 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Starting a new search past the cap is rejected until an existing search is removed — no automatic eviction.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
                 <td className="px-4 py-3 font-medium text-slate-800">Previous Searches (Scholarship Hunt)</td>
                 <td className="px-4 py-3">
                   <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">

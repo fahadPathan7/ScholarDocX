@@ -58,6 +58,8 @@ def create_app() -> FastAPI:
     app.include_router(internal_router, prefix="/api")
     from app.api.research_reader import router as research_reader_router
     app.include_router(research_reader_router, prefix="/api")
+    from app.api.calendar import router as calendar_router
+    app.include_router(calendar_router, prefix="/api")
     return app
 
 

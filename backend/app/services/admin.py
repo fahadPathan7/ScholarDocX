@@ -1105,22 +1105,48 @@ class AdminService:
             """,
             (key, value)
         )
-        # SCHOLARDOCX-0140: when a plan_ai_credits_* setting changes, force every
-        # user on that tier to re-seed their monthly balance so the new allowance
-        # applies immediately (mirrors the old update_role_limit FORCE_RESET).
+        # SCHOLARDOCX-0184: when a plan_ai_credits_* setting changes, adjust
+        # every affected user's grant for the CURRENT cycle in place — do NOT
+        # wipe usage already accrued (that was the SCHOLARDOCX-0140 behavior,
+        # via subscription_period = 'FORCE_RESET', which made refresh_balance()
+        # treat this identically to a genuine month-boundary rollover: full
+        # reset, usage back to 0). That is wrong for a live pricing edit:
+        # - Lowering the cap below what a user already used must block further
+        #   spend immediately, not hand them a fresh full pool at the new
+        #   (lower) amount.
+        # - Raising the cap must only grant the additional headroom above what
+        #   they already used, not reset usage to 0 and hand out a full fresh
+        #   allowance on top of what they already spent — that is free credits
+        #   the business eats the real API cost for.
+        # subscription_period is intentionally left untouched: this is not a
+        # new billing period, so the user's natural reset schedule
+        # (plan_started_at-based) is unaffected. Role/tier CHANGES for a
+        # specific user (upgrade/downgrade, admin role edit) are a different
+        # event — those still use the old full-reset FORCE_RESET path
+        # elsewhere in this file, which is correct there (a plan change is
+        # reasonably a fresh start for that user).
         tier = _CREDIT_SETTING_TO_ROLE.get(key)
         if tier:
-            self.connection.execute(
-                """
-                UPDATE ai_token_balances
-                SET subscription_period = 'FORCE_RESET'
-                WHERE user_id IN (
-                    SELECT id FROM users
-                    WHERE roles ILIKE ?
+            try:
+                new_allowance = int(value)
+            except (TypeError, ValueError):
+                new_allowance = None
+            if new_allowance is not None and new_allowance >= 0:
+                self.connection.execute(
+                    """
+                    UPDATE ai_token_balances
+                    SET subscription_remaining = GREATEST(
+                            0,
+                            ? - GREATEST(0, subscription_granted - subscription_remaining)
+                        ),
+                        subscription_granted = ?
+                    WHERE user_id IN (
+                        SELECT id FROM users
+                        WHERE roles ILIKE ?
+                    )
+                    """,
+                    (new_allowance, new_allowance, f'%"{tier}"%'),
                 )
-                """,
-                (f'%"{tier}"%',),
-            )
         self.connection.commit()
         self.log_audit_action(admin_id, "update_app_setting", "app_settings", key, {"new_value": value})
         return {"status": "success", "message": f"Setting {key} updated successfully."}

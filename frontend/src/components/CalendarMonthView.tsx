@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Pencil, Plus, Trash2 } from "lucide-react";
 import { RecordMap } from "../lib/api";
 import "./calendar.css";
 
@@ -9,11 +9,18 @@ type CalendarMonthViewProps = {
   focusDate?: string | null;
   scopeLabel?: string;
   onEventClick?: (event: RecordMap) => void;
+  /** SCHOLARDOCX-0185: when provided, shows an "Add Reminder" button in the
+   *  side panel, pre-filled with whichever date is currently selected. */
+  onAddReminder?: (dateKey: string) => void;
+  /** Edit/delete affordances shown only on manual reminders (event.type ===
+   *  "manual-reminder") — sheet-row dates have neither. */
+  onEditReminder?: (event: RecordMap) => void;
+  onDeleteReminder?: (event: RecordMap) => void;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function CalendarMonthView({ events, empty, focusDate, scopeLabel, onEventClick }: CalendarMonthViewProps) {
+export function CalendarMonthView({ events, empty, focusDate, scopeLabel, onEventClick, onAddReminder, onEditReminder, onDeleteReminder }: CalendarMonthViewProps) {
   const today = startOfDay(new Date());
   const focusedDate = parseCalendarDate(focusDate) || today;
   const [year, setYear] = useMonthState(focusedDate.getFullYear(), focusedDate.getMonth());
@@ -85,21 +92,59 @@ export function CalendarMonthView({ events, empty, focusDate, scopeLabel, onEven
             <strong>{formatDay(selectedDate)}</strong>
             <span>{selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"}</span>
           </div>
+          {onAddReminder && (
+            <button
+              className="icon-button calendar-add-reminder"
+              type="button"
+              onClick={() => onAddReminder(selectedDate)}
+              title="Add reminder for this day"
+            >
+              <Plus size={16} />
+            </button>
+          )}
         </div>
         {selectedEvents.length ? (
           <div className="calendar-event-list">
-            {selectedEvents.map((event, index) => (
-              <button
-                className="calendar-event"
-                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
-                type="button"
-                onClick={() => onEventClick?.(event)}
-              >
-                <strong>{event.title || "Untitled row"}</strong>
-                <span>{event.date_field || "Date"} · {event.source || event.project_name || "Sheet"}</span>
-                {event.project_name ? <small>{event.project_name}</small> : null}
-              </button>
-            ))}
+            {selectedEvents.map((event, index) => {
+              const isManual = event.type === "manual-reminder";
+              return (
+                <div className="calendar-event-row" key={`${event.id ?? `${event.page_id}-${event.row_index}-${event.date_field}`}-${index}`}>
+                  <button
+                    className="calendar-event"
+                    type="button"
+                    onClick={() => onEventClick?.(event)}
+                  >
+                    <strong>{event.title || "Untitled row"}</strong>
+                    <span>{event.date_field || "Date"} · {event.source || event.project_name || "Sheet"}</span>
+                    {event.project_name ? <small>{event.project_name}</small> : null}
+                  </button>
+                  {isManual && (onEditReminder || onDeleteReminder) && (
+                    <div className="calendar-event-actions">
+                      {onEditReminder && (
+                        <button
+                          className="icon-button"
+                          type="button"
+                          onClick={() => onEditReminder(event)}
+                          title="Edit reminder"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                      {onDeleteReminder && (
+                        <button
+                          className="icon-button calendar-event-delete"
+                          type="button"
+                          onClick={() => onDeleteReminder(event)}
+                          title="Delete reminder"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="empty">{events.length ? "No row dates on this day." : empty}</p>

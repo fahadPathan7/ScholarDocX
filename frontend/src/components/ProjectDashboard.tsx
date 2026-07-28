@@ -2,17 +2,24 @@ import { useState } from "react";
 import { CalendarDays, X } from "lucide-react";
 import { Section } from "./Section";
 import { CalendarMonthView } from "./CalendarMonthView";
+import { AddReminderModal } from "./AddReminderModal";
 import { RecordMap } from "../lib/api";
 
 export function ProjectDashboard({
   summary,
-  onEventClick
+  projectId,
+  onEventClick,
+  onReminderChanged
 }: {
   summary: RecordMap | null;
+  projectId: string;
   onEventClick: (event: RecordMap) => void;
+  onReminderChanged: () => void | Promise<void>;
 }) {
   const calendarItems = summary?.calendar_items || [];
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isAddReminderOpen, setIsAddReminderOpen] = useState(false);
+  const [reminderDate, setReminderDate] = useState<string | null>(null);
   const upcomingItems = upcomingProjectItems(calendarItems);
   const nextItem = upcomingItems[0];
 
@@ -36,6 +43,15 @@ export function ProjectDashboard({
         </button>
       </Section>
 
+      {isAddReminderOpen && (
+        <AddReminderModal
+          projectId={projectId}
+          initialDate={reminderDate}
+          onClose={() => setIsAddReminderOpen(false)}
+          onCreated={() => onReminderChanged()}
+        />
+      )}
+
       {isCalendarOpen ? (
         <div className="modal-backdrop modal-backdrop-main" onClick={() => setIsCalendarOpen(false)}>
           <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
@@ -54,6 +70,10 @@ export function ProjectDashboard({
                 onEventClick={(event) => {
                   setIsCalendarOpen(false);
                   onEventClick(event);
+                }}
+                onAddReminder={(dateKey) => {
+                  setReminderDate(dateKey);
+                  setIsAddReminderOpen(true);
                 }}
               />
             </div>

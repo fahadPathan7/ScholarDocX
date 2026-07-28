@@ -277,6 +277,13 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   candidates carry `"screened"`. A single candidate's deep-research failure
   must not fail the run, and cancellation must still stop the run between
   candidates in both phases.
+- FR-9.60: Research history (stored discovery runs) is capped at 100 per
+  user, independent of plan — not admin-configurable, matching the fixed cap
+  pattern used elsewhere (Documents, research paper library). Starting a new
+  search while at the cap is rejected outright (backend 409) with a message
+  telling the user to delete an existing search first; there is no automatic
+  eviction of the oldest run. The user must use the existing per-run delete
+  action to free up a slot.
 
 ## Discovery Funnel
 

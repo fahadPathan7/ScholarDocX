@@ -122,6 +122,11 @@
   gap: 2px;
 }
 
+.calendar-add-reminder {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .calendar-event-list {
   display: grid;
   gap: 8px;
@@ -144,6 +149,29 @@
 
 .calendar-event:hover {
   border-color: #2f6d7a;
+}
+
+/* SCHOLARDOCX-0185: edit/delete affordances for manual reminders only. */
+.calendar-event-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.calendar-event-row .calendar-event {
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-event-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.calendar-event-delete {
+  color: #9a3b3b;
 }
 
 .project-calendar-summary {

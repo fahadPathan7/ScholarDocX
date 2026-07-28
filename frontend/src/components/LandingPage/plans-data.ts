@@ -135,6 +135,7 @@ export const LANDING_FEATURES: PlanFeature[] = [
   { key: "can_use_agents", label: "AI Agents Usage", boolean: true },
   { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", boolean: true },
   { key: "can_use_advisor_atlas", label: "Advisor Atlas", boolean: true },
+  { key: "can_use_research_reader", label: "Research Expert", boolean: true },
 ];
 
 /**

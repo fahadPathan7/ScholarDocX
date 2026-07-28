@@ -1067,6 +1067,7 @@ class AiTokenBalances(Base):
 
     user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), primary_key=True)
     subscription_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    subscription_granted: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     subscription_period: Mapped[Optional[str]] = mapped_column(Text)
     purchased_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     purchased_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
@@ -1128,6 +1129,12 @@ class AiTokenPurchaseRequests(Base):
     reviewed_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[Optional[str]] = mapped_column(String(36))
     admin_notes: Mapped[Optional[str]] = mapped_column(Text)
+    # Snapshot of the pack's terms at request time (SCHOLARDOCX-0184) — unlike
+    # the monthly subscription allowance, a purchase is a one-time transaction
+    # the user agreed to at a specific price; a later pack price/amount edit
+    # must not change what a pending request grants on approval.
+    token_amount: Mapped[Optional[int]] = mapped_column(Integer)
+    price_usd: Mapped[Optional[float]] = mapped_column(Float)
 
 
 class ResearchPapers(Base):

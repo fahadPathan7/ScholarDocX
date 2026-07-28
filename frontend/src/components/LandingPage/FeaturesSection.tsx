@@ -6,6 +6,8 @@ import {
   Mail,
   FileText,
   Lock,
+  Compass,
+  Microscope,
   type LucideProps,
 } from "lucide-react";
 import { useReveal } from "./useReveal";
@@ -32,6 +34,16 @@ const FEATURES: Feature[] = [
     Icon: Sparkles,
     title: "Contextual AI Assistant",
     body: "Draft outreach emails, summarize research, and refine statements with an AI assistant built for academics.",
+  },
+  {
+    Icon: Compass,
+    title: "Advisor Atlas",
+    body: "Discover and vet prospective advisors with AI-driven research-fit scoring, verified contact details, and recruiting signals.",
+  },
+  {
+    Icon: Microscope,
+    title: "Research Expert",
+    body: "Upload any paper for AI-assisted deep analysis — summaries, critiques, and predefined analytical prompts that sharpen your research proposals.",
   },
   {
     Icon: Mail,

@@ -56,6 +56,14 @@ def get_balance(
 
     `subscription_remaining` / `monthly_allowance` are -1 for unlimited
     (super_admin) users. Refreshes the subscription bucket at month boundaries.
+
+    `subscription_used` is computed from `subscription_granted` (the amount
+    actually granted at the user's last reset), not from the live
+    `monthly_allowance` — those two only ever change together in
+    `refresh_balance`. Comparing `subscription_remaining` against a
+    freshly-fetched `monthly_allowance` instead would go wrong the instant an
+    admin edits Plan Pricing mid-cycle, before the user's own next reset
+    (SCHOLARDOCX-0184).
     """
     session = store.db
     balance = ai_tokens.refresh_balance(current_user, session)
@@ -63,7 +71,7 @@ def get_balance(
     unlimited = ai_tokens.is_unlimited(current_user)
     return {
         "subscription_remaining": -1 if unlimited else int(balance["subscription_remaining"]),
-        "subscription_used": 0 if unlimited else max(0, allowance - int(balance["subscription_remaining"])),
+        "subscription_used": 0 if unlimited else max(0, int(balance["subscription_granted"]) - int(balance["subscription_remaining"])),
         "purchased_remaining": int(balance["purchased_remaining"]),
         "purchased_total": int(balance.get("purchased_total", 0)),
         "subscription_period": balance["subscription_period"],

@@ -1044,11 +1044,13 @@ export function ProjectWorkspace({
 
       <ProjectDashboard
         summary={summary}
+        projectId={selectedProjectId}
         onEventClick={(event) => {
           setSelectedSheetId(String(event.sheet_id || ""));
           setSelectedPageId(String(event.page_id || ""));
           setFocusedRowIndex(typeof event.row_index === "number" ? event.row_index : Number(event.row_index));
         }}
+        onReminderChanged={() => refreshSummary()}
       />
 
       <Section

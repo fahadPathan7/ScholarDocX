@@ -31,6 +31,12 @@ type Props = {
   refreshTrigger?: number;
 };
 
+// SCHOLARDOCX-0186: fixed research-history cap, mirrors the backend's
+// MAX_ADVISOR_ATLAS_RUNS constant (app/api/advisor_atlas.py). Not admin-
+// configurable, so hardcoded here rather than fetched — same pattern the
+// admin Info tab already uses for the other fixed per-user caps.
+const MAX_HISTORY = 100;
+
 export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const { showConfirm } = useDialog();
   const { refreshUsage } = useUsage();
@@ -222,6 +228,9 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                   <History size={17} />
                   <span>Research history</span>
+                  <span className={`atlas-history-count${runs.length >= MAX_HISTORY ? " full" : ""}`}>
+                    {runs.length}/{MAX_HISTORY}
+                  </span>
                 </div>
                 <button 
                   type="button" 

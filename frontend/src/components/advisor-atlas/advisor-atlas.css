@@ -249,6 +249,21 @@
   border-bottom: 1px solid rgba(34, 94, 91, 0.09);
 }
 
+.atlas-history-count {
+  margin-left: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #5b7a76;
+  background: rgba(34, 94, 91, 0.08);
+}
+
+.atlas-history-count.full {
+  color: #b3261e;
+  background: rgba(179, 38, 30, 0.1);
+}
+
 .atlas-shell.sidebar-collapsed .atlas-history-title {
   padding: 0;
   justify-content: center;

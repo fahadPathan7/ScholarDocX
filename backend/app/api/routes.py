@@ -381,6 +381,7 @@ for table_name in (
     "ai_conversations",
     "research_notes",
     "whiteboards",
+    "calendar_reminders",
 ):
     _crud_routes(table_name)
 

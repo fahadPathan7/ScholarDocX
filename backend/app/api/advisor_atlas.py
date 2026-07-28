@@ -20,6 +20,14 @@ from app.services.store import Store
 
 router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
 
+# SCHOLARDOCX-0186: fixed cap on stored Advisor Atlas runs (research history)
+# per user, independent of plan/role limits — matches the existing static cap
+# pattern used for Documents (MAX_DOCUMENTS_PER_USER) and research papers
+# (max_research_papers_library). Not admin-configurable. Once at the cap, a
+# user must delete an existing run before starting a new one — there is no
+# silent eviction of old runs.
+MAX_ADVISOR_ATLAS_RUNS = 100
+
 
 class ResearchProfile(BaseModel):
     interests: list[str] = Field(default_factory=list, max_length=5)
@@ -160,6 +168,16 @@ async def create_run(
     # Advisor Atlas is a plan-gated feature (Pro/Max). Check before any token
     # spend so ineligible plans get a clear upgrade message.
     _require_advisor_atlas_access(user, store.db)
+    # SCHOLARDOCX-0186: fixed history cap, independent of plan. No silent
+    # eviction of old runs — the user must delete one first.
+    if service.repository.count_runs(str(user["id"])) >= MAX_ADVISOR_ATLAS_RUNS:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"You've reached the {MAX_ADVISOR_ATLAS_RUNS}-search history limit for Advisor Atlas. "
+                "Delete an existing search from your history before starting a new one."
+            ),
+        )
     # Advisor Atlas runs are metered by the central AI-token balance, not by a
     # monthly search count. Pre-flight check here; the background task charges
     # the actual usage per AI call.

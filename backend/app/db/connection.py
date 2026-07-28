@@ -15,6 +15,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.schema import SEED_SQL
 from app.db.models import Base
+# SCHOLARDOCX-0185: new tables live outside models.py (already past the
+# 1150-line file-size hard cap) but register on the same Base — importing
+# here (before create_all() runs below) is what makes that registration take
+# effect.
+from app.db import calendar_models  # noqa: F401
 
 
 def _resolve_database_url(database_url: str) -> str:
@@ -131,6 +136,8 @@ def initialize_database(database_url: str) -> None:
         _add_signup_method_column(conn)
         _add_scholarship_fields_of_study_columns(conn)
         _add_deep_hunt_results_column(conn)
+        _add_subscription_granted_column(conn)
+        _add_purchase_request_price_snapshot_columns(conn)
         _seed_registration_mode_default(conn)
         _ensure_pgvector_extension(conn)
         _create_vector_index(conn)
@@ -289,6 +296,85 @@ def _add_deep_hunt_results_column(conn) -> None:
         text(
             "ALTER TABLE scholarship_deep_hunt_runs "
             "ADD COLUMN IF NOT EXISTS results_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    )
+
+
+def _add_subscription_granted_column(conn) -> None:
+    """Add ai_token_balances.subscription_granted if missing (SCHOLARDOCX-0184).
+
+    ``subscription_used`` was previously computed in the API layer as
+    ``get_role_monthly_allowance(user) - subscription_remaining`` — mixing a
+    value that changes the instant an admin edits Plan Pricing (the live
+    allowance) with one that only changes at the user's own period boundary
+    (``subscription_remaining``). Whenever an admin corrected a monthly credit
+    value mid-cycle, every existing user's "used this month" figure went
+    nonsensical until their own next reset (observed live: a corrected
+    plan_ai_credits_max of 70000 combined with a stale request computed
+    against the old 1000000 to display "930,004 / 1,000,000 used").
+
+    ``subscription_granted`` freezes the amount actually granted at the last
+    reset, so "used" is computed from two values that only ever change
+    together (see ``refresh_balance``), immune to later Plan Pricing edits.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the column from ``create_all`` and this is a no-op. The backfill sets
+    every pre-migration row's granted amount equal to its current remaining
+    balance (a one-time "used so far this cycle = 0" approximation — the only
+    option available since there is no historical per-period grant amount to
+    recover). This is corrected precisely at each user's very next reset.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_balances "
+            "ADD COLUMN IF NOT EXISTS subscription_granted INTEGER NOT NULL DEFAULT 0"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE ai_token_balances SET subscription_granted = subscription_remaining "
+            "WHERE subscription_granted = 0 AND subscription_remaining > 0"
+        )
+    )
+
+
+def _add_purchase_request_price_snapshot_columns(conn) -> None:
+    """Add ai_token_purchase_requests.token_amount/price_usd if missing (SCHOLARDOCX-0184).
+
+    Every read of a purchase request (submit, list, and — critically —
+    resolve/approve) joined live to ``ai_token_packs`` for ``token_amount``/
+    ``price_usd``, so a pack price/amount edit made *after* a user submitted a
+    request but *before* an admin approved it would silently change what got
+    granted, to whatever the pack now says instead of what the user actually
+    agreed to. Unlike the monthly subscription allowance (which SHOULD apply
+    to everyone immediately, see ``_add_subscription_granted_column``), a pack
+    purchase is a one-time transaction at a specific price — it must freeze at
+    request time and stay fixed regardless of later catalog edits.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the columns from ``create_all`` and this is a no-op. Backfills existing
+    rows (pending or historical) from the pack's current catalog values — the
+    best available approximation, since no per-request snapshot existed before
+    this migration. New requests snapshot at submission time going forward.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_purchase_requests "
+            "ADD COLUMN IF NOT EXISTS token_amount INTEGER"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_purchase_requests "
+            "ADD COLUMN IF NOT EXISTS price_usd DOUBLE PRECISION"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE ai_token_purchase_requests r SET "
+            "token_amount = p.token_amount, price_usd = p.price_usd "
+            "FROM ai_token_packs p "
+            "WHERE r.pack_id = p.id AND r.token_amount IS NULL"
         )
     )
 

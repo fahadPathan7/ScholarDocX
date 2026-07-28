@@ -78,6 +78,14 @@ class AdvisorAtlasRepository:
             db.commit()
             return self.get_run(str(cursor.lastrowid), user_id)
 
+    def count_runs(self, user_id: str) -> int:
+        with legacy_session(self.database_url) as db:
+            row = db.execute(
+                "SELECT COUNT(*) AS n FROM advisor_atlas_runs WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            return int(row["n"]) if row else 0
+
     def list_runs(self, user_id: str) -> list[dict[str, Any]]:
         with legacy_session(self.database_url) as db:
             rows = db.execute(

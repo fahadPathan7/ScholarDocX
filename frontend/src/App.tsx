@@ -1,7 +1,6 @@
 import { FormEvent, MouseEvent, ReactNode, useEffect, useState, Fragment } from "react";
 import {
   Bell,
-  CalendarDays,
   CheckCircle2,
   Crown,
   FileText,
@@ -65,6 +64,7 @@ import { FloatingAssistant } from "./components/FloatingAssistant";
 import { FloatingNotifications } from "./components/FloatingNotifications";
 
 import { AboutView } from "./components/AboutView";
+import { DashboardView } from "./components/DashboardView";
 import { AiTokenUsageButton } from "./components/AiTokenUsageButton";
 import { ProfileView } from "./components/ProfileView";
 import { AdminView } from "./components/AdminView";
@@ -78,7 +78,6 @@ import { WhiteboardView } from "./components/WhiteboardView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
 import { ResearchExpertView } from "./components/ResearchExpertView";
-import { CalendarMonthView } from "./components/CalendarMonthView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
@@ -92,8 +91,14 @@ import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from
 import { getToken, decodeToken } from "./lib/auth";
 import "./components/splash-screen.css";
 
-type Dashboard = {
+export type FeatureLibraryCount = { label: string; count: number; max: number | null };
+
+export type Dashboard = {
   counts: Record<string, number>;
+  // SCHOLARDOCX-0187: per-feature library counts + fixed/role caps (Advisor
+  // Atlas history, Scholarship Hunt Opportunity Library + Previous Searches,
+  // Research Expert library) for the Workspace Snapshot section.
+  feature_libraries: Record<string, FeatureLibraryCount>;
   status_counts: { status: string; count: number }[];
   upcoming_deadlines: RecordMap[];
   reminders: RecordMap[];
@@ -108,6 +113,7 @@ type Dashboard = {
 
 const emptyDashboard: Dashboard = {
   counts: {},
+  feature_libraries: {},
   status_counts: [],
   upcoming_deadlines: [],
   reminders: [],
@@ -188,6 +194,15 @@ export function App() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // SCHOLARDOCX-0185: re-fetch just the dashboard summary (calendar items,
+  // reminders, counts) without touching activeTab/refreshTrigger — used
+  // after adding/toggling/deleting a manual reminder or checkbox from
+  // DashboardView, regardless of which tab happens to be active.
+  const reloadDashboard = async () => {
+    const summary = await api.get<Dashboard>("/dashboard/summary");
+    setDashboard(summary);
   };
 
   // Context-aware refresh - only refreshes the active tab
@@ -584,6 +599,7 @@ export function App() {
               notificationCount={notifications.filter((item) => !item.read_at).length}
               onCalendarEventClick={navigateToCalendarEvent}
               onProjectClick={navigateToProject}
+              onRefreshDashboard={reloadDashboard}
             />
           </div>
 
@@ -677,265 +693,6 @@ export function App() {
       {toast ? <div className="toast-message">{toast}</div> : null}
     </div>
   );
-}
-
-function DashboardView({
-  dashboard,
-  notificationCount,
-  onCalendarEventClick,
-  onProjectClick
-}: {
-  dashboard: Dashboard;
-  notificationCount: number;
-  onCalendarEventClick: (event: RecordMap) => void;
-  onProjectClick?: (projectId: string) => void;
-}) {
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const cards = [
-    ["Projects", dashboard.counts.projects ?? 0],
-    ["Sheets", dashboard.counts.project_sheets ?? 0],
-    ["Documents", dashboard.counts.documents ?? 0],
-    ["Sticky notes", dashboard.counts.sticky_notes ?? 0],
-    ["White boards", dashboard.counts.whiteboards ?? 0],
-    ["Calendar dates", futureCalendarCount(dashboard.calendar_items || [])]
-  ];
-  // SCHOLARDOCX-0176: split into Today and Next 10 Days (tomorrow → +10).
-  const todaysEvents = todayEvents(dashboard.calendar_items || []);
-  const followingEvents = upcomingEventsExcludingToday(dashboard.calendar_items || [], 10);
-  const nextCalendarEvent = nextFeaturedEvent(dashboard.calendar_items || []);
-  const pinnedProjects = dashboard.pinned_projects || [];
-  const pinnedSheets = dashboard.pinned_sheets || [];
-  const pinnedDocs = dashboard.pinned_docs || [];
-
-  return (
-    <div className="page-grid dashboard-grid">
-      <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
-        <div className="metric-grid">
-          {cards.map(([label, value]) => (
-            <article className="metric-card" key={label}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </article>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Project Calendar" eyebrow="Upcoming row dates" className="dashboard-calendar">
-        <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
-          <CalendarDays size={22} />
-          <div>
-            <strong>{futureCalendarCount(dashboard.calendar_items || [])}</strong>
-            <span>upcoming row date{futureCalendarCount(dashboard.calendar_items || []) === 1 ? "" : "s"}</span>
-          </div>
-          <small>
-            {nextCalendarEvent
-              ? `Next: ${formatShortDate(nextCalendarEvent.date_key || nextCalendarEvent.date)} · ${nextCalendarEvent.title || "Untitled row"}`
-              : "Open full calendar"}
-          </small>
-        </button>
-
-        {isCalendarOpen ? (
-          <div className="modal-backdrop" onClick={() => setIsCalendarOpen(false)}>
-            <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Project Calendar</h2>
-                <button className="icon-button" type="button" onClick={() => setIsCalendarOpen(false)} title="Close calendar">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content">
-                <CalendarMonthView
-                  events={dashboard.calendar_items || []}
-                  empty="Add dates in project sheet rows to build the central calendar."
-                  focusDate={nextCalendarEvent?.date_key || nextCalendarEvent?.date || null}
-                  scopeLabel="All projects"
-                  onEventClick={(event) => {
-                    setIsCalendarOpen(false);
-                    onCalendarEventClick(event);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Section>
-
-      {/* formatDegreeType helper ensures 'phd' is properly capitalized */}
-      <Section title="Pinned Projects" eyebrow="Dashboard" className="dashboard-pinned-projects">
-        <List
-          items={pinnedProjects}
-          empty="Pin projects to dashboard."
-          onClick={(item) => onProjectClick?.(item.id)}
-          render={(item) => (
-            <>
-              <FolderOpen size={16} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-
-      <Section title="Today" eyebrow="Row dates due today" className="dashboard-today">
-        {todaysEvents.length ? (
-          <div className="upcoming-event-list">
-            {todaysEvents.map((event, index) => (
-              <button
-                className="upcoming-event"
-                key={`today-${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
-                type="button"
-                onClick={() => onCalendarEventClick(event)}
-              >
-                <span>{formatShortDate(event.date_key || event.date)}</span>
-                <div>
-                  <strong>{event.title || "Untitled row"}</strong>
-                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="empty">Nothing due today.</p>
-        )}
-      </Section>
-
-      <Section title="Next 10 Days" eyebrow="From tomorrow onward" className="dashboard-upcoming">
-        {followingEvents.length ? (
-          <div className="upcoming-event-list">
-            {followingEvents.map((event, index) => (
-              <button
-                className="upcoming-event"
-                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
-                type="button"
-                onClick={() => onCalendarEventClick(event)}
-              >
-                <span>{formatShortDate(event.date_key || event.date)}</span>
-                <div>
-                  <strong>{event.title || "Untitled row"}</strong>
-                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="empty">No row dates in the next 10 days.</p>
-        )}
-      </Section>
-
-      <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
-        <List
-          items={pinnedSheets}
-          empty="Pin sheets to dashboard."
-          onClick={(item) => onCalendarEventClick({ project_id: item.project_id, sheet_id: item.sheet_id, page_id: item.id })}
-          render={(item) => (
-            <>
-              <FileText size={16} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.project_name || "Project"} · Created {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-
-      <Section title="Pinned Docs" eyebrow="Dashboard" className="dashboard-pinned-docs">
-        <List
-          items={pinnedDocs}
-          empty="Pin docs to dashboard."
-          onClick={(item) => {
-            const token = getToken();
-            const url = `${API_BASE}/files/${item.id}/content${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-            window.open(url, "_blank", "noopener,noreferrer");
-          }}
-          render={(item) => (
-            <>
-              <FileText size={16} />
-              <div>
-                <strong>{item.display_name}</strong>
-                <span>{item.file_type || "Document"} · {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-    </div>
-  );
-}
-
-function futureCalendarCount(events: RecordMap[]) {
-  const today = startOfLocalDay(new Date());
-  return events.filter((event) => {
-    const date = parseLocalDate(event.date_key || event.date);
-    return date ? date >= today : false;
-  }).length;
-}
-
-function nextFeaturedEvent(events: RecordMap[]) {
-  const today = startOfLocalDay(new Date());
-  return [...events]
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date >= today : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    })[0];
-}
-
-function upcomingEvents(events: RecordMap[], dayWindow: number) {
-  const today = startOfLocalDay(new Date());
-  const end = new Date(today);
-  end.setDate(today.getDate() + dayWindow);
-  return events
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date >= today && date <= end : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    });
-}
-
-// SCHOLARDOCX-0176: split the dashboard "Next 10 Days" into two sections —
-// events dated today, and events from tomorrow through +10 days.
-function todayEvents(events: RecordMap[]) {
-  const today = startOfLocalDay(new Date());
-  return events
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date.getTime() === today.getTime() : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    });
-}
-
-// Events from tomorrow (exclusive of today) through dayWindow days ahead.
-function upcomingEventsExcludingToday(events: RecordMap[], dayWindow: number) {
-  const today = startOfLocalDay(new Date());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const end = new Date(today);
-  end.setDate(today.getDate() + dayWindow);
-  return events
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date >= tomorrow && date <= end : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    });
 }
 
 function HierarchyView(props: {
@@ -1694,25 +1451,6 @@ function DataForm({
         Save
       </button>
     </form>
-  );
-}
-
-function List({ items, empty, onClick, render }: { items: RecordMap[]; empty: string; onClick?: (item: RecordMap) => void; render: (item: RecordMap) => ReactNode }) {
-  if (!items.length) {
-    return <p className="empty">{empty}</p>;
-  }
-  return (
-    <div className="list">
-      {items.map((item) => (
-        <article
-          key={item.id}
-          onClick={onClick ? () => onClick(item) : undefined}
-          style={onClick ? { cursor: 'pointer' } : undefined}
-        >
-          {render(item)}
-        </article>
-      ))}
-    </div>
   );
 }
 

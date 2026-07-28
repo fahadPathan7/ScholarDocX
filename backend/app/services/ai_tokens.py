@@ -307,10 +307,10 @@ def refresh_balance(user: dict, session: Session) -> dict:
         session.execute(
             text(
                 "INSERT INTO ai_token_balances "
-                "(user_id, subscription_remaining, subscription_period, "
-                "purchased_remaining, last_reset_at, total_spent_tokens, "
-                "total_spent_usd) VALUES (:uid, :sub, :period, 0, "
-                "CURRENT_TIMESTAMP, 0, 0)"
+                "(user_id, subscription_remaining, subscription_granted, "
+                "subscription_period, purchased_remaining, last_reset_at, "
+                "total_spent_tokens, total_spent_usd) VALUES (:uid, :sub, "
+                ":sub, :period, 0, CURRENT_TIMESTAMP, 0, 0)"
             ),
             {"uid": uid, "sub": sub, "period": current_period},
         )
@@ -327,6 +327,7 @@ def refresh_balance(user: dict, session: Session) -> dict:
         session.execute(
             text(
                 "UPDATE ai_token_balances SET subscription_remaining = :sub, "
+                "subscription_granted = :sub, "
                 "subscription_period = :period, "
                 "last_reset_at = CURRENT_TIMESTAMP "
                 "WHERE user_id = :uid"
@@ -823,7 +824,11 @@ def _request_select(alias_user: bool = False) -> str:
         "r.reviewed_at, r.reviewed_by, r.admin_notes, "
         + user_cols
         + "p.code AS pack_code, p.display_name AS pack_name, "
-        "p.token_amount, p.price_usd "
+        # Snapshotted at submission time (SCHOLARDOCX-0184) — NOT p.token_amount/
+        # p.price_usd. A pack purchase is a one-time deal at a specific price;
+        # unlike the monthly plan allowance, it must not float with later
+        # catalog edits while a request is still pending review.
+        "r.token_amount, r.price_usd "
         "FROM ai_token_purchase_requests r "
         + ("LEFT JOIN users u ON u.id = r.user_id " if alias_user else "")
         + "LEFT JOIN ai_token_packs p ON p.id = r.pack_id"
@@ -857,11 +862,17 @@ def submit_purchase_request(
     cur = session.execute(
         text(
             "INSERT INTO ai_token_purchase_requests "
-            "(user_id, pack_id, status, requested_at) "
-            "VALUES (:uid, :pack_id, 'Pending', CURRENT_TIMESTAMP) "
+            "(user_id, pack_id, status, requested_at, token_amount, price_usd) "
+            "VALUES (:uid, :pack_id, 'Pending', CURRENT_TIMESTAMP, "
+            ":token_amount, :price_usd) "
             "RETURNING id"
         ),
-        {"uid": user_id, "pack_id": pack["id"]},
+        {
+            "uid": user_id,
+            "pack_id": pack["id"],
+            "token_amount": pack["token_amount"],
+            "price_usd": pack["price_usd"],
+        },
     )
     first_row = cur.first()
     if not first_row:

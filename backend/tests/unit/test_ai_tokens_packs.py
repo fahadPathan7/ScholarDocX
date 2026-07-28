@@ -13,6 +13,7 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import text
 
 from app.api import ai_tokens as ai_tokens_api
 from app.api.ai_tokens import PackUpdatePayload, PurchaseRequestPayload, PurchaseReviewPayload
@@ -370,6 +371,43 @@ def test_resolve_approve_grants_tokens(tmp_path):
         _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
+def test_resolve_approve_grants_amount_frozen_at_submission(tmp_path):
+    """SCHOLARDOCX-0184: a pending request must grant what the user actually
+    agreed to at submission time, not whatever the pack's catalog value has
+    drifted to by the time an admin gets around to approving it. Unlike the
+    monthly plan allowance (which should apply to everyone the instant an
+    admin edits it), a pack purchase is a one-time transaction at a specific
+    price."""
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["general_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_target))
+    try:
+        req = ai_tokens.submit_purchase_request(user["id"], "medium", session)  # 500000 @ $40
+        assert req["token_amount"] == 500000
+        assert req["price_usd"] == 40.0
+
+        # Admin edits the pack's catalog terms while the request is still pending.
+        ai_tokens.update_pack("medium", session=session, token_amount=9500, price_usd=2.99)
+
+        # The still-pending request must keep showing the original terms...
+        pending = ai_tokens.list_my_purchase_requests(user["id"], session)
+        pending_req = next(r for r in pending if r["id"] == req["id"])
+        assert pending_req["token_amount"] == 500000
+        assert pending_req["price_usd"] == 40.0
+
+        # ...and approval must grant the original amount, not the new catalog value.
+        result = ai_tokens.resolve_purchase_request(req["id"], admin["id"], "approve", session=session)
+        assert result["token_amount"] == 500000
+        b = get_balance(settings, user["id"])
+        assert b["purchased_remaining"] == 500000
+        grants = ledger_grants(settings, user["id"])
+        assert grants[0]["tokens_delta"] == 500000
+    finally:
+        session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+
+
 def test_resolve_reject_grants_nothing(tmp_path):
     settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
@@ -515,6 +553,51 @@ def test_balance_endpoint_shape(tmp_path):
         _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
+def test_subscription_used_immune_to_mid_cycle_plan_pricing_edit(tmp_path):
+    """SCHOLARDOCX-0184: subscription_used must come from subscription_granted
+    (the amount actually granted at the user's last reset), not from a
+    freshly re-fetched monthly_allowance. Editing plan_ai_credits_<tier> mid
+    cycle (without also force-resetting balances, e.g. a direct DB edit that
+    bypasses AdminService.update_app_setting) must not corrupt the "used"
+    figure for a user who hasn't hit their own reset yet — this reproduces the
+    live incident where a corrected plan_ai_credits_max produced a bogus
+    "930,004 / 1,000,000 used" display for an untouched balance row."""
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    session = next(get_db(settings.database_target))
+    try:
+        balance = ai_tokens.refresh_balance(user, session)
+        assert balance["subscription_granted"] == 500000
+        # Real usage: 1000 tokens spent this cycle.
+        session.execute(
+            text("UPDATE ai_token_balances SET subscription_remaining = 499000 WHERE user_id = :uid"),
+            {"uid": user["id"]},
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    # Admin (or a direct DB edit) changes the tier's monthly allowance mid-cycle
+    # without force-resetting balances — exactly what happened live.
+    with connect(settings.database_target) as db:
+        db.execute("UPDATE app_settings SET value = '5' WHERE key = 'plan_ai_credits_general'")
+        db.commit()
+    invalidate_limits_cache()
+
+    store = make_store(settings)
+    try:
+        view = ai_tokens_api.get_balance(current_user=user, store=store)
+        assert view["monthly_allowance"] == 5  # reflects the live (edited) config
+        assert view["subscription_remaining"] == 499000
+        # Must still reflect the real 1000 used against the real grant, not
+        # max(0, 5 - 499000) = 0 (which would hide real usage) nor any other
+        # artifact of mixing the new tiny allowance with the old grant.
+        assert view["subscription_used"] == 1000
+    finally:
+        store.db.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+
+
 # ── per-plan purchase gating (can_purchase_token_packs) ───────────────────────
 
 def test_can_purchase_token_packs_seeded(tmp_path):
@@ -586,6 +669,78 @@ def test_balance_can_purchase_packs_reflects_role(tmp_path):
     finally:
         store.db.close()
         invalidate_limits_cache()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+
+
+# ── plan pricing edits adjust in place, never wipe usage ──────────────────────
+
+def test_lowering_plan_credits_blocks_once_usage_exceeds_new_cap(tmp_path):
+    """SCHOLARDOCX-0184: a live admin edit that lowers a tier's monthly
+    allowance below what a user already used this cycle must block further
+    spend immediately — it must NOT hand them a fresh full pool at the new
+    (lower) amount, and it must NOT touch subscription_period (this is not a
+    new billing period)."""
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["super_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_target))
+    try:
+        balance = ai_tokens.refresh_balance(user, session)
+        assert balance["subscription_granted"] == 500000
+        original_period = balance["subscription_period"]
+        # Simulate 60000 used this cycle.
+        session.execute(
+            text("UPDATE ai_token_balances SET subscription_remaining = 440000 WHERE user_id = :uid"),
+            {"uid": user["id"]},
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    store = make_store(settings)
+    try:
+        # Admin lowers the tier's allowance to 50000 (below the 60000 already used).
+        AdminService(store.db).update_app_setting(admin["id"], "plan_ai_credits_general", "50000")
+        b = get_balance(settings, user["id"])
+        assert b["subscription_granted"] == 50000
+        assert b["subscription_remaining"] == 0  # blocked, not reset to a fresh 50000
+        assert b["subscription_period"] == original_period  # untouched — not a new cycle
+    finally:
+        store.db.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+
+
+def test_raising_plan_credits_grants_only_the_additional_headroom(tmp_path):
+    """SCHOLARDOCX-0184: raising a tier's allowance mid-cycle must only extend
+    the cap by the difference — a user who already used part of their grant
+    must not have that usage reset to 0 and receive a full fresh allowance on
+    top of it (that would be free credits the business pays real API cost
+    for)."""
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    user = make_user(settings, ["general_user"])
+    admin = make_user(settings, ["super_admin"], email="admin@test.local")
+    session = next(get_db(settings.database_target))
+    try:
+        ai_tokens.refresh_balance(user, session)
+        # Simulate 60000 used this cycle.
+        session.execute(
+            text("UPDATE ai_token_balances SET subscription_remaining = 440000 WHERE user_id = :uid"),
+            {"uid": user["id"]},
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    store = make_store(settings)
+    try:
+        # Admin raises the tier's allowance to 700000.
+        AdminService(store.db).update_app_setting(admin["id"], "plan_ai_credits_general", "700000")
+        b = get_balance(settings, user["id"])
+        assert b["subscription_granted"] == 700000
+        # 700000 - 60000 already used = 640000, not a fresh 700000.
+        assert b["subscription_remaining"] == 640000
+    finally:
+        store.db.close()
         _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 

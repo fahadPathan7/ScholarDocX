@@ -24,6 +24,7 @@ import {
   Trash2,
   X,
   Pin,
+  Puzzle,
   Square,
   Settings,
   Shield,
@@ -75,6 +76,7 @@ import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
 import { StickyNotesView } from "./components/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
+import { BrainGamesView } from "./components/games/BrainGamesView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
 import { ResearchExpertView } from "./components/ResearchExpertView";
@@ -369,6 +371,7 @@ export function App() {
     ["documents", "Documents", FileText],
     ["sticky", "Sticky Notes", StickyNote],
     ["whiteboard", "Whiteboard", Square],
+    ["games", "Brain Games", Puzzle],
     ["atlas", "Advisor Atlas", Map],
     ["news", "Scholarship Hunt", Compass],
     ["research", "Research Expert", BookOpen],
@@ -409,8 +412,15 @@ export function App() {
     ? (usageData.limits?.can_use_research_reader ?? 0) === 1
     : isProOrMaxRole;
 
+  // Brain Games is on for every tier by default, so the optimistic value while
+  // limits load is `true` — the opposite of the paid features above. Assuming
+  // locked here would flash a lock on a tab nobody's plan actually locks.
+  const canUseBrainGames = usageData
+    ? (usageData.limits?.can_use_brain_games ?? 1) === 1
+    : true;
+
   useEffect(() => {
-    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news", "research"].includes(activeTab)) {
+    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "games", "atlas", "news", "research"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
     }
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
@@ -454,6 +464,14 @@ export function App() {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan"; // Scholarship Hunt is also typically on pro/max
       setActiveTab("plans");
       showToast(`Scholarship Hunt is available on ${phrase}.`);
+      setMobileNavOpen(false);
+      return;
+    }
+    // Not a plan upsell: Brain Games ships on for every tier, so if it is off
+    // an admin turned it off. Sending the user to the plans page would be
+    // telling them to buy something that would not change anything.
+    if (key === "games" && !canUseBrainGames) {
+      showToast("Brain Games has been turned off for your account.");
       setMobileNavOpen(false);
       return;
     }
@@ -516,7 +534,8 @@ export function App() {
             const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
             const newsLocked = key === "news" && !canUseScholarshipHunt;
             const researchLocked = key === "research" && !canUseResearchExpert;
-            const isLocked = atlasLocked || newsLocked || researchLocked;
+            const gamesLocked = key === "games" && !canUseBrainGames;
+            const isLocked = atlasLocked || newsLocked || researchLocked || gamesLocked;
             return (
               <Fragment key={key}>
                 {currentHasUserPlan && i === accountNavStart && <div className="nav-spacer" />}
@@ -524,7 +543,7 @@ export function App() {
                   aria-label={label}
                   className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}
                   onClick={() => handleSidebarNav(key)}
-                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : gamesLocked ? "Brain Games has been turned off for your account" : navCollapsed ? label : undefined}
                   style={isLocked ? { opacity: 0.55 } : undefined}
                 >
                   <Icon size={18} />
@@ -638,6 +657,10 @@ export function App() {
 
           <div className={`tab-container ${activeTab === "whiteboard" ? "" : "hidden-tab"}`}>
             <WhiteboardView refreshTrigger={refreshTrigger} onToast={showToast} />
+          </div>
+
+          <div className={`tab-container ${activeTab === "games" ? "" : "hidden-tab"}`}>
+            <BrainGamesView canUse={canUseBrainGames} />
           </div>
 
           {canUseAdvisorAtlas && (

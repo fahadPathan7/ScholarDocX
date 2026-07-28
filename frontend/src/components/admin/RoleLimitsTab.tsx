@@ -171,6 +171,11 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       description: "Limits the maximum number of research papers a user can store concurrently in their library.",
       resetInfo: "Never resets automatically, but deleting an old paper frees up capacity for a new paper.",
       example: "If limit is 20, the user can have up to 20 papers saved in their library at any one time."
+    },
+    can_use_brain_games: {
+      description: "Controls whether a user can open the Brain Games tab (sudoku, tic-tac-toe). Games run entirely in the browser — no AI credits, no external services, nothing stored on the server.",
+      resetInfo: "This is a permission setting, not a consumable limit. It does not reset.",
+      example: "Enabled (1) for every tier by default. Set to 0 to hide the tab for a role."
     }
   };
 
@@ -250,6 +255,12 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
         { key: "total_documents_bytes", label: "Maximum Document Storage", format: (v: number) => v === -1 ? "Unlimited" : `${Math.round(v / (1024 * 1024))} MB`, description: "Limits the total storage space for uploaded documents (PDFs, images, etc.). Deleting documents DOES free up quota." },
         { key: "total_sticky_notes", label: "Maximum Sticky Notes", description: "Limits the total number of sticky notes a user can create." },
         { key: "total_whiteboards", label: "Maximum Whiteboards", description: "Limits the total number of whiteboards a user can create." }
+      ]
+    },
+    {
+      name: "Brain Games",
+      features: [
+        { key: "can_use_brain_games", label: "Brain Games Access", description: "Controls access to the Brain Games tab. Runs entirely in the browser — no AI credits or external services. Enabled for every tier by default." }
       ]
     }
   ];

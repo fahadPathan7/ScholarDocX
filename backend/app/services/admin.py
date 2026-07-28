@@ -20,28 +20,10 @@ _CREDIT_SETTING_TO_ROLE = {
 }
 
 DEFAULT_ROLE_LIMITS = {
-    'free_user': [
-        ('ai_messages_per_session', 0, 'per_session'),
-        ('can_use_gemini', 1, 'never'),
-        ('can_use_glm', 0, 'never'),
-        ('can_use_groq', 0, 'never'),
-        ('can_use_mistral', 0, 'never'),
-        ('can_use_agents', 0, 'never'),
-        ('can_use_web_search', 0, 'never'),
-        ('can_use_advisor_atlas', 0, 'never'),
-        ('can_use_scholarship_hunt', 0, 'never'),
-        ('can_use_research_reader', 0, 'never'),
-        ('research_papers_per_month', 0, 'monthly'),
-        ('max_research_papers_library', 0, 'never'),
-        ('total_projects', 1, 'never'),
-        ('total_sheets', 2, 'never'),
-        ('total_records', 100, 'never'),
-        ('sheets_per_project', 2, 'never'),
-        ('records_per_sheet', 50, 'never'),
-        ('total_documents_bytes', 5242880, 'never'),
-        ('total_sticky_notes', 3, 'never'),
-        ('total_whiteboards', 1, 'never'),
-    ],
+    # NOTE: `free_user` is defined once, at the END of this dict. An earlier
+    # duplicate key used to sit here; Python keeps the last definition, so that
+    # block was dead and any edit made to it silently did nothing. Removed in
+    # SCHOLARDOCX-0198. If you are adding a free-tier limit, add it there.
     'general_user': [
         ('ai_messages_per_session', 10, 'per_session'),
         ('can_use_gemini', 1, 'never'),
@@ -53,6 +35,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 0, 'never'),
         ('can_use_scholarship_hunt', 0, 'never'),
         ('can_use_research_reader', 0, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 0, 'monthly'),
         ('max_research_papers_library', 0, 'never'),
         ('total_projects', 3, 'never'),
@@ -77,6 +60,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 1, 'never'),
         ('can_use_scholarship_hunt', 1, 'never'),
         ('can_use_research_reader', 1, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 30, 'monthly'),
         ('max_research_papers_library', 20, 'never'),
         ('total_projects', 10, 'never'),
@@ -102,6 +86,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 1, 'never'),
         ('can_use_scholarship_hunt', 1, 'never'),
         ('can_use_research_reader', 1, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 100, 'monthly'),
         ('max_research_papers_library', 20, 'never'),
         ('total_projects', 50, 'never'),
@@ -175,6 +160,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 0, 'never'),
         ('can_use_scholarship_hunt', 0, 'never'),
         ('can_use_research_reader', 0, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 0, 'monthly'),
         ('max_research_papers_library', 0, 'never'),
         ('total_projects', 1, 'never'),

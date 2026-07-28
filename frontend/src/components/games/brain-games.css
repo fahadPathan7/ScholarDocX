@@ -1,0 +1,635 @@
+/* Brain Games (SCHOLARDOCX-0198).
+   Uses the established ScholarDocX palette — paper, ink, teal — so a break
+   still looks like it belongs in the workspace. */
+
+.brain-games {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 22px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.brain-games-header {
+  padding: 18px 22px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(47, 125, 116, 0.12), transparent 58%),
+    linear-gradient(145deg, #ffffff, #eef6f2);
+}
+
+.brain-games-eyebrow {
+  color: #2f7d74;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brain-games-header h2 {
+  margin: 4px 0 5px;
+  color: #17201d;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+}
+
+.brain-games-header p {
+  margin: 0;
+  max-width: 54ch;
+  color: #65756d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.brain-games-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.brain-games-picker button {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  text-align: left;
+  border: 1px solid rgba(31, 101, 94, 0.14);
+  border-radius: 13px;
+  background: #fff;
+  color: #5b706d;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.brain-games-picker button:hover {
+  border-color: rgba(32, 123, 111, 0.35);
+}
+
+.brain-games-picker button.active {
+  color: #17201d;
+  border-color: rgba(32, 123, 111, 0.45);
+  background: linear-gradient(145deg, #fff, #edf8f4);
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.08);
+}
+
+.brain-games-picker strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.brain-games-picker small {
+  display: block;
+  margin-top: 2px;
+  color: #70827f;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+/* Shown after choosing a game and before it runs. Choosing should not commit
+   you to playing — and sudoku's generator is real work to fire off just from
+   browsing the list. */
+.game-start {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  align-items: center;
+  padding: 44px 24px;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 32, 29, 0.05);
+  text-align: center;
+}
+
+.game-start-mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.game-start h3 {
+  margin: 4px 0 0;
+  color: #17201d;
+  font-size: 1.12rem;
+}
+
+.game-start p {
+  margin: 0;
+  max-width: 52ch;
+  color: #65756d;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.game-start-btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+.game-start-btn:hover {
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.22);
+}
+
+.game-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 32, 29, 0.05);
+}
+
+.game-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.game-difficulty,
+.game-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.game-difficulty {
+  padding: 4px;
+  border: 1px solid rgba(37, 102, 96, 0.12);
+  border-radius: 11px;
+  background: #f3f7f5;
+}
+
+.game-difficulty button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #60736f;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-difficulty button.active {
+  color: #17201d;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(27, 79, 74, 0.08);
+}
+
+.game-difficulty button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-actions button,
+.game-reset {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 13px;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 9px;
+  background: #fff;
+  color: #1f4f5a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-actions button:hover:not(:disabled),
+.game-reset:hover:not(:disabled) {
+  background: #f2f8f5;
+}
+
+.game-actions button:disabled,
+.game-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-status {
+  margin: 0;
+  color: #65756d;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.game-status.finished {
+  color: #1f4f5a;
+  font-size: 1rem;
+}
+
+.game-score {
+  display: flex;
+  gap: 22px;
+}
+
+.game-score span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #70827f;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.game-score strong {
+  color: #17201d;
+  font-size: 1.15rem;
+}
+
+.game-footnote {
+  margin: 0;
+  max-width: 48ch;
+  color: #93a5a1;
+  font-size: 0.73rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* --- Tic-tac-toe --- */
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 8px;
+}
+
+.ttt-cell {
+  display: grid;
+  height: 76px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 12px;
+  background: #f8fbf9;
+  color: #17201d;
+  font-size: 1.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.ttt-cell:hover:not(:disabled) {
+  border-color: rgba(32, 123, 111, 0.45);
+  background: #edf8f4;
+}
+
+.ttt-cell:disabled {
+  cursor: default;
+}
+
+.ttt-cell.filled.x { color: #1f4f5a; }
+.ttt-cell.filled.o { color: #b06a2c; }
+
+.ttt-cell.winning {
+  border-color: #38a37f;
+  background: #e1f2ed;
+}
+
+/* --- Sudoku --- */
+
+.sudoku-meta {
+  display: flex;
+  gap: 16px;
+  color: #70827f;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.sudoku-meta .bad { color: #8c3b32; }
+.sudoku-meta .good { color: #246d63; }
+
+.sudoku-building {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 60px 20px;
+  color: #93a5a1;
+}
+
+.sudoku-building p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 40px);
+  border: 2px solid #17201d;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #17201d;
+  gap: 1px;
+}
+
+.sudoku-cell {
+  display: grid;
+  height: 40px;
+  place-items: center;
+  border: none;
+  background: #fff;
+  color: #2f6d7a;
+  font-size: 1.02rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The 3x3 block boundaries, drawn as thicker interior edges. */
+.sudoku-cell.edge-right { box-shadow: inset -2px 0 0 #17201d; }
+.sudoku-cell.edge-bottom { box-shadow: inset 0 -2px 0 #17201d; }
+.sudoku-cell.edge-right.edge-bottom { box-shadow: inset -2px 0 0 #17201d, inset 0 -2px 0 #17201d; }
+
+.sudoku-cell.given {
+  color: #17201d;
+  background: #f4f7f5;
+  font-weight: 800;
+  cursor: default;
+}
+
+.sudoku-cell.peer { background: #eef6f2; }
+.sudoku-cell.given.peer { background: #e7efeb; }
+.sudoku-cell.same { background: #ddeee8; }
+
+.sudoku-cell.selected {
+  background: #c9e6dc;
+  box-shadow: inset 0 0 0 2px #2f7d74;
+}
+
+.sudoku-cell.wrong {
+  color: #8c3b32;
+  background: #fbe9e6;
+}
+
+.sudoku-keypad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.sudoku-keypad button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 10px;
+  background: #fff;
+  color: #1f4f5a;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sudoku-keypad button:hover:not(:disabled) {
+  background: #edf8f4;
+}
+
+.sudoku-keypad button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-score.inline {
+  gap: 18px;
+}
+
+/* --- 2048 --- */
+
+.g2048-board {
+  display: grid;
+  grid-template-columns: repeat(4, 70px);
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #d9e5e0;
+  touch-action: none;
+}
+
+.g2048-tile {
+  display: grid;
+  height: 70px;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef3f1;
+  color: #17201d;
+  font-size: 1.32rem;
+  font-weight: 800;
+}
+
+.g2048-tile.empty { background: #e6eeea; }
+
+/* Warmer and darker as the value climbs, so progress is legible at a glance. */
+.g2048-tile.v2    { background: #eef6f2; }
+.g2048-tile.v4    { background: #ddeee8; }
+.g2048-tile.v8    { background: #ffe9cd; color: #8a5a15; }
+.g2048-tile.v16   { background: #ffd9ab; color: #8a5a15; }
+.g2048-tile.v32   { background: #fcc389; color: #7a4a10; }
+.g2048-tile.v64   { background: #f6a866; color: #fff; }
+.g2048-tile.v128  { background: #4fae90; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v256  { background: #38a37f; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v512  { background: #2f7d74; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v1024 { background: #1f4f5a; color: #fff; font-size: 0.98rem; }
+.g2048-tile.v2048 { background: #17201d; color: #f8dfa3; font-size: 0.98rem; }
+
+/* --- Minesweeper --- */
+
+.mine-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.mine-board {
+  display: grid;
+  gap: 2px;
+  margin: 0 auto;
+  width: fit-content;
+}
+
+.mine-cell {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 5px;
+  background: #e8f0ec;
+  color: #17201d;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mine-cell:hover:not(.open) { background: #dbe9e3; }
+
+.mine-cell.open {
+  border-color: rgba(31, 101, 94, 0.09);
+  background: #fbfdfc;
+  cursor: default;
+}
+
+.mine-cell.flagged { color: #8c3b32; background: #fdf0ec; }
+.mine-cell.mine { background: #f6d3cd; color: #8c3b32; }
+
+.mine-cell.n1 { color: #2f6d7a; }
+.mine-cell.n2 { color: #3b6d11; }
+.mine-cell.n3 { color: #a32d2d; }
+.mine-cell.n4 { color: #534ab7; }
+.mine-cell.n5 { color: #8a5a15; }
+.mine-cell.n6 { color: #0f6e56; }
+.mine-cell.n7 { color: #17201d; }
+.mine-cell.n8 { color: #5f5e5a; }
+
+.game-actions button.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+}
+
+/* --- Word of the day --- */
+
+.word-day,
+.word-remaining {
+  color: #70827f;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.word-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.word-row {
+  display: flex;
+  gap: 6px;
+}
+
+.word-tile {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 2px solid rgba(31, 101, 94, 0.16);
+  border-radius: 8px;
+  background: #fff;
+  color: #17201d;
+  font-size: 1.28rem;
+  font-weight: 800;
+}
+
+.word-tile.typed { border-color: #2f7d74; }
+.word-tile.green { border-color: transparent; background: #38a37f; color: #fff; }
+.word-tile.amber { border-color: transparent; background: #d99a3d; color: #fff; }
+.word-tile.grey  { border-color: transparent; background: #b4b2a9; color: #fff; }
+
+.word-grid.shake { animation: word-shake 0.36s ease; }
+
+@keyframes word-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.word-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.word-key-row {
+  display: flex;
+  gap: 4px;
+}
+
+.word-key-row button {
+  min-width: 30px;
+  height: 42px;
+  padding: 0 7px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 6px;
+  background: #fff;
+  color: #17201d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.word-key-row button.wide { min-width: 44px; }
+.word-key-row button:hover { background: #edf8f4; }
+.word-key-row button.green { border-color: transparent; background: #38a37f; color: #fff; }
+.word-key-row button.amber { border-color: transparent; background: #d99a3d; color: #fff; }
+.word-key-row button.grey  { border-color: transparent; background: #cfd5d2; color: #6b7a76; }
+
+.brain-games-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 60px 24px;
+  color: #70827f;
+  border: 1px dashed rgba(31, 101, 94, 0.25);
+  border-radius: 16px;
+  background: #fcf9f2;
+  text-align: center;
+}
+
+.brain-games-locked h3 {
+  margin: 0;
+  color: #17201d;
+  font-size: 1rem;
+}
+
+.brain-games-locked p {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 560px) {
+  .sudoku-board { grid-template-columns: repeat(9, 34px); }
+  .sudoku-cell { height: 34px; font-size: 0.92rem; }
+  .ttt-board { grid-template-columns: repeat(3, 64px); }
+  .ttt-cell { height: 64px; font-size: 1.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-games-picker button,
+  .ttt-cell {
+    transition: none;
+  }
+}

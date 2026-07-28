@@ -11,6 +11,46 @@ These are repository-wide coding rules for ScholarDocX.
 - Treat external AI/search APIs as optional integrations that require user-provided API keys.
 - Do not add remote persistence, telemetry, analytics, or cloud sync without explicit context updates and user approval.
 
+## Design Principle: Capped Lists Use FIFO Eviction
+
+Any feature that keeps a running list/history of items per user and needs a
+maximum size follows the same two rules, established SCHOLARDOCX-0178:
+
+1. **Fixed caps are fixed.** A cap that exists purely to bound storage/noise
+   (not to gate a paid feature) is a hardcoded constant, not an
+   admin-configurable role limit. Document it as information in the Admin
+   panel's **Info tab** ("Save & Storage Caps" section) — the Info tab is
+   for fixed boundaries common to every user, never for admin-editable
+   settings (those belong in Role Limits / Settings instead; see
+   SCHOLARDOCX-0178's removal of the Research Expert library cap from the
+   Info tab for exactly this reason — it's admin-configurable, so it
+   doesn't belong there).
+2. **At the cap, the newest item evicts the oldest — never the reverse, and
+   never a rejection.** A "save"/"create" action that would push the
+   count over the cap deletes the single oldest existing item first, then
+   proceeds. The user is never blocked from creating a new item because an
+   old one is in the way; they lose visibility into the oldest one instead
+   (which is the tradeoff a bounded *history* implies — this differs from
+   the Opportunity Library and Research Expert saved-analysis caps, which
+   are bounded *collections* the user curates and are correctly a hard
+   reject instead, since silently deleting a user's deliberately-saved item
+   would be wrong).
+
+Current instances of this pattern:
+- **Scholarship Hunt "Previous Searches"** (`ScholarshipDeepHuntRepository.
+  create_run` / `_evict_oldest_over_cap`, backend): capped at 10 runs per
+  user. Any Library opportunities the user saved from an evicted run are
+  detached (`deep_hunt_run_id` set to NULL), never deleted — see
+  `_detach_saved_opportunities`.
+- **Ask AI chat history** (`FloatingAssistant.tsx`, `MAX_HISTORY`,
+  frontend-only / browser `localStorage`): capped at 10 sessions per user.
+  Newest-first list, sliced to the cap on every save — the tail (oldest)
+  falls off.
+
+When adding a new capped history feature, follow this same shape: a
+named constant, eviction on the create path (not a separate cleanup job),
+and a row in the Info tab's "Save & Storage Caps" table.
+
 ## Recommended Stack
 
 Initial recommended stack from project context:
@@ -98,6 +138,37 @@ For every new feature or feature modification:
 - For AI integrations, test provider boundaries with mocks.
 - For file operations, test path validation and workspace initialization.
 - Do not leave feature work complete with "tests skipped" unless the reason is recorded in the task file.
+
+### STRICT: Run scoped tests, not the whole suite, for a single feature change
+
+This backend suite runs against a real shared database with no ephemeral
+per-run isolation (see the strict rule below) — every additional test file
+in a verification run is more real network round trips, more runtime, and
+more surface area for the shared-state races described below. After
+implementing or fixing one feature, run only the test file(s) that cover
+that feature (and any file whose behavior you directly changed). Do not
+proactively run the entire backend or frontend suite "to be safe" — a full
+run is expensive on this database and is the user's call to make, not the
+default after every change. Run the full suite only when the user
+explicitly asks for it (e.g. "run everything," "run the whole suite").
+
+### STRICT: Never permanently mutate shared/global state for a test (SCHOLARDOCX-0178 incident)
+
+This backend test suite runs against a real, shared database (`tests/conftest.py` loads the project's own `.env`/`DATABASE_URL` — there is no separate ephemeral test database). Per-user rows are fine to create and clean up (see `cleanup_user_records`), but tables that hold **global, admin-configured, shared** state — `app_settings`, `role_limits`, `ai_models`, `ai_token_packs`, and anything else with no `user_id` scoping — are a different category entirely: a write there is not test data, it is a live change to the running application, visible to every real user, until something changes it back.
+
+This is not hypothetical. It happened: a test inserted `app_settings.brave_call_cost_per_hit_usd = '0.025'` and another set `jina_call_cost_usd = '0.02'` to exercise an "admin override" code path, asserted against it, and never restored the row — both stayed corrupted in the live database indefinitely (silently overcharging real users) until caught by inspecting the Admin panel. Separately, a test zeroed out `role_limits.can_use_advisor_atlas` for **every role** (including `pro_user`, whose real default is `1`) to test a fallback message, and two more tests each zeroed a `general_admin` permission (`admin_manage_password_resets`, `admin_manage_plan_requests`) — none restored their rows, so real Pro users lost Advisor Atlas access and real general-admins lost those permissions in production until caught and fixed.
+
+**The rule:**
+- Before a test writes to a shared/global table, it MUST first read (snapshot) the current value(s) of every row it is about to touch.
+- In a `finally` block, it MUST write those exact snapshotted values back — not a hardcoded "default." The value that was there before the test ran might be a real admin's deliberate configuration, and code-level defaults (`DEFAULT_ROLE_LIMITS`, `schema.py`'s `SEED_SQL`) are only what a *fresh install* starts with, not necessarily what is live right now.
+- If a helper's job is to "ensure a default row exists" (a fresh-install seed shim), it must use `ON CONFLICT ... DO NOTHING`, never `DO UPDATE`, so it can never overwrite a value that is already there for any reason.
+- Prefer `monkeypatch`/mocking the reading function (e.g. `monkeypatch.setattr(ai_tokens, "get_brave_call_cost_per_hit_usd", lambda session: 0.025)`) over a real database write whenever the test's actual goal is "verify this code path uses whatever value the getter returns" — this is both safer and simpler, and several tests in this exact area already use this pattern correctly. Only touch the real row when the test is specifically about the persistence/lookup behavior itself.
+- Never call a real destructive admin action (e.g. `AdminService.reset_role_limits`, anything that resets/deletes a whole role's or the whole system's configuration) against the shared database without snapshotting the full prior row set and restoring it in `finally`.
+- When reviewing or writing a test that touches `app_settings`, `role_limits`, `ai_models`, or `ai_token_packs`, treat a missing snapshot/restore as a blocking defect, not a style nit.
+
+If you discover a table value that doesn't match its code-level default, do not assume it is corruption and "fix" it back to the default — it may be genuine admin configuration. Only restore a value when you have direct evidence it was set by a test (e.g. it exactly matches a literal from test source, or a test unconditionally zeroed every row for a feature rather than scoping to the one role it claimed to test).
+
+**Parallel test execution makes this rule sharper, not softer.** `pytest.ini` runs the suite with `pytest-xdist` (`-n auto --dist loadscope`, for local speed on multi-core machines) — `loadscope` keeps all tests within one *file* on the same worker (so a file's own fixed-UUID tests still run one at a time), but different files now run **concurrently in separate processes**. Two files that both touch the same global row (e.g. `app_settings.brave_call_cost_per_hit_usd`) can now race in a way they never could under old-style serial execution. This makes the snapshot/restore requirement above load-bearing for correctness under parallelism, not just tidiness — a test that mutates a global row and restores it a few lines later can still collide with a concurrent worker mutating the same row mid-window. When adding a new test that must touch shared/global state, prefer `monkeypatch` over a real write even more strongly than the guidance above already suggests, specifically because of this concurrency exposure.
 
 ## UI/UX Rules
 

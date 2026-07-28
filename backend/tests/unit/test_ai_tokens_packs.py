@@ -521,11 +521,25 @@ def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
     """SCHOLARDOCX-0140: DEFAULT_ROLE_LIMITS no longer includes
     ai_tokens_per_month, so reset_role_limits (which re-seeds from it) drops the
     feature. The monthly allowance is now managed in Settings -> Plan Pricing
-    via the plan_ai_credits_<tier> app_settings keys, not in Role Limits."""
+    via the plan_ai_credits_<tier> app_settings keys, not in Role Limits.
+
+    STRICT RULE (SCHOLARDOCX-0178 incident): role_limits is global, shared,
+    admin-configured state — this suite runs against a real shared database,
+    and `reset_role_limits` is a real "reset this role to defaults" admin
+    action. Calling it here would permanently wipe any real admin
+    customization for general_user with no restore. Snapshot every row for
+    the role beforehand and put back exactly that set afterward.
+    """
     settings = make_settings(tmp_path)
     admin = make_user(settings, ["super_admin"], email="admin@test.local")
     store = make_store(settings)
     try:
+        with connect(settings.database_target) as db:
+            before = db.execute(
+                "SELECT feature, limit_count, reset_period FROM role_limits WHERE role = 'general_user'"
+            ).fetchall()
+            before_rows = [(r["feature"], r["limit_count"], r["reset_period"]) for r in before]
+
         AdminService(store.db).reset_role_limits(admin["id"], "general_user")
         with connect(settings.database_target) as db:
             row = db.execute(
@@ -534,6 +548,15 @@ def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
             ).fetchone()
         assert row is None
     finally:
+        with connect(settings.database_target) as db:
+            db.execute("DELETE FROM role_limits WHERE role = 'general_user'")
+            for feature, limit_count, reset_period in before_rows:
+                db.execute(
+                    "INSERT INTO role_limits (role, feature, limit_count, reset_period) "
+                    "VALUES ('general_user', ?, ?, ?)",
+                    (feature, limit_count, reset_period),
+                )
+            db.commit()
         store.db.close()
         invalidate_limits_cache()
 

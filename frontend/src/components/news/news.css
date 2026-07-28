@@ -42,18 +42,6 @@
   gap: 12px;
 }
 
-/* Visually separate the always-on Hunt Profile button from the per-tab
-   search controls so the toolbar never reads as one congested cluster. */
-.news-toolbar-profile-btn {
-  border-left: 1px solid rgba(47, 109, 122, 0.18);
-  border-radius: 0 8px 8px 0;
-  padding-left: 16px;
-  margin-left: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .news-toolbar-actions button {
   background: #ffffff;
   border: 1px solid rgba(47, 109, 122, 0.2);
@@ -904,13 +892,6 @@
     gap: 10px;
   }
 
-  .news-toolbar-profile-btn {
-    border-left: none;
-    border-radius: 8px;
-    padding-left: 16px;
-    margin-left: 0;
-  }
-
   .scholarship-catalog {
     padding: 16px 16px 40px;
   }
@@ -1459,48 +1440,6 @@
   gap: 20px;
 }
 
-.opp-drawer-fit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(47, 109, 122, 0.05);
-  border: 1px solid rgba(47, 109, 122, 0.1);
-}
-
-.opp-drawer-fit-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  align-self: flex-start;
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-
-.opp-drawer-fit-badge.fit-high {
-  background: rgba(56, 163, 127, 0.15);
-  color: #2f7d74;
-}
-
-.opp-drawer-fit-badge.fit-medium {
-  background: rgba(217, 154, 61, 0.15);
-  color: #c98828;
-}
-
-.opp-drawer-fit-badge.fit-low {
-  background: rgba(196, 68, 68, 0.12);
-  color: #a13636;
-}
-
-.opp-drawer-fit-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .opp-drawer-section h3 {
   display: flex;
   align-items: center;
@@ -1578,18 +1517,6 @@
   background: rgba(47, 109, 122, 0.08);
   color: #1f4f5a;
   border: 1px solid rgba(47, 109, 122, 0.12);
-}
-
-.opp-drawer-fit-chips .opp-drawer-chip.chip-match {
-  background: rgba(56, 163, 127, 0.12);
-  color: #2f7d74;
-  border-color: rgba(56, 163, 127, 0.2);
-}
-
-.opp-drawer-fit-chips .opp-drawer-chip.chip-mismatch {
-  background: rgba(196, 68, 68, 0.1);
-  color: #a13636;
-  border-color: rgba(196, 68, 68, 0.18);
 }
 
 .opp-drawer-deadlines {
@@ -1831,9 +1758,11 @@
 }
 
 .scholarship-catalog-hint {
-  color: #65756d;
-  font-size: 0.85rem;
-  margin: 0;
+  color: #8a9a93;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin: 14px 0 0;
+  letter-spacing: 0.01em;
 }
 
 .scholarship-catalog-grid {
@@ -1881,27 +1810,31 @@
 }
 
 .scholarship-catalog-sponsor {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: #55756e;
-  margin: -4px 0 0 0;
-}
-
-.scholarship-catalog-blurb {
-  font-size: 0.92rem;
-  line-height: 1.5;
-  color: #374151;
-  margin: 0;
+  margin: -6px 0 0 0;
 }
 
 .scholarship-catalog-cycle {
-  font-size: 0.82rem;
-  color: #6b7280;
-  margin: 4px 0 0 0;
-  padding-left: 12px;
-  border-left: 2px solid rgba(47, 109, 122, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2f6d7a;
+  margin: 2px 0 0 0;
+  padding: 4px 10px;
+  background: rgba(47, 109, 122, 0.08);
+  border-radius: 8px;
+}
+
+.scholarship-catalog-cycle svg {
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 
 .scholarship-catalog-card-actions {
@@ -1955,21 +1888,6 @@
 .scholarship-catalog-card-actions .catalog-btn-solid:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.scholarship-catalog-cycle-results {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(47, 109, 122, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.scholarship-catalog-cycle-result a {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #1f4f5a;
 }
 
 /* Opportunity Library */
@@ -2072,61 +1990,6 @@
   border-color: #c44343;
 }
 
-/* Phase 3: Hunt Profile fit score */
-
-.opportunity-fit-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 0;
-}
-
-.opportunity-fit-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-}
-
-.opportunity-fit-badge.fit-high {
-  background: rgba(56, 163, 127, 0.15);
-  color: #1e6657;
-  border-color: rgba(56, 163, 127, 0.25);
-}
-
-.opportunity-fit-badge.fit-medium {
-  background: rgba(217, 154, 61, 0.12);
-  color: #a3792c;
-  border-color: rgba(217, 154, 61, 0.22);
-}
-
-.opportunity-fit-badge.fit-low {
-  background: rgba(101, 117, 109, 0.1);
-  color: #65756d;
-}
-
-.opportunity-fit-chip {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 999px;
-}
-
-.opportunity-fit-chip.fit-chip-match {
-  background: rgba(56, 163, 127, 0.08);
-  color: #2f7d74;
-}
-
-.opportunity-fit-chip.fit-chip-mismatch {
-  background: rgba(196, 68, 68, 0.08);
-  color: #a13636;
-}
-
 /* Phase 4: watchlist "New" badge */
 
 .news-new-badge {
@@ -2170,14 +2033,174 @@
   color: #a3792c;
 }
 
-.hunt-profile-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  overflow-y: auto;
+/* SCHOLARDOCX-0176: enriched static catalog (search, tag chips, sections,
+   multi-link cards, descriptions). */
+.scholarship-catalog-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
 }
 
-.hunt-profile-grid .field.full-width,
-.hunt-profile-grid .checkbox-label.full-width {
-  grid-column: 1 / -1;
+.scholarship-catalog-search svg {
+  position: absolute;
+  left: 10px;
+  color: var(--muted-text, #94a3b8);
 }
+
+.scholarship-catalog-search input {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  font-size: 13px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #ffffff);
+  color: var(--body-text, #1e293b);
+}
+
+.scholarship-catalog-search input:focus {
+  outline: none;
+  border-color: var(--primary, #4f46e5);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.scholarship-catalog-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.scholarship-catalog-tag-chip {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(47, 109, 122, 0.18);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.scholarship-catalog-tag-chip:hover {
+  background: rgba(47, 109, 122, 0.08);
+  border-color: rgba(47, 109, 122, 0.35);
+  transform: translateY(-1px);
+}
+
+.scholarship-catalog-tag-chip.active {
+  background: #2f6d7a;
+  color: #ffffff;
+  border-color: #2f6d7a;
+  box-shadow: 0 2px 8px rgba(47, 109, 122, 0.25);
+}
+
+.scholarship-catalog-tag-clear {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f6d7a;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.scholarship-catalog-section {
+  margin-top: 28px;
+}
+
+.scholarship-catalog-section-header {
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(47, 109, 122, 0.12);
+}
+
+.scholarship-catalog-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.scholarship-catalog-section-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--body-text, #0d262e);
+}
+
+.scholarship-catalog-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2f6d7a;
+  background: rgba(47, 109, 122, 0.1);
+  border-radius: 999px;
+}
+
+.scholarship-catalog-section-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-text, #64748b);
+  line-height: 1.5;
+}
+
+.scholarship-catalog-description {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #374151;
+  margin: 2px 0 6px;
+}
+
+.scholarship-catalog-destinations {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #55756e;
+  margin: 2px 0;
+}
+
+.scholarship-catalog-funding-notes {
+  font-size: 11.5px;
+  font-style: italic;
+  color: #6b7b75;
+  margin: 2px 0;
+}
+
+.scholarship-catalog-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.scholarship-catalog-card-tag {
+  padding: 2px 8px;
+  font-size: 10.5px;
+  color: var(--muted-text, #64748b);
+  background: var(--surface, #f8fafc);
+  border-radius: 4px;
+}
+
+.scholarship-catalog-cycle {
+  font-size: 12px;
+  color: var(--muted-text, #64748b);
+  margin: 4px 0;
+}
+
+/* Multi-link cards let buttons wrap onto multiple lines neatly. */
+.scholarship-catalog-card-actions {
+  flex-wrap: wrap;
+}
+

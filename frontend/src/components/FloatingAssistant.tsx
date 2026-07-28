@@ -49,7 +49,12 @@ type ActionPlan = {
 
 
 
-const MAX_HISTORY = 5;
+// SCHOLARDOCX-0178: fixed cap on stored Ask AI chat sessions (client-side,
+// browser localStorage only — see the "capped list -> FIFO eviction" design
+// principle in AI-Context/CODE_RULES.md). History is newest-first, so
+// slicing to MAX_HISTORY after prepending the current session evicts the
+// oldest one first, same as the Scholarship Hunt "Previous Searches" cap.
+const MAX_HISTORY = 10;
 
 const SUMMARY_MIN_MESSAGES = 2;
 const FAILED_SUMMARY_MODES = new Set(["local-fallback", "provider-error"]);

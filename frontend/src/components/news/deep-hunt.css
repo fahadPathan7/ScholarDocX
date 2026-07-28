@@ -532,3 +532,95 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* SCHOLARDOCX-0175: cost-estimate note + live funnel counters. */
+.deep-hunt-cost-estimate {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-text, #64748b);
+}
+
+/* SCHOLARDOCX-0178: unsaved Search result footer (source link + save action). */
+.deep-hunt-result-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(47, 109, 122, 0.15);
+}
+
+.deep-hunt-result-saved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e6657;
+}
+
+.deep-hunt-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #2f6d7a, #1f4f5a);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(31, 79, 90, 0.25);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.deep-hunt-save-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(31, 79, 90, 0.32);
+}
+
+.deep-hunt-save-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(31, 79, 90, 0.28);
+}
+
+.deep-hunt-save-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+.deep-hunt-funnel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--body-text, #334155);
+}
+
+.deep-hunt-funnel-step {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.deep-hunt-funnel-step strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--primary, #4f46e5);
+}
+
+.deep-hunt-funnel-arrow {
+  color: var(--muted-text, #94a3b8);
+  font-weight: 600;
+}

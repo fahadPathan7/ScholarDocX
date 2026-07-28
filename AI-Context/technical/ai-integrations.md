@@ -105,8 +105,11 @@ Gemini support is built around free-tier local use:
   stay provider-neutral.
 
 
-- Tavily remains the only live web-search provider. OpenRouter remains isolated
-  to Scholarship Hunt query generation.
+- Brave Search API powers Scholarship Hunt (deep search); Tavily powers
+  `/ai/research` (RAG-style web research). Each is isolated to its own key
+  and call sites (`BRAVE_API_KEY` vs `TAVILY_API_KEY`). OpenRouter remains
+  used by Scholarship Hunt's query planner + relevance filter and by
+  extraction fallback.
 
 ## Integration Boundary
 
@@ -214,72 +217,164 @@ backend/app/services/ai_assistant/
 3. **Background runs are billed**: Advisor Atlas runs may be triggered asynchronously (e.g., after user confirmation or scheduled refresh). These MUST load user context via `load_user_dict` and charge the user's balance. No system account bypass.
 4. **Pre-flight checks prevent wasteful runs**: Check the gate and monthly limit BEFORE starting the Tavily/GLM work. If the user lacks quota, reject the run request and return a clear error without consuming credits.
 
-## Scholarship Hunt Search
+## Scholarship Hunt Search (SCHOLARDOCX-0175 v2 — Brave + unified deep search)
 
-- The frontend sends structured filters to the local `/news/search` endpoint.
-- Before search, the frontend sends filters to `/news/query-preview`; the
-  backend makes at most one `openrouter/free` chat-completion request to produce
-  a concise query without using Tavily or Scholarship Hunt quota.
-  - **BILLING ENFORCEMENT**: `/news/query-preview` checks `can_use_scholarship_hunt`, `news_searches_per_day`, and `news_searches_per_month` limits BEFORE calling OpenRouter. Even though the OpenRouter model is "free" from the provider's perspective, the call is charged via `charge_ai_tokens` against the user's token balance. The user must have sufficient tokens.
-- The user approves or edits the query. `/news/search` sends only that approved
-  query to Tavily and stores the exact preview plus approved text locally for
-  beta analysis.
-  - **BILLING ENFORCEMENT**: `/news/search` re-checks `can_use_scholarship_hunt` and remaining daily/monthly search quota. If the quota check passes, it charges a flat fee via `charge_flat_fee(user, fee, session, category="scholarship_hunt", operation_id=search_id)` for the Tavily call.
-- OpenRouter receives only selected filter labels, a deterministic baseline,
-  and current date/cycle guidance. It never receives private workspace records,
-  documents, or the Tavily results.
-- OpenRouter output must be a bounded structured query. Invalid JSON, missing
-  required destination or named-scholarship constraints, provider errors, and
-  missing keys use the deterministic local query as a safe fallback.
-- Query preview never retries or cycles models: one preview causes zero or one
-  OpenRouter request. The configured model is `openrouter/free`.
-- `backend/app/services/news_service.py` owns a dedicated Tavily adapter and
-  must not call the AI assistant research service.
-- The service reads the backend machine's local date for each search; query
-  dates and current/next application cycles are never hard-coded in production.
-- The backend converts UI labels into a focused natural-language web query.
-- Query text expresses selected values as natural scholarship-search phrases
-  and defines geography as the institution/study destination rather than
-  applicant nationality.
-- Named scholarships use canonical names and common aliases. Broad searches
-  include scholarship/fellowship/funding intent plus selected degree, region,
-  study-area, funding, and season terms.
-- Query construction injects the backend's exact current date, current/next
-  application years, and open/upcoming intent while excluding closed, expired,
-  archived, and past-deadline cycles.
-- Each submitted search makes one `POST https://api.tavily.com/search` request
-  with `search_depth: basic`, `topic: general`, `auto_parameters: false`,
-  `max_results: 20`, and answer/raw-content/image options disabled.
-- Scholarship Hunt reads `TAVILY_API_KEY_SCHOLARSHIP_HUNT` for its dedicated
-  Tavily boundary. AI-chat web research continues to use `TAVILY_API_KEY`.
-- Social/video domains such as YouTube, Facebook, Instagram, LinkedIn, TikTok,
-  Threads, X, and Twitter are excluded in the same request.
-- Scholarship Hunt does not use Tavily Extract, Crawl, Research, AI answer
-  generation, provider fallback, automatic retries, or provider pagination.
-- Tavily results are normalized into the existing `NewsResponse` card contract
-  with stable URL-derived IDs, source hostnames, snippets, and optional dates.
-- Provider responses are normalized into the card contract and returned in
-  provider order. Scholarship Hunt no longer applies manual post-provider
-  relevance filtering, deadline rejection, or resorting.
-- Selected dimensions use AND semantics during query generation and constraint
-  sealing. Multiple selections inside one dimension are represented as OR terms
-  in the editable query.
-- The editable query is the relevance-control surface. Users can refine the
-  generated text before Tavily search when they want stricter destinations,
-  scholarships, dates, or exclusions.
-- Existing `news_searches_per_day` and `news_searches_per_month` limits are
-  checked before preview and incremented when `/news/query-preview` succeeds.
-  `/news/search` re-checks remaining availability but does not consume a
-  second unit for the same search flow.
-- AI-chat `web_searches_*` counters and `/ai/research` behavior are unchanged.
-- `OPENROUTER_API_KEY` remains backend-only and is used only by the dedicated
-  Scholarship Hunt query-generator service.
+The filter-based "Hunt" tab and its query-building machinery (FilterPanel,
+QueryReviewDialog, CustomPromptDialog, SavedQueriesDialog, NewsCard,
+NewsFeed) are deleted. The former "Deep Hunt" tab is renamed "Search" and
+is the single search surface. One natural-language goal runs the full
+plan → search → hard-filter → crawl → extract → relevance-filter → persist
+pipeline. There is no `depth` knob and no second search path.
+
+### Provider
+- **Brave Search API** powers Scholarship Hunt. Endpoint
+  `GET https://api.search.brave.com/res/v1/web/search`, header
+  `X-Subscription-Token: <BRAVE_API_KEY>`, params `q` (with `-site:`
+  domain exclusions prefixed), `count` ≤20, `freshness=py`,
+  `safesearch=moderate`, `extra_snippets=true`.
+- The `BraveSearchService` (`backend/app/services/brave_search_service.py`)
+  is a thin HTTP + normalize adapter. It returns the existing 9-key card
+  contract (`article_id, title, link, source_name, pubDate, image_url,
+  description, country, _search_score`) so downstream code is
+  provider-agnostic. Brave has no score field; `_search_score` is derived
+  from rank position.
+- Tavily remains only for `/ai/research` (RAG-style web research). The
+  two are isolated by key (`BRAVE_API_KEY` vs `TAVILY_API_KEY`) and call
+  site. `TAVILY_API_KEY_SCHOLARSHIP_HUNT` is no longer read by Scholarship
+  Hunt but is kept in config/env for back-comat with `/ai/research`.
+
+### Pipeline (`scholarship_deep_hunt.py`)
+1. **Plan queries.** `DeepHuntQueryPlanner.plan(...)` — one OpenRouter Free
+   call producing 3-4 diverse, acronym-expanded queries + a `field_synonyms`
+   list. Deterministic fallback on any error.
+2. **Brave search.** `SEARCH_PASSES=2` queries × `MAX_RESULTS_PER_PASS=8`
+   results = 16 raw hits max. Deduped by canonical URL across passes. Tuned
+   (SCHOLARDOCX-0175) to match the crawl/extract budget of 12 — every scanned
+   source has a real chance of being vetted; the prior 4×10=40 config billed
+   28 hits per run that were always discarded.
+3. **Hard filters (FR-8.27 retirement).** Drop results where
+   `_has_explicit_closed_status`, `_is_stale_cycle`, or
+   `matches_destinations`/`has_conflicting_fields` fail. Deterministic,
+   free, never invent — they reject pages that explicitly contradict the
+   user's intent.
+4. **Crawl + extract.** Top `MAX_CRAWL_PAGES=12` via `PublicCrawler`;
+   top `MAX_EXTRACTIONS=12` extracted via `scholarship_extraction_service`
+   (same anti-hallucination contract: missing stays missing).
+5. **Relevance filter.** One batched `DeepHuntRelevanceFilter.score(...)`
+   call. Drops anything below `RELEVANCE_FLOOR=0.4` (SCHOLARDOCX-0177: raised
+   from 0.3). The prompt and its deterministic heuristic fallback both treat
+   a broad/umbrella program (5+ unrelated `fields_of_study`, e.g. a generic
+   Erasmus Mundus overview page spanning engineering, health, law, and
+   humanities) as OFF_TOPIC/low-scoring even when the goal's field is
+   technically among the many listed — a program that funds almost every
+   discipline is not the close, field-specific match the user asked for.
+   Orders survivors by `relevance_score DESC`.
+6. **Canonical-name dedup (SCHOLARDOCX-0177).** Before persisting, accepted
+   extractions are grouped by `_dedup_key(canonical_name)` — a normalization
+   that strips years/year-ranges, apostrophes, and plural filler words so
+   trivial title variants of the same generic program (e.g. "Erasmus Mundus
+   Scholarship 2026" vs "...2026–2027" vs "...Scholarships") collapse to one
+   entry, keeping the highest-relevance (then most-complete) extraction.
+   Distinctly-named programs (different core wording, e.g. a specific
+   joint-master consortium acronym) keep separate keys and are never merged.
+   This runs in addition to (not instead of) the existing per-URL dedup
+   during search-pass collection. No hard cap on the number of surviving
+   results — dedup + the relevance floor are the only quality gates.
+7. **Store on the run (SCHOLARDOCX-0178: no auto-save).** Accepted, deduped
+   results are written to `scholarship_deep_hunt_runs.results_json` — NOT
+   upserted into `scholarship_opportunities`. `GET /scholarship-deep-hunt/
+   runs/{id}` decodes `results_json` into `results`, each annotated live
+   with `in_library`/`opportunity_id` by checking the user's existing
+   `normalized_url`s (same computation Catalog uses for its `in_library`
+   badge). A result only becomes a Library row when the user calls
+   `POST /scholarship-deep-hunt/runs/{id}/results/save` with its
+   `normalized_url`, which upserts via the same
+   `upsert_scholarship_opportunity` helper "Analyze" uses (dedup-by-URL,
+   no-invented-fields contract, and the `MAX_LIBRARY_ENTRIES=100` cap below).
+
+### Opportunity Library cap (SCHOLARDOCX-0178)
+`upsert_scholarship_opportunity` (`api/scholarship_opportunities.py`) enforces
+`MAX_LIBRARY_ENTRIES = 100` per user before inserting a brand-new row (an
+update to an already-owned `normalized_url` is never blocked — the cap only
+stops growth, not editing/re-saving what's already there). Exceeding it
+raises `LibraryFullError`, which every call site (the "Analyze" endpoint and
+the Deep Hunt "save result" endpoint) converts to `HTTP 409` with a
+plain-language message. This is a fixed backend constant, not an
+admin-configurable role limit; the Admin panel's Info tab ("Save & Storage
+Caps" section) states the cap as information only.
+
+### Run history cap (SCHOLARDOCX-0178)
+`ScholarshipDeepHuntRepository.create_run` FIFO-evicts down to
+`MAX_STORED_RUNS - 1` (9) existing runs before inserting, so a user never
+has more than 10 "Previous Searches". Eviction (and `delete_run`) call
+`_detach_saved_opportunities`, which sets
+`scholarship_opportunities.deep_hunt_run_id = NULL` for that run rather than
+deleting those rows — a user's explicitly-saved Library entry must survive
+its source run being pruned or deleted. (Before SCHOLARDOCX-0178, deleting a
+run deleted its linked opportunities outright, which was correct when every
+accepted result was auto-saved 1:1 with its run; it is not correct once
+saving is a separate, user-curated action.)
+
+### Sponsor/link accuracy (SCHOLARDOCX-0177)
+`scholarship_extraction.py`'s `EXTRACTION_SYSTEM_PROMPT` explicitly forbids
+naming a hosting/aggregator/directory site as `sponsor` unless the crawled
+text states that organization funds the *specific* opportunity — some pages
+(e.g. a national exchange agency's public scholarship database) list many
+programs they do not themselves fund, and the extraction model must not
+infer sponsorship from domain/branding alone. The same rule applies to
+`application_url`: it must be a specific page named in the text, not assumed
+to be the crawled page itself.
+
+### Per-hit billing (FR-8.48)
+- **Every raw Brave result is billed**, including those later filtered out.
+  The scanning was done for the user's search; the user carries it. The
+  vetting (turning noise into structured opportunities) is the value we add
+  on top at no extra scanning cost.
+- Charged per pass via
+  `charge_flat_fee(user, db, hits_this_pass × per_hit_cost, source="scholarship_hunt_hit")`,
+  where `per_hit_cost = get_brave_call_cost_per_hit_usd(db)` (admin-configurable,
+  default $0.015, seeded in `app_settings`).
+- **Pre-flight** (`create_run`): the user's balance is checked against the
+  worst case (`MAX_RAW_HITS_PER_RUN = SEARCH_PASSES × MAX_RESULTS_PER_PASS =
+  2×8 = 16` × price × token rate ≈ 2,400 credits ≈ $0.24 at default price)
+  via `ensure_can_spend(min_tokens=…)`. If insufficient → HTTP 402 "Not
+  enough credits for this search. It scans up to 16 sources." (no
+  provider/algorithm jargon).
+- SCHOLARDOCX-0176: the catalog is **static-only**. The
+  `/scholarship-catalog/{id}/check-cycle` endpoint and the
+  `news_service.search_catalog` Brave wrapper are removed. The catalog
+  (`GET /scholarship-catalog`) makes zero network calls and carries no
+  billing — it is a curated reference with multi-link entries split into
+  `program` and `university` categories.
+- The plan gate `can_use_scholarship_hunt` (Pro/Max) is enforced before
+  any spend. Rate limit `scholarship_deep_hunt_run` (5 runs / 10 min).
+
+### Search transparency (FR-8.50)
+- Pre-submit, the UI shows the cost ceiling via `formatCostEstimate(...)`:
+  "Up to 80 sources · up to 1,200 credits".
+- During the run, the backend emits `progress_json` counters
+  (`sources_scanned`, `sources_filtered`, `opportunities_extracted`) and
+  the UI renders a live funnel: "N scanned → M on-target → K opportunities".
+- User-facing copy contains no provider/algorithm jargon (no "Brave",
+  "Tavily", "hit", "relevance", "extraction"). Admin-panel labels may
+  name the provider.
+
+### Deleted / deprecated (this story)
+- `backend/app/services/news_query_generator.py` — planner supersedes it.
+- `backend/app/services/news_feedback.py` — only the deleted endpoints used it.
+- `/news/search`, `/news/query-preview` endpoints and `_charge_scholarship_hunt`.
+- Frontend: `FilterPanel.tsx`, `QueryReviewDialog.tsx`, `CustomPromptDialog.tsx`,
+  `SavedQueriesDialog.tsx`, `NewsCard.tsx`, `NewsFeed.tsx`.
+- `news_service.py` retains only `build_search_query` (deterministic fallback
+  used by the planner); the filter helpers (`_has_explicit_closed_status`,
+  `_is_stale_cycle`, etc.) are consumed by the deep pipeline via import.
+  SCHOLARDOCX-0176: `search_catalog` is removed (catalog is static-only).
 
 **CRITICAL BILLING REMINDERS**:
-1. **Query preview is NOT free**: The OpenRouter Free call in `/news/query-preview` MUST be charged via `charge_ai_tokens`. Users must have token balance even though the provider does not bill ScholarDocX.
-2. **Search is flat-fee**: The Tavily call in `/news/search` MUST be charged via `charge_flat_fee` with `category="scholarship_hunt"`.
-3. **Pre-flight checks are mandatory**: Both endpoints MUST check `can_use_scholarship_hunt` and quota limits BEFORE making external calls. If checks fail, return 403 without calling OpenRouter or Tavily.
-4. **Charge recording is mandatory**: After successful provider responses, commit the charge to the database so the user's balance and admin dashboards reflect actual usage.
+1. **Pre-flight is mandatory**: `create_run` MUST check `can_use_scholarship_hunt` AND `ensure_can_spend(min_tokens=worst_case)` BEFORE enqueuing the run. If either fails, return 403/402 without calling Brave or OpenRouter.
+2. **Per-pass per-hit charge is mandatory**: After EACH Brave pass returns, charge `hits × per_hit_cost` via `charge_flat_fee(source="scholarship_hunt_hit")`. The charge covers raw hits including filtered-out sources.
+3. **Extraction is token-metered**: `ScholarshipExtractionService.extract` bills through `AiService.chat` → `charge()` as before (unchanged).
+4. **Charge recording is mandatory**: Commit each charge to the DB so the user balance and admin dashboards reflect actual usage.
 
 ## API Key Handling
 
@@ -454,8 +549,10 @@ web-search ingredient so results actually match the goal:
   goal's field/degree/funding intent, returning a 0–1 `relevance_score`. The
   accept gate (`_is_acceptable`) enforces a `RELEVANCE_FLOOR` so off-topic
   pages are rejected even when well-formed. Falls back to a deterministic
-  synonym-keyword match (field-first: 0.1 unrelated, 0.7 overlap, 0.5
-  unstated) when AI is unavailable — relevance is always enforced.
+  synonym-keyword match (field-first: 0.1 unrelated, 0.7 overlap, 0.2
+  overlap-but-broad-umbrella-listing, 0.5 unstated — SCHOLARDOCX-0177 added
+  the broad-umbrella case) when AI is unavailable — relevance is always
+  enforced.
   - **BILLING ENFORCEMENT**: The relevance filter call is charged via `charge_ai_tokens` against the user's token balance. This is a single batched call per run (all extracted opportunities in one request).
 - **Field-of-study dimension**: extracted end-to-end. `fields_of_study` is
   part of the extraction schema (`scholarship_extraction.py`), persisted as
@@ -469,7 +566,7 @@ web-search ingredient so results actually match the goal:
   `ORDER BY relevance_score DESC` (then `updated_at DESC`), so on-topic
   results surface first instead of by update time.
 - **Cost**: +2 OpenRouter Free calls per run (planner + relevance batch),
-  both with `reasoning: {exclude: true}` and billing-free from OpenRouter's perspective. However, **ScholarDocX users are still charged tokens via `charge_ai_tokens` for both calls**. Extraction cost unchanged (already billed per opportunity). The Hunt Profile's `field_of_study` is now sent to the backend (`CreateDeepHuntRunRequest.field_of_study`, stored on `scholarship_deep_hunt_runs.fields_of_study`) so the planner and filter can use it; nationality/GPA remain opt-in/unsent.
+  both with `reasoning: {exclude: true}` and billing-free from OpenRouter's perspective. However, **ScholarDocX users are still charged tokens via `charge_ai_tokens` for both calls**. Extraction cost unchanged (already billed per opportunity). `field_of_study` is a manual Search-form field (`CreateDeepHuntRunRequest.field_of_study`, stored on `scholarship_deep_hunt_runs.fields_of_study`) sent to the backend so the planner and filter can use it — SCHOLARDOCX-0178 removed the Hunt Profile it used to optionally prefill from.
 
 **CRITICAL BILLING REMINDERS FOR DEEP HUNT**:
 1. **Flat-fee at start**: Charge one flat-fee unit (`charge_flat_fee(user, fee, session, category="deep_hunt", operation_id=run_id)`) when the run starts, gated by `can_use_scholarship_hunt` (Deep Hunt is a Scholarship Hunt feature).

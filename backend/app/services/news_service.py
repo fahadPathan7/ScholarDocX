@@ -6,9 +6,6 @@ from datetime import date
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import urlparse
 
-import httpx
-from fastapi import HTTPException
-
 from app.core.config import get_settings
 from app.services.news_filter_rules import (
     destination_query_terms,
@@ -18,9 +15,11 @@ from app.services.news_filter_rules import (
 )
 
 
-TAVILY_SEARCH_URL = "https://api.tavily.com/search"
-MAX_TAVILY_RESULTS = 20
-MAX_TAVILY_QUERY_LENGTH = 400
+# SCHOLARDOCX-0175: Tavily is no longer used by Scholarship Hunt (Brave
+# powers the deep search). This module now holds only the deterministic
+# query builder (used by the catalog check-cycle + as the planner fallback)
+# and the hard-filter helpers consumed by scholarship_deep_hunt.py.
+MAX_SEARCH_QUERY_LENGTH = 400
 
 MONTH_NAMES = {
     "january": 1,
@@ -274,7 +273,7 @@ def _append_query_section(
     query: str,
     prefix: str,
     terms: Iterable[str],
-    max_length: int = MAX_TAVILY_QUERY_LENGTH,
+    max_length: int = MAX_SEARCH_QUERY_LENGTH,
 ) -> str:
     selected = _unique(terms)
     if not selected:
@@ -521,28 +520,24 @@ def _refine_description(description: str) -> str:
     return " ".join(ordered)[:420].strip()
 
 
-def _result_image(result: Dict[str, Any]) -> Optional[str]:
-    for image in result.get("images") or []:
-        if isinstance(image, str) and image:
-            return image
-        if isinstance(image, dict) and image.get("url"):
-            return str(image["url"])
-    return None
-
-
 class NewsService:
+    """Scholarship Hunt domain rules: query building + hard filters.
+
+    SCHOLARDOCX-0175: the live web-search path moved to Brave
+    (`brave_search_service.py`) and the deep pipeline lives in
+    `scholarship_deep_hunt.py`. This class retains only the deterministic
+    query builder (used as the deep-search planner's fallback).
+    SCHOLARDOCX-0176: the catalog is now static-only, so the
+    `search_catalog` wrapper is removed.
+    """
+
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        client_factory=None,
+        api_key: Optional[str] = None,  # retained for test/back-comat; unused by Brave
+        client_factory=None,  # retained for test back-compat; unused by Brave
         today_provider=None,
     ):
-        settings = get_settings()
-        self.api_key = (
-            settings.tavily_api_key_scholarship_hunt if api_key is None else api_key
-        )
-        self.base_url = TAVILY_SEARCH_URL
-        self._client_factory = client_factory or httpx.AsyncClient
+        del api_key, client_factory  # no longer used; Brave adapter owns HTTP
         self._today_provider = today_provider or date.today
 
     def build_search_query(
@@ -565,7 +560,7 @@ class NewsService:
             f"{_format_search_date(today)}. Exclude closed, expired, archived, "
             "and past cycles."
         )
-        content_limit = MAX_TAVILY_QUERY_LENGTH - len(deadline_clause)
+        content_limit = MAX_SEARCH_QUERY_LENGTH - len(deadline_clause)
         primary_names: List[str] = []
         extra_aliases: List[str] = []
         if popular_scholarships:
@@ -646,120 +641,7 @@ class NewsService:
             query = _append_query_section(query, "Prefer", ["well-established programs."])
         if popular_scholarships:
             query = _append_query_section(query, "Also known as", extra_aliases)
-        return query[:MAX_TAVILY_QUERY_LENGTH].rstrip()
-
-    def build_search_payload(self, query: str) -> Dict[str, Any]:
-        return {
-            "query": query,
-            "topic": "general",
-            "search_depth": "basic",
-            "max_results": MAX_TAVILY_RESULTS,
-            "auto_parameters": False,
-            "include_answer": False,
-            "include_raw_content": False,
-            "include_images": False,
-            "exclude_domains": [
-                "youtube.com",
-                "youtu.be",
-                "facebook.com",
-                "instagram.com",
-                "linkedin.com",
-                "tiktok.com",
-                "threads.com",
-                "twitter.com",
-                "x.com",
-            ],
-        }
-
-    def normalize_results(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
-        articles = []
-        for result in response_data.get("results") or []:
-            title = re.sub(r"\s+", " ", str(result.get("title") or "")).strip()
-            link = str(result.get("url") or "").strip()
-            if not title or not link:
-                continue
-            description = re.sub(
-                r"\s+",
-                " ",
-                str(result.get("content") or ""),
-            ).strip()
-            articles.append(
-                {
-                    "article_id": _stable_article_id(link),
-                    "title": title,
-                    "link": link,
-                    "source_name": _source_name(link),
-                    "pubDate": (
-                        result.get("published_date")
-                        or result.get("publishedDate")
-                        or result.get("date")
-                    ),
-                    "image_url": _result_image(result),
-                    "description": _refine_description(description) or None,
-                    "country": [],
-                    "_search_score": float(result.get("score") or 0),
-                }
-            )
-        return {
-            "status": "success",
-            "totalResults": len(articles),
-            "results": articles,
-        }
-
-    async def search_scholarships(
-        self,
-        levels: Optional[List[str]] = None,
-        countries: Optional[List[str]] = None,
-        seasons: Optional[List[str]] = None,
-        years: Optional[List[str]] = None,
-        funding_types: Optional[List[str]] = None,
-        fields_of_study: Optional[List[str]] = None,
-        popular_scholarships: Optional[List[str]] = None,
-        custom_prompt: Optional[str] = None,
-        language: str = "en",
-        sort_by: str = "latest",
-        page: Optional[str] = None,
-        approved_query: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        del page  # Tavily pagination is intentionally disabled: one request per search.
-        query = approved_query or self.build_search_query(
-            levels=levels,
-            countries=countries,
-            seasons=seasons,
-            years=years,
-            funding_types=funding_types,
-            fields_of_study=fields_of_study,
-            popular_scholarships=popular_scholarships,
-            custom_prompt=custom_prompt,
-            language=language,
-            sort_by=sort_by,
-        )
-        payload = self.build_search_payload(query)
-
-        try:
-            async with self._client_factory(timeout=30.0) as client:
-                response = await client.post(
-                    self.base_url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                response.raise_for_status()
-        except httpx.HTTPStatusError as error:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Tavily Search failed with status {error.response.status_code}.",
-            )
-        except httpx.RequestError:
-            raise HTTPException(
-                status_code=502,
-                detail="Failed to connect to Tavily Search.",
-            )
-
-        normalized = self.normalize_results(response.json())
-        return normalized
+        return query[:MAX_SEARCH_QUERY_LENGTH].rstrip()
 
 
 news_service = NewsService()

@@ -48,7 +48,10 @@ MODEL_MAP = {
 }
 
 TABLE_COLUMNS = {
-    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings", "hunt_profile_json"},
+    # SCHOLARDOCX-0178: "hunt_profile_json" removed — Hunt Profile is deleted.
+    # The physical column is left in place, orphaned (matches this codebase's
+    # existing pattern for removed features), just no longer writable.
+    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings"},
     "projects": {"user_id", "name", "degree_type", "intake_term", "status", "description", "is_pinned", "pinned_to_dashboard"},
     "project_sheets": {"user_id", "project_id", "name", "is_pinned", "pinned_to_dashboard"},
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},

@@ -23,6 +23,7 @@
 - FR-3.3: Users can upload or register static files such as PDFs.
 - FR-3.4: Static files are stored in the local workspace media directory.
 - FR-3.5: Applications can link to relevant documents and files.
+- FR-3.6 (SCHOLARDOCX-0178): Documents are capped at 100 per user (fixed, not admin-configurable), separate from the per-role storage byte quota; uploading past it is rejected until an existing document is removed.
 
 ## FR-4: Email And Outreach Manager
 
@@ -38,6 +39,7 @@
 - FR-5.3: AI can use current document or email draft context when the user explicitly requests it.
 - FR-5.4: AI actions should show enough context for user review before saving changes.
 - FR-5.5: AI can prepare project, sheet, row, and sticky-note actions, but only execute them after user confirmation.
+- FR-5.6 (SCHOLARDOCX-0178): Ask AI chat history is capped at 10 saved sessions per user (client-side, browser storage only); starting a new chat past the cap deletes the oldest saved session first (FIFO).
 
 ## FR-6: Authentication And Identity
 
@@ -114,16 +116,21 @@
 - FR-8.27: Hard destination/named-scholarship validation is combined with evidence-based relevance scoring for snippet-limited filters.
 - FR-8.24 (updated): the query-review dialog is opt-in via a default-off toggle instead of mandatory.
 - FR-8.32: A zero-cost curated scholarship Catalog sub-view.
-- FR-8.33: Catalog "Check current cycle" makes one Tavily search under the existing Hunt quota.
+- ~~FR-8.33: Catalog "Check current cycle"...~~ SUPERSEDED (SCHOLARDOCX-0176): the catalog is static-only; the paid check-cycle action is removed.
 - FR-8.34: "Analyze" produces a structured opportunity with per-field confidence; unsupported fields stay empty.
 - FR-8.35: Analyze is gated by `can_use_scholarship_analyze` plus the AI token economy; no separate count limit.
 - FR-8.36: A user-scoped Opportunity Library with a Found→Vetting→Applying→Submitted→Result status pipeline.
 - FR-8.37: "Add to tracker" creates/reuses a project's Scholarship Tracker sheet and appends a row.
 - FR-8.38: The Opportunity Library replaces bare bookmarks as the primary saved view; bookmarks migrate in additively.
-- FR-8.39: One local Hunt Profile (degree, destinations, field, intake, opt-in nationality) prefilled from a project.
-- FR-8.40: Local, provider-free fit score + why/why not chips on opportunities when a Hunt Profile is set.
+- ~~FR-8.39: One local Hunt Profile...~~ / ~~FR-8.40: Local fit score...~~ REMOVED (SCHOLARDOCX-0178): no real-world use; removed along with all fit-score UI.
 - FR-8.41: A saved query is a watchlist; re-running it diffs and badges results new since the last run.
 - FR-8.42: Deadline Radar surfaces tracked opportunities near their deadline and fires one deduped notification per day.
+- FR-8.51 (SCHOLARDOCX-0177): near-duplicate opportunities (same generic program, year/punctuation title variants) collapse to the single best-evidenced entry before persistence.
+- FR-8.52 (SCHOLARDOCX-0177): broad/umbrella multi-field programs (5+ unrelated fields, no goal-specific track) are scored below the relevance floor rather than treated as a field-specific match.
+- FR-8.53 (SCHOLARDOCX-0177): extraction must not attribute sponsorship to a hosting/aggregator site, or assume its own URL is the official application page, without explicit textual support.
+- FR-8.54 (SCHOLARDOCX-0178): Search results are shown unsaved; only an explicit "Save to Library" action persists a result as an Opportunity Library entry.
+- FR-8.55 (SCHOLARDOCX-0178): the Opportunity Library is capped at 100 saved opportunities per user; saving past the cap is rejected, never silently evicted.
+- FR-8.56 (SCHOLARDOCX-0178): "Previous Searches" is capped at 10 runs per user; starting an 11th deletes the oldest first (FIFO), detaching (not deleting) any Library opportunities the user saved from it.
 
 ## FR-9: Advisor Atlas
 

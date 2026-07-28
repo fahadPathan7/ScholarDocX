@@ -4,7 +4,22 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from app.services.scholarship_extraction import ScholarshipExtractionService
+from app.services.scholarship_extraction import (
+    EXTRACTION_SYSTEM_PROMPT,
+    ScholarshipExtractionService,
+)
+
+
+def test_extraction_prompt_guards_against_aggregator_sponsor_misattribution():
+    """SCHOLARDOCX-0177 regression guard: a user reported a non-DAAD
+    scholarship being extracted with "DAAD" as its sponsor because DAAD hosts
+    a public database listing many scholarships it does not fund. The prompt
+    must explicitly instruct the model not to attribute sponsorship to a
+    hosting/listing site without explicit textual support."""
+    lowered = EXTRACTION_SYSTEM_PROMPT.casefold()
+    assert "sponsor" in lowered
+    assert "hosting" in lowered or "listing" in lowered
+    assert "does not itself fund" in lowered or "does not fund" in lowered
 
 
 class FakeAiService:

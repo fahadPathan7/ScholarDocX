@@ -16,9 +16,7 @@ This module wraps the web-search ingredient in two small AI calls:
    opportunity RELEVANT / OFF-TOPIC against the goal, returning a 0..1 score
    per item.
 
-Both mirror the established provider shape used by
-``news_query_generator.ScholarshipQueryGenerator`` and
-``scholarship_extraction.ScholarshipExtractionService``: an unmetered
+Both mirror the established provider shape (an unmetered
 OpenRouter Free call with ``reasoning: {exclude: true}`` and a strict JSON
 contract, with a deterministic fallback so the run never hard-fails on an AI
 outage. Billing-free — extraction already carries the run's token cost.
@@ -42,6 +40,12 @@ logger = logging.getLogger(__name__)
 # caller (scholarship_deep_hunt.py) truncates the returned list to
 # ``SEARCH_PASSES`` anyway.
 MAX_PLANNED_QUERIES = 4
+
+# SCHOLARDOCX-0177: a fields_of_study list at or above this length reads as a
+# broad/umbrella program description (funds almost every discipline) rather
+# than a field-specific opportunity, even when one listed field happens to
+# match the user's goal.
+BROAD_FIELD_LIST_SIZE = 5
 
 QUERY_PLANNER_SYSTEM_PROMPT = """You plan precise public-web search queries for one scholarship Deep Hunt run.
 The user gave a free-text funding goal. Your job is to turn that goal into 3-4 diverse, high-signal queries that will surface official program, application, eligibility, funding, and deadline pages.
@@ -67,7 +71,8 @@ Rules:
 - The DECISIVE dimension is FIELD OF STUDY. An opportunity whose stated fields do not overlap the goal's field is OFF_TOPIC (score <= 0.25), even if the degree level, funding, or destination match. A generic page with no field signal and no degree signal (e.g. a directory landing page) is OFF_TOPIC.
 - If the goal expresses a degree level and the opportunity states degree levels that do not include it, mark OFF_TOPIC unless the page explicitly says the program covers that level.
 - If the goal expresses a destination and the opportunity states destinations with no overlap, that lowers the score but is not alone decisive.
-- RELEVANT means a reasonable applicant with this goal would consider applying; when in doubt, lean RELEVANT rather than silently dropping a plausible match.
+- BROAD/UMBRELLA PROGRAMS: if the goal names a specific field of study and an opportunity's fields_of_study lists five or more unrelated broad disciplines (e.g. engineering, health, law, and humanities together) with no field named as a specific track, consortium, or specialization matching the goal, mark it OFF_TOPIC (score <= 0.25) even though the goal's field technically appears somewhere in the long list. A generic umbrella program description that funds almost every discipline is not the close, field-specific match the user asked for.
+- RELEVANT means a reasonable applicant with this goal would consider applying to THIS specific opportunity, not merely that the goal's field is technically included somewhere in a long list of unrelated fields.
 - Preserve the input order in your output array.
 - Do not include commentary, markdown, or text outside the JSON object."""
 
@@ -425,7 +430,12 @@ class DeepHuntRelevanceFilter:
 
         Mirrors the relevance prompt's field-first bias: 0.1 for a stated field
         with no overlap, 0.7 for a field overlap, 0.5 when the page states no
-        field signal at all (plausible but unverified).
+        field signal at all (plausible but unverified). SCHOLARDOCX-0177: an
+        overlap inside a broad/umbrella listing (5+ stated fields spanning
+        unrelated disciplines) scores 0.2 instead of 0.7 — the user's field is
+        technically included, but a program that funds almost every discipline
+        is not the close, field-specific match a synonym overlap normally
+        signals.
         """
         synonyms = [s.casefold() for s in (field_synonyms or []) if s]
         scores: List[float] = []
@@ -439,7 +449,7 @@ class DeepHuntRelevanceFilter:
                 scores.append(0.5)
                 continue
             if synonyms and _fields_overlap(synonyms, fields):
-                scores.append(0.7)
+                scores.append(0.2 if len(fields) >= BROAD_FIELD_LIST_SIZE else 0.7)
             else:
                 scores.append(0.1)
         return scores

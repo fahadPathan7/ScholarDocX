@@ -85,7 +85,17 @@ def test_advisor_atlas_permission_is_seeded(tmp_path):
 
 def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
     """The upgrade message is derived from role_limits, so it tracks admin
-    edits instead of hardcoding 'Pro and Max'."""
+    edits instead of hardcoding 'Pro and Max'.
+
+    STRICT RULE (SCHOLARDOCX-0178 incident): role_limits is GLOBAL, shared,
+    admin-configured state — this suite runs against a real shared database
+    (see tests/conftest.py's load_dotenv), so mutating a role's limit_count
+    here and not restoring it corrupts real plan gating for every user of
+    that role indefinitely. This exact test previously zeroed out
+    can_use_advisor_atlas for EVERY role (including pro_user, which should
+    default to 1) and never restored it. Snapshot every row this test
+    touches before mutating and restore those exact values afterward.
+    """
     from sqlalchemy import text
     from sqlalchemy.orm import sessionmaker
 
@@ -94,6 +104,12 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
 
     settings = make_settings(tmp_path)
     session = sessionmaker(bind=get_engine(settings.database_target))()
+    before = {
+        row["role"]: row["limit_count"]
+        for row in session.execute(
+            text("SELECT role, limit_count FROM role_limits WHERE feature = 'can_use_advisor_atlas'")
+        ).mappings().fetchall()
+    }
     try:
         # Default seed: only pro/max enabled.
         assert feature_plan_phrase("can_use_advisor_atlas", session) == "the Pro and Max plans"
@@ -115,6 +131,15 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
         session.commit()
         assert feature_plan_phrase("can_use_advisor_atlas", session) == "a higher plan"
     finally:
+        for role, limit_count in before.items():
+            session.execute(
+                text(
+                    "UPDATE role_limits SET limit_count = :limit_count "
+                    "WHERE role = :role AND feature = 'can_use_advisor_atlas'"
+                ),
+                {"limit_count": limit_count, "role": role},
+            )
+        session.commit()
         session.close()
 
 

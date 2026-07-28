@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { Clock, Loader2, Lock, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import {
   DeepHuntRun,
+  DeepHuntResult,
   scholarshipDeepHuntApi,
+  formatCostEstimate,
+  shouldShowFunnel,
 } from "../../lib/scholarshipDeepHuntApi";
-import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
-import { HuntProfile, isHuntProfileComplete } from "../../lib/huntProfile";
-import { OpportunityCard } from "./OpportunityCard";
+import { DeepHuntResultCard } from "./DeepHuntResultCard";
 import { Modal } from "../Modal";
 import "./deep-hunt.css";
 
@@ -15,10 +16,7 @@ const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 
 interface DeepHuntViewProps {
   onToast: (msg: string) => void;
-  onAddToTracker: (opportunity: ScholarshipOpportunity) => void;
-  huntProfile?: HuntProfile | null;
   canUseDeepHunt: boolean;
-  onRequireHuntProfile: () => void;
 }
 
 function stageLabel(stage: string): string {
@@ -35,16 +33,23 @@ function stageLabel(stage: string): string {
   return labels[stage] || stage;
 }
 
-export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepHunt, onRequireHuntProfile }: DeepHuntViewProps) {
+export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
   const [runs, setRuns] = useState<DeepHuntRun[]>([]);
   const [activeRun, setActiveRun] = useState<DeepHuntRun | null>(null);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [goal, setGoal] = useState("");
-  const [degreeLevel, setDegreeLevel] = useState(huntProfile?.degree_level || "");
-  const [destinationsText, setDestinationsText] = useState((huntProfile?.destinations || []).join(", "));
-  const [intakeTerm, setIntakeTerm] = useState(huntProfile?.intake_term || "");
+  const [degreeLevel, setDegreeLevel] = useState("");
+  const [destinationsText, setDestinationsText] = useState("");
+  const [intakeTerm, setIntakeTerm] = useState("");
+  const [fieldOfStudy, setFieldOfStudy] = useState("");
+  // Cost estimate from the most recent create response; shown before submit
+  // as a static ceiling and refreshed when a run starts.
+  const [costEstimate, setCostEstimate] = useState<{ max_sources: number; max_credits: number } | null>(null);
+  // Guards a result's "Save to Library" button against duplicate clicks;
+  // holds the normalized_url currently being saved, or null.
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const loadRuns = async () => {
@@ -102,12 +107,8 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
   };
 
   const handleCreate = async () => {
-    if (!isHuntProfileComplete(huntProfile)) {
-      onRequireHuntProfile();
-      return;
-    }
     if (!goal.trim()) {
-      onToast("Enter a funding goal to start a Deep Hunt run.");
+      onToast("Enter a funding goal to start a search.");
       return;
     }
     setIsCreating(true);
@@ -121,14 +122,18 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
         degree_level: degreeLevel.trim() || undefined,
         destinations,
         intake_term: intakeTerm.trim() || undefined,
-        field_of_study: huntProfile?.field_of_study?.trim() || undefined,
+        field_of_study: fieldOfStudy.trim() || undefined,
       });
-      setRuns((prev) => [created, ...prev]);
+      if (created.cost_estimate) setCostEstimate(created.cost_estimate);
+      // SCHOLARDOCX-0178: the backend FIFO-evicts past MAX_STORED_RUNS (10);
+      // mirror that here so the history list doesn't show a stale 11th run
+      // until the next reload.
+      setRuns((prev) => [created, ...prev].slice(0, 10));
       setActiveRun(created);
       setGoal("");
-      onToast("Deep Hunt run started.");
+      onToast("Search started.");
     } catch (error: any) {
-      onToast(error?.message || "Failed to start Deep Hunt run.");
+      onToast(error?.message || "Failed to start search.");
     } finally {
       setIsCreating(false);
     }
@@ -165,15 +170,42 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
     }
   };
 
+  // Explicit save (SCHOLARDOCX-0178): a Search result is only persisted to
+  // the Opportunity Library when the user picks it, not automatically.
+  const handleSaveResult = async (result: DeepHuntResult) => {
+    if (!activeRun || savingUrl) return;
+    setSavingUrl(result.normalized_url);
+    try {
+      const saved = await scholarshipDeepHuntApi.saveResult(activeRun.id, result.normalized_url);
+      setActiveRun((prev) =>
+        prev
+          ? {
+              ...prev,
+              results: (prev.results || []).map((r) =>
+                r.normalized_url === result.normalized_url
+                  ? { ...r, in_library: true, opportunity_id: saved.id }
+                  : r
+              ),
+            }
+          : prev
+      );
+      onToast("Saved to Library.");
+    } catch (error: any) {
+      onToast(error?.message || "Failed to save to Library.");
+    } finally {
+      setSavingUrl(null);
+    }
+  };
+
   return (
     <div className="deep-hunt-view">
       {!canUseDeepHunt && (
         <div className="deep-hunt-locked">
           <Lock size={18} />
           <div>
-            <strong>Your account doesn&rsquo;t have access to Deep Hunt.</strong>
+            <strong>Your account doesn&rsquo;t have access to Scholarship Hunt.</strong>
             <p>
-              Deep Hunt runs multi-pass scholarship research that searches, crawls, and extracts several
+              Scholarship Hunt runs multi-pass research that searches, vets, and extracts several
               evidence-backed opportunities for one funding goal. Access is controlled by your
               workspace&rsquo;s role limits &mdash; ask an admin to enable it, or check your options in
               Profile &rarr; Plans.
@@ -187,7 +219,7 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
           <div className="deep-hunt-launcher-header">
             <div className="deep-hunt-launcher-title">
               <Sparkles size={16} />
-              <span>Start a Deep Hunt run</span>
+              <span>Search for funding</span>
             </div>
             {!isLoadingRuns && runs.length > 0 && (
               <button
@@ -229,7 +261,16 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
               value={intakeTerm}
               onChange={(e) => setIntakeTerm(e.target.value)}
             />
+            <input
+              type="text"
+              placeholder="Field of study (optional)"
+              value={fieldOfStudy}
+              onChange={(e) => setFieldOfStudy(e.target.value)}
+            />
           </div>
+          {/* SCHOLARDOCX-0175: transparent cost ceiling before submit. Actual
+              charges scale with sources scanned, so this is the worst case. */}
+          <p className="deep-hunt-cost-estimate">{formatCostEstimate(costEstimate)}</p>
           <button
             type="button"
             className="button-primary"
@@ -237,7 +278,7 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
             disabled={isCreating || !goal.trim()}
           >
             {isCreating ? <Loader2 className="icon-spin" size={16} /> : <Sparkles size={16} />}
-            <span>Start Deep Hunt</span>
+            <span>Search</span>
           </button>
         </div>
       )}
@@ -316,6 +357,24 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
               </div>
             )}
 
+            {/* SCHOLARDOCX-0175: live funnel counters so the user sees noise
+                being filtered out and opportunities being vetted in real time. */}
+            {IN_FLIGHT_STATUSES.includes(activeRun.status) && shouldShowFunnel(activeRun.progress) && (
+              <div className="deep-hunt-funnel" aria-live="polite">
+                <span className="deep-hunt-funnel-step">
+                  <strong>{activeRun.progress?.sources_scanned ?? 0}</strong> scanned
+                </span>
+                <span className="deep-hunt-funnel-arrow">&rarr;</span>
+                <span className="deep-hunt-funnel-step">
+                  <strong>{activeRun.progress?.sources_filtered ?? 0}</strong> on-target
+                </span>
+                <span className="deep-hunt-funnel-arrow">&rarr;</span>
+                <span className="deep-hunt-funnel-step">
+                  <strong>{activeRun.progress?.opportunities_extracted ?? 0}</strong> opportunities
+                </span>
+              </div>
+            )}
+
             {activeRun.status === "failed" && (
               <div className="deep-hunt-error">
                 <span>{activeRun.error_message || "The run stopped before completion."}</span>
@@ -339,19 +398,19 @@ export function DeepHuntView({ onToast, onAddToTracker, huntProfile, canUseDeepH
             )}
 
             <div className="deep-hunt-results">
-              {(activeRun.opportunities || []).length === 0 ? (
+              {(activeRun.results || []).length === 0 ? (
                 <p className="news-empty-subtext">
                   {activeRun.status === "completed"
                     ? "No opportunities matched this goal well enough to keep."
                     : "Results will appear here as they're found."}
                 </p>
               ) : (
-                activeRun.opportunities!.map((opportunity) => (
-                  <OpportunityCard
-                    key={opportunity.id}
-                    opportunity={opportunity}
-                    onAddToTracker={onAddToTracker}
-                    huntProfile={huntProfile}
+                activeRun.results!.map((result) => (
+                  <DeepHuntResultCard
+                    key={result.normalized_url}
+                    result={result}
+                    onSave={handleSaveResult}
+                    isSaving={savingUrl === result.normalized_url}
                   />
                 ))
               )}

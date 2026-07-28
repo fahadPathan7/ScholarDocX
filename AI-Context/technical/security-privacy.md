@@ -60,10 +60,9 @@ remain explicit user actions behind backend services.
   `/files/{file_id}/content` do not expose `file_type='research_paper'` rows.
   Research papers still count toward the shared `total_documents_bytes` storage
   limit.
-- The Hunt Profile's optional nationality field (Phase 3) is local-only: it
-  is read only by the client-side fit-score function and must never appear
-  in a Tavily query, an "Analyze" extraction request, or any other
-  provider-bound payload. Fit scoring itself makes zero provider calls.
+- Hunt Profile (and its client-side fit score) was removed in
+  SCHOLARDOCX-0178 — no nationality or profile field exists anywhere in
+  Scholarship Hunt to guard.
 - Deep Hunt runs (Phase 5, SCHOLARDOCX-0125) send only the run's goal text
   and optional degree level/destinations/intake term to Tavily as query
   terms, and only crawled-page text/title/URL to the extraction provider —

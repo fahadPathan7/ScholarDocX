@@ -40,6 +40,16 @@ Supported file examples:
 
 Static files should be stored in Supabase Storage or the local workspace media folder. The database should store metadata and file paths.
 
+- **FR-3.x (SCHOLARDOCX-0178)**: Documents are capped at 100 per user
+  (`MAX_DOCUMENTS_PER_USER` in `app/api/routes.py`'s `/files/upload`),
+  independent of the existing per-role `total_documents_bytes` byte-size
+  quota. This is a fixed limit, not admin-configurable — documented as
+  information in the Admin panel's Info tab ("Save & Storage Caps").
+  Uploading past the cap is rejected (HTTP 409) with a plain-language
+  message; the user must remove an existing document first. Research
+  papers are excluded from this count (they have their own separate
+  `max_research_papers_library` cap).
+
 ## File Linking
 
 Uploaded files can be linked to sheet records through the record form.

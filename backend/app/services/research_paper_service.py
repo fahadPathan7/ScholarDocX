@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import io
 import logging
-import math
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -443,7 +442,7 @@ class ResearchPaperService:
         import json, re
 
         clean_filename_title = Path(filename).stem.replace("_", " ").replace("-", " ").title()
-        metadata = {
+        metadata: dict[str, Any] = {
             "title": clean_filename_title,
             "authors": None,
             "journal_conference": None,
@@ -1002,7 +1001,7 @@ class ResearchPaperService:
         ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
 
         # Retrieve relevant chunks via pgvector search
-        chunks = await self.search_relevant_chunks(paper_id, prompt, top_k=top_k)
+        chunks: list[dict[str, Any]] = await self.search_relevant_chunks(paper_id, prompt, top_k=top_k)
 
         # Note: Query embedding generation via Jina is infrastructure cost.
         # Users are only charged for the actual AI analysis call below via AiService.chat()

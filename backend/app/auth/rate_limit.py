@@ -247,18 +247,6 @@ RATE_LIMIT_RULES: list[dict[str, Any]] = [
         "message": "Too many candidate refreshes. Please wait before retrying.",
     },
     {
-        # Catalog cycle check performs one Tavily search per call.
-        "key": "scholarship_catalog_check_cycle",
-        "label": "Scholarship Catalog — Check Cycle",
-        "description": "Check the current application cycle of a catalog scholarship via search.",
-        "method": "POST",
-        "path": "/scholarship-catalog/{catalog_id}/check-cycle",
-        "max_requests": 10,
-        "window_seconds": 60,
-        "scope": "user",
-        "message": "Too many cycle-check requests. Please slow down.",
-    },
-    {
         # File upload writes to disk and charges the byte quota. Moderate budget
         # lets normal bulk imports through while capping runaway loops.
         "key": "files_upload",

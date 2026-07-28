@@ -330,6 +330,15 @@ def test_admin_plan_request_review_blocks_extension_without_requests_permission(
             "plan_started_at": None,
             "plan_ends_at": None,
         }
+        # STRICT RULE (SCHOLARDOCX-0178 incident): role_limits is global,
+        # shared, admin-configured state — this suite runs against a real
+        # shared database, so this row must be restored to whatever it held
+        # before this test, not left at the test-forced 0 (this exact test
+        # previously left general_admin.admin_manage_plan_requests stuck at
+        # 0 in the live database).
+        before = connection.execute(
+            "SELECT limit_count FROM role_limits WHERE role = 'general_admin' AND feature = 'admin_manage_plan_requests'"
+        ).fetchone()["limit_count"]
         connection.execute(
             "UPDATE role_limits SET limit_count = 0 WHERE role = 'general_admin' AND feature = 'admin_manage_plan_requests'"
         )
@@ -348,4 +357,10 @@ def test_admin_plan_request_review_blocks_extension_without_requests_permission(
             assert exc.status_code == 403
             assert "ADMIN_MANAGE_PLAN_REQUESTS" in str(exc.detail) or "admin_manage_plan_requests" in str(exc.detail).lower()
     finally:
+        connection.execute(
+            "UPDATE role_limits SET limit_count = ? WHERE role = 'general_admin' AND feature = 'admin_manage_plan_requests'",
+            (before,),
+        )
+        connection.commit()
+        invalidate_limits_cache()
         store.db.close()

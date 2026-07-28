@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
-import { HuntProfile, computeFitScore } from "../../lib/huntProfile";
 import {
   deadlineTone,
 } from "./OpportunityCard";
@@ -21,7 +20,6 @@ import {
 interface OpportunityDetailDrawerProps {
   opportunity: ScholarshipOpportunity;
   onAddToTracker?: (opportunity: ScholarshipOpportunity) => void;
-  huntProfile?: HuntProfile | null;
   onClose: () => void;
 }
 
@@ -67,7 +65,6 @@ function Chip({ children }: { children: React.ReactNode }) {
 
 export function OpportunityDetailDrawer({
   opportunity,
-  huntProfile,
   onClose,
 }: OpportunityDetailDrawerProps) {
   useEffect(() => {
@@ -82,7 +79,6 @@ export function OpportunityDetailDrawer({
     };
   }, [onClose]);
 
-  const fit = huntProfile ? computeFitScore(huntProfile, opportunity) : null;
   const futureDeadlines = opportunity.deadlines.filter((d) => d.date && isFutureDate(d.date));
   const pastDeadlines = opportunity.deadlines.filter((d) => d.date && !isFutureDate(d.date));
   const confidenceEntries = Object.entries(opportunity.field_confidence || {}).filter(([, value]) => typeof value === "number");
@@ -117,23 +113,6 @@ export function OpportunityDetailDrawer({
         </header>
 
         <div className="opp-drawer-body">
-          {fit && (
-            <div className="opp-drawer-fit">
-              <span className={`opp-drawer-fit-badge fit-${fit.score >= 70 ? "high" : fit.score >= 40 ? "medium" : "low"}`}>
-                <Target size={14} />
-                {fit.score}% fit
-              </span>
-              <div className="opp-drawer-fit-chips">
-                {fit.matches.map((m, i) => (
-                  <span key={`m-${i}`} className="opp-drawer-chip chip-match">✓ {m}</span>
-                ))}
-                {fit.mismatches.map((m, i) => (
-                  <span key={`x-${i}`} className="opp-drawer-chip chip-mismatch">✗ {m}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
           <Section icon={CalendarClock} title="Deadlines" empty="No deadlines were verified on the source page.">
             {futureDeadlines.length > 0 && (
               <ul className="opp-drawer-deadlines">

@@ -440,6 +440,27 @@
   font-weight: 800;
 }
 
+/* A dossier read from the frozen copy rather than from a live candidate.
+   States the age up front — the content is real, it is just not current. */
+.atlas-archived-notice {
+  display: flex;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  gap: 8px;
+  align-items: flex-start;
+  color: #5c478c;
+  border-left: 3px solid #a996d8;
+  border-radius: 0 9px 9px 0;
+  background: #f4f1fb;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.atlas-archived-notice svg {
+  flex: none;
+  margin-top: 1px;
+}
+
 /* Shown when an AI analysis step failed, so a thin dossier reads as a known
    degradation rather than as a finding about the professor. */
 .atlas-degraded-notice {

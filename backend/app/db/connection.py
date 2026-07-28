@@ -137,6 +137,7 @@ def initialize_database(database_url: str) -> None:
         _add_scholarship_fields_of_study_columns(conn)
         _add_deep_hunt_results_column(conn)
         _add_publication_provenance_columns(conn)
+        _add_paper_embedding_task_column(conn)
         _add_advisor_profile_column(conn)
         _add_subscription_granted_column(conn)
         _add_purchase_request_price_snapshot_columns(conn)
@@ -298,6 +299,26 @@ def _add_advisor_profile_column(conn) -> None:
         text(
             "ALTER TABLE local_profiles "
             "ADD COLUMN IF NOT EXISTS advisor_profile_json TEXT NOT NULL DEFAULT '{}'"
+        )
+    )
+
+
+def _add_paper_embedding_task_column(conn) -> None:
+    """Add research_papers.embedding_task if missing (SCHOLARDOCX-0193).
+
+    Records which Jina task a paper's passages were indexed with. New papers
+    use the asymmetric retrieval pair; papers indexed before the switch stay on
+    the symmetric ``text-matching`` task until re-indexed, and their questions
+    are embedded to match. The default is deliberately the **legacy** value, so
+    every existing row is labelled correctly by the migration itself rather
+    than being silently mislabelled as already migrated — which would compare
+    new queries against old vectors and quietly return nonsense.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE research_papers "
+            "ADD COLUMN IF NOT EXISTS embedding_task TEXT NOT NULL "
+            "DEFAULT 'text-matching'"
         )
     )
 

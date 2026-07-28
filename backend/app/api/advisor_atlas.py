@@ -15,6 +15,7 @@ from app.auth.rate_limit import rate_limiter, user_identity
 from app.services import ai_tokens
 from app.core.config import Settings, get_settings
 from app.services.advisor_atlas import AdvisorAtlasService
+from app.services.advisor_atlas.repository import SavedProfessorLimitReached
 from app.services.store import Store
 
 
@@ -27,6 +28,13 @@ router = APIRouter(prefix="/advisor-atlas", tags=["Advisor Atlas"])
 # user must delete an existing run before starting a new one — there is no
 # silent eviction of old runs.
 MAX_ADVISOR_ATLAS_RUNS = 100
+
+# SCHOLARDOCX-0196: fixed cap on the saved-professor library. A curated
+# collection, so it is a hard reject at the cap rather than FIFO eviction —
+# same call CODE_RULES makes for the Opportunity Library and Research Expert
+# saved analyses, and for the same reason: silently deleting a professor the
+# user deliberately kept would be worse than refusing the 101st.
+MAX_SAVED_PROFESSORS = 100
 
 
 class ResearchProfile(BaseModel):
@@ -328,6 +336,48 @@ async def refresh_candidate(
         raise HTTPException(status_code=502, detail=str(exc))
 
 
+@router.get("/saved-professors")
+def list_saved_professors(
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    """The saved-professor library, each entry linked back to its dossier."""
+    professors = service.repository.list_saved_professors(str(user["id"]))
+    return {
+        "professors": professors,
+        "count": len(professors),
+        "max_saved": MAX_SAVED_PROFESSORS,
+    }
+
+
+@router.get("/saved-professors/{professor_id}/dossier")
+def get_saved_dossier(
+    professor_id: str,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    """The dossier frozen when this professor was saved.
+
+    Independent of the search it came from, which the user may have deleted.
+    """
+    try:
+        return service.repository.get_saved_dossier(professor_id, str(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.delete("/saved-professors/{professor_id}")
+def remove_saved_professor(
+    professor_id: str,
+    user: dict = Depends(get_current_user),
+    service: AdvisorAtlasService = Depends(_service),
+):
+    try:
+        return service.repository.remove_saved_professor(professor_id, str(user["id"]))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
 @router.post("/candidates/{candidate_id}/save")
 def save_candidate(
     candidate_id: str,
@@ -335,6 +385,12 @@ def save_candidate(
     service: AdvisorAtlasService = Depends(_service),
 ):
     try:
-        return service.repository.save_to_professors(candidate_id, str(user["id"]))
+        return service.repository.save_to_professors(
+            candidate_id,
+            str(user["id"]),
+            max_saved=MAX_SAVED_PROFESSORS,
+        )
+    except SavedProfessorLimitReached as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

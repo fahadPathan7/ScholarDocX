@@ -977,6 +977,21 @@ export function ResearchExpertView({
                         {retrying ? "Retrying…" : "Retry Processing"}
                       </button>
                     )}
+                    {activePaper.status === "ready" && activePaper.search_upgrade_available && (
+                      // Offered, never automatic: re-reading a paper costs
+                      // credits, so it is the user's call whether this one is
+                      // worth it.
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(activePaper.id)}
+                        disabled={retrying}
+                        className="upgrade-search-btn"
+                        title="This paper was read before search was tuned for question matching. Re-reading it makes answers more accurate, and uses credits."
+                      >
+                        <Sparkles size={14} className={retrying ? "spin" : ""} />
+                        {retrying ? "Re-reading…" : "Improve search accuracy"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="active-paper-info min-w-0">
@@ -1090,11 +1105,32 @@ export function ResearchExpertView({
                   }}
                   className="question-form"
                 >
-                  <input
-                    type="text"
+                  {/* A textarea, not an input: a single-line input cannot hold
+                      a newline at all, so Shift+Enter had nothing to insert.
+                      Enter still submits; Shift+Enter breaks the line. */}
+                  <textarea
                     placeholder="e.g. What is the baseline model accuracy compared to the proposed method?"
                     value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    rows={1}
+                    onChange={(e) => {
+                      setCustomPrompt(e.target.value);
+                      // Grow with the content. `field-sizing: content` handles
+                      // this natively on new Chromium, but not on Safari or
+                      // Firefox, so the box would otherwise stay one line tall
+                      // on exactly the browsers where the new line is hardest
+                      // to see.
+                      const box = e.currentTarget;
+                      box.style.height = "auto";
+                      box.style.height = `${Math.min(box.scrollHeight, 148)}px`;
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (customPrompt.trim() && !analyzing && activePaper.status === "ready") {
+                          handleAnalyze(customPrompt);
+                        }
+                      }
+                    }}
                     disabled={analyzing || activePaper.status !== "ready"}
                     className="question-input"
                   />
@@ -1116,6 +1152,9 @@ export function ResearchExpertView({
                     )}
                   </button>
                 </form>
+                <p className="question-hint">
+                  Enter to ask · Shift + Enter for a new line
+                </p>
               </div>
 
               {/* Analysis Result Viewer */}
@@ -1182,15 +1221,29 @@ export function ResearchExpertView({
                     })}
                   </div>
 
-                  {/* Sources & Citations */}
-                  {analysisResult.sources && analysisResult.sources.length > 0 && (
+                  {/* Sources & Citations.
+                      Split into what the answer leaned on and what was read
+                      and set aside. Listing all ten together implied the answer
+                      used all ten, and buried the three that carry the claim. */}
+                  {analysisResult.sources && analysisResult.sources.length > 0 && (() => {
+                    const cited = analysisResult.sources.filter((s) => s.cited_in_answer);
+                    const alsoRead = analysisResult.sources.filter((s) => !s.cited_in_answer);
+                    // When the answer cites nothing (a general summary, say),
+                    // there is no split to make — show everything as before.
+                    const primary = cited.length ? cited : analysisResult.sources;
+                    const secondary = cited.length ? alsoRead : [];
+                    return (
                     <div className="result-sources-section">
                       <h4>
                         <Layers size={16} />
-                        <span>Paper Sections ({analysisResult.sources.length})</span>
+                        <span>
+                          {cited.length
+                            ? `Sections used in this answer (${cited.length})`
+                            : `Paper Sections (${analysisResult.sources.length})`}
+                        </span>
                       </h4>
                       <div className="sources-list">
-                        {analysisResult.sources.map((src, i) => {
+                        {primary.map((src, i) => {
                           const isExpanded = expandedSources.has(src.chunk_id);
                           const pageNumStr = src.page_numbers && src.page_numbers.length > 0
                             ? src.page_numbers.length === 1
@@ -1214,8 +1267,19 @@ export function ResearchExpertView({
                                     </span>
                                   )}
                                 </div>
-                                <span className="similarity-badge">
-                                  Relevance: {Math.round(src.similarity_score * 100)}%
+                                {/* Raw cosine was shown as "Relevance: 56%",
+                                    which reads as "moderately relevant" when,
+                                    within a single paper, 56% is the floor —
+                                    every passage shares the paper's vocabulary
+                                    so the scores bunch. The standing within
+                                    this result set is a claim the number can
+                                    actually support; the measurement stays in
+                                    the tooltip. */}
+                                <span
+                                  className={`similarity-badge ${(src.relevance_label || "").toLowerCase().replace(/\s+/g, "-")}`}
+                                  title={`Measured similarity ${Math.round(src.similarity_score * 100)}%`}
+                                >
+                                  {src.relevance_label || "Match"}
                                 </span>
                               </div>
                               
@@ -1259,8 +1323,66 @@ export function ResearchExpertView({
                           );
                         })}
                       </div>
+
+                      {secondary.length > 0 && (
+                        <details className="sources-also-read">
+                          <summary>
+                            <ChevronRight size={14} className="chevron-down" />
+                            <span>
+                              {secondary.length} more section{secondary.length === 1 ? "" : "s"} were
+                              read but not cited in the answer
+                            </span>
+                          </summary>
+                          <div className="sources-list">
+                            {secondary.map((src) => {
+                              const pageNumStr = src.page_numbers && src.page_numbers.length > 0
+                                ? src.page_numbers.length === 1
+                                  ? `Page ${src.page_numbers[0]}`
+                                  : `Pages ${src.page_numbers[0]}-${src.page_numbers[src.page_numbers.length - 1]}`
+                                : null;
+                              return (
+                                <div
+                                  key={src.chunk_id}
+                                  id={`source-${src.chunk_id}`}
+                                  className="source-citation-card muted"
+                                >
+                                  <div className="source-card-head">
+                                    <div className="source-card-head-left">
+                                      <span className="chunk-badge">Section #{src.chunk_index + 1}</span>
+                                      {pageNumStr && (
+                                        <span className="page-badge" title="Page location in PDF">
+                                          <FileText size={12} />
+                                          {pageNumStr}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`similarity-badge ${(src.relevance_label || "").toLowerCase().replace(/\s+/g, "-")}`}
+                                      title={`Measured similarity ${Math.round(src.similarity_score * 100)}%`}
+                                    >
+                                      {src.relevance_label || "Match"}
+                                    </span>
+                                  </div>
+                                  <p className="source-snippet">"{src.snippet}"</p>
+                                  <div className="source-card-actions">
+                                    <button
+                                      className="source-pdf-btn"
+                                      title={`View in PDF${pageNumStr ? ` (${pageNumStr})` : ""}`}
+                                      onClick={() => setPdfViewerSource(src)}
+                                    >
+                                      <BookMarked size={14} />
+                                      <span>View in PDF</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      )}
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
                 );
               })()}

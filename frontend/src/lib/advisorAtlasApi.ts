@@ -183,6 +183,46 @@ export type AdvisorRun = {
   candidates?: AdvisorCandidate[];
 };
 
+/** One entry in the saved-professor library (SCHOLARDOCX-0196). */
+export type SavedProfessor = {
+  id: string;
+  name: string;
+  title?: string | null;
+  email?: string | null;
+  profile_url?: string | null;
+  research_interests?: string | null;
+  notes?: string | null;
+  university_id?: string | null;
+  program_id?: string | null;
+  university_name?: string | null;
+  program_name?: string | null;
+  /** The live candidate this professor was saved from, when the search still
+   *  exists. Null once that search is deleted — the frozen dossier below is
+   *  what remains. */
+  candidate_id?: string | null;
+  /** A dossier was frozen when this professor was saved, so it can be read
+   *  whether or not the originating search survives. 0 for professors saved
+   *  before SCHOLARDOCX-0197. */
+  has_dossier?: number;
+  dossier_saved_at?: string | null;
+  source_run_label?: string | null;
+  updated_at?: string | null;
+};
+
+export type SavedProfessorLibrary = {
+  professors: SavedProfessor[];
+  count: number;
+  max_saved: number;
+};
+
+/** The dossier frozen at the moment a professor was saved. */
+export type SavedDossier = {
+  professor_id: string;
+  saved_at?: string;
+  source_run_label?: string | null;
+  candidate: AdvisorCandidateDetail;
+};
+
 export type AdvisorPublication = {
   id: string;
   title: string;
@@ -259,6 +299,12 @@ export const advisorAtlasApi = {
     api.post<AdvisorCandidateDetail>(`/advisor-atlas/candidates/${candidateId}/refresh`, {}),
   saveCandidate: (candidateId: string) =>
     api.post<Record<string, any>>(`/advisor-atlas/candidates/${candidateId}/save`, {}),
+  listSavedProfessors: () =>
+    api.get<SavedProfessorLibrary>("/advisor-atlas/saved-professors"),
+  getSavedDossier: (professorId: string) =>
+    api.get<SavedDossier>(`/advisor-atlas/saved-professors/${professorId}/dossier`),
+  removeSavedProfessor: (professorId: string) =>
+    api.delete<Record<string, any>>(`/advisor-atlas/saved-professors/${professorId}`),
 };
 
 // SCHOLARDOCX-0189: explicit, user-managed Advisor Atlas research defaults

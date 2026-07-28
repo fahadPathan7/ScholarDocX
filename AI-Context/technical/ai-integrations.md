@@ -815,8 +815,23 @@ candidate and fail open:
 - **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)
 - **Environment Key**: `JINA_API_KEY`
 - **Model**: `jina-embeddings-v4`
-- **Task**: `text-matching`
-- **Dimensions**: `2048`
+- **Task (SCHOLARDOCX-0193)**: **asymmetric pair** — `retrieval.passage` when
+  indexing a paper, `retrieval.query` when embedding a question. Searching a
+  paper is a short question against a long passage, which is what the
+  `retrieval` adapter exists for; `text-matching` is the *symmetric* adapter
+  ("is sentence A like sentence B") and using it for retrieval compresses the
+  score spread until on-topic and off-topic passages are indistinguishable.
+  - **Never mix the two.** A query embedded with one adapter compared against
+    passages embedded with another does not error — it returns meaningless
+    numbers. `research_papers.embedding_task` records what each paper was
+    indexed with and `QUERY_TASK_FOR_PASSAGE_TASK` picks the matching query
+    task. Papers indexed before this change stay on `text-matching` for both
+    sides until re-indexed, and an unknown stored value resolves to legacy,
+    never to the new task.
+  - Re-indexing an existing paper (`retry_paper_processing`) is the upgrade
+    path and is **user-initiated**, because it spends credits.
+- **Dimensions**: `1024` (`EMBEDDING_DIMENSIONS`; kept under pgvector's
+  2000-dim ceiling for HNSW/IVFFlat indexes)
 - **Policy**: Exclusive provider (no fallback). If Jina API fails or `JINA_API_KEY` is missing/invalid, an explicit HTTP 500/503 exception is raised to the user.
 - **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174, corrected in SCHOLARDOCX-0180)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`) and is read through `ai_tokens.get_jina_call_cost_usd()`. Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, raised exactly once per operation via the `charge_source` parameter of `_generate_embeddings()`, after all batches for that operation succeed:
   - Upload → `charge_flat_fee(..., source="jina_embedding")`

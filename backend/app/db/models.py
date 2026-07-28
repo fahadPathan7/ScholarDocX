@@ -927,6 +927,41 @@ class AdvisorAtlasPublications(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
 
 
+class AdvisorAtlasSavedDossiers(Base):
+    """A saved professor's dossier, frozen at the moment it was saved
+    (SCHOLARDOCX-0197).
+
+    `advisor_atlas_candidates.run_id` is ON DELETE CASCADE, so deleting a
+    search takes its candidates — and therefore its evidence, publications and
+    dossiers — with it. Saving a professor only ever copied five columns into
+    `professors`, which left "saved" meaning a bookmark that broke as soon as
+    the user tidied their search history.
+
+    Kept in its own table rather than as a column on `professors` because
+    `professors` is served by the generic CRUD list route: a blob there would
+    be shipped on every unrelated list call.
+    """
+
+    __tablename__ = "advisor_atlas_saved_dossiers"
+    __table_args__ = (
+        UniqueConstraint("professor_id"),
+        Index("idx_advisor_atlas_saved_dossiers_user_id", "user_id"),
+    )
+
+    professor_id: Mapped[str] = mapped_column(
+        ForeignKey("professors.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # The whole `get_candidate` payload: candidate row, intelligence, evidence,
+    # publications and dossier sections.
+    snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'{}'"))
+    # What the snapshot came from, for provenance once the run itself is gone.
+    source_run_label: Mapped[Optional[str]] = mapped_column(Text)
+    saved_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+
+
 class AdvisorAtlasDossiers(Base):
     __tablename__ = "advisor_atlas_dossiers"
     __table_args__ = (
@@ -1168,6 +1203,12 @@ class ResearchPapers(Base):
     content_text: Mapped[Optional[str]] = mapped_column(Text)
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     embedding_model: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'jina-embeddings-v4'"))
+    # SCHOLARDOCX-0193: which embedding task this paper's passages were indexed
+    # with. A question must be embedded with the matching task or the cosine
+    # figures are meaningless — see QUERY_TASK_FOR_PASSAGE_TASK. Defaults to the
+    # legacy symmetric task so papers indexed before the switch keep working
+    # untouched until they are re-indexed.
+    embedding_task: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'text-matching'"))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'processing'"))
     authors: Mapped[Optional[str]] = mapped_column(Text)
     journal_conference: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

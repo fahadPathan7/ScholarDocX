@@ -438,6 +438,33 @@
   box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
 }
 
+/* An offer, not a warning: the paper works fine as it is. Quieter than the
+   retry button, which signals something is actually broken. */
+.upgrade-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #ffffff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-search-btn:hover:not(:disabled) {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+}
+
+.upgrade-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .retry-paper-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -723,6 +750,9 @@
 .question-form {
   display: flex;
   gap: 10px;
+  /* The textarea grows downward; keep the button pinned to the first line
+     rather than letting it stretch to the full height of a long question. */
+  align-items: flex-start;
 }
 
 .question-input {
@@ -733,10 +763,26 @@
   padding: 10px 14px;
   color: #0f172a;
   font-size: 0.9rem;
+  /* Multi-line question box: starts at one row, grows to six, then scrolls.
+     `resize: none` because it grows on its own; inherit the font so a typed
+     question does not switch to the browser's monospace textarea default. */
+  min-height: 42px;
+  max-height: 148px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
+  field-sizing: content;
 }
 
 .question-input::placeholder {
   color: #94a3b8;
+}
+
+.question-hint {
+  margin: 8px 2px 0;
+  color: #94a3b8;
+  font-size: 0.74rem;
 }
 
 .question-input:focus {
@@ -1085,6 +1131,64 @@
   color: #047857;
   padding: 2px 7px;
   border-radius: 4px;
+  cursor: help;
+}
+
+/* Green was applied to every passage regardless of how well it matched, so a
+   near-floor result looked as endorsed as the best one. */
+.similarity-badge.close-match {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.similarity-badge.weak-match {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.similarity-badge.reference-list {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* Passages that were read but did not end up carrying a claim. Present, so the
+   coverage is auditable; quieter, so they do not compete with the ones that
+   actually support the answer. */
+.sources-also-read {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sources-also-read > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 2px;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sources-also-read > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sources-also-read > summary:hover {
+  color: #4f46e5;
+}
+
+.sources-also-read[open] > summary .chevron-down {
+  transform: rotate(90deg);
+}
+
+.sources-also-read > summary svg {
+  transition: transform 0.18s ease;
+}
+
+.source-citation-card.muted {
+  background: #fafafa;
 }
 
 .source-snippet {

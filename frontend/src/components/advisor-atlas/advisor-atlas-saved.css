@@ -1,0 +1,398 @@
+/* Saved-professor library (SCHOLARDOCX-0196).
+   Shares the Advisor Atlas palette and radii — no new design tokens. */
+
+.atlas-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  /* Without a ceiling the header, search bar and group rules stretch the full
+     width of a desktop window while the cards stay card-sized, which is what
+     made this read as unstyled. */
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.atlas-saved-header {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 10%, rgba(47, 125, 116, 0.12), transparent 58%),
+    linear-gradient(145deg, #ffffff, #eef6f2);
+  box-shadow: 0 8px 22px rgba(23, 32, 29, 0.05);
+}
+
+.atlas-saved-header h2 {
+  margin: 4px 0 5px;
+  color: #17201d;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+}
+
+.atlas-saved-header p {
+  margin: 0;
+  max-width: 56ch;
+  color: #65756d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* A quiet counter, not a scoreboard — it only matters near the ceiling. */
+.atlas-saved-capacity {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: baseline;
+  padding: 7px 13px;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.atlas-saved-capacity strong {
+  color: #1f4f5a;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.atlas-saved-capacity strong span {
+  color: #9aaba7;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.atlas-saved-capacity small {
+  color: #70827f;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.atlas-saved-capacity.near {
+  border-color: rgba(217, 154, 61, 0.45);
+  background: #fdf5e6;
+}
+
+.atlas-saved-capacity.near strong {
+  color: #8a5a15;
+}
+
+.atlas-saved-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Bounded, so a search field does not become the widest thing on the page. */
+.atlas-saved-search {
+  display: flex;
+  flex: 1;
+  max-width: 400px;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 13px;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 10px;
+  background: #fff;
+  color: #70827f;
+}
+
+.atlas-saved-search:focus-within {
+  border-color: #2f7d74;
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.13);
+}
+
+.atlas-saved-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-family: inherit;
+  font-size: 0.86rem;
+}
+
+.atlas-saved-count {
+  color: #70827f;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.atlas-saved-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* A label with a rule that stops at the text, rather than a full-width line
+   cutting the page in half. */
+.atlas-saved-groups > section > header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 11px;
+}
+
+.atlas-saved-groups > section > header > div {
+  display: flex;
+  flex: none;
+  gap: 7px;
+  align-items: center;
+  color: #173f46;
+  font-size: 0.83rem;
+}
+
+.atlas-saved-groups > section > header > span {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  color: #5b706d;
+  border-radius: 999px;
+  background: #eef2f0;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.atlas-saved-groups > section > header::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(23, 32, 29, 0.08);
+}
+
+.atlas-saved-grid {
+  display: grid;
+  /* `auto-fill` left a single card marooned in a row of empty tracks.
+     `auto-fit` collapses the empties so one card fills the row it is in. */
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.atlas-saved-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 17px 18px;
+  border: 1px solid rgba(31, 101, 94, 0.14);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 32, 29, 0.05);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.atlas-saved-avatar {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(140deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.atlas-saved-card.openable {
+  cursor: pointer;
+}
+
+.atlas-saved-card.openable:hover {
+  border-color: rgba(32, 123, 111, 0.4);
+  box-shadow: 0 12px 28px rgba(28, 91, 84, 0.11);
+  transform: translateY(-2px);
+}
+
+.atlas-saved-card.openable:focus-visible {
+  outline: 3px solid rgba(47, 125, 116, 0.25);
+  outline-offset: 2px;
+}
+
+.atlas-saved-card-head {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+
+.atlas-saved-identity {
+  /* Lets long titles wrap instead of forcing the card wider. */
+  min-width: 0;
+  flex: 1;
+}
+
+.atlas-saved-identity h4 {
+  margin: 0;
+  color: #17201d;
+  font-size: 0.98rem;
+}
+
+.atlas-saved-identity p {
+  margin: 3px 0 0;
+  color: #65756d;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.atlas-saved-identity small {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 7px;
+  padding: 2px 8px 2px 6px;
+  color: #246d63;
+  border-radius: 999px;
+  background: #e6f3ef;
+  font-size: 0.69rem;
+  font-weight: 700;
+}
+
+.atlas-saved-remove {
+  display: inline-flex;
+  flex: none;
+  padding: 6px;
+  align-items: center;
+  color: #a2b0ad;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.atlas-saved-remove:hover:not(:disabled) {
+  color: #8c3b32;
+  border-color: #f3d5d0;
+  background: #fbe9e6;
+}
+
+.atlas-saved-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Four lines is enough to recognise the work; the dossier has the rest. */
+.atlas-saved-interests {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #4c6965;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.atlas-saved-card > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 11px;
+  border-top: 1px solid rgba(23, 32, 29, 0.07);
+}
+
+.atlas-saved-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.atlas-saved-links a {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: #2f6d7a;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.atlas-saved-links a:hover {
+  text-decoration: underline;
+}
+
+.atlas-saved-open {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  color: #2f7d74;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.atlas-saved-orphan {
+  color: #a2b0ad;
+  font-size: 0.73rem;
+  font-style: italic;
+}
+
+.atlas-saved-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 44px 24px;
+  color: #70827f;
+  border: 1px dashed rgba(31, 101, 94, 0.25);
+  border-radius: 16px;
+  background: #fcf9f2;
+  text-align: center;
+}
+
+.atlas-saved-empty h3 {
+  margin: 0;
+  color: #17201d;
+  font-size: 1rem;
+}
+
+.atlas-saved-empty p {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.atlas-saved-empty button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 9px 17px;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  .atlas-saved-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-saved-card {
+    transition: none;
+  }
+
+  .atlas-saved-card.openable:hover {
+    transform: none;
+  }
+}

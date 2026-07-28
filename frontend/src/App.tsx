@@ -427,14 +427,20 @@ export function App() {
     return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
   }, []);
 
+  // Where the workspace items end and the always-visible account items begin.
+  // Derived rather than hardcoded: this was `slice(0, 8)` / `slice(8)`, so
+  // inserting any nav item above Profile silently pushed the last workspace
+  // item into the account group (SCHOLARDOCX-0195).
+  const accountNavStart = baseNavItems.findIndex(([key]) => key === "profile");
+
   let navItems: any[] = [];
   if (currentHasUserPlan) {
-    navItems.push(...baseNavItems.slice(0, 8));
+    navItems.push(...baseNavItems.slice(0, accountNavStart));
   }
   if (currentIsAdmin) {
     navItems.push(adminItem);
   }
-  navItems.push(...baseNavItems.slice(8));
+  navItems.push(...baseNavItems.slice(accountNavStart));
 
   const handleSidebarNav = (key: string) => {
     if (key === "atlas" && !canUseAdvisorAtlas) {
@@ -513,7 +519,7 @@ export function App() {
             const isLocked = atlasLocked || newsLocked || researchLocked;
             return (
               <Fragment key={key}>
-                {currentHasUserPlan && i === 8 && <div className="nav-spacer" />}
+                {currentHasUserPlan && i === accountNavStart && <div className="nav-spacer" />}
                 <button
                   aria-label={label}
                   className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}

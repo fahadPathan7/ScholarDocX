@@ -140,6 +140,15 @@ export function InfoTab() {
                 <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Starting a new search past the cap is rejected until an existing search is removed — no automatic eviction.</td>
               </tr>
               <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Saved Professors (Advisor Atlas)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    100 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Saving a new professor past the cap is rejected until one is removed — no automatic eviction. Re-saving a professor already in the library still works at the cap.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
                 <td className="px-4 py-3 font-medium text-slate-800">Previous Searches (Scholarship Hunt)</td>
                 <td className="px-4 py-3">
                   <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">

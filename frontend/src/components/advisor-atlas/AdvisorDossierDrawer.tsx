@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Archive,
   ArrowUpRight,
   BookOpenCheck,
   BriefcaseBusiness,
@@ -36,7 +37,12 @@ import {
 import { useUsage } from "../../contexts/UsageContext";
 
 type Props = {
-  candidateId: string;
+  /** A live candidate, or null when opening a saved snapshot. */
+  candidateId: string | null;
+  /** SCHOLARDOCX-0197: opens the dossier frozen when this professor was
+   *  saved. Used when the search they came from has been deleted, so the
+   *  candidate no longer exists. Read-only — there is nothing live to act on. */
+  savedProfessorId?: string | null;
   onClose: () => void;
   onChanged: () => void;
   onToast: (message: string) => void;
@@ -444,6 +450,7 @@ function NextActionPlan({ value }: { value: Array<Record<string, any>> | undefin
 
 export function AdvisorDossierDrawer({
   candidateId,
+  savedProfessorId,
   onClose,
   onChanged,
   onToast,
@@ -454,13 +461,25 @@ export function AdvisorDossierDrawer({
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState("");
   const [notes, setNotes] = useState("");
+  // A snapshot has no live candidate behind it, so every action that changes
+  // something is unavailable rather than broken.
+  const [archived, setArchived] = useState<{ savedAt?: string; source?: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
+      if (!candidateId && savedProfessorId) {
+        const saved = await advisorAtlasApi.getSavedDossier(savedProfessorId);
+        setCandidate(saved.candidate as AdvisorCandidateDetail);
+        setNotes((saved.candidate as AdvisorCandidateDetail)?.user_notes || "");
+        setArchived({ savedAt: saved.saved_at, source: saved.source_run_label ?? undefined });
+        return;
+      }
+      if (!candidateId) return;
       const data = await advisorAtlasApi.getCandidate(candidateId);
       setCandidate(data);
       setNotes(data.user_notes || "");
+      setArchived(null);
     } catch {
       onToast("Could not load the advisor dossier.");
       onClose();
@@ -471,7 +490,7 @@ export function AdvisorDossierDrawer({
 
   useEffect(() => {
     load();
-  }, [candidateId]);
+  }, [candidateId, savedProfessorId]);
 
   const saveNotes = async () => {
     if (!candidate) return;
@@ -521,7 +540,9 @@ export function AdvisorDossierDrawer({
       await advisorAtlasApi.saveCandidate(candidate.id);
       await load();
       onChanged();
-      onToast("Professor saved to ScholarDocX.");
+      // Name the destination. "Saved to ScholarDocX" gave no clue where the
+      // record had gone, which is exactly what made this untraceable.
+      onToast("Saved — find them under Saved professors.");
     } finally {
       setWorking("");
     }
@@ -555,13 +576,36 @@ export function AdvisorDossierDrawer({
           <div className="atlas-dossier-loading"><span className="atlas-spinner" /> Building the evidence view...</div>
         ) : (
           <div className="atlas-dossier-content">
+            {archived && (
+              <p className="atlas-archived-notice" role="status">
+                <Archive size={15} />
+                Saved copy{archived.savedAt ? ` from ${new Date(archived.savedAt).toLocaleDateString()}` : ""}
+                {archived.source ? ` · ${archived.source}` : ""}. The search this came from
+                has been deleted, so this dossier is read-only.
+              </p>
+            )}
+
             <div className="atlas-dossier-toolbar">
               <div className="atlas-dossier-actions">
+                {/* Every action here changes a live candidate. A snapshot has
+                    none, so they are absent rather than disabled. */}
+                {!archived && (
+                  <>
                 <button onClick={refresh} disabled={!!working}><RefreshCw size={16} className={working === "refresh" ? "atlas-spin" : ""} /> Refresh evidence</button>
-                <button onClick={saveProfessor} disabled={!!working || !!candidate.saved_professor_id}>
+                <button
+                  onClick={saveProfessor}
+                  disabled={!!working || !!candidate.saved_professor_id}
+                  title={
+                    candidate.saved_professor_id
+                      ? "This professor is in your Professors records, where outreach, drafts and applications link to them."
+                      : "Copy this dossier into your Professors records so you can track outreach against it."
+                  }
+                >
                   {candidate.saved_professor_id ? <Check size={16} /> : <Save size={16} />}
                   {candidate.saved_professor_id ? "Saved to professors" : "Save to professors"}
                 </button>
+                  </>
+                )}
                 {candidate.official_profile_url && <a href={candidate.official_profile_url} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Official profile</a>}
               </div>
               <ResearchMetrics value={candidate.intelligence?.research_metrics} />

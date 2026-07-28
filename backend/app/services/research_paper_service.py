@@ -25,12 +25,51 @@ from app.core.workspace import save_upload
 from app.db.models import ResearchPaperAnalyses, ResearchPaperChunks, ResearchPapers, StaticFiles
 from app.services.ai import AiService
 from app.services import ai_tokens
+from app.services.research_paper_retrieval import (
+    apply_retrieval_budget,
+    cited_section_numbers,
+    detect_inventory_target,
+    inventory_note,
+    is_reference_chunk,
+    reference_budget,
+    scan_inventory,
+    section_terms_for,
+    wants_reference_section,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 EMBEDDING_MODEL = "jina-embeddings-v4"
 EMBEDDING_DIMENSIONS = 1024  # Jina supports 1024 dims (under pgvector's 2000 limit)
+
+# SCHOLARDOCX-0193: searching a paper is an *asymmetric* problem — a short
+# question against a long passage — and Jina publishes a task pair for exactly
+# that. Everything here previously used `text-matching`, the *symmetric* task,
+# which is built for comparing two texts of similar kind (is sentence A like
+# sentence B). Using it for retrieval flattens the score spread, which is what
+# made every passage of a paper score within a few points of every other and
+# made the relevance badge meaningless.
+#
+#   retrieval.passage — documents, at indexing time
+#   retrieval.query   — the question, at search time
+#   text-matching     — symmetric similarity (what this used to do, for both)
+#
+# See https://jina.ai/models/jina-embeddings-v4/ for the adapter descriptions.
+EMBEDDING_TASK_PASSAGE = "retrieval.passage"
+EMBEDDING_TASK_QUERY = "retrieval.query"
+# What every paper indexed before this change used, for both sides.
+EMBEDDING_TASK_LEGACY = "text-matching"
+
+# A query embedded with one task CANNOT be compared against passages embedded
+# with another — the adapters put them in different spaces, so the cosine
+# figures would be meaningless rather than merely worse. Each paper therefore
+# records the task its passages were indexed with, and the query is embedded to
+# match. A legacy paper keeps working exactly as before until it is re-indexed.
+QUERY_TASK_FOR_PASSAGE_TASK = {
+    EMBEDDING_TASK_PASSAGE: EMBEDDING_TASK_QUERY,
+    EMBEDDING_TASK_LEGACY: EMBEDDING_TASK_LEGACY,
+}
 # Smaller chunks => more focused sections, tighter similarity matches, and less
 # unrelated/garbled math getting bundled into a single retrieved chunk.
 DEFAULT_CHUNK_SIZE_CHARS = 1100
@@ -298,8 +337,12 @@ class ResearchPaperService:
             # pass, regardless of how many API batches the paper required, and
             # only if every batch succeeded.
             embeddings, input_tokens = await self._generate_embeddings(
-                chunks, charge_source="jina_embedding"
+                chunks, charge_source="jina_embedding", task=EMBEDDING_TASK_PASSAGE
             )
+            # Record the task alongside the vectors it produced. Questions are
+            # embedded to match this value, so it must be written in the same
+            # transaction as the chunks.
+            paper.embedding_task = EMBEDDING_TASK_PASSAGE
 
             # Store chunks with vector embeddings
             for idx, (chunk_text_str, emb_vector) in enumerate(zip(chunks, embeddings)):
@@ -430,8 +473,11 @@ class ResearchPaperService:
             # first-time indexing in the ledger and the admin dashboard's
             # jina_total breakdown (which already counts this source).
             embeddings, input_tokens = await self._generate_embeddings(
-                chunks, charge_source="jina_embedding_retry"
+                chunks, charge_source="jina_embedding_retry", task=EMBEDDING_TASK_PASSAGE
             )
+            # A retry re-indexes from scratch, so it is also the upgrade path
+            # for a paper still on the legacy symmetric task.
+            paper.embedding_task = EMBEDDING_TASK_PASSAGE
 
             import uuid
             for idx, (chunk_text_str, emb_vector) in enumerate(zip(chunks, embeddings)):
@@ -812,6 +858,7 @@ class ResearchPaperService:
         text_chunks: list[str],
         *,
         charge_source: Optional[str] = "jina_embedding",
+        task: str = EMBEDDING_TASK_PASSAGE,
     ) -> tuple[list[list[float]], int]:
         """Generate 1024-dim float embeddings exclusively via Jina AI API (jina-embeddings-v4).
 
@@ -849,8 +896,12 @@ class ResearchPaperService:
                 batch = text_chunks[i : i + batch_size]
                 input_payload = [{"text": chunk} for chunk in batch]
                 payload = {
-                    "model": "jina-embeddings-v4",
-                    "task": "text-matching",
+                    "model": EMBEDDING_MODEL,
+                    # Passages and questions use *different* tasks. Do not
+                    # hardcode one here again: the caller knows which side of
+                    # the search it is on, and getting it wrong silently
+                    # degrades every result rather than raising.
+                    "task": task,
                     "dimensions": EMBEDDING_DIMENSIONS,  # 1024 dims (under pgvector's 2000 limit)
                     "input": input_payload,
                 }
@@ -892,15 +943,23 @@ class ResearchPaperService:
             self._charge_jina_embedding(source=charge_source)
         return all_embeddings, total_input_tokens
 
-    async def _generate_single_embedding(self, query_text: str) -> list[float]:
+    async def _generate_single_embedding(
+        self,
+        query_text: str,
+        task: str = EMBEDDING_TASK_QUERY,
+    ) -> list[float]:
         """Generate a single 1024-dim embedding for an analysis query string.
+
+        `task` must match the task the target paper's passages were indexed
+        with — see `QUERY_TASK_FOR_PASSAGE_TASK`. Comparing across tasks does
+        not fail loudly; it just returns numbers that mean nothing.
 
         Charging is delegated to ``_generate_embeddings`` via ``charge_source``;
         adding a charge here too is what double-billed every question before
         SCHOLARDOCX-0180.
         """
         embeddings, _ = await self._generate_embeddings(
-            [query_text], charge_source="jina_embedding_query"
+            [query_text], charge_source="jina_embedding_query", task=task
         )
         if not embeddings:
             raise HTTPException(status_code=500, detail="Failed to generate embedding for query.")
@@ -912,10 +971,30 @@ class ResearchPaperService:
         paper_id: str,
         query: str,
         top_k: int = TOP_K_CHUNKS,
+        inventory_out: Optional[dict[str, Any]] = None,
     ) -> list[dict[str, Any]]:
         """Search top-k most relevant paper chunks using pgvector cosine distance,
-        with reference-filtering and structural section boosting."""
-        query_vector = await self._generate_single_embedding(query)
+        with reference-filtering and structural section boosting.
+
+        `inventory_out`, when supplied, receives the document-wide count for an
+        aggregate question ("how many figures are in this paper?"). Those
+        questions are about the whole document, so no retrieved subset can
+        answer them and the caller needs the scan, not just the passages.
+        """
+        # Embed the question with the task that matches how THIS paper's
+        # passages were indexed. Papers indexed before SCHOLARDOCX-0193 hold
+        # `text-matching` vectors; pairing them with a `retrieval.query` vector
+        # would not error, it would just return numbers that mean nothing.
+        passage_task = (
+            self.db.query(ResearchPapers.embedding_task)
+            .filter(ResearchPapers.id == paper_id)
+            .scalar()
+            or EMBEDDING_TASK_LEGACY
+        )
+        query_vector = await self._generate_single_embedding(
+            query,
+            task=QUERY_TASK_FOR_PASSAGE_TASK.get(passage_task, EMBEDDING_TASK_LEGACY),
+        )
 
         # Retrieve candidate chunks (fetch 3x top_k to allow filtering & section boosting)
         fetch_limit = max(top_k * 3, 24)
@@ -939,17 +1018,7 @@ class ResearchPaperService:
         if not candidates:
             return []
 
-        # Helper to classify if a chunk is predominantly a reference list
-        def is_reference_chunk(text_str: str) -> bool:
-            cite_matches = len(re.findall(r"\[\d+\]", text_str))
-            if cite_matches >= 4:
-                return True
-            if re.search(r"\b(REFERENCES|BIBLIOGRAPHY)\b", text_str[:150], re.IGNORECASE):
-                return True
-            return False
-
-        query_lower = query.lower()
-        wants_references = any(w in query_lower for w in ["reference", "citation", "bibliography", "cited"])
+        wants_references = wants_reference_section(query)
 
         content_chunks: list[dict[str, Any]] = []
         ref_chunks: list[dict[str, Any]] = []
@@ -971,16 +1040,111 @@ class ResearchPaperService:
         final_chunks: list[dict[str, Any]] = []
         boosted_chunk_ids: set[str] = set()
 
+        # SCHOLARDOCX-0192: a question about references gets the *whole*
+        # bibliography, pulled by structure rather than by similarity.
+        #
+        # Two reasons the previous approach could not work. First, the block
+        # that appended reference chunks was gated on `len(final_chunks) <
+        # top_k`, and the content-fill loop above always reaches top_k when the
+        # candidate pool is larger than it — which it always is — so that block
+        # never ran. Second, even when it did, the similarity trim at the end
+        # dropped reference chunks anyway: a bibliography entry is semantically
+        # bland, so it scores far below prose against any natural-language
+        # question. "How many papers were cited here?" therefore got answered
+        # from three scattered body paragraphs that happened to contain [34],
+        # [31] and [48], and the answer could only say "at least 48".
+        #
+        # A reference list is identifiable by pattern, so it does not need the
+        # vector index at all.
+        inventory_target = detect_inventory_target(query)
+        reserved_refs: list[dict[str, Any]] = []
+        if wants_references or inventory_target:
+            all_rows = self.db.execute(
+                text(
+                    "SELECT id, chunk_index, chunk_text, token_count, "
+                    "1 - (embedding <=> CAST(:vec AS vector)) AS similarity "
+                    "FROM research_paper_chunks "
+                    "WHERE paper_id = :pid ORDER BY chunk_index ASC"
+                ),
+                {"pid": paper_id, "vec": str(query_vector)},
+            ).mappings().fetchall()
+
+            # Count the numbered series across the WHOLE paper. An aggregate
+            # question cannot be answered from a sample, however good the
+            # sample is — every previous answer to one hedged ("at least 4 …
+            # the true total cannot be determined") because the model was only
+            # ever shown part of the numbering.
+            if inventory_target and inventory_out is not None:
+                inventory_out.update(
+                    scan_inventory(
+                        [(row["chunk_index"], row["chunk_text"]) for row in all_rows],
+                        inventory_target,
+                    )
+                )
+
+            ref_budget = reference_budget(top_k)
+            # For a non-reference inventory (figures, tables …) put the passages
+            # carrying the most of that numbering in front of the model, so the
+            # computed count is visibly corroborated rather than asserted.
+            if inventory_target and inventory_target != "reference":
+                ranked_ids = (inventory_out or {}).get("evidence_ids", [])[:ref_budget]
+                wanted = {index: rank for rank, index in enumerate(ranked_ids)}
+                for row in all_rows:
+                    if row["chunk_index"] not in wanted:
+                        continue
+                    reserved_refs.append(
+                        {
+                            "chunk_id": row["id"],
+                            "chunk_index": row["chunk_index"],
+                            "chunk_text": row["chunk_text"],
+                            "token_count": row["token_count"],
+                            "similarity_score": (
+                                round(float(row["similarity"]), 4)
+                                if row["similarity"] is not None
+                                else 0.0
+                            ),
+                            "page_numbers": self._extract_page_numbers(row["chunk_text"]),
+                            "retrieval": "reference_section",
+                        }
+                    )
+                for item in reserved_refs:
+                    final_chunks.append(item)
+                    boosted_chunk_ids.add(item["chunk_id"])
+                reserved_refs = []
+                all_rows = []
+
+            for row in all_rows:
+                if not is_reference_chunk(row["chunk_text"]):
+                    continue
+                reserved_refs.append(
+                    {
+                        "chunk_id": row["id"],
+                        "chunk_index": row["chunk_index"],
+                        "chunk_text": row["chunk_text"],
+                        "token_count": row["token_count"],
+                        # The REAL measured similarity, which for a bibliography
+                        # is genuinely low — that is the whole point, and it is
+                        # why these have to be protected from the trim by a flag
+                        # instead of by a score. Writing a flattering number here
+                        # would repeat the fabricated "Relevance: 85%" badge this
+                        # function was already fixed for once.
+                        "similarity_score": (
+                            round(float(row["similarity"]), 4)
+                            if row["similarity"] is not None
+                            else 0.0
+                        ),
+                        "page_numbers": self._extract_page_numbers(row["chunk_text"]),
+                        "retrieval": "reference_section",
+                    }
+                )
+                if len(reserved_refs) >= ref_budget:
+                    break
+            for item in reserved_refs:
+                final_chunks.append(item)
+                boosted_chunk_ids.add(item["chunk_id"])
+
         # Section topic keywords check — ensure target section chunks are included
-        section_terms: list[str] = []
-        if any(w in query_lower for w in ["limitation", "weakness", "drawback", "risk"]):
-            section_terms.extend(["limitation", "discussion", "drawback"])
-        if any(w in query_lower for w in ["future", "direction", "open question"]):
-            section_terms.extend(["future", "conclusion", "direction"])
-        if any(w in query_lower for w in ["conclusion", "summary"]):
-            section_terms.extend(["conclusion", "discussion"])
-        if any(w in query_lower for w in ["method", "experiment", "setup", "dataset", "architecture"]):
-            section_terms.extend(["methodology", "method", "experimental", "dataset", "architecture"])
+        section_terms = section_terms_for(query)
 
         if section_terms:
             # Guarantee the named section is considered, but rank keyword hits by
@@ -1037,14 +1201,7 @@ class ResearchPaperService:
                     if len(final_chunks) >= top_k or not wants_references:
                         break
 
-        # Trim to top_k by *relevance* first, then sort the survivors by
-        # chunk_index so the AI sees them in reading order. Sorting before
-        # trimming would have discarded by document position, which can drop the
-        # strongest matches when top_k is small relative to the boosted set.
-        final_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
-        final_chunks = final_chunks[:top_k]
-        final_chunks.sort(key=lambda x: x["chunk_index"])
-        return final_chunks
+        return apply_retrieval_budget(final_chunks, top_k, query)
 
     def _extract_page_numbers(self, chunk_text: str) -> list[int]:
         """Extract page numbers from '--- Page N ---' markers in chunk text."""
@@ -1073,7 +1230,10 @@ class ResearchPaperService:
         ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
 
         # Retrieve relevant chunks via pgvector search
-        chunks: list[dict[str, Any]] = await self.search_relevant_chunks(paper_id, prompt, top_k=top_k)
+        inventory: dict[str, Any] = {}
+        chunks: list[dict[str, Any]] = await self.search_relevant_chunks(
+            paper_id, prompt, top_k=top_k, inventory_out=inventory
+        )
 
         # Note: Query embedding generation via Jina is infrastructure cost.
         # Users are only charged for the actual AI analysis call below via AiService.chat()
@@ -1109,6 +1269,24 @@ class ResearchPaperService:
             for c in chunks
         ]
         combined_context = f"Research Paper Title: {paper['title']}\n\nRelevant Paper Sections:\n" + "\n\n".join(context_blocks)
+
+        # Aggregate questions get the answer computed for them. Without this the
+        # model hedges by default — "at least 4 distinct figures … the true
+        # total cannot be determined" — because from its side a retrieved
+        # subset is genuinely all it can see.
+        if inventory.get("target"):
+            combined_context += "\n\n" + inventory_note(inventory)
+        else:
+            reference_sections = [
+                c for c in chunks if c.get("retrieval") == "reference_section"
+            ]
+            if reference_sections:
+                combined_context += (
+                    "\n\nNOTE ON COVERAGE: the paper's reference list was retrieved in "
+                    f"full ({len(reference_sections)} consecutive sections covering the "
+                    "whole bibliography), not sampled. If the question asks how many "
+                    "works are cited, count the numbered entries and answer directly."
+                )
 
         system_instruction = (
             "You are Lumi, the Research Assistant for ScholarDocX. "
@@ -1185,11 +1363,18 @@ class ResearchPaperService:
             self.db,
         )
 
+        # Which passages the answer actually cited, so the UI can lead with
+        # those instead of listing everything that was searched.
+        answer = response.get("answer", "No analysis could be generated.")
+        cited_sections = cited_section_numbers(answer)
         sources = [
             {
                 "chunk_id": c["chunk_id"],
                 "chunk_index": c["chunk_index"],
                 "similarity_score": c["similarity_score"],
+                "relevance_label": c.get("relevance_label", "Match"),
+                "lexical_overlap": c.get("lexical_overlap", 0.0),
+                "cited_in_answer": (c["chunk_index"] + 1) in cited_sections,
                 "snippet": c["chunk_text"][:200] + ("..." if len(c["chunk_text"]) > 200 else ""),
                 "page_numbers": c.get("page_numbers", []),
                 "full_text": c["chunk_text"],  # Include full chunk text for expandable view
@@ -1200,7 +1385,7 @@ class ResearchPaperService:
         return {
             "paper_id": paper_id,
             "prompt": prompt,
-            "answer": response.get("answer", "No analysis could be generated."),
+            "answer": answer,
             "sources": sources,
             "model_used": response.get("mode", "ai"),
             "usage": usage,
@@ -1230,6 +1415,12 @@ class ResearchPaperService:
                 "doi": r.doi,
                 "chunk_count": r.chunk_count,
                 "status": r.status,
+                # True while this paper is still indexed with the old symmetric
+                # task. Search works, but not as well as it now can — the user
+                # decides whether to spend a re-index on it (SCHOLARDOCX-0193).
+                "search_upgrade_available": (
+                    r.status == "ready" and r.embedding_task != EMBEDDING_TASK_PASSAGE
+                ),
                 "created_at": r.created_at.isoformat() if hasattr(r.created_at, "isoformat") else str(r.created_at),
                 "updated_at": r.updated_at.isoformat() if hasattr(r.updated_at, "isoformat") else str(r.updated_at),
                 "static_file_id": r.static_file_id,
@@ -1259,6 +1450,9 @@ class ResearchPaperService:
             "doi": paper.doi,
             "chunk_count": paper.chunk_count,
             "status": paper.status,
+            "search_upgrade_available": (
+                paper.status == "ready" and paper.embedding_task != EMBEDDING_TASK_PASSAGE
+            ),
             "content_text": paper.content_text,
             "created_at": paper.created_at.isoformat() if hasattr(paper.created_at, "isoformat") else str(paper.created_at),
             "updated_at": paper.updated_at.isoformat() if hasattr(paper.updated_at, "isoformat") else str(paper.updated_at),

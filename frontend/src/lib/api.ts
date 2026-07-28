@@ -194,6 +194,9 @@ export type ResearchPaper = {
   doi?: string;
   chunk_count: number;
   status: "processing" | "ready" | "error";
+  /** Indexed before search was tuned for question-to-passage matching.
+   *  Searching still works; re-reading the paper makes it sharper. */
+  search_upgrade_available?: boolean;
   content_text?: string;
   created_at: string;
   updated_at: string;
@@ -208,7 +211,15 @@ export type PaperAnalysisResult = {
   sources: { 
     chunk_id: string; 
     chunk_index: number; 
-    similarity_score: number; 
+    similarity_score: number;
+    /** Standing within this result set ("Top match" / "Close match" /
+     *  "Weak match" / "Reference list"). Raw cosine barely discriminates
+     *  inside one paper, so the position is the honest thing to show. */
+    relevance_label?: string;
+    lexical_overlap?: number;
+    /** The answer cited this passage. Everything retrieved is returned, but
+     *  only some of it ends up carrying a claim. */
+    cited_in_answer?: boolean;
     snippet: string;
     page_numbers?: number[];
     full_text?: string;

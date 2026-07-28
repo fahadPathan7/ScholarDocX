@@ -699,7 +699,9 @@ function DashboardView({
     ["White boards", dashboard.counts.whiteboards ?? 0],
     ["Calendar dates", futureCalendarCount(dashboard.calendar_items || [])]
   ];
-  const nextEvents = upcomingEvents(dashboard.calendar_items || [], 10);
+  // SCHOLARDOCX-0176: split into Today and Next 10 Days (tomorrow → +10).
+  const todaysEvents = todayEvents(dashboard.calendar_items || []);
+  const followingEvents = upcomingEventsExcludingToday(dashboard.calendar_items || [], 10);
   const nextCalendarEvent = nextFeaturedEvent(dashboard.calendar_items || []);
   const pinnedProjects = dashboard.pinned_projects || [];
   const pinnedSheets = dashboard.pinned_sheets || [];
@@ -776,10 +778,33 @@ function DashboardView({
         />
       </Section>
 
-      <Section title="Next 10 Days" eyebrow="Upcoming row dates" className="dashboard-upcoming">
-        {nextEvents.length ? (
+      <Section title="Today" eyebrow="Row dates due today" className="dashboard-today">
+        {todaysEvents.length ? (
           <div className="upcoming-event-list">
-            {nextEvents.map((event, index) => (
+            {todaysEvents.map((event, index) => (
+              <button
+                className="upcoming-event"
+                key={`today-${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
+                type="button"
+                onClick={() => onCalendarEventClick(event)}
+              >
+                <span>{formatShortDate(event.date_key || event.date)}</span>
+                <div>
+                  <strong>{event.title || "Untitled row"}</strong>
+                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty">Nothing due today.</p>
+        )}
+      </Section>
+
+      <Section title="Next 10 Days" eyebrow="From tomorrow onward" className="dashboard-upcoming">
+        {followingEvents.length ? (
+          <div className="upcoming-event-list">
+            {followingEvents.map((event, index) => (
               <button
                 className="upcoming-event"
                 key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
@@ -870,6 +895,41 @@ function upcomingEvents(events: RecordMap[], dayWindow: number) {
     .filter((event) => {
       const date = parseLocalDate(event.date_key || event.date);
       return date ? date >= today && date <= end : false;
+    })
+    .sort((first, second) => {
+      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
+      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
+      return firstDate - secondDate;
+    });
+}
+
+// SCHOLARDOCX-0176: split the dashboard "Next 10 Days" into two sections —
+// events dated today, and events from tomorrow through +10 days.
+function todayEvents(events: RecordMap[]) {
+  const today = startOfLocalDay(new Date());
+  return events
+    .filter((event) => {
+      const date = parseLocalDate(event.date_key || event.date);
+      return date ? date.getTime() === today.getTime() : false;
+    })
+    .sort((first, second) => {
+      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
+      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
+      return firstDate - secondDate;
+    });
+}
+
+// Events from tomorrow (exclusive of today) through dayWindow days ahead.
+function upcomingEventsExcludingToday(events: RecordMap[], dayWindow: number) {
+  const today = startOfLocalDay(new Date());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const end = new Date(today);
+  end.setDate(today.getDate() + dayWindow);
+  return events
+    .filter((event) => {
+      const date = parseLocalDate(event.date_key || event.date);
+      return date ? date >= tomorrow && date <= end : false;
     })
     .sort((first, second) => {
       const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;

@@ -409,6 +409,7 @@
   .dashboard-pinned-sheets,
   .dashboard-pinned-docs,
   .dashboard-pinned-empty,
+  .dashboard-today,
   .dashboard-upcoming {
     grid-column: auto !important;
     grid-row: auto !important;

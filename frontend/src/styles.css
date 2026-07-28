@@ -347,7 +347,14 @@ h2 {
 
 .dashboard-upcoming {
   grid-column: 3;
-  grid-row: 1 / 4;
+  grid-row: 2 / 4;
+}
+
+/* SCHOLARDOCX-0176: "Today" sits in column 3, row 1 — the top of the third
+   column. "Next 10 Days" (.dashboard-upcoming) fills rows 2-3 below it. */
+.dashboard-today {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 /* Sheet detail view: flex column so the section can fill remaining height */
@@ -2650,6 +2657,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .dashboard-pinned-sheets,
   .dashboard-pinned-docs,
   .dashboard-pinned-empty,
+  .dashboard-today,
   .dashboard-upcoming {
     grid-column: 1 / -1;
   }

@@ -27,11 +27,30 @@ from tests.helpers import cleanup_user_records
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def make_settings(tmp_path: Path) -> Settings:
+def make_settings(tmp_path: Path) -> tuple[Settings, list, list]:
+    """Create test settings with snapshots for restoration.
+
+    Returns (settings, packs_snapshot, settings_snapshot) where snapshots
+    allow tests to restore the original values.
+    """
     settings = Settings()
     settings.workspace_path = tmp_path / "workspace"
     settings.media_path = tmp_path / "workspace" / "media"
     initialize_database(settings.database_target)
+
+    # Snapshot current state before modifications (for test cleanup).
+    with connect(settings.database_target) as db:
+        packs_snapshot = [(r["code"], r["is_active"], r["token_amount"], r["price_usd"], r["display_name"])
+                          for r in db.execute(
+                              "SELECT code, is_active, token_amount, price_usd, display_name FROM ai_token_packs"
+                          ).fetchall()]
+        # Snapshot plan_ai_credits_* settings (monthly allowances).
+        settings_snapshot = [(r["key"], r["value"])
+                             for r in db.execute(
+                                 "SELECT key, value FROM app_settings WHERE key LIKE 'plan_ai_credits_%'"
+                             ).fetchall()]
+
+    # Set test values for packs.
     with connect(settings.database_target) as db:
         db.execute(
             """
@@ -52,12 +71,23 @@ def make_settings(tmp_path: Path) -> Settings:
             END
             """
         )
+        # Set test values for monthly allowances.
+        for key in ["plan_ai_credits_free", "plan_ai_credits_general", "plan_ai_credits_pro", "plan_ai_credits_max"]:
+            value = "500000"
+            if key == "plan_ai_credits_free":
+                value = "250000"
+            elif key == "plan_ai_credits_max":
+                value = "1000000"
+            db.execute(
+                "UPDATE app_settings SET value = ? WHERE key = ?",
+                (value, key),
+            )
         db.commit()
     invalidate_limits_cache()
-    return settings
+    return settings, packs_snapshot, settings_snapshot
 
 
-def make_user(settings: Settings, roles: list, email: str = None) -> dict:
+def make_user(settings: Settings, roles: list, email: str | None = None) -> dict:
     user_email = email or f"{roles[0]}-{roles[-1]}-{uuid.uuid4().hex[:8]}@test.local"
     with connect(settings.database_target) as db:
         cleanup_user_records(db, email=user_email)
@@ -73,9 +103,11 @@ def make_user(settings: Settings, roles: list, email: str = None) -> dict:
 
 def get_balance(settings: Settings, uid: str) -> dict:
     with connect(settings.database_target) as db:
-        return dict(db.execute(
+        row = db.execute(
             "SELECT * FROM ai_token_balances WHERE user_id = ?", (uid,)
-        ).fetchone())
+        ).fetchone()
+        assert row is not None
+        return dict(row)
 
 
 def ledger_grants(settings: Settings, uid: str) -> list:
@@ -91,10 +123,64 @@ def make_store(settings: Settings) -> Store:
     return Store(session)
 
 
+def _restore_ai_token_packs(settings: Settings, packs_snapshot: list, settings_snapshot: list | None = None) -> None:
+    """Restore ai_token_packs and app_settings to their pre-test state.
+
+    Args:
+        settings: The test settings object.
+        packs_snapshot: List of (code, is_active, token_amount, price_usd, display_name).
+        settings_snapshot: List of (key, value) for app_settings to restore.
+    """
+    with connect(settings.database_target) as db:
+        for code, is_active, token_amount, price_usd, display_name in packs_snapshot:
+            db.execute(
+                "UPDATE ai_token_packs SET is_active=?, token_amount=?, price_usd=?, display_name=? WHERE code=?",
+                (is_active, token_amount, price_usd, display_name, code),
+            )
+        # Restore app_settings if provided.
+        if settings_snapshot:
+            for key, value in settings_snapshot:
+                db.execute(
+                    "UPDATE app_settings SET value=? WHERE key=?",
+                    (value, key),
+                )
+        db.commit()
+    invalidate_limits_cache()
+
+
+def _snapshot_ai_models(settings: Settings) -> list:
+    """Snapshot ai_models pricing state before modifications.
+
+    Returns list of (id, input_price_per_1m, output_price_per_1m, is_active).
+    """
+    with connect(settings.database_target) as db:
+        return [(r["id"], r["input_price_per_1m"], r["output_price_per_1m"], r["is_active"])
+                for r in db.execute(
+                    "SELECT id, input_price_per_1m, output_price_per_1m, is_active FROM ai_models"
+                ).fetchall()]
+
+
+def _restore_ai_models(settings: Settings, snapshot: list) -> None:
+    """Restore ai_models to their pre-test state.
+
+    Args:
+        settings: The test settings object.
+        snapshot: List of (id, input_price_per_1m, output_price_per_1m, is_active).
+    """
+    with connect(settings.database_target) as db:
+        for model_id, input_price, output_price, is_active in snapshot:
+            db.execute(
+                "UPDATE ai_models SET input_price_per_1m=?, output_price_per_1m=?, is_active=? WHERE id=?",
+                (input_price, output_price, is_active, model_id),
+            )
+        db.commit()
+    invalidate_limits_cache()
+
+
 # ── pack catalog ──────────────────────────────────────────────────────────────
 
 def test_list_packs_active_only_by_default(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     session = next(get_db(settings.database_target))
     try:
         packs = ai_tokens.list_packs(session)
@@ -106,10 +192,11 @@ def test_list_packs_active_only_by_default(tmp_path):
         assert small["price_usd"] == 10.0
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_list_packs_include_inactive(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     session = next(get_db(settings.database_target))
     try:
         ai_tokens.update_pack("small", session=session, is_active=False)
@@ -120,10 +207,11 @@ def test_list_packs_include_inactive(tmp_path):
         assert next(p for p in all_packs if p["code"] == "small")["is_active"] is False
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_get_pack_excludes_inactive_by_default(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     session = next(get_db(settings.database_target))
     try:
         assert ai_tokens.get_pack("small", session) is not None
@@ -132,16 +220,18 @@ def test_get_pack_excludes_inactive_by_default(tmp_path):
         assert ai_tokens.get_pack("small", session, include_inactive=True) is not None
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_update_pack_partial_fields(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     session = next(get_db(settings.database_target))
     try:
         updated = ai_tokens.update_pack(
             "medium", session=session, token_amount=750000, price_usd=55.0,
             display_name="Medium Plus",
         )
+        assert updated is not None
         assert updated["token_amount"] == 750000
         assert updated["price_usd"] == 55.0
         assert updated["display_name"] == "Medium Plus"
@@ -150,10 +240,11 @@ def test_update_pack_partial_fields(tmp_path):
         assert updated["code"] == "medium"
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_update_pack_validates_inputs(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     session = next(get_db(settings.database_target))
     try:
         with pytest.raises(ValueError):
@@ -166,12 +257,13 @@ def test_update_pack_validates_inputs(tmp_path):
         assert ai_tokens.update_pack("nope", session=session, token_amount=1) is None
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── purchase submit / list ────────────────────────────────────────────────────
 
 def test_submit_purchase_request_creates_pending(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     session = next(get_db(settings.database_target))
     try:
@@ -184,10 +276,11 @@ def test_submit_purchase_request_creates_pending(tmp_path):
         assert req["id"] is not None
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_submit_purchase_request_rejects_inactive_or_unknown(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     session = next(get_db(settings.database_target))
     try:
@@ -198,10 +291,11 @@ def test_submit_purchase_request_rejects_inactive_or_unknown(tmp_path):
             ai_tokens.submit_purchase_request(user["id"], "ghost", session)
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_list_my_purchase_requests_scoped(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     a = make_user(settings, ["general_user"], email="a@test.local")
     b = make_user(settings, ["general_user"], email="b@test.local")
     session = next(get_db(settings.database_target))
@@ -214,10 +308,11 @@ def test_list_my_purchase_requests_scoped(tmp_path):
         assert all(r["user_id"] == a["id"] for r in mine)
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_list_purchase_requests_admin_view_joins_user(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     a = make_user(settings, ["general_user"], email="alice@test.local")
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
@@ -245,12 +340,13 @@ def test_list_purchase_requests_admin_view_joins_user(tmp_path):
         assert len(approved) == 1
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── resolve: approve / reject / guards ────────────────────────────────────────
 
 def test_resolve_approve_grants_tokens(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
@@ -271,10 +367,11 @@ def test_resolve_approve_grants_tokens(tmp_path):
         assert grants[0]["balance_bucket"] == "purchased"
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_resolve_reject_grants_nothing(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
@@ -287,16 +384,19 @@ def test_resolve_reject_grants_nothing(tmp_path):
         assert result["admin_notes"] == "no funds"
         # No balance row created, no grant ledgered.
         with connect(settings.database_target) as db:
-            assert db.execute(
+            row = db.execute(
                 "SELECT COUNT(*) FROM ai_token_balances WHERE user_id = ?", (user["id"],)
-            ).fetchone()[0] == 0
+            ).fetchone()
+            assert row is not None
+            assert row[0] == 0
         assert ledger_grants(settings, user["id"]) == []
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_resolve_double_review_is_guarded(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
@@ -310,10 +410,11 @@ def test_resolve_double_review_is_guarded(tmp_path):
         assert len(ledger_grants(settings, user["id"])) == 1
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_resolve_unknown_and_bad_action(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     admin = make_user(settings, ["general_admin"], email="admin@test.local")
     session = next(get_db(settings.database_target))
     try:
@@ -333,12 +434,13 @@ def test_resolve_unknown_and_bad_action(tmp_path):
         assert again[0]["status"] == "Pending"
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── router authorization gating ───────────────────────────────────────────────
 
 def test_admin_update_pack_requires_settings_permission(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     admin = make_user(settings, ["super_admin"], email="admin@test.local")
     store = make_store(settings)
@@ -358,10 +460,11 @@ def test_admin_update_pack_requires_settings_permission(tmp_path):
         assert updated["token_amount"] == 123456
     finally:
         store.db.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_admin_review_requires_permission_and_grants(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     invalidate_limits_cache()
     owner = make_user(settings, ["pro_user"], email="owner@test.local")
     pleb = make_user(settings, ["general_user"], email="pleb@test.local")
@@ -391,10 +494,11 @@ def test_admin_review_requires_permission_and_grants(tmp_path):
     finally:
         store.db.close()
         invalidate_limits_cache()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_balance_endpoint_shape(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     user = make_user(settings, ["general_user"])
     store = make_store(settings)
     try:
@@ -408,6 +512,7 @@ def test_balance_endpoint_shape(tmp_path):
         assert view["can_purchase_packs"] is False  # general_user cannot buy packs
     finally:
         store.db.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── per-plan purchase gating (can_purchase_token_packs) ───────────────────────
@@ -415,28 +520,31 @@ def test_balance_endpoint_shape(tmp_path):
 def test_can_purchase_token_packs_seeded(tmp_path):
     """All four user tiers are seeded with the default purchasability matrix
     (free/general off; pro/max on) and survive migrate_database."""
-    settings = make_settings(tmp_path)
-    initialize_database(settings.database_target)  # re-run migrate -> applies seed
-    with connect(settings.database_target) as db:
-        rows = {
-            r["role"]: r["limit_count"]
-            for r in db.execute(
-                "SELECT role, limit_count FROM role_limits "
-                "WHERE feature = 'can_purchase_token_packs'"
-            ).fetchall()
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    try:
+        initialize_database(settings.database_target)  # re-run migrate -> applies seed
+        with connect(settings.database_target) as db:
+            rows = {
+                r["role"]: r["limit_count"]
+                for r in db.execute(
+                    "SELECT role, limit_count FROM role_limits "
+                    "WHERE feature = 'can_purchase_token_packs'"
+                ).fetchall()
+            }
+        assert rows == {
+            "free_user": 0,
+            "general_user": 0,
+            "pro_user": 1,
+            "max_user": 1,
         }
-    assert rows == {
-        "free_user": 0,
-        "general_user": 0,
-        "pro_user": 1,
-        "max_user": 1,
-    }
+    finally:
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_purchase_request_endpoint_gated_by_plan(tmp_path):
     """Endpoint rejects purchase requests from plans that can't buy packs (403)
     and accepts them from eligible plans."""
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     invalidate_limits_cache()
     ineligible = make_user(settings, ["general_user"], email="gen@test.local")
     eligible = make_user(settings, ["pro_user"], email="pro@test.local")
@@ -458,11 +566,12 @@ def test_purchase_request_endpoint_gated_by_plan(tmp_path):
     finally:
         store.db.close()
         invalidate_limits_cache()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_balance_can_purchase_packs_reflects_role(tmp_path):
     """The balance response reports purchasability for the caller's role."""
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     invalidate_limits_cache()
     ineligible = make_user(settings, ["free_user"], email="free@test.local")
     eligible = make_user(settings, ["max_user"], email="max@test.local")
@@ -477,22 +586,26 @@ def test_balance_can_purchase_packs_reflects_role(tmp_path):
     finally:
         store.db.close()
         invalidate_limits_cache()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── permission hygiene ────────────────────────────────────────────────────────
 
 def test_admin_manage_token_requests_seeded(tmp_path):
-    settings = make_settings(tmp_path)
-    with connect(settings.database_target) as db:
-        rows = {
-            (r["role"], r["limit_count"])
-            for r in db.execute(
-                "SELECT role, limit_count FROM role_limits "
-                "WHERE feature = 'admin_manage_token_requests'"
-            ).fetchall()
-        }
-    assert ("general_admin", 1) in rows
-    assert ("super_admin", 1) in rows
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    try:
+        with connect(settings.database_target) as db:
+            rows = {
+                (r["role"], r["limit_count"])
+                for r in db.execute(
+                    "SELECT role, limit_count FROM role_limits "
+                    "WHERE feature = 'admin_manage_token_requests'"
+                ).fetchall()
+            }
+        assert ("general_admin", 1) in rows
+        assert ("super_admin", 1) in rows
+    finally:
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_ai_tokens_per_month_purged_from_role_limits(tmp_path):
@@ -500,21 +613,25 @@ def test_ai_tokens_per_month_purged_from_role_limits(tmp_path):
     role_limits (ai_tokens_per_month) to app_settings (plan_ai_credits_<tier>).
     initialize_database must purge any legacy ai_tokens_per_month rows so they
     do not resurface in the Role Limits admin panel."""
-    settings = make_settings(tmp_path)
-    # Seed a legacy row directly, then re-run initialize_database and confirm
-    # the cleanup migration deletes it.
-    with connect(settings.database_target) as db:
-        db.execute(
-            "INSERT INTO role_limits (role, feature, limit_count, reset_period) "
-            "VALUES ('general_user', 'ai_tokens_per_month', 500000, 'monthly')"
-        )
-        db.commit()
-    initialize_database(settings.database_target)
-    with connect(settings.database_target) as db:
-        count = db.execute(
-            "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
-        ).fetchone()[0]
-        assert count == 0
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    try:
+        # Seed a legacy row directly, then re-run initialize_database and confirm
+        # the cleanup migration deletes it.
+        with connect(settings.database_target) as db:
+            db.execute(
+                "INSERT INTO role_limits (role, feature, limit_count, reset_period) "
+                "VALUES ('general_user', 'ai_tokens_per_month', 500000, 'monthly')"
+            )
+            db.commit()
+        initialize_database(settings.database_target)
+        with connect(settings.database_target) as db:
+            row = db.execute(
+                "SELECT COUNT(*) FROM role_limits WHERE feature = 'ai_tokens_per_month'"
+            ).fetchone()
+            assert row is not None
+            assert row[0] == 0
+    finally:
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
@@ -530,7 +647,7 @@ def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
     customization for general_user with no restore. Snapshot every row for
     the role beforehand and put back exactly that set afterward.
     """
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
     admin = make_user(settings, ["super_admin"], email="admin@test.local")
     store = make_store(settings)
     try:
@@ -559,19 +676,23 @@ def test_reset_role_limits_drops_ai_tokens_allowance(tmp_path):
             db.commit()
         store.db.close()
         invalidate_limits_cache()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
 
 
 # ── model pricing catalog ─────────────────────────────────────────────────────
 
 def _model_pk(settings: Settings, model_id: str) -> str:
     with connect(settings.database_target) as db:
-        return str(db.execute(
+        row = db.execute(
             "SELECT id FROM ai_models WHERE model_id = ?", (model_id,)
-        ).fetchone()[0])
+        ).fetchone()
+        assert row is not None
+        return str(row[0])
 
 
 def test_list_models_seeded(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    models_snapshot = _snapshot_ai_models(settings)
     session = next(get_db(settings.database_target))
     try:
         models = ai_tokens.list_models(session)
@@ -583,16 +704,20 @@ def test_list_models_seeded(tmp_path):
         assert first["is_active"] is True
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+        _restore_ai_models(settings, models_snapshot)
 
 
 def test_update_model_pricing(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    models_snapshot = _snapshot_ai_models(settings)
     session = next(get_db(settings.database_target))
     try:
         pk = _model_pk(settings, "GLM-4.7")
         updated = ai_tokens.update_model(
             pk, session=session, input_price_per_1m=1.5, output_price_per_1m=4.0,
         )
+        assert updated is not None
         assert updated["input_price_per_1m"] == 1.5
         assert updated["output_price_per_1m"] == 4.0
 
@@ -602,10 +727,13 @@ def test_update_model_pricing(tmp_path):
         assert tokens == 5.5 * 10000  # ceil at rate 10000
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+        _restore_ai_models(settings, models_snapshot)
 
 
 def test_update_model_validates_and_unknown(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    models_snapshot = _snapshot_ai_models(settings)
     session = next(get_db(settings.database_target))
     try:
         pk = _model_pk(settings, "GLM-4.7")
@@ -616,10 +744,13 @@ def test_update_model_validates_and_unknown(tmp_path):
         assert ai_tokens.update_model("00000000-0000-0000-0000-000000009999", session=session, input_price_per_1m=1) is None
     finally:
         session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+        _restore_ai_models(settings, models_snapshot)
 
 
 def test_admin_model_endpoints_gated_to_settings_admin(tmp_path):
-    settings = make_settings(tmp_path)
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    models_snapshot = _snapshot_ai_models(settings)
     super_admin = make_user(settings, ["super_admin"], email="sa@test.local")
     pleb = make_user(settings, ["general_user"], email="u@test.local")
     store = make_store(settings)
@@ -642,3 +773,5 @@ def test_admin_model_endpoints_gated_to_settings_admin(tmp_path):
         assert updated["input_price_per_1m"] == 2.0
     finally:
         store.db.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
+        _restore_ai_models(settings, models_snapshot)

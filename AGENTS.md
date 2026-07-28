@@ -171,7 +171,7 @@ Every external provider call that consumes API credits MUST be properly billed a
 ### Enforcement Testing Requirements
 
 When touching any billing-related code:
-- Run `tests/regression/test_limits_billing_guards.py` to verify existing guards hold.
+- Update `tests/regression/test_limits_billing_guards.py` (or add a new case) so existing guards stay covered. Do not run it yourself unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md) testing rules.
 - Add a new test case if introducing a new provider, feature, or billing flow.
 - Verify that rejected requests (insufficient tokens, missing gate, exceeded quota) return clear user-facing error messages without exposing provider internals.
 - Verify that successful operations correctly decrement the user's subscription_remaining and/or purchased_remaining token buckets in `ai_tokens` table.

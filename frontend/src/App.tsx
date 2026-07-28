@@ -369,12 +369,12 @@ export function App() {
     ["dashboard", "Dashboard", LayoutDashboard],
     ["projects", "Projects", FolderOpen],
     ["documents", "Documents", FileText],
+    ["news", "Scholarship Hunt", Compass],
+    ["research", "Research Expert", BookOpen],
+    ["atlas", "Advisor Atlas", Map],
     ["sticky", "Sticky Notes", StickyNote],
     ["whiteboard", "Whiteboard", Square],
     ["games", "Brain Games", Puzzle],
-    ["atlas", "Advisor Atlas", Map],
-    ["news", "Scholarship Hunt", Compass],
-    ["research", "Research Expert", BookOpen],
     ["profile", "Profile", User],
     ["about", "About", Info]
   ] as const;

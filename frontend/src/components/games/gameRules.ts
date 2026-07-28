@@ -4,7 +4,7 @@
 // Copy follows the project rule: describe the outcome, not the mechanism —
 // no provider names, algorithm jargon, or internal detail leaks to the user.
 
-export type GameId = "sudoku" | "word" | "2048" | "minesweeper" | "tictactoe";
+export type GameId = "sudoku" | "word" | "2048" | "minesweeper" | "tictactoe" | "patternMemory";
 
 export type GameRules = {
   id: GameId;
@@ -76,5 +76,17 @@ export const GAME_RULES: Record<GameId, GameRules> = {
       "The round ends when someone makes three in a row or the board fills up.",
     ],
     tip: "On Unbeatable the opponent plays perfectly, so the best anyone can force is a draw — that's the game, not a bug.",
+  },
+  patternMemory: {
+    id: "patternMemory",
+    title: "Pattern Memory",
+    goal: "Memorize the pattern of highlighted tiles and tap them all correctly.",
+    steps: [
+      "When a round starts, target tiles will briefly flash teal.",
+      "Memorize their positions before the glow disappears (~1.5 seconds).",
+      "Tap all target tiles from memory. Correct tiles turn green, incorrect taps cost a life.",
+      "Complete all target tiles to advance to the next level with larger grids and more tiles.",
+    ],
+    tip: "Focus on creating a visual shape or spatial mental map of the highlighted group rather than counting individual coordinates.",
   },
 };

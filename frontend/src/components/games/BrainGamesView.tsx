@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Bomb, Grid3x3, Hash, Lock, Play, Spade, Type } from "lucide-react";
+import { Bomb, BrainCircuit, Grid3x3, Hash, Lock, Play, Spade, Type } from "lucide-react";
 import { Game2048 } from "./Game2048";
 import { MinesweeperGame } from "./MinesweeperGame";
+import { PatternMemoryGame } from "./PatternMemoryGame";
 import { SudokuGame } from "./SudokuGame";
 import { TicTacToeGame } from "./TicTacToeGame";
 import { WordPuzzleGame } from "./WordPuzzleGame";
 import "./brain-games.css";
 
-type GameKey = "sudoku" | "word" | "2048" | "minesweeper" | "tictactoe";
+type GameKey = "sudoku" | "word" | "2048" | "minesweeper" | "tictactoe" | "patternMemory";
 
 const GAMES: {
   key: GameKey;
@@ -67,6 +68,16 @@ const GAMES: {
       + "is the best result anyone can force — that is the game, not a bug.",
     icon: Grid3x3,
     Component: TicTacToeGame,
+  },
+  {
+    key: "patternMemory",
+    name: "Pattern Memory",
+    blurb: "Memorize target grid tiles before they fade, then tap to recall.",
+    howTo:
+      "Target tiles flash teal for ~1.5 seconds. Memorize their layout, then tap "
+      + "them all from memory. Advance to higher levels with larger grids and target counts.",
+    icon: BrainCircuit,
+    Component: PatternMemoryGame,
   },
 ];
 

@@ -746,3 +746,165 @@
 .game-rules-close:hover {
   box-shadow: 0 8px 20px rgba(28, 91, 84, 0.22);
 }
+
+/* ==========================================================================
+   Pattern Memory (SCHOLARDOCX-0199)
+   ========================================================================== */
+
+.pattern-memory-game {
+  width: 100%;
+}
+
+.pattern-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  color: #60736f;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pattern-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pattern-lives {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.heart-active {
+  color: #e11d48;
+  fill: #e11d48;
+}
+
+.heart-lost {
+  color: #cbd5e1;
+  fill: transparent;
+}
+
+.pattern-memory-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.status-memorize {
+  color: #0f766e;
+  font-size: 0.95rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+
+.status-recall {
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.status-success-banner,
+.status-gameover-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.status-success-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.status-gameover-banner {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+.pattern-btn-next,
+.pattern-btn-restart {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.pattern-btn-next {
+  background: linear-gradient(135deg, #166534, #22c55e);
+}
+
+.pattern-btn-restart {
+  background: linear-gradient(135deg, #9f1239, #f43f5e);
+}
+
+.pattern-btn-next:hover,
+.pattern-btn-restart:hover {
+  transform: scale(1.04);
+}
+
+.pattern-memory-board {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-size, 3), 1fr);
+  grid-template-rows: repeat(var(--grid-size, 3), 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 1 / 1;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.pattern-memory-cell {
+  background: #e2e8f0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 200ms ease, transform 120ms ease, box-shadow 200ms ease;
+}
+
+.pattern-memory-cell:hover:not(:disabled) {
+  background: #cbd5e1;
+  transform: scale(1.02);
+}
+
+.pattern-memory-cell.cell-memorize {
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
+  box-shadow: 0 0 14px rgba(20, 184, 166, 0.5);
+}
+
+.pattern-memory-cell.cell-correct {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.pattern-memory-cell.cell-wrong {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.pattern-memory-cell.cell-revealed {
+  background: #94a3b8;
+  opacity: 0.6;
+}
+

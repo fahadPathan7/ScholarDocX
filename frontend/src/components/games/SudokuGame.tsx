@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eraser, Lightbulb, Pencil, RotateCcw } from "lucide-react";
+import { BookOpen, Eraser, Lightbulb, Pencil, RotateCcw } from "lucide-react";
+import { GameRulesModal } from "./GameRulesModal";
 import {
   boxOf,
   colOf,
@@ -62,6 +63,7 @@ export function SudokuGame() {
   const [hints, setHints] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [building, setBuilding] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const start = useCallback((level: Difficulty) => {
     setBuilding(true);
@@ -172,6 +174,9 @@ export function SudokuGame() {
           ))}
         </div>
         <div className="game-actions">
+          <button onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
           <button onClick={useHint} disabled={building || solved || !grid}>
             <Lightbulb size={14} /> Hint
           </button>
@@ -254,6 +259,8 @@ export function SudokuGame() {
           </p>
         </>
       )}
+
+      {showRules && <GameRulesModal id="sudoku" onClose={() => setShowRules(false)} />}
     </div>
   );
 }

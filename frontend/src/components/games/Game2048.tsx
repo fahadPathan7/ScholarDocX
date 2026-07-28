@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { BookOpen, RotateCcw } from "lucide-react";
+import { GameRulesModal } from "./GameRulesModal";
 import {
   canMove,
   highestTile,
@@ -19,6 +20,7 @@ export function Game2048() {
   const [board, setBoard] = useState<Board>(() => newGame());
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
+  const [showRules, setShowRules] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
 
   const stuck = !canMove(board);
@@ -82,9 +84,14 @@ export function Game2048() {
           <span><strong>{score}</strong>Score</span>
           <span><strong>{best}</strong>Best</span>
         </div>
-        <button className="game-reset" onClick={reset}>
-          <RotateCcw size={14} /> New game
-        </button>
+        <div className="game-actions">
+          <button onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
+          <button className="game-reset" onClick={reset}>
+            <RotateCcw size={14} /> New game
+          </button>
+        </div>
       </div>
 
       <p className={`game-status${stuck ? " finished" : ""}`} role="status">
@@ -116,6 +123,8 @@ export function Game2048() {
         Arrow keys or WASD, or swipe. Tiles of the same number merge — each tile
         can only merge once per move.
       </p>
+
+      {showRules && <GameRulesModal id="2048" onClose={() => setShowRules(false)} />}
     </div>
   );
 }

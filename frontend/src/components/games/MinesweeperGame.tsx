@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Flag, RotateCcw } from "lucide-react";
+import { BookOpen, Flag, RotateCcw } from "lucide-react";
+import { GameRulesModal } from "./GameRulesModal";
 import {
   createBoard,
   flagCount,
@@ -27,6 +28,7 @@ export function MinesweeperGame() {
   const [seconds, setSeconds] = useState(0);
   // Touch devices have no right-click, so flagging needs its own mode.
   const [flagMode, setFlagMode] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const lost = hitMine(board);
   const won = !lost && started && hasWon(board);
@@ -88,6 +90,9 @@ export function MinesweeperGame() {
           ))}
         </div>
         <div className="game-actions">
+          <button onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
           <button
             className={flagMode ? "active" : ""}
             onClick={() => setFlagMode((value) => !value)}
@@ -148,6 +153,8 @@ export function MinesweeperGame() {
         Click to open, right-click to flag — or turn on Flag mode on a touch
         screen. Your first click is always safe.
       </p>
+
+      {showRules && <GameRulesModal id="minesweeper" onClose={() => setShowRules(false)} />}
     </div>
   );
 }

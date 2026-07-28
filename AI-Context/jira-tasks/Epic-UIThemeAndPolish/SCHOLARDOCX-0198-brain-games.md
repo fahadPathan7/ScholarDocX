@@ -187,8 +187,9 @@ hand. The tests now pin the four cases explicitly.
   all rules, search and generation as pure functions, so the logic is testable
   in a project whose test setup has no renderer.
 - `components/games/{BrainGamesView,SudokuGame,TicTacToeGame,Game2048,
-  MinesweeperGame,WordPuzzleGame}.tsx`, `brain-games.css` (**new**). The picker
-  is data-driven, so a sixth game is one entry in `GAMES`.
+  MinesweeperGame,WordPuzzleGame,GameRulesModal,gameRules}.tsx|ts`,
+  `brain-games.css` (**new**). The picker is data-driven, so a sixth game is
+  one entry in `GAMES` (and one in `GAME_RULES` for its How-to-play modal).
 - `App.tsx`: `Brain Games` nav item, `canUseBrainGames`, locked handling, tab
   container, and `games` added to the no-plan redirect list.
 - `admin/RoleLimitsTab.tsx`: feature group and tooltip.
@@ -234,6 +235,35 @@ Out of scope:
 ## Completion Notes
 
 Changed files: as listed under Technical Context.
+
+### In-game "How to play" rules modal (additive follow-up)
+
+The `howTo` text lives on the start screen, so once a round begins the rules
+are out of reach — a player who picked a game up after a while had no way to
+recall how it plays without quitting back to the picker. Each game now has a
+**"How to play"** button in its toolbar that opens a rules modal mid-round.
+
+- `lib/games/gameRules.ts` (**new**): pure-data `GAME_RULES` keyed by game id —
+  Goal / steps / tip per game. No React, so components import it without cycles.
+  A sixth game's rules are one entry.
+- `components/games/GameRulesModal.tsx` (**new**): renders the sanctioned
+  `<Modal scope="main">` — portals into `.main-content`, blurs the work surface,
+  keeps TopBar/Sidebar crisp. No bespoke backdrop div (the project's recurring
+  regression). Closes on backdrop click or a "Got it" button.
+- The five game components each gain a `showRules` toggle, a `BookOpen` toolbar
+  button in their existing action group, and the modal render.
+- `brain-games.css`: `.game-rules-*` styles appended (scoped under
+  `.game-rules-panel` so they never leak into other modals), reusing the
+  paper/ink/teal palette.
+
+Copy is plain language only — Goal, How-to-play steps, and a Tip — with no
+infrastructure or algorithm jargon (no "minimax", "flood fill", "vector", etc.),
+per the project UI-copy rules. The start-screen `howTo` blurb is left in place:
+pre-game and in-game now complement each other.
+
+No game logic changed; purely presentational. `npx tsc --noEmit` clean. No new
+tests (no component test harness exists in this repo — the game *logic* tests
+are unchanged and still cover the behaviour that matters).
 
 Follow-ups:
 - Expert generation is ~670 ms on this machine and blocks the main thread. It

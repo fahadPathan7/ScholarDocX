@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { BookOpen, RotateCcw } from "lucide-react";
+import { GameRulesModal } from "./GameRulesModal";
 import {
   availableMoves,
   chooseMove,
@@ -23,6 +24,7 @@ export function TicTacToeGame() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [score, setScore] = useState<Score>(EMPTY_SCORE);
   const [scored, setScored] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const outcome = evaluate(board);
   const finished = outcome.status !== "playing";
@@ -92,9 +94,14 @@ export function TicTacToeGame() {
             </button>
           ))}
         </div>
-        <button className="game-reset" onClick={reset}>
-          <RotateCcw size={14} /> New round
-        </button>
+        <div className="game-actions">
+          <button onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
+          <button className="game-reset" onClick={reset}>
+            <RotateCcw size={14} /> New round
+          </button>
+        </div>
       </div>
 
       <p className={`game-status${finished ? " finished" : ""}`} role="status">
@@ -129,6 +136,8 @@ export function TicTacToeGame() {
           you can force is a draw — that is the game, not a bug.
         </p>
       )}
+
+      {showRules && <GameRulesModal id="tictactoe" onClose={() => setShowRules(false)} />}
     </div>
   );
 }

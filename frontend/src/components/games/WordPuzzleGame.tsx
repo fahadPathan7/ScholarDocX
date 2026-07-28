@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Delete, CornerDownLeft } from "lucide-react";
+import { BookOpen, Delete, CornerDownLeft } from "lucide-react";
+import { GameRulesModal } from "./GameRulesModal";
 import {
   dayNumber,
   isWellFormed,
@@ -22,6 +23,7 @@ export function WordPuzzleGame() {
   const [guesses, setGuesses] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [shake, setShake] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     try {
@@ -97,9 +99,14 @@ export function WordPuzzleGame() {
     <div className="game-panel">
       <div className="game-toolbar">
         <span className="word-day">Puzzle #{today}</span>
-        <span className="word-remaining">
-          {done ? "" : `${MAX_GUESSES - guesses.length} guess${MAX_GUESSES - guesses.length === 1 ? "" : "es"} left`}
-        </span>
+        <div className="game-actions">
+          <button onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
+          <span className="word-remaining">
+            {done ? "" : `${MAX_GUESSES - guesses.length} guess${MAX_GUESSES - guesses.length === 1 ? "" : "es"} left`}
+          </span>
+        </div>
       </div>
 
       <p className={`game-status${done ? " finished" : ""}`} role="status">
@@ -159,6 +166,8 @@ export function WordPuzzleGame() {
         One puzzle a day, the same for everyone. Any five letters are accepted —
         it will not argue with you about whether a word counts.
       </p>
+
+      {showRules && <GameRulesModal id="word" onClose={() => setShowRules(false)} />}
     </div>
   );
 }

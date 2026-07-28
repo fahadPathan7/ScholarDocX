@@ -633,3 +633,116 @@
     transition: none;
   }
 }
+
+/* --- How to play modal --- */
+/* Scoped by .game-rules-panel so these rules never leak into other modals.
+   The backdrop + panel base come from the global .modal-panel / <Modal>. */
+
+.game-rules-panel {
+  width: min(440px, 92vw);
+  max-height: 80vh;
+}
+
+.game-rules-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(31, 101, 94, 0.12);
+  background: linear-gradient(145deg, #ffffff, #eef6f2);
+}
+
+.game-rules-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(140deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.game-rules-eyebrow {
+  display: block;
+  color: #2f7d74;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.game-rules-head h3 {
+  margin: 2px 0 0;
+  color: #17201d;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.game-rules-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.game-rules-goal,
+.game-rules-tip {
+  margin: 0;
+  color: #46544f;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.game-rules-goal strong,
+.game-rules-tip strong {
+  color: #17201d;
+}
+
+.game-rules-tip {
+  padding: 11px 14px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-left: 3px solid #2f7d74;
+  border-radius: 9px;
+  background: #f5faf8;
+}
+
+.game-rules-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: #46544f;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.game-rules-steps li {
+  margin-bottom: 7px;
+}
+
+.game-rules-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.game-rules-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(31, 101, 94, 0.12);
+}
+
+.game-rules-close {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+.game-rules-close:hover {
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.22);
+}

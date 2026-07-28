@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Star,
   Users,
   X,
 } from "lucide-react";
@@ -25,7 +26,7 @@ import {
   DiscoveryCardVariant,
 } from "./AdvisorCandidateCard";
 
-type Stage = "map" | "faculty" | "matches" | "opportunities";
+type Stage = "map" | "faculty" | "matches" | "opportunities" | "shortlist";
 type Sort = "recommended" | "alignment" | "confidence" | "outlook" | "name";
 
 type Props = {
@@ -40,6 +41,18 @@ type Props = {
   onOpenComparison: () => void;
   onClearComparison: () => void;
 };
+
+/** Is this someone the applicant should actually read about?
+ *
+ * A person who cannot supervise a doctorate never qualifies, however well
+ * their topics align. Everyone else qualifies on a research match or a
+ * non-trivial alignment score.
+ */
+function isWorthReading(candidate: AdvisorCandidate) {
+  const intelligence = candidate.intelligence || {};
+  if (intelligence.advising_eligibility?.can_supervise === false) return false;
+  return Boolean(intelligence.is_research_match) || (candidate.match_score || 0) >= 45;
+}
 
 const stageMeta = {
   map: {
@@ -65,6 +78,12 @@ const stageMeta = {
     eyebrow: "Who may be recruiting",
     description: "Research matches with a confirmed opening or strong near-term recruitment likelihood.",
     icon: Radar,
+  },
+  shortlist: {
+    label: "Shortlist",
+    eyebrow: "Who you picked",
+    description: "The professors you starred, ready to compare, verify and contact.",
+    icon: Star,
   },
 };
 
@@ -99,6 +118,14 @@ export function AdvisorDiscoveryFunnel({
     faculty: new Set(summary?.faculty_ids || candidates.map((candidate) => candidate.id)),
     matches: new Set(summary?.research_match_ids || []),
     opportunities: new Set(summary?.opportunity_match_ids || []),
+    // Not part of the run summary: the shortlist is the user's own live
+    // selection, so it is derived from the candidates themselves and updates
+    // the moment a star is toggled.
+    shortlist: new Set(
+      candidates
+        .filter((candidate) => candidate.shortlist_status === "shortlisted")
+        .map((candidate) => candidate.id),
+    ),
   }), [candidates, summary]);
 
   const visibleUnits = useMemo(() => {
@@ -149,23 +176,43 @@ export function AdvisorDiscoveryFunnel({
     });
   }, [candidates, ids, query, sort, stage, unitFilter]);
 
+  // A department grouping alone destroys the global ranking: a 91% match sits
+  // below a 0% match purely because of alphabetical unit order. Each group is
+  // split into the people worth reading and a collapsed tail, and the groups
+  // themselves are ordered by their strongest candidate.
   const groupedFaculty = useMemo(() => {
     const groups = new Map<string, AdvisorCandidate[]>();
     visibleCandidates.forEach((candidate) => {
       const key = candidate.department || "Affiliation needs verification";
       groups.set(key, [...(groups.get(key) || []), candidate]);
     });
-    return [...groups.entries()];
+    return [...groups.entries()]
+      .map(([department, professors]) => {
+        const relevant = professors.filter(isWorthReading);
+        return {
+          department,
+          relevant,
+          rest: professors.filter((candidate) => !isWorthReading(candidate)),
+          total: professors.length,
+          best: Math.max(0, ...professors.map((candidate) => candidate.match_score || 0)),
+        };
+      })
+      .sort((left, right) => (
+        right.relevant.length - left.relevant.length || right.best - left.best
+      ));
   }, [visibleCandidates]);
 
   const stageCount = (key: Stage) => {
     if (key === "map") return coverage.units_mapped || departments.length;
     if (key === "faculty") return coverage.verified_faculty || ids.faculty.size;
     if (key === "matches") return coverage.research_matches || ids.matches.size;
+    if (key === "shortlist") return ids.shortlist.size;
     return coverage.opportunity_matches || ids.opportunities.size;
   };
   const ActiveIcon = stageMeta[stage].icon;
-  const cardVariant = stage as DiscoveryCardVariant;
+  // The shortlist reuses the research-match card, which leads with alignment
+  // and the research bridge — what you re-read when deciding who to email.
+  const cardVariant = (stage === "shortlist" ? "matches" : stage) as DiscoveryCardVariant;
 
   const changeStage = (nextStage: Stage) => {
     setStage(nextStage);
@@ -212,6 +259,7 @@ export function AdvisorDiscoveryFunnel({
                 </span>
               </button>
               {index < 3 && <ArrowRight size={16} aria-hidden="true" />}
+              {index === 3 && <span className="atlas-discovery-step-divider" aria-hidden="true" />}
             </div>
           );
         })}
@@ -295,27 +343,58 @@ export function AdvisorDiscoveryFunnel({
         ) : visibleCandidates.length ? (
           stage === "faculty" ? (
             <div className="atlas-discovery-faculty-groups">
-              {groupedFaculty.map(([department, professors]) => (
-                <section key={department}>
+              {groupedFaculty.map((group) => (
+                <section key={group.department}>
                   <header>
-                    <div><Building2 size={17} /><strong>{department}</strong></div>
-                    <span>{professors.length} verified</span>
+                    <div><Building2 size={17} /><strong>{group.department}</strong></div>
+                    <span>
+                      {group.relevant.length
+                        ? `${group.relevant.length} of ${group.total} relevant`
+                        : `${group.total} verified`}
+                    </span>
                   </header>
-                  <div className="atlas-discovery-faculty-grid">
-                    {professors.map((candidate) => (
-                      <Candidate
-                        key={candidate.id}
-                        candidate={candidate}
-                        variant="faculty"
-                        compareIds={compareIds}
-                        refreshingCandidateId={refreshingCandidateId}
-                        onOpenCandidate={onOpenCandidate}
-                        onRefreshCandidate={onRefreshCandidate}
-                        onShortlist={onShortlist}
-                        onCompare={onCompare}
-                      />
-                    ))}
-                  </div>
+                  {!!group.relevant.length && (
+                    <div className="atlas-discovery-faculty-grid">
+                      {group.relevant.map((candidate) => (
+                        <Candidate
+                          key={candidate.id}
+                          candidate={candidate}
+                          variant="faculty"
+                          compareIds={compareIds}
+                          refreshingCandidateId={refreshingCandidateId}
+                          onOpenCandidate={onOpenCandidate}
+                          onRefreshCandidate={onRefreshCandidate}
+                          onShortlist={onShortlist}
+                          onCompare={onCompare}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {!!group.rest.length && (
+                    <details className="atlas-faculty-remainder">
+                      <summary>
+                        <span>
+                          {group.rest.length} more with no alignment to your interests
+                        </span>
+                        <ChevronDown size={15} />
+                      </summary>
+                      <div className="atlas-discovery-faculty-grid">
+                        {group.rest.map((candidate) => (
+                          <Candidate
+                            key={candidate.id}
+                            candidate={candidate}
+                            variant="faculty"
+                            compareIds={compareIds}
+                            refreshingCandidateId={refreshingCandidateId}
+                            onOpenCandidate={onOpenCandidate}
+                            onRefreshCandidate={onRefreshCandidate}
+                            onShortlist={onShortlist}
+                            onCompare={onCompare}
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </section>
               ))}
             </div>
@@ -339,13 +418,19 @@ export function AdvisorDiscoveryFunnel({
         ) : (
           <div className="atlas-discovery-empty">
             <ActiveIcon size={32} />
-            <h3>No professors reached this stage.</h3>
+            <h3>
+              {stage === "shortlist"
+                ? "You have not shortlisted anyone yet."
+                : "No professors reached this stage."}
+            </h3>
             <p>
-              {stage === "opportunities"
-                ? "No research match had a confirmed opening or high-confidence near-term recruitment signal."
-                : "Adjust the filters or inspect the previous stage and coverage gaps."}
+              {stage === "shortlist"
+                ? "Star a professor from any stage to keep them here, then compare them side by side before you write."
+                : stage === "opportunities"
+                  ? "No research match had a confirmed opening or high-confidence near-term recruitment signal."
+                  : "Adjust the filters or inspect the previous stage and coverage gaps."}
             </p>
-            {stage === "opportunities" && (
+            {(stage === "opportunities" || stage === "shortlist") && (
               <button onClick={() => changeStage("matches")}>Review research matches</button>
             )}
           </div>
@@ -439,6 +524,12 @@ function UniversityMap({
             <span><strong>{coverage.directories_inspected || 0}</strong>Directories checked</span>
             <span><strong>{coverage.directories_accessible || 0}</strong>Directories accessible</span>
             <span><strong>{coverage.directories_inaccessible || 0}</strong>Access gaps</span>
+            {!!coverage.directories_off_target && (
+              <span><strong>{coverage.directories_off_target}</strong>Other-unit pages skipped</span>
+            )}
+            {!!coverage.supervision_limited && (
+              <span><strong>{coverage.supervision_limited}</strong>Without supervision rights</span>
+            )}
           </div>
           <p><CheckCircle2 size={15} /> {coverage.completeness_note}</p>
           {!!coverage.coverage_gaps?.length && (

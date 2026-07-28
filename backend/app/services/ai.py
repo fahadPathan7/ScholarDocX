@@ -113,14 +113,21 @@ class AiService:
         output_tokens,
         source,
         ref_id=None,
-    ) -> None:
-        """Charge an AI call to the attached billing context. No-op when no
-        billing context is attached. Used by chat() and by external calls that
-        bypass chat() (e.g. Advisor Atlas vision)."""
+    ) -> dict | None:
+        """Charge an AI call to the attached billing context. No-op (None)
+        when no billing context is attached. Used by chat() and by external
+        calls that bypass chat() (e.g. Advisor Atlas vision).
+
+        Returns the `ai_tokens.charge()` result dict, whose `charged` field is
+        the real number of credits actually deducted (may be less than the
+        call's cost if the balance ran out mid-call) — the figure callers that
+        need to report "credits actually spent" (e.g. Advisor Atlas research
+        metrics) should accumulate, not the raw token/cost estimate.
+        """
         if self._billing_user is None or self._billing_session is None:
-            return
+            return None
         from app.services import ai_tokens
-        ai_tokens.charge(
+        return ai_tokens.charge(
             self._billing_user,
             model_id=model_id,
             provider=provider,
@@ -144,31 +151,32 @@ class AiService:
             self._billing_user, self._billing_session, 0.0, source=source
         )
 
-    def charge_external_call(self, *, cost_usd: float, source: str) -> bool:
+    def charge_external_call(self, *, cost_usd: float, source: str) -> dict | None:
         """Bill a flat-fee external API call against the attached billing context.
 
         The billing counterpart to `record_external_search`, which records a
         zero-cost counter row. Used by metered third-party calls that are not
         token-based — OpenAlex author resolution (SCHOLARDOCX-0183).
 
-        Returns True when a charge was raised. No-op (False) when no billing
-        context is attached, which is how internal/system calls stay unbilled.
-        Never raises: a billing failure must not sink an otherwise good run.
+        Returns the `ai_tokens.charge_flat_fee()` result dict when a charge was
+        raised (its `charged` field is the real credits deducted). Returns None
+        when no billing context is attached, the cost is zero, or the charge
+        failed — in every such case no internal/system call goes unbilled by
+        mistake, and a billing failure never sinks an otherwise good run.
         """
         if self._billing_user is None or self._billing_session is None:
-            return False
+            return None
         if cost_usd <= 0:
-            return False
+            return None
         from app.services import ai_tokens
 
         try:
-            ai_tokens.charge_flat_fee(
+            return ai_tokens.charge_flat_fee(
                 self._billing_user, self._billing_session, cost_usd, source=source
             )
-            return True
         except Exception:
             logger.warning("External call charge failed for source=%s", source, exc_info=True)
-            return False
+            return None
 
     def external_billing_cost(self, getter) -> float:
         """Read an admin-configured flat fee using the attached billing session.
@@ -313,13 +321,15 @@ class AiService:
                 else:
                     answer, usage = await self._chat_with_glm(model_name, sys_prompt, full_message, max_tokens)
                 if self._billing_user is not None and self._billing_session is not None:
-                    self.charge_tokens(
+                    charge_result = self.charge_tokens(
                         model_id=model_name,
                         provider=provider,
                         input_tokens=usage.get("input_tokens", 0),
                         output_tokens=usage.get("output_tokens", 0),
                         source=(request_label or "ai_chat"),
                     )
+                    if charge_result is not None:
+                        usage["credits_charged"] = charge_result.get("charged", 0)
                 return {
                     "mode": f"{provider}-{model_name}",
                     "answer": answer,

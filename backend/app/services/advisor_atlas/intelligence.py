@@ -161,6 +161,48 @@ def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
+# Words that prove a captured phrase is NOT an academic unit. A unit is an
+# organisation that employs faculty; these mark a job title, a degree, or a
+# page heading that happened to sit next to a unit word.
+#
+# SCHOLARDOCX-0190: without this, one live run mapped and then searched units
+# called "Associate Professor of Computer Science and Director AI-Cyb",
+# "Master of Science in Computer Science" and "The Computer Science" — each one
+# spending two searches and up to four directory crawls from the run budget.
+NON_UNIT_TOKENS = {
+    # job titles
+    "professor", "professors", "lecturer", "instructor", "adjunct", "chair",
+    "chairperson", "dean", "director", "provost", "chancellor", "president",
+    "coordinator", "emeritus", "emerita", "fellow", "postdoc", "postdoctoral",
+    # degrees and their programmes
+    "bachelor", "bachelors", "master", "masters", "doctorate", "doctoral",
+    "phd", "bsc", "msc", "beng", "meng", "mba", "beds", "minor", "certificate",
+    "diploma", "thesis", "dissertation",
+    # page furniture
+    "message", "welcome", "overview", "contact", "apply", "admission",
+    "admissions", "news", "event", "events", "brochure", "resume", "click",
+    "here", "home", "login", "search", "sitemap",
+}
+
+# Articles a captured unit name may start with ("The Computer Science").
+_LEADING_ARTICLES = {"the", "a", "an", "our", "this"}
+
+
+def is_academic_unit_name(name: str) -> bool:
+    """Reject job titles, degree programmes and page headings."""
+    tokens = normalize(name).split()
+    if not tokens:
+        return False
+    return not any(token in NON_UNIT_TOKENS for token in tokens)
+
+
+def strip_unit_article(name: str) -> str:
+    tokens = name.split()
+    while tokens and tokens[0].lower().strip(" .,") in _LEADING_ARTICLES:
+        tokens = tokens[1:]
+    return " ".join(tokens).strip()
+
+
 # Connectors allowed *inside* a unit name ("Information and Decision Systems",
 # "School of Earth and Space Exploration") but never at either edge.
 #
@@ -193,6 +235,12 @@ def clean_unit_name(raw: str, from_end: bool = False) -> str:
 
     kept: list[str] = []
     for index, token in enumerate(tokens):
+        # An article is a phrase boundary, not part of a unit name. Walking
+        # backwards from "…and Computer Science The Computer Science Department"
+        # it is the only thing that stops the capture bleeding into the
+        # preceding sentence, because "The" is capitalised like a name word.
+        if token.lower() in _LEADING_ARTICLES:
+            break
         if token[:1].isupper():
             kept.append(token)
             continue
@@ -339,8 +387,10 @@ def extract_related_units(
     discovered: dict[str, dict[str, Any]] = {}
 
     def consider(name: str, source_url: str | None, ai_hint: dict[str, Any] | None = None) -> None:
-        name = name.strip(" .,:;-")
+        name = strip_unit_article(name.strip(" .,:;-")).strip(" .,:;-")
         if len(name) < 3 or len(name) > 100:
+            return
+        if not is_academic_unit_name(name):
             return
         score, relation, reason = related_unit_score(requested_field, name)
         if ai_hint:
@@ -428,7 +478,14 @@ def semantic_fallback(interests: list[str], research_text: str) -> dict[str, Any
         interest_tokens = set(normalized_interest.split())
         token_overlap = interest_tokens & research_tokens
         family_overlap = concept_family(normalized_interest) & concept_family(research)
-        phrase_match = normalized_interest and normalized_interest in research
+        # SCHOLARDOCX-0188: plain `in` is a substring check, exactly the bug
+        # `_contains_phrase` (below) was built to fix elsewhere in this file —
+        # a short interest like "ai" or "llm" would silently "match" as a
+        # supported research phrase just because it's a substring of an
+        # unrelated word (chair, maintain, llm inside some longer token,
+        # etc.), reported to the user as a 92-point "supported research
+        # phrase" hit — the single highest-confidence match tier here.
+        phrase_match = bool(normalized_interest) and _contains_phrase(research, normalized_interest)
         score = 0
         if phrase_match:
             score = 92
@@ -478,8 +535,12 @@ def opportunity_forecast(
     evidence_confidence: int,
 ) -> dict[str, Any]:
     text = combined_text.lower()
-    years = [int(year) for year in YEAR_PATTERN.findall(text)]
-    recent_activity = bool(years and max(years) >= datetime.now(timezone.utc).year - 1)
+    # SCHOLARDOCX-0188: clamp to the current year — see analysis.py's
+    # latest_year for why (a Scholar citation count like "2094" would
+    # otherwise read as a real year and force recent_activity permanently true).
+    current_year = datetime.now(timezone.utc).year
+    years = [int(year) for year in YEAR_PATTERN.findall(text) if int(year) <= current_year]
+    recent_activity = bool(years and max(years) >= current_year - 1)
     signals = []
     counter_signals = []
     if recruitment_state == "confirmed_open":

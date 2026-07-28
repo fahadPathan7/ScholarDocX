@@ -24,14 +24,25 @@ from app.services.advisor_atlas.crawler import (
     PublicCrawler,
     canonicalize_url,
 )
+from app.services.advisor_atlas.candidate_quality import (
+    advising_eligibility,
+    calibrate_evidence_confidence,
+    merge_duplicate_candidates,
+)
 from app.services.advisor_atlas.repository import AdvisorAtlasRepository
 from app.services.advisor_atlas.discovery import (
     DiscoveryResearcher,
     build_discovery_action_center,
 )
 from app.services.advisor_atlas.intelligence import opportunity_forecast, semantic_fallback
-from app.services.advisor_atlas.openalex import OpenAlexClient, summarise_activity
+from app.services.advisor_atlas.openalex import (
+    METERED_CALL_COST_RATIO,
+    METERED_CALL_SOURCE,
+    OpenAlexClient,
+    summarise_activity,
+)
 from app.services.advisor_atlas.professor_research import (
+    candidate_excerpt,
     discover_profile_links,
     extract_verified_professor_facts,
     is_scholarly_publication,
@@ -361,7 +372,11 @@ class AdvisorAtlasService:
             key = name.lower()
             existing = deduped.get(key, {})
             deduped[key] = {**existing, **{k: v for k, v in candidate.items() if v}}
-        return list(deduped.values()), sources
+        # Exact-name de-duplication above cannot see that "A. Goyal",
+        # "Ayush Goyal" and a third entry pointing at the same profile URL are
+        # one person — a live run screened and billed the same professor three
+        # times under three labels (SCHOLARDOCX-0190).
+        return merge_duplicate_candidates(list(deduped.values())), sources
 
     async def _process_candidate(
         self,
@@ -521,6 +536,27 @@ class AdvisorAtlasService:
             or intelligence.get("department_relation")
             or {}
         )
+        # Both of these are deterministic and must run BEFORE the recruitment
+        # forecast, which caps its own confidence at the candidate's evidence
+        # confidence — feeding it an uncalibrated number would launder an
+        # unsupported figure into the opportunity outlook.
+        eligibility = advising_eligibility(normalized_candidate, candidate_sources)
+        intelligence["advising_eligibility"] = eligibility
+        if not eligibility["can_supervise"]:
+            # Someone who cannot take a doctoral student is not a research
+            # match, however well their topics line up.
+            intelligence["is_research_match"] = False
+            risk_flags = list(normalized_candidate.get("risk_flags") or [])
+            if eligibility["reason"] not in risk_flags:
+                risk_flags.insert(0, eligibility["reason"])
+            normalized_candidate["risk_flags"] = risk_flags
+        calibrated, evidence_basis = calibrate_evidence_confidence(
+            int(normalized_candidate.get("evidence_confidence", 0) or 0),
+            normalized_candidate,
+            candidate_sources,
+        )
+        normalized_candidate["evidence_confidence"] = calibrated
+        intelligence["evidence_basis"] = evidence_basis
         forecast = opportunity_forecast(
             combined,
             normalized_candidate.get("recruitment_state", "unknown"),
@@ -543,20 +579,27 @@ class AdvisorAtlasService:
         usage["sources_inspected"] = len(candidate_sources)
         elapsed = max(0.0, time.perf_counter() - float(usage["started_at"]))
         intelligence["research_depth"] = "deep" if deep else "screened"
+        failed_ai_calls = int(usage.get("failed_ai_calls", 0))
+        succeeded_ai_calls = int(usage.get("ai_calls", 0))
         intelligence["research_metrics"] = {
             "tavily_searches": int(usage.get("tavily_searches", 0)),
             "openalex_lookups": int(usage.get("openalex_lookups", 0)),
             "pages_crawled": int(usage.get("pages_crawled", 0)),
-            "ai_calls": int(usage.get("ai_calls", 0)),
-            "estimated_input_tokens": int(usage.get("estimated_input_tokens", 0)),
-            "estimated_output_tokens": int(usage.get("estimated_output_tokens", 0)),
-            "estimated_total_tokens": (
-                int(usage.get("estimated_input_tokens", 0))
-                + int(usage.get("estimated_output_tokens", 0))
-            ),
+            "ai_calls": succeeded_ai_calls,
+            # SCHOLARDOCX-0191: a provider failure used to be indistinguishable
+            # from a free call — both rendered as "0 credits used" beside a
+            # non-zero call count, with no hint that the dossier had fallen
+            # back to the deterministic analyser.
+            "failed_ai_calls": failed_ai_calls,
+            "analysis_degraded": bool(failed_ai_calls) and not succeeded_ai_calls,
+            # Real credits actually deducted from the user's balance across every
+            # billed call this run made (GLM chat/vision + OpenAlex). Tavily
+            # searches are deliberately billed at $0 (see record_external_search)
+            # so they contribute nothing here — this is the true amount cut, not
+            # a token estimate.
+            "credits_used": int(usage.get("credits_charged", 0)),
             "sources_inspected": len(candidate_sources),
             "elapsed_seconds": round(elapsed, 1),
-            "token_measurement": "estimated",
         }
         normalized_candidate["intelligence"] = intelligence
         evidence = self._evidence_from_sources(candidate_sources, normalized_candidate)
@@ -706,26 +749,52 @@ class AdvisorAtlasService:
             logger.info("OpenAlex enrichment skipped for %s: %s", name, exc)
             return
 
+        # SCHOLARDOCX-0191: publications used to depend on crawling a scholarly
+        # profile, and the two best sources cannot be crawled at all — Google
+        # Scholar disallows /citations in robots.txt, ORCID and Semantic
+        # Scholar return JavaScript shells. OpenAlex publishes the same works
+        # as structured data. Fetched here, before the charge block, so the
+        # call it makes is billed with the rest.
+        works: list[dict[str, Any]] = []
+        # Re-check funding: the author resolution above is itself billable, so
+        # the balance that covered one call may no longer cover a second.
+        if record and self.ai_service.can_spend_external():
+            try:
+                works = await client.recent_works(record["author_id"])
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.info("OpenAlex works lookup skipped for %s: %s", name, exc)
+
         # Charge for the metered search that was actually issued, whether or not
         # it resolved to a confident match — the API call was made and billed by
         # OpenAlex either way. `resolve_author` declines to call at all when the
         # name is blank or the budget guard is tripped, and in those cases
         # `spent_usd` stays 0 so nothing is charged.
         #
-        # Exactly one charge per metered call. See SCHOLARDOCX-0180 for what
-        # happens when a wrapper adds a second one.
-        if client.attempted_metered_call:
-            self.ai_service.charge_external_call(
-                cost_usd=self.ai_service.external_billing_cost(
-                    ai_tokens.get_openalex_call_cost_usd
-                ),
-                source="openalex_author_lookup",
+        # Exactly one charge per metered call — no more, no fewer — each at its
+        # own class's price. A professor now costs up to two calls (an author
+        # search, then a works list), and OpenAlex prices those 10:1, so
+        # billing both at the configured search price would overcharge. See
+        # SCHOLARDOCX-0180 for what happens when a wrapper adds an extra
+        # charge, and AGENTS.md for why an unbilled provider call is never
+        # acceptable.
+        search_price = self.ai_service.external_billing_cost(
+            ai_tokens.get_openalex_call_cost_usd
+        )
+        for call_kind in client.metered_calls:
+            charge_result = self.ai_service.charge_external_call(
+                cost_usd=search_price * METERED_CALL_COST_RATIO.get(call_kind, 1.0),
+                source=METERED_CALL_SOURCE.get(call_kind, "openalex_author_lookup"),
             )
             if usage is not None:
                 usage["openalex_lookups"] = int(usage.get("openalex_lookups", 0)) + 1
-                usage["openalex_cost_usd"] = round(
-                    float(usage.get("openalex_cost_usd", 0.0)) + client.spent_usd, 6
-                )
+                if charge_result is not None:
+                    usage["credits_charged"] = int(usage.get("credits_charged", 0)) + int(
+                        charge_result.get("charged", 0)
+                    )
+        if client.metered_calls and usage is not None:
+            usage["openalex_cost_usd"] = round(
+                float(usage.get("openalex_cost_usd", 0.0)) + client.spent_usd, 6
+            )
 
         if not record:
             return
@@ -733,6 +802,14 @@ class AdvisorAtlasService:
         activity = summarise_activity(record)
         if activity:
             record["activity_summary"] = activity
+
+        # Indexed works are NOT model output and deliberately bypass the
+        # generated-publication validation in `_validate_analysis`: they carry
+        # DOIs from the same API that resolved the author, and that validation
+        # exists to catch a model inventing a paper — which cannot happen here.
+        if works:
+            self._merge_scholarly_publications(analysis, works)
+            record["works_retrieved"] = len(works)
 
         candidate_block = analysis.setdefault("candidate", {})
         intelligence = candidate_block.setdefault("intelligence", {})
@@ -765,6 +842,39 @@ class AdvisorAtlasService:
                 list_keys=("career_history",),
                 text_keys=(),
             )
+
+    @staticmethod
+    def _merge_scholarly_publications(
+        analysis: dict[str, Any],
+        works: list[dict[str, Any]],
+    ) -> None:
+        """Union indexed works with whatever the page-derived pass verified.
+
+        Indexed works lead: they are the only publication evidence that carries
+        a DOI and a machine-verified author link. Page-derived entries for the
+        same paper are dropped by title, and anything the pages found that
+        OpenAlex has not indexed is kept behind them.
+        """
+        def key(item: dict[str, Any]) -> str:
+            return re.sub(r"[^a-z0-9]", "", str(item.get("title") or "").lower())
+
+        merged: dict[str, dict[str, Any]] = {}
+        for item in works:
+            marker = key(item)
+            if marker:
+                merged[marker] = item
+        for item in analysis.get("publications", []) or []:
+            marker = key(item)
+            if marker and marker not in merged:
+                merged[marker] = item
+        publications = sorted(
+            merged.values(),
+            key=lambda item: item.get("publication_year") or 0,
+            reverse=True,
+        )[:8]
+        for index, publication in enumerate(publications):
+            publication["reading_priority"] = max(1, 5 - index)
+        analysis["publications"] = publications
 
     @staticmethod
     def _merge_fact_section(
@@ -1013,7 +1123,16 @@ class AdvisorAtlasService:
                         f"{str(item.get('source_kind') or 'Public').replace('_', ' ').title()} "
                         f"source inspected for {candidate['display_name']}."
                     ),
-                    "evidence_excerpt": content[:700],
+                    # Anchor the quote on the professor, not on wherever the page
+                    # happens to start. A shared department page opens with the
+                    # same grant boilerplate for everyone on it, so `content[:700]`
+                    # showed one professor's funding paragraph as the supporting
+                    # evidence for a dozen unrelated colleagues (SCHOLARDOCX-0190).
+                    "evidence_excerpt": candidate_excerpt(
+                        content,
+                        candidate["display_name"],
+                        700,
+                    ),
                     "confidence": 85 if official else 60,
                     "metadata": {
                         "provider_score": item.get("score"),
@@ -1034,6 +1153,7 @@ class AdvisorAtlasService:
             "estimated_input_tokens": 0,
             "estimated_output_tokens": 0,
             "sources_inspected": 0,
+            "credits_charged": 0,
         }
 
     def _dedupe_sources(self, sources: list[dict[str, Any]]) -> list[dict[str, Any]]:

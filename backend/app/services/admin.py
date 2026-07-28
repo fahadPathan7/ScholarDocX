@@ -278,7 +278,9 @@ class AdminService:
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('scholarship_hunt', 'scholarship_deep_hunt_search')) AS tavily_scholarship_hunt,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('jina_embedding', 'jina_embedding_retry', 'jina_embedding_query')) AS jina_total,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_author_lookup') AS openalex_total
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('openalex_author_lookup', 'openalex_works_lookup')) AS openalex_total,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_author_lookup') AS openalex_author_lookups,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_works_lookup') AS openalex_works_lookups
             """
         ).fetchone()
         c = dict(counts_row) if counts_row else {}
@@ -368,7 +370,12 @@ class AdminService:
                 "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
                 "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
                 "jina_total": _count("jina_total"),
+                # SCHOLARDOCX-0191: a professor can now cost two OpenAlex calls
+                # of different classes and prices. `openalex_total` stays the
+                # all-calls figure it always was; the split shows which kind.
                 "openalex_total": _count("openalex_total"),
+                "openalex_author_lookups": _count("openalex_author_lookups"),
+                "openalex_works_lookups": _count("openalex_works_lookups"),
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,

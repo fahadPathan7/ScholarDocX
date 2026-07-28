@@ -67,6 +67,102 @@ NON_NAME_LABELS = {
     "graduate program", "undergraduate program", "news events", "apply now",
 }
 
+# Lowercase particles that legitimately appear inside a personal name
+# ("Ludwig van Beethoven", "Ana de la Cruz", "Ibn al-Haytham").
+NAME_PARTICLES = {
+    "van", "von", "de", "del", "della", "der", "den", "di", "da", "das",
+    "dos", "du", "la", "le", "el", "al", "bin", "ibn", "ter", "ten", "af",
+    "av", "bint", "san", "santa", "st", "mac", "mc", "op", "'t",
+}
+
+# Function words. A personal name does not contain them; a page heading or a
+# navigation label almost always does ("Message from the Chair", "Masters in
+# Computer Science", "Skip to main content", "Faculty and Staff").
+NAME_STOPWORDS = {
+    "and", "or", "for", "the", "an", "of", "in", "to", "from", "with", "at",
+    "on", "by", "about", "into", "via", "our", "your", "their", "its", "my",
+    "this", "that", "these", "those", "us", "we", "you", "all", "more",
+    "here", "how", "what", "why", "when", "where", "who", "which", "is",
+    "are", "was", "were", "be", "&",
+}
+
+# Institutional nouns. A label containing one of these describes a page, an
+# organisation or a document — never a person.
+#
+# SCHOLARDOCX-0190: without this, every university site's own chrome was
+# harvested as faculty. One live Discovery run reported "CHNG Brochure",
+# "Faculty Resources", "Dean's Office Staff", "Council Members", "Personnel
+# Profile", "Online Programs" and "CLICK HERE FOR FULL RESUME" among its
+# "79 verified professors".
+#
+# Deliberately excluded because they are also real surnames: page, read, main,
+# dean, chair, church, young, park, bishop, major. Those labels are caught by
+# the stopword rule or by their companion tokens instead.
+NON_PERSON_TOKENS = {
+    # organisational units and pages
+    "faculty", "staff", "personnel", "directory", "department", "departments",
+    "school", "schools", "college", "university", "universities", "institute",
+    "institution", "center", "centre", "division", "office", "offices",
+    "council", "committee", "board", "administration", "campus", "portal",
+    "library", "dashboard", "homepage", "sitemap", "site", "menu",
+    "navigation", "index", "overview", "mission", "vision", "welcome",
+    "about", "home",
+    # programmes, degrees and courses
+    "program", "programs", "programme", "programmes", "curriculum", "course",
+    "courses", "degree", "degrees", "certificate", "certificates", "minor",
+    "masters", "bachelors", "bachelor", "doctoral", "doctorate", "phd",
+    "undergraduate", "graduate", "postgraduate", "admission", "admissions",
+    "tuition", "scholarship", "scholarships", "syllabus", "catalog",
+    "catalogue", "handbook", "seminar", "seminars", "colloquium", "workshop",
+    "conference",
+    # documents, actions and chrome
+    "brochure", "resume", "cv", "vitae", "resource", "resources", "profile",
+    "profiles", "publication", "publications", "project", "projects",
+    "research", "areas", "team", "teams", "group", "groups", "lab", "labs",
+    "laboratory", "people", "member", "members", "student", "students",
+    "alumni", "career", "careers", "job", "jobs", "employment", "news",
+    "event", "events", "calendar", "newsletter", "announcement",
+    "announcements", "message", "contact", "contacts", "information", "info",
+    "click", "skip", "content", "submit", "download", "downloads", "form",
+    "forms", "link", "links", "faq", "faqs", "help", "search", "login",
+    "logout", "apply", "application", "applications", "give", "giving",
+    "donate", "support", "services", "service", "gallery", "photo", "photos",
+    "map", "maps", "directions", "policy", "privacy", "terms", "list",
+    "listing", "view", "next", "previous", "now", "online", "virtual",
+    # role words that survive honorific stripping mid-label
+    "professor", "professors", "lecturer", "lecturers", "instructor",
+    "instructors", "adjunct", "emeritus", "emerita", "emeriti", "provost",
+    "chancellor", "president", "registrar", "coordinator", "director",
+    "administrator", "advisor", "advisors", "fellowship",
+}
+
+
+def _looks_like_person(name: str) -> bool:
+    """Reject labels whose *words* say "page heading", not "person".
+
+    Runs after the shape test in `clean_person_name`, which only proves the
+    label is a run of capitalised words — a bar that "Graduate Faculty" and
+    "Council Members" clear just as easily as "Ayush Goyal".
+    """
+    tokens = [
+        re.sub(r"[^\w'’\-]", "", token).lower()
+        for token in name.split()
+    ]
+    tokens = [token for token in tokens if token]
+    if len(tokens) < 2:
+        # Single-token names only reach here through CJK_NAME_PATTERN, which
+        # is already narrow enough.
+        return True
+    for token in tokens:
+        # A middle initial ("Ali A. Pilehvari") is a single letter, which would
+        # otherwise collide with the article "a".
+        if len(token) == 1 or token in NAME_PARTICLES:
+            continue
+        if token in NAME_STOPWORDS or token in NON_PERSON_TOKENS:
+            return False
+    # A name made only of particles is not a name.
+    return any(token not in NAME_PARTICLES for token in tokens)
+
 
 def clean_person_name(label: str) -> str | None:
     """Normalise a link label to a bare personal name, or None if it isn't one.
@@ -102,6 +198,8 @@ def clean_person_name(label: str) -> str | None:
     # Require at least one capitalised or non-Latin token so all-lowercase
     # navigation ("view all people") cannot slip through as a name.
     if not any(word[:1].isupper() or not word[:1].isascii() for word in candidate.split()):
+        return None
+    if not _looks_like_person(candidate):
         return None
     return candidate
 

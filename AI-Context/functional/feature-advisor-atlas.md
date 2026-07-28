@@ -23,8 +23,9 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   ineligible plans and routes to Choose Plan instead of opening the workspace.
 - FR-9.2: Support field-led university discovery and professor-specific search.
 - FR-9.3: Require at least one user research interest in both Discovery and
-  Professor modes, and let users provide up to five interests plus degree and
-  intake context through a reviewable profile.
+  Professor modes. Interests, degree target, and intake are managed as a
+  single saved Advisor Atlas research defaults profile (FR-9.62), not
+  re-entered per search.
 - FR-9.4: Support Quick Map, Deep Atlas, and Focused Dossier search depths.
 - FR-9.5: Discover and deduplicate professors from public authoritative sources.
 - FR-9.6: Enrich profiles with research, projects, labs, students, publications,
@@ -284,6 +285,25 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   telling the user to delete an existing search first; there is no automatic
   eviction of the oldest run. The user must use the existing per-run delete
   action to free up a slot.
+- FR-9.61: The dossier's Research Metrics panel must never show the word
+  "tokens" to the user — only "credits", matching the vocabulary used
+  everywhere else in the app. The figure shown is the real total credits
+  actually deducted from the user's balance across every billed call the run
+  made (GLM chat/vision analyses plus metered external calls such as
+  OpenAlex), not a token-count estimate. Tavily searches are deliberately
+  billed at $0 for Advisor Atlas and contribute nothing to this figure.
+- FR-9.62: Research interests, degree target, and intended intake are saved
+  once as explicit Advisor Atlas research defaults, edited from a "Research
+  defaults" entry point on the Advisor Atlas search form itself (not the
+  Profile page — the setting lives inside the feature that uses it). There
+  is no separate per-search copy of these fields: every search reads the
+  saved defaults directly, and no search is ever gated on defaults existing
+  — an empty/incomplete state surfaces a clear inline message pointing at
+  the same entry point instead (contrast with the removed Hunt Profile,
+  SCHOLARDOCX-0178, which required a setup step before searching). University
+  name, official professor URL, department/research area, and professor
+  name remain per-search fields — they inherently differ on every search
+  and are not part of this reusable profile.
 
 ## Discovery Funnel
 

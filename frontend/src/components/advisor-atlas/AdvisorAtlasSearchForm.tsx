@@ -1,44 +1,68 @@
-import { FormEvent, useMemo, useState } from "react";
-import { ArrowRight, Compass, Plus, Search, Sparkles, UserRoundSearch, X } from "lucide-react";
-import { CreateAdvisorRun, SearchMode } from "../../lib/advisorAtlasApi";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ArrowRight, Compass, Search, Sparkles, UserRoundSearch } from "lucide-react";
+import {
+  AdvisorResearchDefaults,
+  CreateAdvisorRun,
+  SearchMode,
+  getAdvisorResearchDefaults,
+} from "../../lib/advisorAtlasApi";
+import { AdvisorResearchDefaultsModal } from "./AdvisorResearchDefaultsModal";
+import { useAuth } from "../../contexts/AuthContext";
 
 type Props = {
   submitting: boolean;
   onSubmit: (payload: CreateAdvisorRun) => Promise<void>;
 };
 
-function splitList(value: string) {
-  return value
-    .split(/[,;\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-
+const EMPTY_DEFAULTS: AdvisorResearchDefaults = { interests: [], degree_target: "", intake_term: "" };
 
 export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<SearchMode>("department");
-  const [showProfile, setShowProfile] = useState(true);
   const [form, setForm] = useState({
     universityName: "",
     universityUrl: "",
     department: "",
     professorName: "",
-    degreeTarget: "PhD",
-    intakeTerm: "",
-    interests: [""],
   });
   const [error, setError] = useState("");
+
+  // SCHOLARDOCX-0189/0190: research interests, degree target, and intended
+  // intake are no longer per-search fields here — they live once in the
+  // user's Advisor Atlas Research Defaults (edited from this same view, not
+  // the Profile page) and are read directly at submit time. Editing them
+  // here always updates the saved defaults; there is no separate per-search
+  // copy to keep in sync.
+  const [defaultsProfileId, setDefaultsProfileId] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState<AdvisorResearchDefaults>(EMPTY_DEFAULTS);
+  const [defaultsLoaded, setDefaultsLoaded] = useState(false);
+  const [showDefaultsModal, setShowDefaultsModal] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAdvisorResearchDefaults().then(({ profileId, defaults }) => {
+      if (cancelled) return;
+      setDefaultsProfileId(profileId);
+      setDefaults(defaults);
+      setDefaultsLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hasDefaults = defaults.interests.length > 0 || !!defaults.degree_target || !!defaults.intake_term;
+
   const completedRequired = useMemo(() => {
-    const hasInterest = form.interests.some((interest) => interest.trim().length >= 2);
+    const hasInterest = defaults.interests.some((interest) => interest.trim().length >= 2);
     return mode === "professor"
       ? [
           form.universityName,
           form.universityUrl,
           form.department,
           form.professorName,
-          form.intakeTerm,
-          form.degreeTarget,
+          defaults.intake_term,
+          defaults.degree_target,
           hasInterest ? "interest" : "",
         ].filter((value) => value.trim()).length
       : [
@@ -46,34 +70,11 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
           form.department,
           hasInterest ? "interest" : "",
         ].filter((value) => value.trim()).length;
-  }, [form, mode]);
+  }, [form, defaults, mode]);
   const requiredTotal = mode === "professor" ? 7 : 3;
 
   const update = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
-  };
-
-  const updateInterest = (index: number, value: string) => {
-    setForm(current => {
-      const interests = [...current.interests];
-      interests[index] = value;
-      return { ...current, interests };
-    });
-  };
-
-  const addInterest = () => {
-    if (form.interests.length < 5) {
-      setForm(current => ({ ...current, interests: [...current.interests, ""] }));
-    }
-  };
-
-  const removeInterest = (index: number) => {
-    setForm(current => {
-      if (current.interests.length <= 1) return current;
-      const interests = [...current.interests];
-      interests.splice(index, 1);
-      return { ...current, interests };
-    });
   };
 
   const submit = async (event: FormEvent) => {
@@ -89,8 +90,6 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
         ["official professor URL", form.universityUrl],
         ["department or research area", form.department],
         ["professor name", form.professorName],
-        ["intended intake", form.intakeTerm],
-        ["degree target", form.degreeTarget],
       ].filter(([, value]) => !value.trim()).map(([label]) => label);
       if (missing.length) {
         setError(`Professor search requires ${missing.join(", ")}.`);
@@ -107,18 +106,22 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
         setError("Enter a complete official HTTP or HTTPS university or professor URL.");
         return;
       }
-      if (!/^(Spring|Summer|Fall|Autumn|Winter)\s+20\d{2}$/i.test(form.intakeTerm.trim())) {
-        setError("Enter an intake term and year, for example Fall 2027.");
+      if (!defaults.intake_term.trim() || !defaults.degree_target.trim()) {
+        setError("Set your intended intake and degree target in Research Defaults before starting a professor search.");
+        return;
+      }
+      if (!/^(Spring|Summer|Fall|Autumn|Winter)\s+20\d{2}$/i.test(defaults.intake_term.trim())) {
+        setError("Your saved intended intake isn't a valid term. Update it in Research Defaults, for example Fall 2027.");
         return;
       }
     }
-    const validInterests = form.interests.map(i => i.trim()).filter(Boolean);
+    const validInterests = defaults.interests.map((i) => i.trim()).filter(Boolean);
     if (validInterests.length === 0) {
-      setError(`At least one research interest is required for ${mode === "department" ? "discovery" : "professor matching"}.`);
+      setError(`At least one research interest is required. Add one in Research Defaults for ${mode === "department" ? "discovery" : "professor matching"}.`);
       return;
     }
     if (validInterests.some((interest) => interest.length < 2)) {
-      setError("Each research interest must contain at least two characters.");
+      setError("Each research interest in Research Defaults must contain at least two characters.");
       return;
     }
 
@@ -128,14 +131,20 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
       university_url: form.universityUrl.trim() || undefined,
       department: form.department.trim() || undefined,
       professor_name: form.professorName.trim() || undefined,
-      degree_target: form.degreeTarget || undefined,
-      intake_term: mode === "professor" ? (form.intakeTerm.trim() || undefined) : undefined,
+      degree_target: defaults.degree_target || undefined,
+      intake_term: mode === "professor" ? (defaults.intake_term.trim() || undefined) : undefined,
       approved_domains: form.universityUrl.trim() ? [form.universityUrl.trim()] : [],
       research_profile: {
-        interests: form.interests.map(i => i.trim()).filter(Boolean),
+        interests: validInterests,
       },
     });
   };
+
+  const defaultsSummary = !defaultsLoaded
+    ? "Loading…"
+    : hasDefaults
+      ? `${defaults.interests.length} interest${defaults.interests.length === 1 ? "" : "s"} · ${defaults.degree_target || "No degree target"} · ${defaults.intake_term || "No intake"}`
+      : "Not set up yet — every search needs at least one interest";
 
   return (
     <form className="atlas-search-card" onSubmit={submit}>
@@ -167,8 +176,6 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
         </div>
       </div>
 
-
-
       <div className="atlas-form-grid">
         <label className="wide">
           <span>University name *</span>
@@ -198,98 +205,27 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
           />
           {mode === "professor" && <small id="atlas-department-help" className="atlas-field-help">Disambiguates names and focuses lab, paper, and funding searches.</small>}
         </label>
-        {mode === "professor" ? (
-          <>
-            <label>
-              <span>Professor name *</span>
-              <input required value={form.professorName} onChange={(e) => update("professorName", e.target.value)} placeholder="Professor full name" />
-            </label>
-            <label>
-              <span>Intended intake *</span>
-              <input
-                required
-                aria-describedby="atlas-intake-help"
-                value={form.intakeTerm}
-                onChange={(e) => update("intakeTerm", e.target.value)}
-                placeholder="Fall 2027"
-              />
-              <small id="atlas-intake-help" className="atlas-field-help">Required for the next two-to-three-semester recruitment outlook.</small>
-            </label>
-            <label>
-              <span>Degree target *</span>
-              <select required value={form.degreeTarget} onChange={(e) => update("degreeTarget", e.target.value)}>
-                <option>PhD</option>
-                <option>Research Master's</option>
-                <option>Either</option>
-              </select>
-            </label>
-          </>
-        ) : (
+        {mode === "professor" && (
           <label>
-            <span>Degree target</span>
-            <select value={form.degreeTarget} onChange={(e) => update("degreeTarget", e.target.value)}>
-              <option>PhD</option>
-              <option>Research Master's</option>
-              <option>Either</option>
-            </select>
+            <span>Professor name *</span>
+            <input required value={form.professorName} onChange={(e) => update("professorName", e.target.value)} placeholder="Professor full name" />
           </label>
         )}
       </div>
 
-      <button type="button" className="atlas-profile-toggle" onClick={() => setShowProfile((value) => !value)} aria-expanded={showProfile}>
+      <button type="button" className="atlas-profile-toggle" onClick={() => setShowDefaultsModal(true)}>
         <Sparkles size={17} />
         <span>
-          <strong>Your research interests *</strong>
-          <small>
-            {mode === "professor"
-              ? "Compared semantically with this professor's verified research"
-              : "Used for semantic similarity, not exact keyword matching"}
-          </small>
+          <strong>Research defaults *</strong>
+          <small>{defaultsSummary}</small>
         </span>
-        <ArrowRight size={17} className={showProfile ? "rotated" : ""} />
+        <ArrowRight size={17} />
       </button>
-
-      {showProfile && (
-        <div className="atlas-profile-builder">
-          <div className="atlas-interests-list">
-            {form.interests.map((interest, index) => (
-              <label key={index} className="wide">
-                <span>Research Interest {index + 1} {index === 0 ? "*" : ""}</span>
-                <div className="atlas-interest-row">
-                  <input
-                    required={index === 0}
-                    minLength={index === 0 ? 2 : undefined}
-                    maxLength={200}
-                    value={interest}
-                    onChange={(e) => updateInterest(index, e.target.value)}
-                    placeholder={index === 0 ? "e.g., Human-computer interaction" : "e.g., AI literacy"}
-                  />
-                  {form.interests.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeInterest(index)}
-                      className="atlas-remove-interest"
-                      aria-label={`Remove research interest ${index + 1}`}
-                    >
-                      <X size={17} />
-                    </button>
-                  )}
-                </div>
-              </label>
-            ))}
-            {form.interests.length < 5 && (
-              <button type="button" onClick={addInterest} className="atlas-add-interest">
-                <Plus size={16} /> Add another interest
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="atlas-search-footer">
         <div>
           <div className="atlas-privacy-note">
-            {completedRequired}/{requiredTotal} required inputs ready · public web only · saved locally
+            {completedRequired}/{requiredTotal} required inputs ready · public web only · private to your account
           </div>
         </div>
         {error && <div className="atlas-inline-error" role="alert">{error}</div>}
@@ -298,6 +234,19 @@ export function AdvisorAtlasSearchForm({ submitting, onSubmit }: Props) {
           {submitting ? "Starting..." : "Start search"}
         </button>
       </div>
+
+      {showDefaultsModal && (
+        <AdvisorResearchDefaultsModal
+          profileId={defaultsProfileId}
+          defaults={defaults}
+          email={user?.email}
+          onClose={() => setShowDefaultsModal(false)}
+          onSaved={(savedId, savedDefaults) => {
+            setDefaultsProfileId(savedId);
+            setDefaults(savedDefaults);
+          }}
+        />
+      )}
     </form>
   );
 }

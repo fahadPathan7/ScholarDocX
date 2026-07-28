@@ -273,7 +273,10 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
                   </div>
                   <div className="atlas-run-info">
                     <strong>{title}</strong>
-                    <small>{run.department || run.mode} · {run.candidate_count || 0} profiles</small>
+                    <small>
+                      {run.department || run.mode} · {run.candidate_count || 0} profiles
+                      {run.shortlist_count ? ` · ${run.shortlist_count} shortlisted` : ""}
+                    </small>
                   </div>
                   <div className="atlas-run-actions">
                     <div

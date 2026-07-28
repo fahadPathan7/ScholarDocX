@@ -71,7 +71,8 @@
 
 .atlas-discovery-steps {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Five stages: the four pipeline steps plus the user's own shortlist. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -82,6 +83,26 @@
 
 .atlas-discovery-step-wrap > svg {
   display: none;
+}
+
+/* The shortlist is not a pipeline stage the run produces — it is the user's
+   selection out of it — so it is separated by a rule rather than an arrow. */
+.atlas-discovery-step-divider {
+  display: none;
+}
+
+/* Only meaningful on the single-row layout; below 1081px the steps wrap to two
+   columns and a vertical rule between them would sit in the wrong place. */
+@media (min-width: 1081px) {
+  .atlas-discovery-step-divider {
+    display: block;
+    position: absolute;
+    top: 18%;
+    right: -6px;
+    width: 1px;
+    height: 64%;
+    background: rgba(31, 101, 94, 0.2);
+  }
 }
 
 .atlas-discovery-step-wrap > button {

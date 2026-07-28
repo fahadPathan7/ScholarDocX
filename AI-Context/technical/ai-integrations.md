@@ -695,6 +695,121 @@ web-search ingredient so results actually match the goal:
   (publication cadence), `topics[]`, `affiliations[].institution` +
   `.years` (structured career timeline), `orcid`, `works_api_url`.
 
+### Advisor Atlas Publications Come From The Index, Not A Crawl (SCHOLARDOCX-0191)
+
+- The dossier's "Latest publications" list is built from **OpenAlex works**
+  (`OpenAlexClient.recent_works`), not from crawling a scholarly profile.
+  Google Scholar disallows `/citations` in `robots.txt`; ORCID and Semantic
+  Scholar return JavaScript shells with no text (all verified live in
+  SCHOLARDOCX-0188). Crawling was never going to work for this section.
+- Indexed works **bypass** `_validate_analysis`'s publication checks by design.
+  Those checks exist to stop a *model* inventing a paper; these carry DOIs from
+  the same API that identified the author. Do not "fix" this by routing them
+  through the allowlist — it would discard every one of them.
+- The works lookup is a **second billable OpenAlex call, of a different and
+  cheaper class**. Bill from `client.metered_calls` (an ordered list of
+  `"search"` / `"list"`), never from `attempted_metered_call` and never from a
+  bare count: `app_settings.openalex_call_cost_usd` is the *search* price, and
+  a list call is a tenth of it (`METERED_CALL_COST_RATIO`). Each class has its
+  own ledger source (`METERED_CALL_SOURCE`) so the admin dashboard does not
+  read two author lookups where there was one. Fetch works *before* the charge
+  block so nothing goes out unbilled, and re-run `can_spend_external()` before
+  the second call — the first one already spent against the same balance.
+- Enrichment stays deep-runs-only. A screened candidate legitimately has no
+  publications; the UI must say "not researched deeply yet", not "none found" —
+  they are different answers and only one is a cue to press Refresh.
+
+### A Failed Provider Call Is Not Work Done (SCHOLARDOCX-0191)
+
+`AiService.chat` returns `mode: "provider-error"` / `"local-fallback"` with
+zero-token usage rather than raising. Any caller that counts calls must check
+the mode first: counting a failure as an AI call produced a dossier reading
+"1 AI analyses · 0 Credits used" with no publications and no explanation, when
+what had actually happened was a total analysis failure and a silent fallback
+to the deterministic analyser. Advisor Atlas counts these into
+`research_metrics.failed_ai_calls` / `.analysis_degraded` and the dossier
+renders a notice. A metric that renders "0" for "free", "not attempted" and
+"failed" alike is not a metric.
+
+### Advisor Atlas Research Metrics — Real Credits, Not Token Estimates (SCHOLARDOCX-0189)
+
+- The dossier's Research Metrics panel must never show the word "tokens" —
+  only "credits" (the vocabulary used everywhere else in the app).
+- `AiService.charge_tokens()` and `.charge_external_call()` now return the
+  underlying `ai_tokens.charge()` / `.charge_flat_fee()` result dict (or
+  `None` when no billing context is attached / nothing was charged) instead
+  of discarding it. The `charged` field is the real number of credits
+  actually deducted — it can be less than the call's cost if the balance ran
+  out mid-call, which is exactly why an estimate is the wrong number to show
+  a user.
+- `chat()` merges `credits_charged` into its returned `usage` dict whenever a
+  charge was raised.
+- Advisor Atlas (`analysis.py`'s `_record_ai_usage`, the vision path, and
+  `service.py`'s OpenAlex charge site) accumulates every call's real
+  `credits_charged` into the run's `usage` dict, exposed to the frontend as
+  `research_metrics.credits_used`. Tavily searches are deliberately billed at
+  $0 for Advisor Atlas (`record_external_search`) and contribute nothing to
+  this figure — it reflects only the AI (GLM chat/vision) and metered
+  external (OpenAlex) calls the run actually made.
+- This return-value change is additive: `charge_tokens()`/`charge_external_call()`
+  have exactly one other set of callers each (`deep_hunt_query_planner.py`,
+  the OpenAlex site in `advisor_atlas/service.py`), none of which used the
+  previous `None`/`bool` return value.
+
+### Advisor Atlas Discovery Quality Gates (SCHOLARDOCX-0190)
+
+Four invariants Discovery must hold. Each was violated in a live run and each
+cost the user real credits, not just result quality.
+
+1. **Never `json.dumps` a stored record into a prompt.** Candidates re-read
+   from storage carry `datetime` fields, which raise `TypeError` and — inside
+   the deep phase's `except Exception` — silently reduced every dossier to its
+   screening pass. Use `analysis.json_dump`. Prompts must also send
+   `candidate_prompt_payload(candidate)`, never the whole row: the row holds
+   the previous analysis, and a model shown its own earlier conclusions
+   re-derives them instead of re-reading the evidence.
+2. **A candidate must look like a person.** `crawler.clean_person_name` tests
+   shape *and* vocabulary (`_looks_like_person`). Capitalised page furniture
+   ("Graduate Faculty", "CHNG Brochure", "Skip to main content") has the same
+   shape as a name and was being screened, billed and surfaced as faculty.
+3. **A unit only owns faculty found on its own pages.**
+   `discovery.source_belongs_to_unit` gates both search-derived and
+   directory-crawled candidates; a page failing it is recorded as
+   `fetch_status: "off_target"` and reported as a coverage gap. Without it a
+   "Computer Science" directory search that landed on Chemistry filed twelve
+   chemists as Computer Science professors.
+4. **A unit is an organisation that employs faculty.**
+   `intelligence.is_academic_unit_name` rejects job titles and degree
+   programmes before they reach the unit list, because `collect()` spends up
+   to two searches and four crawls *per unit*.
+
+Presentation follows from these: an entry the pipeline cannot attribute to a
+real person, a real unit, or its own evidence must be dropped at discovery, not
+flagged downstream — by the time analysis flags it, it has already been paid
+for and shown.
+
+Three further rules govern what reaches the user, all in
+`advisor_atlas/candidate_quality.py` and all deliberately **deterministic** —
+they run on every candidate, so a model call here would cost credits per
+candidate and fail open:
+
+5. **Rank an advisor, not a person.** `advising_eligibility` classifies
+   `eligible` / `limited` / `ineligible` from title, email domain, and (only
+   when the title is missing) the professor's own profile text. A candidate who
+   cannot supervise is excluded from research matches and shown with a reason —
+   never deleted. Protect `Senior Lecturer`, `Reader` and
+   `Research Assistant Professor`: those ranks do supervise, and a naive
+   keyword list buries them.
+6. **Confidence must be earned, never generated.**
+   `calibrate_evidence_confidence` caps the figure by how many distinct sources
+   name the person (0 → 25 … 3+ → 85, +10 official, max 95) and only ever
+   lowers it. It must run before `opportunity_forecast`, which caps its own
+   confidence at the candidate's.
+7. **Merge conservatively.** `same_person` matches on shared profile URL,
+   shared email, or surname + compatible first name + same institution.
+   "Compatible" is initial-vs-full only — a prefix rule merges `Hua Li` with
+   `Hui Li`, two real people.
+
 ### Research Expert Vector Embeddings (Jina AI)
 
 - **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)

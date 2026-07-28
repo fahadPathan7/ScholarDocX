@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  TriangleAlert,
   UsersRound,
   X,
 } from "lucide-react";
@@ -324,15 +325,39 @@ function LabMembers({ value }: { value: Record<string, any> | undefined }) {
 
 function ResearchMetrics({ value }: { value: Record<string, any> | undefined }) {
   if (!value) return null;
+  const failed = Number(value.failed_ai_calls || 0);
+  const succeeded = Number(value.ai_calls || 0);
+  const credits = Number(value.credits_used || 0);
   const metrics = [
-    ["Tavily searches", value.tavily_searches],
-    ["AI analyses", value.ai_calls],
-    ["Est. tokens", Number(value.estimated_total_tokens || 0).toLocaleString()],
-    ["Pages crawled", value.pages_crawled],
+    ["Web searches", value.tavily_searches],
+    ["AI analyses", succeeded],
+    // A bare "0" here used to cover three different situations. Say which.
+    ["Credits used", succeeded ? credits.toLocaleString() : "—"],
+    ["Pages read", value.pages_crawled],
     ["Sources", value.sources_inspected],
     ["Research time", `${value.elapsed_seconds || 0}s`],
   ];
-  return <aside className="atlas-research-metrics"><span>Research run</span>{metrics.map(([label, metric]) => <div key={label}><strong>{metric ?? 0}</strong><small>{label}</small></div>)}</aside>;
+  return (
+    <>
+      <aside className="atlas-research-metrics">
+        <span>Research run</span>
+        {metrics.map(([label, metric]) => (
+          <div key={String(label)}>
+            <strong>{metric ?? 0}</strong>
+            <small>{label}</small>
+          </div>
+        ))}
+      </aside>
+      {failed > 0 && (
+        <p className="atlas-degraded-notice" role="status">
+          <TriangleAlert size={15} />
+          {value.analysis_degraded
+            ? "The AI analysis step could not complete for this professor, so this dossier was assembled from the evidence alone. Refresh to try again."
+            : `${failed} analysis step${failed === 1 ? "" : "s"} could not complete, so parts of this dossier may be thinner than usual.`}
+        </p>
+      )}
+    </>
+  );
 }
 
 function ContactPath({ value }: { value: Record<string, any> | undefined }) {
@@ -648,8 +673,20 @@ export function AdvisorDossierDrawer({
                   <div className="atlas-paper-priority">{paper.publication_year || "·"}</div>
                   <div>
                     <h4>{paper.title}</h4>
-                    <p>{[paper.publication_year, paper.venue].filter(Boolean).join(" · ") || "Publication details not fully verified"}</p>
-                    <small>{paper.relevance_reason}</small>
+                    <p>
+                      {[
+                        paper.publication_year,
+                        paper.venue,
+                        typeof paper.citation_count === "number"
+                          ? `${paper.citation_count} citations`
+                          : null,
+                      ].filter(Boolean).join(" · ") || "Publication details not fully verified"}
+                    </p>
+                    <small>
+                      {paper.evidence_source === "OpenAlex"
+                        ? "Verified against the scholarly index"
+                        : paper.relevance_reason}
+                    </small>
                     <div className="atlas-paper-actions">
                       <select
                         value={paper.reading_status}
@@ -666,7 +703,17 @@ export function AdvisorDossierDrawer({
                     </div>
                   </div>
                 </article>
-              )) : <p className="atlas-muted">No publication list could be verified from accessible sources.</p>}
+              )) : (
+                // "Nothing was found" and "nothing was looked for yet" are very
+                // different answers, and only one of them is the user's cue to
+                // press Refresh. The publication list is built during deep
+                // research, which a screened candidate has not had.
+                <p className="atlas-muted">
+                  {candidate.intelligence?.research_depth === "deep"
+                    ? "No publication record could be verified for this professor in the scholarly index or on any readable page."
+                    : "Publications are gathered during deep research, which this professor has not had yet. Use Refresh to run it."}
+                </p>
+              )}
             </section>
 
             <section className="atlas-dossier-section atlas-dossier-landscape">

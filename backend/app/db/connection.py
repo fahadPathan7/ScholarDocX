@@ -136,6 +136,8 @@ def initialize_database(database_url: str) -> None:
         _add_signup_method_column(conn)
         _add_scholarship_fields_of_study_columns(conn)
         _add_deep_hunt_results_column(conn)
+        _add_publication_provenance_columns(conn)
+        _add_advisor_profile_column(conn)
         _add_subscription_granted_column(conn)
         _add_purchase_request_price_snapshot_columns(conn)
         _seed_registration_mode_default(conn)
@@ -281,6 +283,43 @@ def _add_scholarship_fields_of_study_columns(conn) -> None:
             "ADD COLUMN IF NOT EXISTS fields_of_study TEXT"
         )
     )
+
+
+def _add_advisor_profile_column(conn) -> None:
+    """Add local_profiles.advisor_profile_json if missing (SCHOLARDOCX-0189).
+
+    Explicit, user-managed Advisor Atlas research defaults (interests,
+    degree_target, intake_term), edited from the Profile page and read by
+    the Advisor Atlas search form as one-time prefill. ``ADD COLUMN IF NOT
+    EXISTS`` makes this safe on every boot; fresh installs get the column
+    from ``create_all`` and this is a no-op.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE local_profiles "
+            "ADD COLUMN IF NOT EXISTS advisor_profile_json TEXT NOT NULL DEFAULT '{}'"
+        )
+    )
+
+
+def _add_publication_provenance_columns(conn) -> None:
+    """Add advisor_atlas_publications provenance columns (SCHOLARDOCX-0191).
+
+    ``evidence_source`` records where a publication came from — a crawled page
+    or the scholarly index — and ``citation_count`` carries the index's own
+    figure. Needed because the dossier's publication list now draws on OpenAlex
+    (Google Scholar cannot be crawled at all: its robots.txt disallows
+    ``/citations``), and the two kinds of evidence are not equally strong.
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the columns from ``create_all`` and this is a no-op.
+    """
+    for statement in (
+        "ALTER TABLE advisor_atlas_publications "
+        "ADD COLUMN IF NOT EXISTS citation_count INTEGER",
+        "ALTER TABLE advisor_atlas_publications "
+        "ADD COLUMN IF NOT EXISTS evidence_source TEXT",
+    ):
+        conn.execute(text(statement))
 
 
 def _add_deep_hunt_results_column(conn) -> None:

@@ -472,7 +472,7 @@ export function SettingsTab() {
                   </button>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Advisor Atlas charges this once per professor whose scholarly record is resolved from OpenAlex (h-index, citations, publication cadence, topics). Only the metered author search is billed; the follow-on record lookups are free at OpenAlex. Their own list price is 0.001 per search. Default 0.001.
+                  Advisor Atlas charges this once per professor whose scholarly record is resolved from OpenAlex (h-index, citations, publication cadence, topics). Fetching that professor's publication list is a second, cheaper call and is charged at a tenth of this rate, matching OpenAlex's own 10:1 price difference between a search and a filtered list. Free record lookups are not charged. Their own list price is 0.001 per search. Default 0.001.
                 </p>
               </div>
               <div className="space-y-3">

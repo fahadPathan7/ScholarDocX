@@ -935,6 +935,32 @@ h2 {
   color: #b3261e;
 }
 
+/* Scoped smaller cards for the Workspace Snapshot section only
+   (the shared .metric-card/.metric-grid classes are also used by
+   ProjectDashboard, so we override under .dashboard-snapshot). */
+.dashboard-snapshot .metric-grid {
+  gap: 8px;
+}
+
+.dashboard-snapshot .metric-card {
+  padding: 6px 10px !important;
+  line-height: 1.3 !important;
+}
+
+.dashboard-snapshot .metric-card span {
+  font-size: 12px !important;
+  color: #65756d !important;
+  margin-bottom: 3px !important;
+  line-height: 1.3 !important;
+}
+
+.dashboard-snapshot .metric-card strong {
+  font-size: 22px !important;
+  margin-top: 2px !important;
+  line-height: 1.2 !important;
+  display: block !important;
+}
+
 .status-pill {
   align-items: center;
   display: flex;

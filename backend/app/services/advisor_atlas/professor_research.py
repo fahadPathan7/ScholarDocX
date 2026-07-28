@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
@@ -86,6 +87,12 @@ def professor_query_plan(
     name = candidate["display_name"]
     institution = candidate.get("institution") or run.get("university_name") or ""
     department = candidate.get("department") or run.get("department") or ""
+    # SCHOLARDOCX-0188: was a hardcoded "2026 2025 2024 2023" / "2025 2026" —
+    # correct only for as long as "today" stayed inside that literal window.
+    # Compute relative to the actual current year so this doesn't go stale.
+    current_year = datetime.now(timezone.utc).year
+    recent_years = " ".join(str(current_year - offset) for offset in range(4))
+    upcoming_years = " ".join(str(current_year + offset) for offset in range(2))
     return [
         {
             "kind": "identity",
@@ -114,7 +121,7 @@ def professor_query_plan(
         {
             "kind": "publications",
             "query": (
-                f'"{name}" latest publications papers 2026 2025 2024 2023 '
+                f'"{name}" latest publications papers {recent_years} '
                 "journal conference DOI"
             ),
             "max_results": 12,
@@ -147,7 +154,7 @@ def professor_query_plan(
             "kind": "news_activity",
             "query": (
                 f'"{name}" "{institution}" news announcement award appointment '
-                "keynote seminar talk 2025 2026"
+                f"keynote seminar talk {upcoming_years}"
             ),
             "max_results": 8,
         },
@@ -170,9 +177,17 @@ def candidate_excerpt(text: str, candidate_name: str, limit: int = 1800) -> str:
     if not clean:
         return ""
     matches = list(re.finditer(re.escape(candidate_name), clean, re.IGNORECASE))
+    first_name, surname = _name_parts(candidate_name)
+    if not matches and surname and len(surname) > 2:
+        # The full name may not appear verbatim (initials, reordered directory
+        # listings, "Dr. Noore"), but the surname almost always does. Anchoring
+        # on it beats falling back to the head of the page, which on a shared
+        # department page is somebody else's paragraph entirely.
+        matches = list(
+            re.finditer(rf"(?<![\w]){re.escape(surname)}(?![\w])", clean, re.IGNORECASE)
+        )
     if not matches:
         return clean[:limit]
-    first_name, surname = _name_parts(candidate_name)
     best = max(
         matches,
         key=lambda match: _identity_window_score(
@@ -510,10 +525,19 @@ def extract_verified_professor_facts(
             "incoming" in lower and "faculty" in lower
         ) or "new faculty" in f"{source.get('title', '')} {excerpt}".lower()
         if trusted_identity_source and new_faculty_evidence:
-            years = re.findall(
-                r"\b20\d{2}(?:-\d{2})?\b",
-                f"{source.get('title', '')} {excerpt}",
-            )
+            # SCHOLARDOCX-0188: same unbounded-year problem as the
+            # "latest_visible_year"/opportunity_forecast bug — a stray 20xx
+            # number (citation count, phone fragment, etc.) could otherwise
+            # be reported as the cohort year. A "new faculty" year can't be
+            # in the future.
+            years = [
+                match
+                for match in re.findall(
+                    r"\b20\d{2}(?:-\d{2})?\b",
+                    f"{source.get('title', '')} {excerpt}",
+                )
+                if int(match[:4]) <= datetime.now(timezone.utc).year
+            ]
             if years:
                 background["positions"].append(
                     f"Listed in the university's {years[0]} new-faculty cohort"
@@ -530,6 +554,7 @@ def extract_verified_professor_facts(
                 if len(part.strip()) > 12
             )
         publications.extend(_publications_from_table(source, name))
+        publications.extend(_publications_from_google_scholar_profile(source, name))
 
     research["themes"] = _unique(research["themes"])[:10]
     # Methods used to be themes filtered by ("learning", "supervision", "vision"),
@@ -736,6 +761,74 @@ def _extract_after_label(text: str, label: str, stop_labels: tuple[str, ...]) ->
     return remainder[: min(stops) if stops else 700].strip(" :-")
 
 
+def _publications_from_google_scholar_profile(
+    source: dict[str, Any],
+    candidate_name: str,
+) -> list[dict[str, Any]]:
+    """Extract publications from the candidate's own Google Scholar citations
+    table (SCHOLARDOCX-0188).
+
+    Scholar's table renders one `<td>` per row containing title, authors, and
+    venue together (nested `<div>`s the generic HTML parser flattens into one
+    string), with citation count and year in their own columns. `_publications_
+    from_table`'s column-based author match expects authors in their OWN
+    column — Scholar never satisfies that, so every row was silently dropped,
+    even when the profile itself (and its `google_scholar_url`) was found and
+    linked. Only reachable on the candidate's own profile page (identified by
+    the `user=` query param), where page ownership already establishes
+    authorship, so no per-row author match is needed here.
+    """
+    page = source.get("page")
+    if not isinstance(page, dict):
+        return []
+    url = str(source.get("url") or page.get("url") or "")
+    parsed = urlparse(url)
+    host = parsed.netloc.lower().removeprefix("www.")
+    if "scholar.google." not in host or "user=" not in parsed.query:
+        return []
+    rows = page.get("table_rows")
+    if not isinstance(rows, list):
+        return []
+    # Scholar always wraps a citation's title in its own <a> tag, so the
+    # crawler's captured link text is a clean title — uncontaminated by the
+    # sibling author/venue text the flattened table cell otherwise merges in.
+    link_texts = [
+        re.sub(r"\s+", " ", str(item.get("text") or "")).strip()
+        for item in page.get("links", [])
+        if item.get("text")
+    ]
+    publications = []
+    for row in rows:
+        if not isinstance(row, list) or len(row) < 2:
+            continue
+        values = [re.sub(r"\s+", " ", str(value)).strip() for value in row]
+        if not re.fullmatch(r"(19|20)\d{2}", values[-1]):
+            continue
+        combined = values[0]
+        if not combined or len(combined.split()) < 4:
+            continue
+        title = next(
+            (text for text in link_texts if len(text.split()) >= 4 and combined.startswith(text)),
+            combined,
+        )
+        publications.append(
+            {
+                "title": title,
+                "authors": [candidate_name],
+                "publication_year": int(values[-1]),
+                "venue": None,
+                "doi": None,
+                "source_url": source.get("url"),
+                "relevance_reason": "Verified on the professor's own Google Scholar profile.",
+                "reading_priority": 1,
+            }
+        )
+    publications.sort(key=lambda item: item.get("publication_year") or 0, reverse=True)
+    for index, publication in enumerate(publications[:8]):
+        publication["reading_priority"] = max(1, 5 - index)
+    return publications
+
+
 def _publications_from_table(
     source: dict[str, Any],
     candidate_name: str,
@@ -814,15 +907,37 @@ def _dedupe_publications(publications: list[dict[str, Any]]) -> list[dict[str, A
 
 
 def _dedupe_education(values: list[str]) -> list[str]:
+    """Collapse near-duplicate phrasings of the same education entry, keeping
+    the longer (more informative) variant.
+
+    SCHOLARDOCX-0188: the institution half of the dedup key used to match
+    only two literal, hardcoded strings ("Baylor University", "Institute of
+    Engineering and Management") left over from whichever candidate this
+    was first built against. For every other real candidate, that regex
+    never matched, so the key collapsed to degree-type alone — meaning two
+    genuinely different degrees from two different real institutions (e.g.
+    a PhD from MIT and a PhD from Stanford) would wrongly merge into one
+    entry, silently dropping one. Matched the same discipline-agnostic
+    intent already applied elsewhere in this file (SCHOLARDOCX-0182) but
+    missed here. Also broadened the degree pattern beyond PhD/B.Tech, which
+    had the same narrowing effect for every other degree type.
+    """
+    degree_pattern = re.compile(
+        r"\b(ph\.?d\.?|ed\.?d\.?|d\.?phil|sc\.?d\.?|m\.?d\.?|"
+        r"m\.?\s?tech\.?|b\.?\s?tech\.?|m\.?\s?sc\.?|b\.?\s?sc\.?|"
+        r"m\.?\s?a\.?|b\.?\s?a\.?|m\.?\s?eng\.?|b\.?\s?eng\.?|"
+        r"master'?s?|bachelor'?s?)\b",
+        re.IGNORECASE,
+    )
+    institution_pattern = re.compile(
+        r"(?:[A-Za-z][\w.&'-]*\s+){0,4}(?:University|Institute|College|School)\b",
+        re.IGNORECASE,
+    )
     selected: dict[str, str] = {}
     for value in values:
         clean = re.sub(r"\s+", " ", str(value)).strip(" .")
-        degree = re.search(r"\b(ph\.?d\.?|b\.?tech)\b", clean, re.IGNORECASE)
-        institution = re.search(
-            r"(?:Baylor University|Institute of Engineering and Management|\bIEM\b)",
-            clean,
-            re.IGNORECASE,
-        )
+        degree = degree_pattern.search(clean)
+        institution = institution_pattern.search(clean)
         key = (
             f"{degree.group(0).lower() if degree else clean.lower()}|"
             f"{institution.group(0).lower() if institution else ''}"

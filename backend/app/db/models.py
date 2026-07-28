@@ -373,6 +373,11 @@ class LocalProfiles(Base):
     # SCHOLARDOCX-0178: hunt_profile_json column removed from the ORM model
     # (Hunt Profile is deleted). The physical Postgres column is left in
     # place, orphaned, rather than a live DROP COLUMN migration.
+    # SCHOLARDOCX-0189: explicit, user-managed Advisor Atlas research
+    # defaults (interests/degree_target/intake_term) edited from the Profile
+    # page, not auto-remembered from the search form — unlike the removed
+    # Hunt Profile, this never gates or blocks starting a search.
+    advisor_profile_json: Mapped[Optional[str]] = mapped_column(Text, server_default=text("'{}'"))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='local_profiles')
 
@@ -908,6 +913,12 @@ class AdvisorAtlasPublications(Base):
     doi: Mapped[Optional[str]] = mapped_column(Text)
     source_url: Mapped[Optional[str]] = mapped_column(Text)
     relevance_reason: Mapped[Optional[str]] = mapped_column(Text)
+    # SCHOLARDOCX-0191: publications sourced from the scholarly index rather
+    # than from a crawled page. `evidence_source` distinguishes the two so the
+    # dossier can say where a paper came from, and `citation_count` powers the
+    # comparison panel's publication-activity row.
+    citation_count: Mapped[Optional[int]] = mapped_column(Integer)
+    evidence_source: Mapped[Optional[str]] = mapped_column(Text)
     reading_priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     reading_status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'unread'"))
     user_note: Mapped[Optional[str]] = mapped_column(Text)

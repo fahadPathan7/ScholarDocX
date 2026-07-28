@@ -35,9 +35,9 @@ export function DashboardView({
     { label: "Calendar dates", value: futureCalendarCount(dashboard.calendar_items || []) },
     // SCHOLARDOCX-0187: per-feature library counts, red when at/over cap.
     { label: "Advisor Atlas history", value: libraries.advisor_atlas_history?.count ?? 0, max: libraries.advisor_atlas_history?.max },
-    { label: "Opportunity Library", value: libraries.scholarship_opportunity_library?.count ?? 0, max: libraries.scholarship_opportunity_library?.max },
+    { label: "Research Expert library", value: libraries.research_expert_library?.count ?? 0, max: libraries.research_expert_library?.max },
     { label: "Scholarship Hunt searches", value: libraries.scholarship_previous_searches?.count ?? 0, max: libraries.scholarship_previous_searches?.max },
-    { label: "Research Expert library", value: libraries.research_expert_library?.count ?? 0, max: libraries.research_expert_library?.max }
+    { label: "Opportunity Library", value: libraries.scholarship_opportunity_library?.count ?? 0, max: libraries.scholarship_opportunity_library?.max }
   ];
   // SCHOLARDOCX-0176: split into Today and Next 7 Days (tomorrow → +7).
   // SCHOLARDOCX-0185: both sections carry a done checkbox — dashboard-only

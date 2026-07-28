@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, RecordMap } from "./api";
 
 export type SearchMode = "department" | "professor";
 
@@ -28,8 +28,26 @@ export type AdvisorOpportunityOutlook = {
   limitation?: string;
 };
 
+export type AdvisorAdvisingEligibility = {
+  status?: "eligible" | "limited" | "ineligible" | string;
+  can_supervise?: boolean;
+  reason?: string;
+  signals?: string[];
+};
+
+export type AdvisorEvidenceBasis = {
+  naming_sources?: number;
+  official_source?: boolean;
+  official_host?: string | null;
+  ceiling?: number;
+  generated?: number;
+  note?: string;
+};
+
 export type AdvisorIntelligence = {
   is_research_match?: boolean;
+  advising_eligibility?: AdvisorAdvisingEligibility;
+  evidence_basis?: AdvisorEvidenceBasis;
   semantic_score?: number;
   matched_interests?: string[];
   match_reasons?: string[];
@@ -50,17 +68,28 @@ export type AdvisorIntelligence = {
   contact?: Record<string, any>;
   collaborations?: Record<string, any>;
   recent_activity?: Record<string, any>;
+  scholarly_record?: {
+    h_index?: number;
+    i10_index?: number;
+    works_count?: number;
+    cited_by_count?: number;
+    orcid?: string;
+    topics?: { name: string; works?: number }[];
+    publication_cadence?: { year: number; works?: number; citations?: number }[];
+    activity_summary?: string;
+    works_retrieved?: number;
+  };
   research_depth?: "deep" | "screened" | string;
   research_metrics?: {
     tavily_searches?: number;
+    openalex_lookups?: number;
     pages_crawled?: number;
     ai_calls?: number;
-    estimated_input_tokens?: number;
-    estimated_output_tokens?: number;
-    estimated_total_tokens?: number;
+    failed_ai_calls?: number;
+    analysis_degraded?: boolean;
+    credits_used?: number;
     sources_inspected?: number;
     elapsed_seconds?: number;
-    token_measurement?: string;
   };
   source_gaps?: string[];
 };
@@ -78,7 +107,9 @@ export type AdvisorDiscoverySummary = {
     directories_inspected?: number;
     directories_accessible?: number;
     directories_inaccessible?: number;
+    directories_off_target?: number;
     verified_faculty?: number;
+    supervision_limited?: number;
     research_matches?: number;
     opportunity_matches?: number;
     completeness?: string;
@@ -161,6 +192,8 @@ export type AdvisorPublication = {
   doi?: string;
   source_url?: string;
   relevance_reason?: string;
+  citation_count?: number;
+  evidence_source?: string;
   reading_priority: number;
   reading_status: "unread" | "read_next" | "reading" | "read";
   user_note?: string;
@@ -227,3 +260,61 @@ export const advisorAtlasApi = {
   saveCandidate: (candidateId: string) =>
     api.post<Record<string, any>>(`/advisor-atlas/candidates/${candidateId}/save`, {}),
 };
+
+// SCHOLARDOCX-0189: explicit, user-managed Advisor Atlas research defaults
+// (interests, degree target, intended intake), edited from the Profile page
+// and read once by the search form as prefill. Stored on the existing
+// local_profiles row (advisor_profile_json), not a new table — this is
+// deliberately unlike the removed Hunt Profile: there is no setup gate, and
+// editing the search form for one search never silently rewrites these
+// saved defaults.
+export type AdvisorResearchDefaults = {
+  interests: string[];
+  degree_target: string;
+  intake_term: string;
+};
+
+const EMPTY_ADVISOR_DEFAULTS: AdvisorResearchDefaults = {
+  interests: [],
+  degree_target: "",
+  intake_term: "",
+};
+
+export async function getAdvisorResearchDefaults(): Promise<{
+  profileId: string | null;
+  defaults: AdvisorResearchDefaults;
+}> {
+  const rows = await api.get<RecordMap[]>("/local_profiles");
+  const first = rows[0];
+  if (!first) return { profileId: null, defaults: EMPTY_ADVISOR_DEFAULTS };
+  let defaults = EMPTY_ADVISOR_DEFAULTS;
+  if (first.advisor_profile_json) {
+    try {
+      const parsed = JSON.parse(first.advisor_profile_json as string);
+      defaults = {
+        interests: Array.isArray(parsed.interests) ? parsed.interests : [],
+        degree_target: parsed.degree_target || "",
+        intake_term: parsed.intake_term || "",
+      };
+    } catch {
+      defaults = EMPTY_ADVISOR_DEFAULTS;
+    }
+  }
+  return { profileId: String(first.id), defaults };
+}
+
+export async function saveAdvisorResearchDefaults(
+  profileId: string | null,
+  defaults: AdvisorResearchDefaults,
+  email?: string,
+): Promise<string> {
+  const payload = { advisor_profile_json: JSON.stringify(defaults) };
+  if (!profileId) {
+    const res = await api.post<RecordMap>("/local_profiles", {
+      data: { ...payload, email: email || "" },
+    });
+    return String(res.id);
+  }
+  await api.patch(`/local_profiles/${profileId}`, { data: payload });
+  return profileId;
+}

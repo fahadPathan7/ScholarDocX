@@ -440,6 +440,82 @@
   font-weight: 800;
 }
 
+/* Shown when an AI analysis step failed, so a thin dossier reads as a known
+   degradation rather than as a finding about the professor. */
+.atlas-degraded-notice {
+  display: flex;
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  gap: 8px;
+  align-items: flex-start;
+  color: #8a5a15;
+  border-left: 3px solid #d99a3d;
+  border-radius: 0 9px 9px 0;
+  background: #fdf5e6;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.atlas-degraded-notice svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* Roles that cannot take a doctoral student. Amber, not red: the person is
+   real and may still be worth contacting as a collaborator or co-advisor. */
+.atlas-eligibility-pill {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 2px 6px;
+  gap: 3px;
+  align-items: center;
+  color: #8a5a15;
+  border-radius: 999px;
+  background: #fdeecf;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.atlas-eligibility-pill.ineligible {
+  color: #8c3b32;
+  background: #fbe2de;
+}
+
+.atlas-faculty-remainder {
+  margin-top: 12px;
+  border-top: 1px solid rgba(23, 32, 29, 0.08);
+}
+
+.atlas-faculty-remainder > summary {
+  display: flex;
+  padding: 10px 2px 8px;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  color: #65756d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.atlas-faculty-remainder > summary::-webkit-details-marker {
+  display: none;
+}
+
+.atlas-faculty-remainder > summary:hover {
+  color: #1f4f5a;
+}
+
+.atlas-faculty-remainder[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.atlas-faculty-remainder > summary svg {
+  transition: transform 0.18s ease;
+}
+
 .atlas-match-bridge {
   margin: 10px 0;
   padding: 9px 10px;

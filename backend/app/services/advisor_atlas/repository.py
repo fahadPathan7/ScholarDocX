@@ -321,8 +321,9 @@ class AdvisorAtlasRepository:
                     """
                     INSERT INTO advisor_atlas_publications (
                       candidate_id, title, authors_json, publication_year, venue,
-                      doi, source_url, relevance_reason, reading_priority
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      doi, source_url, relevance_reason, citation_count,
+                      evidence_source, reading_priority
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         candidate_id,
@@ -333,6 +334,8 @@ class AdvisorAtlasRepository:
                         item.get("doi"),
                         item.get("source_url"),
                         item.get("relevance_reason"),
+                        item.get("citation_count"),
+                        item.get("evidence_source"),
                         int(item.get("reading_priority", 0)),
                     ),
                 )

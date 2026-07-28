@@ -55,6 +55,44 @@ BUDGET_RESERVE_FRACTION = 0.05
 #   search                 $1.00 / 1,000  = $0.001   <- the metered path we use
 # A $1/day key therefore covers ~1,000 author resolutions per day.
 SEARCH_COST_USD = 0.001
+# A works lookup filtered by author id is a list+filter call, not a search:
+# $0.0001, a tenth of the author resolution that precedes it.
+LIST_COST_USD = 0.0001
+
+# What each metered call class costs relative to a search. The admin-configured
+# `openalex_call_cost_usd` is explicitly the *search* price (its default,
+# $0.001, is OpenAlex's published per-search rate), so a list call must be
+# billed at a tenth of it rather than at the same figure — otherwise fetching a
+# publication list doubles the user's OpenAlex charge while raising the real
+# cost by 10%.
+METERED_CALL_COST_RATIO = {
+    "search": 1.0,
+    "list": LIST_COST_USD / SEARCH_COST_USD,
+}
+
+# Ledger source per call class, so the admin dashboard can tell an author
+# resolution from a works lookup instead of reporting two of the former.
+METERED_CALL_SOURCE = {
+    "search": "openalex_author_lookup",
+    "list": "openalex_works_lookup",
+}
+
+# Fields needed to render a publication line. Kept narrow deliberately —
+# OpenAlex bills partly on payload size.
+_WORK_FIELDS = ",".join(
+    (
+        "id",
+        "doi",
+        "title",
+        "display_name",
+        "publication_year",
+        "type",
+        "cited_by_count",
+        "authorships",
+        "primary_location",
+        "open_access",
+    )
+)
 
 # Trim responses; OpenAlex bills partly on payload and we need a narrow slice.
 _AUTHOR_FIELDS = ",".join(
@@ -112,6 +150,11 @@ class OpenAlexClient:
         # whether a match was found, is what the caller bills on: OpenAlex
         # charges for the search regardless of whether we accepted the result.
         self.attempted_metered_call = False
+        # Every metered call issued, in order, as ("search"|"list") — the two
+        # OpenAlex call classes have a 10:1 published price difference, so a
+        # caller cannot bill correctly from a count alone. `attempted_metered_
+        # call` is kept as the boolean it always was.
+        self.metered_calls: list[str] = []
 
     def has_budget(self) -> bool:
         """Whether a metered call is still safe to make.
@@ -276,6 +319,7 @@ class OpenAlexClient:
             return None
 
         self.attempted_metered_call = True
+        self.metered_calls.append("search")
         payload = await self._get(
             "authors",
             {"search": name, "per-page": "10", "select": _AUTHOR_FIELDS},
@@ -319,6 +363,105 @@ class OpenAlexClient:
         if record:
             record["match_confidence"] = min(99, best_score)
         return record
+
+    # ------------------------------------------------------------- Works
+    async def recent_works(
+        self,
+        author_id: str,
+        limit: int = 8,
+    ) -> list[dict[str, Any]]:
+        """The professor's most recent indexed publications.
+
+        SCHOLARDOCX-0191: the dossier's "Latest publications" section was
+        effectively dependent on Google Scholar, whose ``robots.txt`` disallows
+        ``/citations`` outright (established in SCHOLARDOCX-0188), while
+        Semantic Scholar and ORCID return JavaScript shells with no text. So
+        the section was empty for almost everybody. OpenAlex publishes the same
+        works as structured data with DOIs, which needs no scraping and no
+        model call to interpret.
+
+        Costs one list+filter call ($0.0001), an order of magnitude cheaper
+        than the author search that already ran. Returns ``[]`` on every
+        failure, like the rest of this module.
+        """
+        identifier = str(author_id or "").strip().rsplit("/", 1)[-1]
+        if not identifier or not self.has_budget():
+            return []
+        self.attempted_metered_call = True
+        self.metered_calls.append("list")
+        payload = await self._get(
+            "works",
+            {
+                "filter": f"author.id:{identifier}",
+                "sort": "publication_year:desc",
+                "per-page": str(max(1, min(int(limit), 25))),
+                "select": _WORK_FIELDS,
+            },
+        )
+        if not payload:
+            return []
+        results = payload.get("results")
+        if not isinstance(results, list):
+            return []
+        works = [
+            shaped
+            for item in results
+            if isinstance(item, dict)
+            for shaped in (self.to_publication(item),)
+            if shaped
+        ]
+        return works[:limit]
+
+    @staticmethod
+    def to_publication(work: dict[str, Any]) -> dict[str, Any] | None:
+        """Map an OpenAlex work onto the dossier's publication shape."""
+        title = str(work.get("title") or work.get("display_name") or "").strip()
+        if not title:
+            return None
+        doi = work.get("doi")
+        landing = None
+        location = work.get("primary_location")
+        venue = None
+        if isinstance(location, dict):
+            landing = location.get("landing_page_url")
+            source = location.get("source")
+            if isinstance(source, dict):
+                venue = str(source.get("display_name") or "").strip() or None
+
+        authors: list[str] = []
+        for entry in work.get("authorships") or []:
+            if not isinstance(entry, dict):
+                continue
+            author = entry.get("author")
+            if isinstance(author, dict):
+                label = str(author.get("display_name") or "").strip()
+                if label:
+                    authors.append(label)
+
+        open_access = work.get("open_access")
+        oa_url = (
+            open_access.get("oa_url") if isinstance(open_access, dict) else None
+        )
+        # Prefer a resolvable link the applicant can actually open, in order of
+        # usefulness: DOI, open-access copy, publisher landing page, OpenAlex.
+        source_url = (
+            str(doi) if doi else oa_url or landing or str(work.get("id") or "")
+        )
+        if not source_url:
+            return None
+        return {
+            "title": title,
+            "authors": authors[:12],
+            "publication_year": _as_int(work.get("publication_year")),
+            "venue": venue,
+            "doi": str(doi) if doi else None,
+            "citation_count": _as_int(work.get("cited_by_count")),
+            "work_type": str(work.get("type") or "").strip() or None,
+            "open_access_url": oa_url,
+            "source_url": source_url,
+            "evidence_source": "OpenAlex",
+            "relevance_reason": "Indexed publication from the verified scholarly record.",
+        }
 
     # ------------------------------------------------------ Shaping output
     @staticmethod

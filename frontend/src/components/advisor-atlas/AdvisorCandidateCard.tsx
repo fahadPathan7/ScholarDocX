@@ -10,6 +10,7 @@ import {
   Star,
   Target,
   Telescope,
+  UserRoundX,
 } from "lucide-react";
 import { AdvisorCandidate } from "../../lib/advisorAtlasApi";
 
@@ -49,6 +50,9 @@ export function AdvisorCandidateCard({
   const outlook = intelligence.opportunity_outlook;
   const matchedInterests = intelligence.matched_interests || [];
   const matchReasons = intelligence.match_reasons || [];
+  const eligibility = intelligence.advising_eligibility;
+  const evidenceBasis = intelligence.evidence_basis;
+  const namingSources = evidenceBasis?.naming_sources;
   const strongCoverage = Object.values(candidate.coverage || {}).filter(
     (value) => value === "Strong",
   ).length;
@@ -78,6 +82,17 @@ export function AdvisorCandidateCard({
                 <Microscope size={11} /> Deep research
               </span>
             )}
+            {eligibility && eligibility.can_supervise === false && (
+              <span
+                className={`atlas-eligibility-pill ${eligibility.status || "limited"}`}
+                title={eligibility.reason}
+              >
+                <UserRoundX size={11} />
+                {eligibility.status === "ineligible"
+                  ? "Cannot supervise"
+                  : "Supervision unclear"}
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -94,7 +109,13 @@ export function AdvisorCandidateCard({
           <div className="atlas-faculty-proof">
             <span><ShieldCheck size={15} /> Source confidence</span>
             <strong>{candidate.evidence_confidence}%</strong>
-            <small>{strongCoverage} strong evidence areas</small>
+            {/* What the number is actually based on. "3 strong evidence areas"
+                alone said nothing about whether any source named this person. */}
+            <small>
+              {typeof namingSources === "number"
+                ? `${namingSources} source${namingSources === 1 ? "" : "s"} name this professor`
+                : `${strongCoverage} strong evidence areas`}
+            </small>
           </div>
           <p className="atlas-candidate-summary">
             {candidate.research_summary || "Research direction needs verification from the professor dossier."}

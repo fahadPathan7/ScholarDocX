@@ -85,7 +85,6 @@ DEGREE_PATTERN = re.compile(
 )
 
 YEAR_RANGE = re.compile(r"((?:19|20)\d{2})\s*(?:[-–—]|to)\s*((?:19|20)\d{2}|present|now)", re.IGNORECASE)
-SINGLE_YEAR = re.compile(r"\b((?:19|20)\d{2})\b")
 
 # Section headings seen across university templates, not one site's wording.
 INTEREST_LABELS = (

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.services.advisor_atlas.crawler import NAME_PATTERN, PublicCrawler
+from app.services.advisor_atlas.crawler import PublicCrawler, clean_person_name
 from app.services.advisor_atlas.intelligence import extract_related_units, normalize
 
 
@@ -97,10 +97,12 @@ def candidates_from_search(
         title = re.sub(r"\s+", " ", str(item.get("title") or "")).strip()
         segments = re.split(r"\s+[-|–—:]\s+", title)
         possible = segments[0].strip()
-        match = NAME_PATTERN.match(possible)
-        if not match:
+        # Shared with the crawler so search-derived and directory-derived names
+        # obey identical rules: Unicode-aware, honorifics stripped,
+        # "Last, First" flipped.
+        name = clean_person_name(possible)
+        if not name:
             continue
-        name = match.group(1)
         if any(
             blocked in name.lower()
             for blocked in ("faculty directory", "research faculty", "department", "university")
@@ -120,16 +122,24 @@ def candidates_from_search(
     return candidates
 
 
+UnitMapper = Callable[[str, str, list[str]], Awaitable[list[dict[str, Any]] | None]]
+
+
 class DiscoveryResearcher:
     def __init__(
         self,
         crawler: PublicCrawler,
         search: Search,
         usage: dict[str, Any] | None = None,
+        unit_mapper: UnitMapper | None = None,
     ) -> None:
         self.crawler = crawler
         self.search = search
         self.usage = usage
+        # Optional AI mapper (analysis.map_related_units_with_glm). When absent
+        # or when it returns nothing, collect() falls back to the deterministic
+        # regex + taxonomy path, so discovery never regresses.
+        self.unit_mapper = unit_mapper
 
     async def collect(
         self,
@@ -145,7 +155,30 @@ class DiscoveryResearcher:
                 item["source_kind"] = "university_map_search"
             sources.extend(results)
 
-        mapped_units = extract_related_units(run.get("department", ""), sources)
+        # Ask the AI mapper first (FR-9.25a). It sees the units already visible in
+        # the search snippets so it can prefer names that actually exist at this
+        # university rather than generic ones.
+        ai_units: list[dict[str, Any]] | None = None
+        if self.unit_mapper is not None:
+            observed = [
+                item["name"]
+                for item in extract_related_units(run.get("department", ""), sources)
+            ]
+            try:
+                ai_units = await self.unit_mapper(
+                    run.get("university_name", "") or "",
+                    run.get("department", "") or "",
+                    observed,
+                )
+            except Exception:
+                # Mapping is an enhancement; never fail a run because of it.
+                ai_units = None
+            if ai_units and self.usage is not None:
+                self.usage["ai_mapped_units"] = len(ai_units)
+
+        mapped_units = extract_related_units(
+            run.get("department", ""), sources, mapped_units=ai_units
+        )
         sources.append(
             {
                 "title": "Advisor Atlas university map",

@@ -68,6 +68,26 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.25: Research matching must evaluate meaning, methods, problems, and
   application areas rather than requiring exact keyword overlap. Deterministic
   fallback may use weighted concept families but must identify its limitations.
+- FR-9.25a: Related-unit mapping must be **discipline-agnostic**. It must work
+  for chemistry, economics, public health, law, or linguistics exactly as well as
+  for computing. The primary path is an AI mapping of
+  `requested field + university` → related units; a hardcoded concept taxonomy is
+  permitted only as an offline fallback when AI is unavailable, and no discipline
+  may depend on being present in that table to receive related units.
+- FR-9.25b: A concept or family relationship must never be inferred from an
+  unanchored substring match. Short family terms (`ai`, `cse`, `eee`) must match
+  on word boundaries only, so `chair`, `certain`, `domain`, and `training` cannot
+  manufacture a computing relationship.
+- FR-9.25c: Unit extraction must recognise `<unit> of <name>` and
+  `<unit> for <name>`, trailing forms (`<name> Department`, `<name> Institute`),
+  and the Division / Laboratory / Group / Programme unit words. Interdisciplinary
+  centres — the units most likely to host cross-field advisors — are usually
+  named `Center for …` or `Institute for …`.
+- FR-9.25d: Faculty name extraction must accept accented Latin, CJK, and Cyrillic
+  characters and lowercase name particles (`van`, `de`, `der`, `dos`, `al-`), and
+  must strip honorifics so `display_name` holds the name alone. ScholarDocX
+  serves applicants worldwide; dropping non-Anglo names is a silent correctness
+  failure, not a cosmetic gap.
 - FR-9.26: Opportunity outlook must separate explicit current recruitment from
   evidence-based likelihood across the next two or three academic semesters.
 - FR-9.27: Every future recruitment outlook must show likely semesters,
@@ -244,6 +264,16 @@ match. A Computer Science request may include CSE, Software Engineering, AI,
 Data Science, Information Science, Computer Engineering, EEE, Robotics, or an
 interdisciplinary institute when the university structure and faculty research
 support the relationship. Weak adjacency alone is insufficient.
+
+The same breadth is required in every discipline, and the examples above must not
+be read as the supported set. A Chemistry request should reach Chemical
+Engineering, Materials Science, and Chemical Biology; Economics should reach
+Finance, Public Policy, and Econometrics; Psychology should reach Cognitive
+Science and Neuroscience. Step 1 of the funnel is a hard multiplier on everything
+after it — `collect()` searches and crawls per mapped unit, so a run that maps one
+unit does a fraction of the intended work while still reporting to the user that
+the university was surveyed. Under-mapping is therefore a correctness failure,
+not merely a quality one.
 
 ## Result Organization
 

@@ -517,6 +517,16 @@
   margin-bottom: 24px;
 }
 
+/* SCHOLARDOCX-0176: top row with the "Saved" button promoted to the top
+   of the paper workspace, next to the Active Paper badge. */
+.active-paper-header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
 .active-paper-badge {
   font-size: 0.72rem;
   text-transform: uppercase;

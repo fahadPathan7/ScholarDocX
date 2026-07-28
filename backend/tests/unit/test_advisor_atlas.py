@@ -13,6 +13,7 @@ from app.services.advisor_atlas.analysis import (
 )
 from app.services.advisor_atlas.crawler import (
     canonicalize_url,
+    clean_person_name,
     is_visual_url,
     validate_public_url,
 )
@@ -33,8 +34,13 @@ from app.services.advisor_atlas.professor_research import (
     select_candidate_email,
 )
 from app.services.advisor_atlas.intelligence import (
+    UNIT_PATTERN,
+    UNIT_PATTERN_TRAILING,
+    clean_unit_name,
+    concept_family,
     extract_related_units,
     opportunity_forecast,
+    related_unit_score,
     semantic_fallback,
     upcoming_semesters,
 )
@@ -991,3 +997,236 @@ def test_repository_caps_visible_evidence_at_eight(tmp_path):
         {},
     )
     assert len(repository.get_candidate(str(candidate_id), TEST_USER_ID)["evidence"]) == 8
+
+
+# ── Discovery recall (SCHOLARDOCX-0181) ──────────────────────────────────────
+#
+# Step 1 of the funnel is a hard multiplier: DiscoveryResearcher.collect() runs
+# searches and directory crawls *per mapped unit*. Under-mapping silently shrinks
+# the whole run, so these guard recall rather than formatting.
+
+
+@pytest.mark.parametrize(
+    "field, unit",
+    [
+        ("Chemistry", "Department of Chemical Engineering"),
+        ("Chemistry", "Department of Materials Science"),
+        ("Economics", "Department of Finance"),
+        ("Psychology", "Department of Cognitive Science"),
+        ("Mechanical Engineering", "Department of Aerospace Engineering"),
+        ("Civil Engineering", "Department of Environmental Engineering"),
+        ("Public Health", "Department of Epidemiology"),
+        ("Linguistics", "Department of Cognitive Science"),
+        # Named in the feature spec as an expected Computer Science match, yet
+        # scored 0 before this task because the families were mutually exclusive.
+        ("Computer Science", "Department of Electrical Engineering"),
+    ],
+)
+def test_related_unit_score_spans_disciplines(field, unit):
+    score, relation, _ = related_unit_score(field, unit)
+    assert score >= 50, f"{field} -> {unit} was dropped as unrelated"
+    assert relation in {"direct", "adjacent", "interdisciplinary"}
+
+
+def test_related_units_found_for_field_outside_hardcoded_taxonomy():
+    """A chemistry applicant must reach chemistry-adjacent departments.
+
+    Previously returned exactly one unit — the applicant's own field, supplied by
+    a setdefault fallback rather than discovered — regardless of what the source
+    text listed.
+    """
+    units = extract_related_units(
+        "Chemistry",
+        [
+            {
+                "title": "Academic Departments | Example University",
+                "url": "https://example.edu/departments",
+                "content": (
+                    "Department of Chemistry. Department of Chemical Engineering. "
+                    "Department of Materials Science. Center for Catalysis."
+                ),
+            }
+        ],
+    )
+    names = {item["name"].lower() for item in units}
+    assert len(units) >= 3
+    assert any("chemical engineering" in name for name in names)
+    assert any("materials science" in name for name in names)
+
+
+def test_concept_family_requires_word_boundaries():
+    """`ai` must not match chair/certain/domain and invent a computing link."""
+    assert "computing" not in concept_family("Chair of Marine Biology")
+    assert "computing" not in concept_family("Certain domains of medieval history")
+    assert "computing" not in concept_family("Professor of Domain Law")
+    # Real signal still detected.
+    assert "computing" in concept_family("Artificial Intelligence")
+    assert "computing" in concept_family("AI and Robotics Lab")
+
+
+def test_semantic_fallback_rejects_substring_coincidence():
+    """A medieval-poetry professor was reported as a 72% AI match."""
+    result = semantic_fallback(
+        ["artificial intelligence"],
+        "Professor of medieval French poetry, studies certain domains of verse.",
+    )
+    assert result["is_research_match"] is False
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Department of Computer Science.", "Computer Science"),
+        # "Center for X" / "Institute for X" are where interdisciplinary
+        # advisors sit; the `of`-only pattern missed all of them.
+        ("Center for Machine Learning.", "Machine Learning"),
+        ("Institute for Advanced Study.", "Advanced Study"),
+        ("Computer Science Department.", "Computer Science"),
+        ("Division of Biology.", "Biology"),
+        ("Robotics Institute.", "Robotics"),
+        ("Laboratory for Information and Decision Systems.", "Information and Decision Systems"),
+        ("School of Public Health.", "Public Health"),
+    ],
+)
+def test_unit_pattern_recognises_of_for_and_trailing_forms(text, expected):
+    found = {
+        clean_unit_name(match.group(1)) for match in UNIT_PATTERN.finditer(text)
+    } | {
+        clean_unit_name(match.group(1), from_end=True)
+        for match in UNIT_PATTERN_TRAILING.finditer(text)
+    }
+    assert expected in found, f"{text!r} produced {found!r}"
+
+
+def test_unit_name_cleaner_stops_at_prose():
+    """Captures run to the sentence end, so names must be trimmed to the noun."""
+    assert clean_unit_name("Chemistry and the") == "Chemistry"
+    assert clean_unit_name("Chemical Engineering collaborate closely") == "Chemical Engineering"
+    assert clean_unit_name("Biology may also work with the") == "Biology"
+    assert clean_unit_name("Visit the Robotics", from_end=True) == "Robotics"
+    # Legitimate interior connectors survive.
+    assert clean_unit_name("Information and Decision Systems") == "Information and Decision Systems"
+
+
+@pytest.mark.parametrize(
+    "label, expected",
+    [
+        ("John Smith", "John Smith"),
+        # Every one of these was silently dropped before this task, on a product
+        # whose users apply to universities worldwide.
+        ("Ana María Rodríguez", "Ana María Rodríguez"),
+        ("Jürgen Müller", "Jürgen Müller"),
+        ("Maria van der Berg", "Maria van der Berg"),
+        ("François Lefèvre", "François Lefèvre"),
+        ("Björn Andersson", "Björn Andersson"),
+        ("李明", "李明"),
+        ("Владимир Петров", "Владимир Петров"),
+        ("Ahmed Al-Rashid", "Ahmed Al-Rashid"),
+        # Honorifics were previously captured into display_name.
+        ("Professor John Smith", "John Smith"),
+        ("Dr. Sarah Chen", "Sarah Chen"),
+        ("Associate Professor Wei Zhang", "Wei Zhang"),
+        ("Prof. Dr. Ingrid Müller", "Ingrid Müller"),
+        ("Jane Doe, PhD", "Jane Doe"),
+        # Directory "Last, First" ordering.
+        ("Smith, John", "John Smith"),
+    ],
+)
+def test_clean_person_name_accepts_international_names(label, expected):
+    assert clean_person_name(label) == expected
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Read more", "Faculty Directory", "view all people",
+        "Room 214", "Publications", "Contact Us", "",
+    ],
+)
+def test_clean_person_name_rejects_navigation_text(label):
+    assert clean_person_name(label) is None
+
+
+@pytest.mark.asyncio
+async def test_discovery_uses_ai_mapped_units_when_available():
+    """AI-proposed units must widen the funnel, not just annotate it."""
+    searched: list[str] = []
+
+    async def fake_search(query: str, max_results: int):
+        searched.append(query)
+        return []
+
+    class FakeCrawler:
+        async def fetch(self, url):  # pragma: no cover - not reached
+            raise AssertionError("no directory targets expected")
+
+        def faculty_candidates(self, page, institution, department):
+            return []
+
+    async def mapper(university, field, observed):
+        return [
+            {"name": "Chemical Engineering", "relation": "adjacent",
+             "relevance_score": 80, "reason": "Shares reaction engineering methods."},
+            {"name": "Materials Science", "relation": "adjacent",
+             "relevance_score": 75, "reason": "Overlapping synthesis work."},
+        ]
+
+    _, sources = await DiscoveryResearcher(
+        FakeCrawler(),  # type: ignore[arg-type]
+        fake_search,
+        {},
+        unit_mapper=mapper,
+    ).collect(
+        {
+            "university_name": "Example University",
+            "university_url": "https://example.edu",
+            "department": "Chemistry",
+        },
+        [],
+        [],
+    )
+
+    university_map = next(
+        item for item in sources if item.get("source_kind") == "university_map"
+    )
+    names = {unit["name"].lower() for unit in university_map["mapped_units"]}
+    assert "chemical engineering" in names
+    assert "materials science" in names
+    assert any("chemical engineering" in query.lower() for query in searched)
+
+
+@pytest.mark.asyncio
+async def test_discovery_falls_back_when_unit_mapper_fails():
+    """A mapper error must never degrade discovery below the deterministic path."""
+    async def fake_search(query: str, max_results: int):
+        return []
+
+    class FakeCrawler:
+        async def fetch(self, url):  # pragma: no cover
+            raise AssertionError("not reached")
+
+        def faculty_candidates(self, page, institution, department):
+            return []
+
+    async def broken_mapper(university, field, observed):
+        raise RuntimeError("GLM unavailable")
+
+    _, sources = await DiscoveryResearcher(
+        FakeCrawler(),  # type: ignore[arg-type]
+        fake_search,
+        {},
+        unit_mapper=broken_mapper,
+    ).collect(
+        {
+            "university_name": "Example University",
+            "university_url": "https://example.edu",
+            "department": "Chemistry",
+        },
+        [],
+        [],
+    )
+
+    university_map = next(
+        item for item in sources if item.get("source_kind") == "university_map"
+    )
+    assert university_map["mapped_units"], "discovery must still map the requested field"

@@ -18,6 +18,7 @@ from app.services.advisor_atlas.analysis import (
     analyze_professor_specialists,
     analyze_with_glm,
     deterministic_analysis,
+    map_related_units_with_glm,
 )
 from app.services.advisor_atlas.crawler import (
     PublicCrawler,
@@ -317,10 +318,24 @@ class AdvisorAtlasService:
             async def discovery_search(query: str, max_results: int) -> list[dict[str, Any]]:
                 return await self._tavily_search(query, max_results, usage=usage)
 
+            async def map_units(
+                university: str,
+                field: str,
+                observed: list[str],
+            ) -> list[dict[str, Any]] | None:
+                return await map_related_units_with_glm(
+                    self.ai_service,
+                    university,
+                    field,
+                    observed_units=observed,
+                    usage=usage,
+                )
+
             candidates, sources = await DiscoveryResearcher(
                 self.crawler,
                 discovery_search,
                 usage,
+                unit_mapper=map_units,
             ).collect(run, candidates, sources)
             search_results = sources
 

@@ -17,10 +17,97 @@ MAX_VISUAL_BYTES = 4_000_000
 ALLOWED_CONTENT_TYPES = ("text/html", "text/plain", "application/xhtml+xml")
 ALLOWED_VISUAL_CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp")
 VISUAL_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
-FACULTY_HINTS = ("faculty", "people", "staff", "professor", "profile", "directory", "lab")
-NAME_PATTERN = re.compile(
-    r"^(?:Dr\.?\s+|Prof\.?\s+)?([A-Z][A-Za-z'`.-]+(?:\s+[A-Z][A-Za-z'`.-]+){1,3})$"
+FACULTY_HINTS = (
+    "faculty", "people", "staff", "professor", "profile", "directory", "lab",
+    # Elsevier Pure portals (used by many universities) serve /persons/<name>;
+    # /person/, /member/, /team/, /employee/ and /researcher/ are also common.
+    # Requiring only the original seven silently skipped all of them.
+    "person", "member", "team", "employee", "researcher", "academic", "author",
 )
+
+# Honorifics stripped before matching. Without this, "Professor John Smith"
+# matched as a *name* and the title was stored in display_name.
+HONORIFIC_PATTERN = re.compile(
+    r"^\s*(?:"
+    r"prof(?:\.|essor)?|dr\.?|doctor|assoc(?:\.|iate)?|asst\.?|assistant"
+    r"|mr\.?|mrs\.?|ms\.?|miss|sir|dame|rev\.?|hon\.?"
+    r"|a/?prof\.?|em(?:\.|eritus)?|lect(?:\.|urer)?|univ\.?"
+    r")\s+",
+    re.IGNORECASE,
+)
+# Trailing post-nominals ("John Smith, PhD", "Jane Doe MD, FRSC").
+POSTNOMINAL_PATTERN = re.compile(
+    r"[,\s]+(?:ph\.?d|m\.?d|d\.?phil|sc\.?d|m\.?sc|m\.?a|b\.?sc|b\.?a"
+    r"|frs[a-z]*|fieee|facm|cpa|p\.?eng|jr|sr|i{1,3}|iv)\.?\s*$",
+    re.IGNORECASE,
+)
+
+# A single name word. Unicode-aware by construction:
+#   \w with re.UNICODE covers accented Latin (María, Müller, Lefèvre, Å),
+#   CJK (李明), Cyrillic, Greek, and Devanagari.
+# The leading character may be uppercase OR a lowercase nobiliary particle
+# (van, de, der, dos, di, von, bin, al-) which legitimately appears mid-name.
+# Digits and underscore are excluded so link labels like "Room 214" are rejected.
+_NAME_WORD = r"(?:[^\W\d_][\w'`.\-’]*)"
+NAME_PATTERN = re.compile(
+    rf"^({_NAME_WORD}(?:[\s ]+{_NAME_WORD}){{1,4}})$",
+    re.UNICODE,
+)
+# Single-token names (common for CJK, e.g. 李明) are accepted separately, but
+# only when the token is non-Latin — a lone Latin word like "Directory" or
+# "Publications" is far more likely to be navigation than a person.
+CJK_NAME_PATTERN = re.compile(
+    r"^([㐀-䶿一-鿿぀-ヿ가-힯]{2,12})$"
+)
+# Link labels that pass the shape test but are never people.
+NON_NAME_LABELS = {
+    "read more", "learn more", "view profile", "contact us", "our people",
+    "faculty directory", "research faculty", "all faculty", "back to top",
+    "skip to content", "privacy policy", "terms of use", "site map",
+    "graduate program", "undergraduate program", "news events", "apply now",
+}
+
+
+def clean_person_name(label: str) -> str | None:
+    """Normalise a link label to a bare personal name, or None if it isn't one.
+
+    Handles honorifics, post-nominals, "Last, First" directory ordering, and
+    Unicode scripts. Returns None for navigation text and non-name strings.
+    """
+    text = re.sub(r"\s+", " ", (label or "")).strip()
+    if not text:
+        return None
+
+    previous = None
+    while previous != text:
+        previous = text
+        text = HONORIFIC_PATTERN.sub("", text).strip()
+        text = POSTNOMINAL_PATTERN.sub("", text).strip()
+
+    # Directory listings frequently use "Smith, John" — flip to natural order.
+    if text.count(",") == 1:
+        surname, _, given = text.partition(",")
+        surname, given = surname.strip(), given.strip()
+        if surname and given and " " not in surname.strip():
+            text = f"{given} {surname}"
+    text = text.strip(" ,;:.-")
+    if not text or normalize_label(text) in NON_NAME_LABELS:
+        return None
+    if CJK_NAME_PATTERN.match(text):
+        return text
+    match = NAME_PATTERN.match(text)
+    if not match:
+        return None
+    candidate = match.group(1).strip()
+    # Require at least one capitalised or non-Latin token so all-lowercase
+    # navigation ("view all people") cannot slip through as a name.
+    if not any(word[:1].isupper() or not word[:1].isascii() for word in candidate.split()):
+        return None
+    return candidate
+
+
+def normalize_label(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 
 
@@ -277,11 +364,10 @@ class PublicCrawler:
         source_host = urlparse(page["url"]).netloc
         for link in page.get("links", []):
             label = re.sub(r"\s+", " ", link.get("text", "")).strip()
-            match = NAME_PATTERN.match(label)
+            name = clean_person_name(label)
             path = urlparse(link["url"]).path.lower()
-            if not match or not any(hint in path for hint in FACULTY_HINTS):
+            if not name or not any(hint in path for hint in FACULTY_HINTS):
                 continue
-            name = match.group(1).strip()
             key = name.lower()
             if key in seen:
                 continue

@@ -368,7 +368,8 @@ CATALOG: List[Dict[str, Any]] = [
         "funding": {"coverage": "full", "notes": "Tuition, monthly stipend, and settling-in/airfare allowance."},
         "cycle_months": ["December"],
         "links": [
-            {"label": "Official page", "url": "https://www.a-star.edu.sg/Scholarships/For-Graduate-Studies/Singapore-International-Graduate-Award-SINGA"},
+            {"label": "A*STAR Scholarships", "url": "https://www.a-star.edu.sg/scholarships/home"},
+            {"label": "Application portal", "url": "https://sms-applicant-app.a-star.edu.sg/"},
         ],
         "tags": ["Singapore", "Asia", "PhD", "STEM", "full funding", "research"],
         "blurb": "Singapore's PhD scholarship for research in science and engineering at A*STAR-linked universities.",

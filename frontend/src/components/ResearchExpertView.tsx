@@ -950,11 +950,38 @@ export function ResearchExpertView({
           ) : (
             <div className="active-paper-workspace">
               {/* Paper Detail Header Card */}
-              <div className="active-paper-header-card flex items-center justify-between gap-4">
-                <div className="active-paper-info min-w-0">
+              <div className="active-paper-header-card">
+                {/* Top row: badge + primary actions (Saved button at top-left,
+                    so it's the first thing visible in the paper workspace). */}
+                <div className="active-paper-header-top-row">
                   <span className="active-paper-badge">Active Paper</span>
+                  <div className="active-paper-header-actions">
+                    <button
+                      type="button"
+                      className="saved-open-btn"
+                      onClick={() => setSavedModalOpen(true)}
+                      title="View your saved analysis outputs"
+                    >
+                      <Bookmark size={15} />
+                      <span>Saved</span>
+                      <span className="saved-count-badge">{savedAnalyses.length}/{savedMax}</span>
+                    </button>
+                    {activePaper.status === "error" && (
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(activePaper.id)}
+                        disabled={retrying}
+                        className="retry-paper-btn"
+                      >
+                        <RefreshCw size={14} className={retrying ? "spin" : ""} />
+                        {retrying ? "Retrying…" : "Retry Processing"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="active-paper-info min-w-0">
                   <h2>{activePaper.title}</h2>
-                  
+
                   <p className="active-paper-authors flex items-center gap-1.5">
                     <Users size={14} className="shrink-0 text-slate-500" />
                     <span><strong>Authors:</strong> {formatAuthorsDisplay(activePaper.authors)}</span>
@@ -998,29 +1025,6 @@ export function ResearchExpertView({
                     <span>•</span>
                     <span>Uploaded: {new Date(activePaper.created_at).toLocaleDateString()}</span>
                   </div>
-                </div>
-                <div className="active-paper-header-actions shrink-0">
-                  <button
-                    type="button"
-                    className="saved-open-btn"
-                    onClick={() => setSavedModalOpen(true)}
-                    title="View your saved analysis outputs"
-                  >
-                    <Bookmark size={15} />
-                    <span>Saved</span>
-                    <span className="saved-count-badge">{savedAnalyses.length}/{savedMax}</span>
-                  </button>
-                  {activePaper.status === "error" && (
-                    <button
-                      type="button"
-                      onClick={() => handleRetry(activePaper.id)}
-                      disabled={retrying}
-                      className="retry-paper-btn"
-                    >
-                      <RefreshCw size={14} className={retrying ? "spin" : ""} />
-                      {retrying ? "Retrying…" : "Retry Processing"}
-                    </button>
-                  )}
                 </div>
               </div>
 

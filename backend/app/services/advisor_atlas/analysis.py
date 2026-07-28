@@ -585,3 +585,101 @@ async def analyze_visual_source(
             "model": ai_service.settings.advisor_atlas_vision_model,
         },
     }
+
+
+async def map_related_units_with_glm(
+    ai_service: AiService,
+    university_name: str,
+    requested_field: str,
+    observed_units: list[str] | None = None,
+    usage: dict[str, Any] | None = None,
+) -> list[dict[str, Any]] | None:
+    """Map `field + university` to related academic units (FR-9.25a).
+
+    This is the PRIMARY related-unit mapper. It replaced a hardcoded five-family
+    taxonomy that returned zero related units for any discipline outside
+    computing/EE/HCI/bioinformatics/statistics — chemistry, economics, public
+    health and most of academia received only their own department, which
+    collapsed the entire discovery funnel because `collect()` searches and crawls
+    per mapped unit (SCHOLARDOCX-0181).
+
+    Returns ``None`` on any failure so the caller falls back to the deterministic
+    regex + taxonomy path and discovery is never worse than before.
+    """
+    if not ai_service.settings.glm_api_key:
+        return None
+    field = (requested_field or "").strip()
+    if not field:
+        return None
+
+    system = (
+        "You map university academic structures for a PhD-advisor discovery tool. "
+        "You know that related advisors are frequently housed outside the "
+        "applicant's named department — in adjacent departments, interdisciplinary "
+        "institutes, and research centres. Return one JSON object only. Never "
+        "invent a unit you do not believe plausibly exists at this university; "
+        "prefer widely-standard unit names when unsure."
+    )
+    schema = {
+        "units": [
+            {
+                "name": "string, the academic unit name without the university name",
+                "relation": "direct|adjacent|interdisciplinary",
+                "relevance_score": "integer 50-100",
+                "reason": "one short sentence on why a relevant advisor may sit here",
+            }
+        ]
+    }
+    prompt = (
+        f"University: {university_name or 'unspecified'}\n"
+        f"Applicant's field: {field}\n"
+        f"Units already observed on the site: {json.dumps(sorted(set(observed_units or []))[:40])}\n\n"
+        "List up to 12 academic units at this university where a professor "
+        f"researching {field} could plausibly be found. Include the applicant's own "
+        "department, closely adjacent departments, and interdisciplinary institutes "
+        "or centres. Use 'direct' only when the unit name names the field itself.\n\n"
+        f"Required schema:\n{json.dumps(schema)}"
+    )
+
+    response = await ai_service.chat(
+        prompt,
+        model=ai_service.settings.advisor_atlas_glm_model,
+        override_system_prompt=system,
+        request_label="Advisor Atlas · Unit Mapping",
+    )
+    _record_ai_usage(usage, system, prompt, response.get("answer", ""))
+    if response.get("mode") in {"local-fallback", "provider-error"}:
+        return None
+
+    parsed = extract_json_object(response.get("answer", ""))
+    if not isinstance(parsed, dict):
+        return None
+    raw_units = parsed.get("units")
+    if not isinstance(raw_units, list):
+        return None
+
+    units: list[dict[str, Any]] = []
+    for entry in raw_units[:12]:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        if not name or len(name) > 100:
+            continue
+        relation = str(entry.get("relation") or "adjacent").strip().lower()
+        if relation not in {"direct", "adjacent", "interdisciplinary"}:
+            relation = "adjacent"
+        try:
+            score = int(entry.get("relevance_score") or 70)
+        except (TypeError, ValueError):
+            score = 70
+        units.append(
+            {
+                "name": name,
+                "relation": relation,
+                "relevance_score": max(50, min(100, score)),
+                "reason": str(entry.get("reason") or "").strip()
+                or "Identified as academically related to the requested field.",
+                "source_url": None,
+            }
+        )
+    return units or None

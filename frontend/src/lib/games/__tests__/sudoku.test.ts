@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyValueToNotes,
   canPlace,
   CELLS,
   conflicts,
   countSolutions,
   deserializeGrid,
+  deserializeNotes,
+  emptyNotes,
   emptyGrid,
   findHint,
   generatePuzzle,
@@ -14,7 +17,9 @@ import {
   peersOf,
   REMOVAL_TARGET,
   serializeGrid,
+  serializeNotes,
   SIZE,
+  toggleNote,
   type Difficulty,
 } from "../sudoku";
 
@@ -171,5 +176,72 @@ describe("persistence", () => {
     expect(deserializeGrid("123")).toBeNull();
     expect(deserializeGrid("x".repeat(CELLS))).toBeNull();
     expect(deserializeGrid("")).toBeNull();
+  });
+});
+
+describe("candidate notes", () => {
+  it("toggles a candidate in and back out", () => {
+    const once = toggleNote(emptyNotes(), 0, 5);
+    expect(once[0].has(5)).toBe(true);
+    expect(toggleNote(once, 0, 5)[0].has(5)).toBe(false);
+  });
+
+  it("does not mutate the notes it was given", () => {
+    const before = emptyNotes();
+    toggleNote(before, 40, 7);
+    expect(before[40].size).toBe(0);
+  });
+
+  it("strikes a placed digit from every square that can see it", () => {
+    let notes = emptyNotes();
+    // Pencil a 4 into every square on the board, then place a 4 at index 0.
+    notes = notes.map(() => new Set([4]));
+    const after = applyValueToNotes(notes, 0, 4);
+
+    expect(after[0].size).toBe(0);
+    peersOf(0).forEach((peer) => expect(after[peer].has(4)).toBe(false));
+
+    // Everything else is untouched: a peer count of 20 plus the square itself.
+    const cleared = after.filter((set) => !set.has(4)).length;
+    expect(cleared).toBe(peersOf(0).length + 1);
+  });
+
+  it("leaves other digits' notes alone", () => {
+    const notes = emptyNotes().map(() => new Set([3, 4]));
+    const after = applyValueToNotes(notes, 0, 4);
+    peersOf(0).forEach((peer) => expect(after[peer].has(3)).toBe(true));
+  });
+
+  it("clears only the square itself when a value is erased", () => {
+    const notes = emptyNotes().map(() => new Set([4]));
+    const after = applyValueToNotes(notes, 0, 0);
+    expect(after[0].size).toBe(0);
+    // An erase removes a digit from the grid, so nothing can be concluded
+    // about its peers — their candidates must survive.
+    peersOf(0).forEach((peer) => expect(after[peer].has(4)).toBe(true));
+  });
+
+  it("round-trips through serialization, blanks and all", () => {
+    let notes = emptyNotes();
+    notes = toggleNote(notes, 0, 9);
+    notes = toggleNote(notes, 0, 1);
+    notes = toggleNote(notes, 80, 5);
+    const restored = deserializeNotes(serializeNotes(notes));
+    expect(restored).not.toBeNull();
+    expect([...restored![0]].sort()).toEqual([1, 9]);
+    expect([...restored![80]]).toEqual([5]);
+    expect(restored!.filter((set) => set.size).length).toBe(2);
+  });
+
+  it("rejects a blob that is not 81 squares or holds a non-digit", () => {
+    expect(deserializeNotes("")).toBeNull();
+    expect(deserializeNotes(Array(80).fill("").join("|"))).toBeNull();
+    expect(deserializeNotes(["x", ...Array(80).fill("")].join("|"))).toBeNull();
+    // 0 is not a candidate — only 1-9 are.
+    expect(deserializeNotes(["0", ...Array(80).fill("")].join("|"))).toBeNull();
+  });
+
+  it("accepts a full board of empty notes", () => {
+    expect(deserializeNotes(serializeNotes(emptyNotes()))).not.toBeNull();
   });
 });

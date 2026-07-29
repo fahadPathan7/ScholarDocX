@@ -24,8 +24,9 @@ const GAMES: {
     name: "Sudoku",
     blurb: "A full 9×9 grid with exactly one solution. Four difficulties.",
     howTo:
-      "Click a square, then type a digit or use the keypad. Arrow keys move. "
-      + "Conflicts are marked as you go, and an unfinished grid is waiting when you come back.",
+      "Click a square, then type a digit or use the keypad. Arrow keys move. Notes "
+      + "(N) pencils in candidates, Ctrl+Z undoes, and conflicts are marked as you go. "
+      + "An unfinished grid — notes and all — is waiting when you come back.",
     icon: Hash,
     Component: SudokuGame,
   },
@@ -45,7 +46,7 @@ const GAMES: {
     blurb: "Slide and merge tiles. Arrow keys, WASD or swipe.",
     howTo:
       "Arrow keys, WASD, or swipe. Tiles showing the same number merge into one — "
-      + "each tile can only merge once per move.",
+      + "each tile can only merge once per move. Undo takes back a single bad swipe.",
     icon: Spade,
     Component: Game2048,
   },
@@ -55,7 +56,8 @@ const GAMES: {
     blurb: "Three board sizes. The first click is always safe.",
     howTo:
       "Click to open a square, right-click to flag one — or switch on Flag mode on a "
-      + "touch screen. Your first click is always safe, so you never lose on move one.",
+      + "touch screen. Your first click is always safe, so you never lose on move one. "
+      + "Double-click a number once all its flags are placed to open the rest around it.",
     icon: Bomb,
     Component: MinesweeperGame,
   },

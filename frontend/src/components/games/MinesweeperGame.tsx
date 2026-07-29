@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Flag, RotateCcw } from "lucide-react";
 import { GameRulesModal } from "./GameRulesModal";
 import {
+  canChord,
+  chord,
   createBoard,
   flagCount,
   hasWon,
@@ -72,6 +74,26 @@ export function MinesweeperGame() {
     setBoard((current) => toggleFlag(current, r, c));
   };
 
+  /**
+   * Open the remaining neighbours of a number whose flags are all placed.
+   * Bound to double-click and middle-click; a chord on a number that is not
+   * satisfied does nothing, so a stray double-click is harmless.
+   */
+  const openAround = (r: number, c: number) => {
+    if (over || !started) return;
+    setBoard((current) => {
+      const next = chord(current, r, c);
+      return hitMine(next) ? revealAllMines(next) : next;
+    });
+  };
+
+  const onMouseDown = (event: React.MouseEvent, r: number, c: number) => {
+    if (event.button !== 1) return;
+    // Middle-click scrolls on a wide board otherwise.
+    event.preventDefault();
+    openAround(r, c);
+  };
+
   const remaining = LEVELS[level].mines - flagCount(board);
   const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
@@ -131,8 +153,11 @@ export function MinesweeperGame() {
                   cell.revealed && cell.mine ? "mine" : "",
                   cell.flagged ? "flagged" : "",
                   cell.revealed && !cell.mine && cell.adjacent ? `n${cell.adjacent}` : "",
+                  !over && started && canChord(board, r, c) ? "chordable" : "",
                 ].filter(Boolean).join(" ")}
                 onClick={() => open(r, c)}
+                onDoubleClick={() => openAround(r, c)}
+                onMouseDown={(event) => onMouseDown(event, r, c)}
                 onContextMenu={(event) => flag(event, r, c)}
                 aria-label={`Row ${r + 1} column ${c + 1}${
                   cell.flagged ? ", flagged" : cell.revealed ? `, ${cell.mine ? "mine" : cell.adjacent}` : ", hidden"
@@ -151,7 +176,8 @@ export function MinesweeperGame() {
 
       <p className="game-footnote">
         Click to open, right-click to flag — or turn on Flag mode on a touch
-        screen. Your first click is always safe.
+        screen. Your first click is always safe. Once a number has all its
+        flags, double-click it to open the rest of its neighbours at once.
       </p>
 
       {showRules && <GameRulesModal id="minesweeper" onClose={() => setShowRules(false)} />}

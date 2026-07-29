@@ -120,6 +120,40 @@ export function reveal(board: Board, r: number, c: number): Board {
   return next;
 }
 
+/**
+ * Is this square a legal chord? A revealed number whose adjacent flags exactly
+ * equal it. Zeros are excluded because they have already cascaded — there is
+ * nothing left to open.
+ */
+export function canChord(board: Board, r: number, c: number): boolean {
+  const cell = board[r][c];
+  if (!cell.revealed || cell.mine || cell.adjacent === 0) return false;
+  const flags = neighbours(board, r, c).filter(([nr, nc]) => board[nr][nc].flagged).length;
+  return flags === cell.adjacent;
+}
+
+/**
+ * Open every unflagged neighbour of a satisfied number in one action.
+ *
+ * This is a shortcut for clicks the player has already earned the right to
+ * make, not a safety net: if their flags are in the wrong places the chord
+ * opens a mine and the game is lost, exactly as clicking those squares by hand
+ * would have. Making it safe would mean the board second-guessing the player's
+ * own deductions, which is the thing that makes the flags mean anything.
+ *
+ * A no-op when the flag count does not match, so a mis-aimed double-click
+ * costs nothing.
+ */
+export function chord(board: Board, r: number, c: number): Board {
+  if (!canChord(board, r, c)) return board;
+  let next = board;
+  for (const [nr, nc] of neighbours(board, r, c)) {
+    if (next[nr][nc].revealed || next[nr][nc].flagged) continue;
+    next = reveal(next, nr, nc);
+  }
+  return next;
+}
+
 export function toggleFlag(board: Board, r: number, c: number): Board {
   if (board[r][c].revealed) return board;
   const next = board.map((row) => row.map((item) => ({ ...item })));

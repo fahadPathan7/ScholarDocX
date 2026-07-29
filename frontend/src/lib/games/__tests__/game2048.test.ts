@@ -9,6 +9,7 @@ import {
   newGame,
   slideRow,
   spawn,
+  spawnAt,
   type Board,
 } from "../game2048";
 
@@ -125,5 +126,90 @@ describe("scoring helpers", () => {
     const won: Board = [[2048, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
     expect(hasWon(won)).toBe(true);
     expect(hasWon(LOCKED)).toBe(false);
+  });
+});
+
+describe("merge reporting", () => {
+  // The four directions are one implementation applied to a transformed
+  // board, so merge coordinates come back in the oriented frame and have to
+  // be mapped home. That mapping is the part that is easy to get wrong, so
+  // every direction is pinned separately.
+  const PAIRS: Board = [
+    [2, 2, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+  ];
+
+  it("reports nothing when a move only slides", () => {
+    const board: Board = [
+      [0, 0, 0, 2],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ];
+    expect(move(board, "left").merged).toEqual([]);
+  });
+
+  it("puts a left merge at the left edge", () => {
+    expect(move(PAIRS, "left").merged).toEqual([[0, 0]]);
+  });
+
+  it("puts a right merge at the right edge", () => {
+    expect(move(PAIRS, "right").merged).toEqual([[0, 3]]);
+  });
+
+  it("maps a vertical merge back through the transpose", () => {
+    const column: Board = [
+      [2, 0, 0, 0],
+      [2, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ];
+    expect(move(column, "up").merged).toEqual([[0, 0]]);
+    expect(move(column, "down").merged).toEqual([[3, 0]]);
+  });
+
+  it("reports both merges of a four-in-a-row, in order", () => {
+    const board: Board = [
+      [2, 2, 2, 2],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ];
+    const result = move(board, "left");
+    expect(result.board[0]).toEqual([4, 4, 0, 0]);
+    expect(result.merged).toEqual([[0, 0], [0, 1]]);
+  });
+
+  it("names the merged cell in every row that merged", () => {
+    const board: Board = [
+      [2, 2, 0, 0],
+      [0, 0, 0, 0],
+      [4, 4, 0, 0],
+      [0, 0, 0, 0],
+    ];
+    expect(move(board, "left").merged).toEqual([[0, 0], [2, 0]]);
+  });
+});
+
+describe("spawnAt", () => {
+  it("reports a cell that was empty and is now filled", () => {
+    const board = emptyBoard();
+    board[1][1] = 2;
+    const result = spawnAt(board, () => 0);
+    expect(result.at).not.toBeNull();
+    const [r, c] = result.at!;
+    expect(board[r][c]).toBe(0);
+    expect(result.board[r][c]).toBeGreaterThan(0);
+  });
+
+  it("reports nothing on a full board", () => {
+    expect(spawnAt(LOCKED).at).toBeNull();
+  });
+
+  it("agrees with the board spawn() returns", () => {
+    const seeded = () => 0.5;
+    expect(spawnAt(emptyBoard(), seeded).board).toEqual(spawn(emptyBoard(), seeded));
   });
 });

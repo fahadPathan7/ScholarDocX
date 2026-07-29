@@ -286,3 +286,31 @@ interactive, and polished without becoming decorative marketing UI.
 
 
 
+
+- **Brain Games surface (SCHOLARDOCX-0198 / 0199 / 0200)**: the six games under
+  `frontend/src/components/games/` share one stylesheet, `brain-games.css`,
+  scoped entirely under `.brain-games`, `.game-*`, and per-game prefixes
+  (`.sudoku-*`, `.g2048-*`, `.mine-*`, `.word-*`, `.ttt-*`, `.pattern-*`). It
+  does not participate in `responsive.css`; its two breakpoint blocks live at
+  the foot of the file with the rest of the games' rules, because nothing
+  outside this view consumes them.
+  - **Game rules are never in components.** Every rule, generator and search
+    lives as a pure function in `frontend/src/lib/games/`, and the components
+    hold only rendering and input. This is deliberate and load-bearing: the
+    repo has no DOM testing library, so logic kept out of the components is
+    the only game logic that can be tested at all. A new game or mechanic
+    goes in `lib/games/` first.
+  - **Motion is feedback, not decoration.** Animations here exist to make a
+    state change legible (a 2048 merge, a word row's marks arriving, a won
+    tic-tac-toe line) and are all short one-shots driven by a class the
+    component clears on a timer. Every one of them must also be listed in the
+    `@media (prefers-reduced-motion: reduce)` block at the foot of
+    `brain-games.css`, clearing `transform` as well as `animation` — a tile
+    caught mid-flip at 90 degrees is invisible if only the animation is
+    removed.
+  - **Copy in `gameRules.ts` and the `howTo` blurbs follows the no-jargon
+    rule above**: plain language only, no "minimax", "flood fill", "chord",
+    "vector" or similar. Describe the move, not the mechanism.
+  - `brain-games.css` is at ~1015 lines, over the 1000-line target and inside
+    the grace band in `CODE_RULES.md`. A seventh game should split it
+    per-game (`games/styles/`) rather than extend it further.

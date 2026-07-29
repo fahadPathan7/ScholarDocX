@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  canChord,
+  chord,
   createBoard,
   flagCount,
   hasWon,
@@ -136,5 +138,71 @@ describe("end states", () => {
   it("can uncover every mine at the end", () => {
     revealAllMines(board).flat().filter((cell) => cell.mine)
       .forEach((cell) => expect(cell.revealed).toBe(true));
+  });
+});
+
+describe("chording", () => {
+  // A hand-built 3x3 with a single mine at (0,0), so every claim below is
+  // about a board whose contents are known rather than a generated one.
+  const build = () => {
+    const board = createBoard({ rows: 3, cols: 3, mines: 1 });
+    board[0][0].mine = true;
+    for (let r = 0; r < 3; r += 1) {
+      for (let c = 0; c < 3; c += 1) {
+        board[r][c].adjacent = neighbours(board, r, c)
+          .filter(([nr, nc]) => board[nr][nc].mine).length;
+      }
+    }
+    board[1][1].revealed = true; // the "1" touching the mine
+    return board;
+  };
+
+  it("does nothing on a square that is not revealed", () => {
+    const board = build();
+    expect(canChord(board, 0, 1)).toBe(false);
+    expect(chord(board, 0, 1)).toBe(board);
+  });
+
+  it("does nothing while the flags do not match the number", () => {
+    const board = build();
+    expect(canChord(board, 1, 1)).toBe(false);
+    expect(chord(board, 1, 1)).toBe(board);
+  });
+
+  it("opens the remaining neighbours once the flags match", () => {
+    const flagged = toggleFlag(build(), 0, 0);
+    expect(canChord(flagged, 1, 1)).toBe(true);
+    const opened = chord(flagged, 1, 1);
+    neighbours(opened, 1, 1).forEach(([r, c]) => {
+      if (r === 0 && c === 0) return;
+      expect(opened[r][c].revealed).toBe(true);
+    });
+  });
+
+  it("leaves the flagged neighbour alone", () => {
+    const opened = chord(toggleFlag(build(), 0, 0), 1, 1);
+    expect(opened[0][0].revealed).toBe(false);
+    expect(opened[0][0].flagged).toBe(true);
+    expect(hitMine(opened)).toBe(false);
+  });
+
+  it("detonates when a flag is in the wrong place", () => {
+    // The flag count is satisfied, but by the wrong square — chording is a
+    // shortcut for clicks the player chose to make, not a safety net.
+    const misflagged = toggleFlag(build(), 2, 2);
+    expect(canChord(misflagged, 1, 1)).toBe(true);
+    expect(hitMine(chord(misflagged, 1, 1))).toBe(true);
+  });
+
+  it("does nothing on a zero, which has already cascaded", () => {
+    const board = createBoard({ rows: 3, cols: 3, mines: 0 });
+    board[1][1].revealed = true;
+    expect(canChord(board, 1, 1)).toBe(false);
+  });
+
+  it("does nothing on an over-flagged number", () => {
+    let board = toggleFlag(build(), 0, 0);
+    board = toggleFlag(board, 0, 1);
+    expect(canChord(board, 1, 1)).toBe(false);
   });
 });

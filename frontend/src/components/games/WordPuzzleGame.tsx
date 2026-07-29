@@ -24,6 +24,10 @@ export function WordPuzzleGame() {
   const [draft, setDraft] = useState("");
   const [shake, setShake] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  // The row that just landed, so its tiles turn over one after another. Held
+  // in state rather than derived from `guesses.length` so a re-render caused
+  // by typing the *next* guess does not replay the previous row's reveal.
+  const [revealing, setRevealing] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -59,9 +63,17 @@ export function WordPuzzleGame() {
       window.setTimeout(() => setShake(false), 400);
       return;
     }
+    setRevealing(guesses.length);
     setGuesses((current) => [...current, draft.toLowerCase()]);
     setDraft("");
-  }, [done, draft]);
+  }, [done, draft, guesses.length]);
+
+  // Drop the class once the last tile has turned, so nothing re-animates.
+  useEffect(() => {
+    if (revealing === null) return;
+    const timer = window.setTimeout(() => setRevealing(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [revealing]);
 
   const type = useCallback((letter: string) => {
     if (done) return;
@@ -127,7 +139,10 @@ export function WordPuzzleGame() {
                   "word-tile",
                   row.marks ? row.marks[c] : "",
                   row.live && letter !== " " ? "typed" : "",
+                  revealing === r ? "revealing" : "",
                 ].filter(Boolean).join(" ")}
+                // Each tile waits its turn, so the row reads left to right.
+                style={revealing === r ? { animationDelay: `${c * 110}ms` } : undefined}
               >
                 {letter.trim().toUpperCase()}
               </div>

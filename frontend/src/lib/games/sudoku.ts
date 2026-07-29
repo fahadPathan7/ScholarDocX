@@ -221,3 +221,53 @@ export function deserializeGrid(text: string): Grid | null {
   if (!/^\d{81}$/.test(text)) return null;
   return text.split("").map(Number);
 }
+
+/* --- Candidate notes ---------------------------------------------------- */
+
+/** The pencilled-in candidates for each of the 81 squares. */
+export type Notes = Set<number>[];
+
+export const emptyNotes = (): Notes =>
+  Array.from({ length: CELLS }, () => new Set<number>());
+
+export const cloneNotes = (notes: Notes): Notes => notes.map((set) => new Set(set));
+
+/** Add the candidate if it is absent, remove it if it is there. */
+export function toggleNote(notes: Notes, index: number, value: number): Notes {
+  const next = cloneNotes(notes);
+  if (next[index].has(value)) next[index].delete(value);
+  else next[index].add(value);
+  return next;
+}
+
+/**
+ * Placing a digit clears that square's own candidates and strikes the digit
+ * from every square that can see it.
+ *
+ * This is bookkeeping the player would otherwise do by hand across twenty
+ * squares, and is exactly the step people skip and then act on stale notes.
+ * A value of 0 (an erase) only clears the square itself — the digit is no
+ * longer placed, so nothing can be concluded about its peers.
+ */
+export function applyValueToNotes(notes: Notes, index: number, value: number): Notes {
+  const next = cloneNotes(notes);
+  next[index] = new Set();
+  if (value === 0) return next;
+  peersOf(index).forEach((peer) => next[peer].delete(value));
+  return next;
+}
+
+/**
+ * Compact form for localStorage: one comma-separated run of digits per square,
+ * squares joined by `|`. An empty square is an empty segment, so position is
+ * preserved without writing anything for the (usually many) blank ones.
+ */
+export const serializeNotes = (notes: Notes): string =>
+  notes.map((set) => [...set].sort().join("")).join("|");
+
+export function deserializeNotes(text: string): Notes | null {
+  const parts = text.split("|");
+  if (parts.length !== CELLS) return null;
+  if (parts.some((part) => !/^[1-9]*$/.test(part))) return null;
+  return parts.map((part) => new Set(part.split("").map(Number)));
+}

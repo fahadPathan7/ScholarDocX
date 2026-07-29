@@ -312,6 +312,13 @@
 .ttt-cell.winning {
   border-color: #38a37f;
   background: #e1f2ed;
+  animation: ttt-win 460ms ease;
+}
+
+@keyframes ttt-win {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 
 /* --- Sudoku --- */
@@ -389,11 +396,45 @@
   background: #fbe9e6;
 }
 
+/* Candidate notes: a 3x3 sub-grid inside the square, laid out so a given
+   digit always sits in the same corner whether or not its neighbours are
+   pencilled in — the position is what makes them scannable. */
+.sudoku-notes {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  color: #7d918d;
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sudoku-notes i {
+  display: grid;
+  place-items: center;
+  font-style: normal;
+}
+
+.sudoku-cell.selected .sudoku-notes { color: #2f7d74; }
+
 .sudoku-keypad {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
+}
+
+/* Notes mode: the keypad writes candidates, so it looks like the candidates. */
+.sudoku-keypad.noting button:not(.erase) {
+  border-style: dashed;
+  border-color: rgba(31, 101, 94, 0.4);
+  background: #f6faf8;
+  color: #4c6b66;
+  font-size: 0.8rem;
 }
 
 .sudoku-keypad button {
@@ -461,6 +502,23 @@
 .g2048-tile.v1024 { background: #1f4f5a; color: #fff; font-size: 0.98rem; }
 .g2048-tile.v2048 { background: #17201d; color: #f8dfa3; font-size: 0.98rem; }
 
+/* A static grid gives no clue what a swipe actually did. The merge swells,
+   the new tile grows in — enough to follow the move, over before it is in
+   the way of the next one. */
+.g2048-tile.merged { animation: g2048-pop 200ms ease; }
+.g2048-tile.fresh { animation: g2048-appear 200ms ease; }
+
+@keyframes g2048-pop {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+@keyframes g2048-appear {
+  0% { transform: scale(0.4); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* --- Minesweeper --- */
 
 .mine-scroll {
@@ -511,10 +569,30 @@
 .mine-cell.n7 { color: #17201d; }
 .mine-cell.n8 { color: #5f5e5a; }
 
+/* A number whose flags are all placed can be double-clicked to open the rest
+   of its neighbours. Marking it is the only way a player finds out that is
+   possible without being told twice. */
+.mine-cell.chordable {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(47, 125, 116, 0.55);
+}
+
+.mine-cell.chordable:hover { background: #dff0e9; }
+
+/* Toggled-on toolbar buttons: Sudoku's Notes, Minesweeper's Flag mode. */
 .game-actions button.active {
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+}
+
+/* The generic hover above sets a near-white background and is *more*
+   specific than `.active` (it carries an extra pseudo-class), so without
+   this an active button hovers to white-on-white and disappears. Needs to
+   out-specify that rule, hence `.active` and `:hover` together. */
+.game-actions button.active:hover:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(135deg, #2a5f6b, #37907f);
 }
 
 /* --- Word of the day --- */
@@ -561,6 +639,30 @@
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }
   75% { transform: translateX(6px); }
+}
+
+/* The row turns over letter by letter (the delay is set per tile inline).
+   All five marks appearing at once reads as the board changing state rather
+   than as an answer being given.
+
+   The keyframes carry the *unmarked* colours through the first half and then
+   let go, so the mark lands as the tile turns edge-on. `backwards` applies
+   that first frame during the tile's delay too — without it a tile would sit
+   showing its answer while waiting its turn, which defeats the point. */
+.word-tile.revealing {
+  animation: word-flip 340ms ease backwards;
+}
+
+@keyframes word-flip {
+  0%, 49% {
+    border-color: rgba(31, 101, 94, 0.16);
+    background: #fff;
+    color: #17201d;
+  }
+  0% { transform: rotateX(0deg); }
+  49% { transform: rotateX(90deg); }
+  50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
 }
 
 .word-keyboard {
@@ -631,6 +733,19 @@
   .brain-games-picker button,
   .ttt-cell {
     transition: none;
+  }
+
+  /* The feedback these carry is also in the colours and the status line, so
+     removing the motion costs nothing. Tiles must still be visible — the word
+     row is mid-flip at 90 degrees, so the transform has to be cleared, not
+     just the animation. */
+  .g2048-tile.merged,
+  .g2048-tile.fresh,
+  .ttt-cell.winning,
+  .word-tile.revealing,
+  .word-grid.shake {
+    animation: none;
+    transform: none;
   }
 }
 

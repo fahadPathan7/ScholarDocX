@@ -46,7 +46,8 @@ INSERT INTO app_settings (key, value) VALUES
   ('ai_token_rate_tokens_per_dollar', '10000'),
   ('tavily_call_cost_usd', '0.01'),
   ('jina_call_cost_usd', '0.002'),
-  ('brave_call_cost_per_hit_usd', '0.015')
+  ('brave_call_cost_per_hit_usd', '0.015'),
+  ('openalex_call_cost_usd', '0.001')
 ON CONFLICT (key) DO NOTHING;
 
 """

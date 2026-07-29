@@ -105,12 +105,12 @@ class DeepHuntQueryPlanner:
         self,
         goal: str,
         *,
+        ai_service: Any,
         degree_level: Optional[str] = None,
         destinations: Optional[List[str]] = None,
         intake_term: Optional[str] = None,
         field_of_study: Optional[str] = None,
         fallback_queries: Optional[List[str]] = None,
-        ai_service: Any = None,
     ) -> Dict[str, Any]:
         """Return ``{queries, field_synonyms, intent_summary, source}``.
 
@@ -119,9 +119,14 @@ class DeepHuntQueryPlanner:
         is the deterministic ``fallback_queries`` and ``field_synonyms`` is a
         minimal heuristic derivation so downstream relevance still works.
 
-        ``ai_service`` must be passed so credit consumption is metered via the
-        admin-configured token price (charge_tokens is called with the actual
-        prompt/completion token counts returned by OpenRouter).
+        ``ai_service`` is **required** (SCHOLARDOCX-0204 L1). It carries the
+        billing context that meters this call at the admin-configured token
+        price. It used to default to ``None`` with the charge behind an
+        ``if ai_service is not None`` guard — the one call site never passed it,
+        so the guard was permanently false and every run made a free OpenRouter
+        call. Keep it required: an optional billing context is how this class of
+        leak recurs. Pass ``None`` only from a test that asserts the
+        no-provider fallback path, which never reaches a charge.
         """
         fallback_queries = fallback_queries or []
         if not self.settings.openrouter_api_key:
@@ -301,18 +306,19 @@ class DeepHuntRelevanceFilter:
         goal: str,
         opportunities: List[Dict[str, Any]],
         *,
+        ai_service: Any,
         field_synonyms: Optional[List[str]] = None,
         degree_level: Optional[str] = None,
-        ai_service: Any = None,
     ) -> List[float]:
         """Return one 0..1 relevance score per opportunity, in input order.
 
         Falls back to a deterministic synonym/keyword match if OpenRouter is
         unavailable or returns unusable output — never raises.
 
-        ``ai_service`` must be passed so credit consumption is metered via the
-        admin-configured token price (charge_tokens is called with the actual
-        prompt/completion token counts returned by OpenRouter).
+        ``ai_service`` is **required** for the same reason as
+        ``DeepHuntQueryPlanner.plan`` (SCHOLARDOCX-0204 L2): it carries the
+        billing context, and making it optional is exactly what let this call go
+        unbilled on every run.
         """
         if not opportunities:
             return []

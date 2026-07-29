@@ -116,15 +116,165 @@ export function AdvisorRunWorkspace({
       {showCompare && (
         <div className="atlas-compare-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setShowCompare(false)}>
           <section className="atlas-compare-panel" role="dialog" aria-modal="true" aria-label="Compare professors">
-            <header><div><span className="atlas-eyebrow">Evidence comparison</span><h2>Compare advisor fit</h2></div><button className="atlas-icon-button" onClick={() => setShowCompare(false)} aria-label="Close comparison"><X size={20} /></button></header>
-            <div className="atlas-compare-table">
-              <div className="atlas-compare-row heading"><span>Dimension</span>{compared.map((candidate) => <strong key={candidate.id}>{candidate.display_name}</strong>)}</div>
-              <CompareRow label="Research alignment" candidates={compared} value={(candidate) => `${candidate.match_score}%`} />
-              <CompareRow label="Source confidence" candidates={compared} value={(candidate) => `${candidate.evidence_confidence}%`} />
-              <CompareRow label="Recruitment" candidates={compared} value={(candidate) => candidate.recruitment_state.replace(/_/g, " ")} />
-              <CompareRow label="Decision lane" candidates={compared} value={(candidate) => candidate.decision_lane} />
-              <CompareRow label="Strong coverage" candidates={compared} value={(candidate) => `${Object.values(candidate.coverage || {}).filter((item) => item === "Strong").length} areas`} />
-              <CompareRow label="Risk flags" candidates={compared} value={(candidate) => candidate.risk_flags?.map((item) => item.replace(/_/g, " ")).join(", ") || "None visible"} />
+            <header>
+              <div>
+                <span className="atlas-eyebrow">Evidence comparison</span>
+                <h2>Who should you write to first?</h2>
+              </div>
+              <button className="atlas-icon-button" onClick={() => setShowCompare(false)} aria-label="Close comparison"><X size={20} /></button>
+            </header>
+            <div
+              className="atlas-compare-table"
+              style={{ ["--compare-columns" as string]: compared.length }}
+            >
+              <div className="atlas-compare-row heading">
+                <span>Dimension</span>
+                {compared.map((candidate) => (
+                  <strong key={candidate.id}>
+                    {candidate.display_name}
+                    <small>{candidate.title || candidate.department}</small>
+                  </strong>
+                ))}
+              </div>
+
+              {/* Ordered as the decision is actually made: can they take you,
+                  do they work on your thing, are they funded, are they active,
+                  when could you start, and can you reach them. */}
+              <CompareRow
+                label="Can supervise"
+                hint="A lab manager, emeritus or teaching-only rank cannot take a doctoral student."
+                candidates={compared}
+                render={(candidate) => {
+                  const eligibility = candidate.intelligence?.advising_eligibility;
+                  if (eligibility?.can_supervise === false) {
+                    return <Flag tone="bad" label={eligibility.status === "ineligible" ? "No" : "Unclear"} note={eligibility.reason} />;
+                  }
+                  return <Flag tone="good" label="Yes" />;
+                }}
+              />
+              <CompareRow
+                label="Your interests they match"
+                hint="Which of your stated research interests have a defensible bridge to their work."
+                candidates={compared}
+                render={(candidate) => {
+                  const matched = candidate.intelligence?.matched_interests || [];
+                  if (!matched.length) return <span className="atlas-compare-empty">No interest overlap found</span>;
+                  return (
+                    <div className="atlas-compare-tags">
+                      {matched.slice(0, 4).map((interest) => <span key={interest}>{interest}</span>)}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Research alignment"
+                candidates={compared}
+                render={(candidate) => <Meter value={candidate.match_score} />}
+              />
+              <CompareRow
+                label="Funding"
+                hint="Documented grants. Funding never proves an opening, but its absence usually rules one out."
+                candidates={compared}
+                render={(candidate) => {
+                  const items = candidate.intelligence?.funding?.items || [];
+                  if (!items.length) return <span className="atlas-compare-empty">None documented</span>;
+                  const latest = items[0] || {};
+                  return (
+                    <div>
+                      <strong>{items.length} recorded</strong>
+                      {(latest.funder || latest.project) && (
+                        <small>{[latest.funder, latest.period].filter(Boolean).join(" · ")}</small>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Publishing activity"
+                hint="From the scholarly index — whether the lab is publishing right now."
+                candidates={compared}
+                render={(candidate) => {
+                  const record = candidate.intelligence?.scholarly_record;
+                  if (!record) return <span className="atlas-compare-empty">Not resolved</span>;
+                  const cadence = record.publication_cadence || [];
+                  const recent = cadence.slice(0, 3);
+                  return (
+                    <div>
+                      <strong>
+                        {typeof record.h_index === "number" ? `h-index ${record.h_index}` : "Indexed"}
+                      </strong>
+                      {!!recent.length && (
+                        <small>{recent.map((entry: any) => `${entry.year}: ${entry.works ?? 0}`).join(" · ")}</small>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Next likely intake"
+                hint="Forecast semesters, shown with the confidence behind the forecast."
+                candidates={compared}
+                render={(candidate) => {
+                  const outlook = candidate.intelligence?.opportunity_outlook;
+                  const semesters = outlook?.likely_semesters || [];
+                  return (
+                    <div>
+                      <strong>{candidate.recruitment_state.replace(/_/g, " ")}</strong>
+                      {!!semesters.length && <small>{semesters.slice(0, 2).join(", ")}</small>}
+                      {typeof outlook?.confidence === "number" && (
+                        <small>{outlook.confidence}% confidence</small>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Contact readiness"
+                hint="Whether you have a verified address and profile to write from."
+                candidates={compared}
+                render={(candidate) => {
+                  const email = candidate.email || candidate.intelligence?.contact?.email;
+                  if (!email) return <Flag tone="warn" label="No verified address" />;
+                  return (
+                    <div>
+                      <a href={`mailto:${email}`}>{email}</a>
+                      {candidate.official_profile_url && (
+                        <small><a href={candidate.official_profile_url} target="_blank" rel="noreferrer">Official profile</a></small>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Evidence behind this"
+                hint="How many independent public sources actually name this professor."
+                candidates={compared}
+                render={(candidate) => {
+                  const basis = candidate.intelligence?.evidence_basis;
+                  const naming = basis?.naming_sources;
+                  return (
+                    <div>
+                      <strong>{candidate.evidence_confidence}% confidence</strong>
+                      {typeof naming === "number" && (
+                        <small>{naming} source{naming === 1 ? "" : "s"} name them</small>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+              <CompareRow
+                label="Watch out for"
+                candidates={compared}
+                render={(candidate) => {
+                  const flags = candidate.risk_flags || [];
+                  if (!flags.length) return <span className="atlas-compare-empty">Nothing flagged</span>;
+                  return (
+                    <ul className="atlas-compare-risks">
+                      {flags.slice(0, 3).map((flag) => <li key={flag}>{flag.replace(/_/g, " ")}</li>)}
+                    </ul>
+                  );
+                }}
+              />
             </div>
           </section>
         </div>
@@ -133,6 +283,42 @@ export function AdvisorRunWorkspace({
   );
 }
 
-function CompareRow({ label, candidates, value }: { label: string; candidates: AdvisorCandidate[]; value: (candidate: AdvisorCandidate) => string }) {
-  return <div className="atlas-compare-row"><span>{label}</span>{candidates.map((candidate) => <div key={candidate.id}>{value(candidate)}</div>)}</div>;
+function CompareRow({
+  label,
+  hint,
+  candidates,
+  render,
+}: {
+  label: string;
+  hint?: string;
+  candidates: AdvisorCandidate[];
+  render: (candidate: AdvisorCandidate) => React.ReactNode;
+}) {
+  return (
+    <div className="atlas-compare-row">
+      <span>
+        {label}
+        {hint && <small>{hint}</small>}
+      </span>
+      {candidates.map((candidate) => <div key={candidate.id}>{render(candidate)}</div>)}
+    </div>
+  );
+}
+
+function Meter({ value }: { value: number }) {
+  return (
+    <div className="atlas-compare-meter">
+      <strong>{value}%</strong>
+      <i style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+    </div>
+  );
+}
+
+function Flag({ tone, label, note }: { tone: "good" | "warn" | "bad"; label: string; note?: string }) {
+  return (
+    <div className={`atlas-compare-flag ${tone}`}>
+      <strong>{label}</strong>
+      {note && <small>{note}</small>}
+    </div>
+  );
 }

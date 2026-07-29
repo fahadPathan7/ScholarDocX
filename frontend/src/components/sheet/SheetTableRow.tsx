@@ -7,6 +7,8 @@
 
 import React from "react";
 import { Edit, Mail, Trash2, Eye, Maximize2 } from "lucide-react";
+import { alignFor } from "./sheetGrid";
+import type { RowFormatting } from "./sheetInsights";
 import { CellRenderer, rowClass } from "../SheetRecordFields";
 import { InlineCellEditor, CommitDirection } from "./InlineCellEditor";
 import { cellMatchesSearch } from "./sheetFilters";
@@ -57,6 +59,7 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   modalColName,
   searchQuery,
   dateColorConfig,
+  formatting,
   callbacks,
 }: {
   row: Record<string, string>;
@@ -74,6 +77,8 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   modalColName: string | null;
   searchQuery: string;
   dateColorConfig?: DateColorConfig;
+  /** Conditional-formatting outcome for this row (SCHOLARDOCX-0203). */
+  formatting?: RowFormatting;
   callbacks: RowCallbacks;
 }) {
   const cb = callbacks;
@@ -81,9 +86,11 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   const compactCell = fullScreenMode ? { padding: '2px 4px' } : {};
   const rowStyleBg = parseRowStyle(row).bg;
 
+  const firstDataColIndex = renderColumns.findIndex((c) => c.type !== 'group-control');
+
   return (
     <tr
-      className={`sheet-table-row ${rowClass(row)} ${isSelected ? "row-selected" : ""} ${isNavFocused ? "row-focused" : ""} ${isDuplicate ? "row-duplicate" : ""}`}
+      className={`sheet-table-row ${rowClass(row)} ${isSelected ? "row-selected" : ""} ${isNavFocused ? "row-focused" : ""} ${isDuplicate ? "row-duplicate" : ""} ${formatting?.row ? `cf-row cf-${formatting.row}` : ""}`}
       data-row-index={rowIndex}
       style={rowStyleBg ? { backgroundColor: rowStyleBg } : undefined}
     >
@@ -131,6 +138,9 @@ export const SheetTableRow = React.memo(function SheetTableRow({
           }}
         />
       </td>
+      {/* Which rendered column is the first real data column — group-control
+          cells come first when groups are collapsed, so this is not always
+          index 0. Used to pin it when "keep first column in view" is on. */}
       {renderColumns.map((rCol, cIndex) => {
         if (rCol.type === 'group-control') {
           return (
@@ -153,7 +163,7 @@ export const SheetTableRow = React.memo(function SheetTableRow({
         return (
           <td
             key={`cell-${rowIndex}-${cIndex}`}
-            className={`data-cell ${rCol.groupName ? "group-child-cell" : ""} ${isFocused ? 'cell-focused' : ''} ${matchesSearch ? 'cell-search-match' : ''}`}
+            className={`data-cell align-${alignFor(col.type)} ${firstDataColIndex === cIndex ? "is-first-data-col" : ""} ${rCol.groupName ? "group-child-cell" : ""} ${isFocused ? 'cell-focused' : ''} ${matchesSearch ? 'cell-search-match' : ''} ${formatting?.cells[col.name] ? `cf-cell cf-${formatting.cells[col.name]}` : ""}`}
             onClick={() => cb.onFocusCell(rowIndex, col.name)}
             onDoubleClick={() => {
               if (col.type === 'file') cb.onOpenModal(rowIndex, col.name);

@@ -6,19 +6,18 @@
 /* ------------------------------------------------------------------ */
 
 import { useRef, useState } from "react";
-import { 
-  ArrowRight, 
-  Sparkles, 
+import {
+  ArrowRight,
+  Sparkles,
   Search,
   Calendar,
   AlertCircle,
   Wand2,
   Zap,
-  Copy,
   ClipboardList,
-  PenTool,
   FileText,
-  GitCompareArrows
+  GitCompareArrows,
+  BarChart2,
 } from "lucide-react";
 import {
   ASK_AI_PROMPTS,
@@ -33,24 +32,26 @@ import type { ColumnDef } from "./sheetModel";
 import { DropdownPortal } from "./DropdownPortal";
 
 const GROUP_LABELS: Record<AskAiPromptGroup, string> = {
-  analyze: "Analyze My Data",
-  transform: "Smart Actions",
-  selection: "Selected Rows",
+  row: "This Row",
+  column: "This Column",
+  compare: "Compare Selected Rows",
+  deadlines: "Deadlines",
 };
 
-const GROUP_ORDER: AskAiPromptGroup[] = ["selection", "analyze", "transform"];
+// SCHOLARDOCX-0179: contextual groups first (only shown when relevant), the
+// always-available deadline scan last.
+const GROUP_ORDER: AskAiPromptGroup[] = ["row", "column", "compare", "deadlines"];
 
 // Icon mapping for each prompt
 const PROMPT_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string; color?: string }>> = {
-  "deadline-risk": Calendar,
-  "missing-info": AlertCircle,
-  "find-duplicates": Copy,
-  "daily-action-plan": ClipboardList,
-  "draft-emails": Wand2,
-  "fill-empty-cells": PenTool,
-  "row-summaries": FileText,
-  "compare-selected": GitCompareArrows,
   "fill-cell": Zap,
+  "row-summary": FileText,
+  "row-email-draft": Wand2,
+  "row-next-step": ClipboardList,
+  "column-missing": AlertCircle,
+  "column-breakdown": BarChart2,
+  "compare-selected": GitCompareArrows,
+  "deadline-risk": Calendar,
 };
 
 type Props = {
@@ -92,9 +93,10 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
 
   const prompts = visiblePrompts(ctx);
   const grouped: Record<AskAiPromptGroup, AskAiPrompt[]> = {
-    analyze: [],
-    transform: [],
-    selection: [],
+    row: [],
+    column: [],
+    compare: [],
+    deadlines: [],
   };
   for (const p of prompts) grouped[p.group].push(p);
 

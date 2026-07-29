@@ -23,8 +23,9 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   ineligible plans and routes to Choose Plan instead of opening the workspace.
 - FR-9.2: Support field-led university discovery and professor-specific search.
 - FR-9.3: Require at least one user research interest in both Discovery and
-  Professor modes, and let users provide up to five interests plus degree and
-  intake context through a reviewable profile.
+  Professor modes. Interests, degree target, and intake are managed as a
+  single saved Advisor Atlas research defaults profile (FR-9.62), not
+  re-entered per search.
 - FR-9.4: Support Quick Map, Deep Atlas, and Focused Dossier search depths.
 - FR-9.5: Discover and deduplicate professors from public authoritative sources.
 - FR-9.6: Enrich profiles with research, projects, labs, students, publications,
@@ -68,6 +69,26 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.25: Research matching must evaluate meaning, methods, problems, and
   application areas rather than requiring exact keyword overlap. Deterministic
   fallback may use weighted concept families but must identify its limitations.
+- FR-9.25a: Related-unit mapping must be **discipline-agnostic**. It must work
+  for chemistry, economics, public health, law, or linguistics exactly as well as
+  for computing. The primary path is an AI mapping of
+  `requested field + university` → related units; a hardcoded concept taxonomy is
+  permitted only as an offline fallback when AI is unavailable, and no discipline
+  may depend on being present in that table to receive related units.
+- FR-9.25b: A concept or family relationship must never be inferred from an
+  unanchored substring match. Short family terms (`ai`, `cse`, `eee`) must match
+  on word boundaries only, so `chair`, `certain`, `domain`, and `training` cannot
+  manufacture a computing relationship.
+- FR-9.25c: Unit extraction must recognise `<unit> of <name>` and
+  `<unit> for <name>`, trailing forms (`<name> Department`, `<name> Institute`),
+  and the Division / Laboratory / Group / Programme unit words. Interdisciplinary
+  centres — the units most likely to host cross-field advisors — are usually
+  named `Center for …` or `Institute for …`.
+- FR-9.25d: Faculty name extraction must accept accented Latin, CJK, and Cyrillic
+  characters and lowercase name particles (`van`, `de`, `der`, `dos`, `al-`), and
+  must strip honorifics so `display_name` holds the name alone. ScholarDocX
+  serves applicants worldwide; dropping non-Anglo names is a silent correctness
+  failure, not a cosmetic gap.
 - FR-9.26: Opportunity outlook must separate explicit current recruitment from
   evidence-based likelihood across the next two or three academic semesters.
 - FR-9.27: Every future recruitment outlook must show likely semesters,
@@ -75,6 +96,36 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
 - FR-9.28: Discovery must report coverage: mapped units, directories inspected,
   inaccessible or missing sources, verified faculty count, and whether
   completeness can be guaranteed.
+- FR-9.30: The dossier may include verified scholarly-record data from OpenAlex —
+  publication count, citation count, h-index, i10-index, publication cadence by
+  year, topics, and affiliation history with years.
+- FR-9.31: Every scholarly-record value is attributed to its source and omitted
+  when unavailable. No metric is estimated, interpolated, or inferred from a
+  search snippet. A missing metric renders as absent, never as zero.
+- FR-9.32: A scholarly record is attached only when identity is confidently
+  resolved. A weak or ambiguous name match yields nothing — attaching another
+  researcher's citation profile is a worse failure than showing none.
+- FR-9.33: Scholarly enrichment degrades silently. A missing key, exhausted daily
+  budget, rate limit, or outage leaves the run exactly as capable as it is
+  without it, never failed or blocked.
+- FR-9.29a: A rank or title may be attributed to the professor only when the
+  evidence ties that rank to that person, and to the institution named alongside
+  it. A rank held previously or at another institution is career history, never
+  the current appointment. Seniority is what an applicant uses to judge whether a
+  professor can independently admit students, so a wrong rank is worse than a
+  missing one.
+- FR-9.29b: Deterministic extraction and AI extraction are merged, never
+  replaced. Neither layer may silently discard the other's supported facts.
+- FR-9.29c: Position, degree, and research-theme extraction must be
+  discipline-agnostic. No hardcoded subject vocabulary may gate whether a
+  professor's themes are found.
+- FR-9.29d: Source-relevance matching must be Unicode-aware, so professors with
+  accented or non-Latin names do not have their own sources discarded.
+- FR-9.29e: The dossier provides a career timeline (rank, institution, period), a
+  lab and advisee section (current members, recent graduates and placements,
+  frequent collaborators), and a teaching and service section (courses,
+  supervision, administrative roles). Each item carries its source and is omitted
+  rather than guessed.
 - FR-9.29: Professor mode must provide granular background, lab, member,
   publication, academic-profile, funding, recruitment, trajectory, and source
   sections while clearly marking unavailable information. It must also compare
@@ -227,6 +278,32 @@ the GLM provider, using GLM-5.2 as the default model (overridable via the
   candidates carry `"screened"`. A single candidate's deep-research failure
   must not fail the run, and cancellation must still stop the run between
   candidates in both phases.
+- FR-9.60: Research history (stored discovery runs) is capped at 100 per
+  user, independent of plan — not admin-configurable, matching the fixed cap
+  pattern used elsewhere (Documents, research paper library). Starting a new
+  search while at the cap is rejected outright (backend 409) with a message
+  telling the user to delete an existing search first; there is no automatic
+  eviction of the oldest run. The user must use the existing per-run delete
+  action to free up a slot.
+- FR-9.61: The dossier's Research Metrics panel must never show the word
+  "tokens" to the user — only "credits", matching the vocabulary used
+  everywhere else in the app. The figure shown is the real total credits
+  actually deducted from the user's balance across every billed call the run
+  made (GLM chat/vision analyses plus metered external calls such as
+  OpenAlex), not a token-count estimate. Tavily searches are deliberately
+  billed at $0 for Advisor Atlas and contribute nothing to this figure.
+- FR-9.62: Research interests, degree target, and intended intake are saved
+  once as explicit Advisor Atlas research defaults, edited from a "Research
+  defaults" entry point on the Advisor Atlas search form itself (not the
+  Profile page — the setting lives inside the feature that uses it). There
+  is no separate per-search copy of these fields: every search reads the
+  saved defaults directly, and no search is ever gated on defaults existing
+  — an empty/incomplete state surfaces a clear inline message pointing at
+  the same entry point instead (contrast with the removed Hunt Profile,
+  SCHOLARDOCX-0178, which required a setup step before searching). University
+  name, official professor URL, department/research area, and professor
+  name remain per-search fields — they inherently differ on every search
+  and are not part of this reusable profile.
 
 ## Discovery Funnel
 
@@ -244,6 +321,16 @@ match. A Computer Science request may include CSE, Software Engineering, AI,
 Data Science, Information Science, Computer Engineering, EEE, Robotics, or an
 interdisciplinary institute when the university structure and faculty research
 support the relationship. Weak adjacency alone is insufficient.
+
+The same breadth is required in every discipline, and the examples above must not
+be read as the supported set. A Chemistry request should reach Chemical
+Engineering, Materials Science, and Chemical Biology; Economics should reach
+Finance, Public Policy, and Econometrics; Psychology should reach Cognitive
+Science and Neuroscience. Step 1 of the funnel is a hard multiplier on everything
+after it — `collect()` searches and crawls per mapped unit, so a run that maps one
+unit does a fraction of the intended work while still reporting to the user that
+the university was surveyed. Under-mapping is therefore a correctness failure,
+not merely a quality one.
 
 ## Result Organization
 

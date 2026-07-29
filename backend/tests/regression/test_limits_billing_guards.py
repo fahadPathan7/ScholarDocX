@@ -64,12 +64,299 @@ def usage_count(session, uid: str, feature: str) -> int:
 
 # ── get_user_limit defaults ──────────────────────────────────────────────────
 
-def test_get_user_limit_missing_feature_is_uncapped(tmp_path):
+def test_get_user_limit_missing_feature_is_denied(tmp_path):
+    """SCHOLARDOCX-0204 (L7): an unseeded feature is blocked, not uncapped.
+
+    Previously this returned -1 (no cap), so any feature gated in code before
+    its DEFAULT_ROLE_LIMITS row shipped was silently unlimited for every tier.
+    """
     settings = make_settings(tmp_path)
     user = make_user(settings, ["pro_user"])
     session = get_session(settings)
     try:
-        assert get_user_limit(user, "feature_that_does_not_exist", session) == -1
+        assert get_user_limit(user, "feature_that_does_not_exist", session) == 0
+    finally:
+        session.close()
+
+
+def test_check_and_increment_limit_denies_unseeded_feature(tmp_path):
+    """The enforcement helper must deny too, or the two defaults disagree."""
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        with pytest.raises(UsageLimitExceeded):
+            check_and_increment_limit(user, "feature_that_does_not_exist", 0, session)
+    finally:
+        session.close()
+
+
+def test_every_enforced_feature_has_a_seed_row(tmp_path):
+    """Guard for the L7 flip: deny-by-default is only safe while every feature
+    the code gates actually exists in DEFAULT_ROLE_LIMITS. If someone adds a
+    gate without a seed row, this fails instead of the feature 403-ing in
+    production."""
+    from app.services.admin import DEFAULT_ROLE_LIMITS
+
+    seeded = {
+        feature
+        for features in DEFAULT_ROLE_LIMITS.values()
+        for feature, _limit, _period in features
+    }
+    # Features reached through a variable or an f-string, which a grep-style
+    # scan of call sites would miss.
+    dynamic = {
+        f"can_use_{provider}" for provider in ("glm", "gemini", "groq", "mistral")
+    } | {
+        "total_projects",
+        "total_sheets",
+        "total_records",
+        "total_sticky_notes",
+        "total_whiteboards",
+        "total_documents_bytes",
+        "sheets_per_project",
+        "records_per_sheet",
+        ai_tokens.PURCHASE_PACKS_FEATURE,
+        ai_tokens.USE_PACKS_FEATURE,
+    }
+    assert dynamic <= seeded, f"unseeded but enforced: {sorted(dynamic - seeded)}"
+
+
+# ── Billing coverage (SCHOLARDOCX-0204) ──────────────────────────────────────
+
+def test_load_user_dict_applies_plan_expiry(tmp_path):
+    """L6: background billing must see the same effective role a live request
+    would. The expiry downgrade used to live only in get_current_user, so a
+    background run billed an expired user at their old (higher) tier."""
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        session.execute(
+            text("UPDATE users SET plan_ends_at = :d WHERE id = :id"),
+            {"d": "2020-01-01", "id": user["id"]},
+        )
+        session.commit()
+        loaded = ai_tokens.load_user_dict(str(user["id"]), session)
+        assert "pro_user" not in loaded["roles"]
+        assert "free_user" in loaded["roles"]
+    finally:
+        session.close()
+
+
+def test_load_user_dict_keeps_unexpired_plan(tmp_path):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        session.execute(
+            text("UPDATE users SET plan_ends_at = :d WHERE id = :id"),
+            {"d": "2099-01-01", "id": user["id"]},
+        )
+        session.commit()
+        loaded = ai_tokens.load_user_dict(str(user["id"]), session)
+        assert "pro_user" in loaded["roles"]
+    finally:
+        session.close()
+
+
+def test_load_user_dict_refuses_suspended_user(tmp_path):
+    """A queued background run must not outlive the suspension meant to stop it."""
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        session.execute(
+            text("UPDATE users SET is_active = false WHERE id = :id"),
+            {"id": user["id"]},
+        )
+        session.commit()
+        loaded = ai_tokens.load_user_dict(str(user["id"]), session)
+        assert loaded["roles"] == []
+        assert ai_tokens.get_role_monthly_allowance(loaded, session) == 0
+    finally:
+        session.close()
+
+
+def test_pack_helpers_deny_when_role_limit_row_missing(tmp_path):
+    """L7 applied to the pack gates: these mirror enforcement, so they must
+    mirror its deny-by-default too."""
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        session.execute(
+            text("DELETE FROM role_limits WHERE role = 'pro_user' AND feature IN (:a, :b)"),
+            {"a": ai_tokens.PURCHASE_PACKS_FEATURE, "b": ai_tokens.USE_PACKS_FEATURE},
+        )
+        session.commit()
+        invalidate_limits_cache()
+        assert ai_tokens.can_purchase_packs(user, session) is False
+        assert ai_tokens.can_use_purchased_tokens_feature(user, session) is False
+    finally:
+        session.close()
+
+
+def test_extraction_openrouter_fallback_charges_the_user(tmp_path, monkeypatch):
+    """L3: the fallback is a real provider call and must be billed.
+
+    Drives the worst case — no chat provider configured at all — where chat()
+    short-circuits to local-fallback without billing and OpenRouter becomes the
+    only extraction path. That path used to be free forever.
+    """
+    import asyncio
+
+    from app.services.ai import AiService
+    from app.services.scholarship_extraction import ScholarshipExtractionService
+
+    settings = make_settings(tmp_path)
+    settings.openrouter_api_key = "test-key"
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        ai_service = AiService(settings, user=user, session=session)
+        ai_tokens.grant_purchased(
+            str(user["id"]), 100_000, session=session, source="test_grant"
+        )
+
+        class _FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "choices": [
+                        {"message": {"content": '{"canonical_name": "Test Award"}'}}
+                    ],
+                    "usage": {"prompt_tokens": 5000, "completion_tokens": 2000},
+                }
+
+        class _FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                return _FakeResponse()
+
+        service = ScholarshipExtractionService(settings, client_factory=_FakeClient)
+        before = session.execute(
+            text(
+                "SELECT COUNT(*) FROM ai_token_ledger "
+                "WHERE user_id = :u AND tokens_delta < 0"
+            ),
+            {"u": user["id"]},
+        ).scalar()
+
+        asyncio.new_event_loop().run_until_complete(
+            service.extract(
+                ai_service,
+                source_url="https://example.edu/award",
+                source_title="Test Award",
+                source_snippet="A funded award with a deadline.",
+            )
+        )
+
+        after = session.execute(
+            text(
+                "SELECT COUNT(*) FROM ai_token_ledger "
+                "WHERE user_id = :u AND tokens_delta < 0"
+            ),
+            {"u": user["id"]},
+        ).scalar()
+        assert after > before, "OpenRouter fallback made a provider call for free"
+    finally:
+        session.close()
+
+
+def test_advisor_atlas_tavily_search_is_charged(tmp_path):
+    """L5: the largest unbilled surface. Advisor Atlas searches used to be
+    recorded at $0 via record_external_search."""
+    import asyncio
+
+    from app.services.ai import AiService
+
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        ai_service = AiService(settings, user=user, session=session)
+        ai_tokens.grant_purchased(
+            str(user["id"]), 100_000, session=session, source="test_grant"
+        )
+        before = session.execute(
+            text(
+                "SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger "
+                "WHERE user_id = :u AND source = 'advisor_atlas_search'"
+            ),
+            {"u": user["id"]},
+        ).scalar()
+
+        result = ai_service.charge_external_call(
+            cost_usd=ai_service.external_billing_cost(
+                ai_tokens.get_tavily_call_cost_usd
+            ),
+            source="advisor_atlas_search",
+        )
+        assert result is not None and result["charged"] > 0
+
+        after = session.execute(
+            text(
+                "SELECT COALESCE(SUM(-tokens_delta), 0) FROM ai_token_ledger "
+                "WHERE user_id = :u AND source = 'advisor_atlas_search'"
+            ),
+            {"u": user["id"]},
+        ).scalar()
+        assert after > before
+    finally:
+        session.close()
+
+
+def test_record_external_search_helper_is_gone():
+    """The '$0 ledger row' helper existed only to skip a charge. Its removal is
+    the structural half of the L5 fix — keep it removed (BD-011)."""
+    from app.services.ai import AiService
+
+    assert not hasattr(AiService, "record_external_search")
+
+
+def test_billing_context_is_required_on_deep_hunt_ai_calls():
+    """L1/L2: the leak was an optional ai_service that defaulted to None, so a
+    call site could omit it and silently skip the charge. Keep it required."""
+    import inspect
+
+    from app.services.deep_hunt_query_planner import (
+        DeepHuntQueryPlanner,
+        DeepHuntRelevanceFilter,
+    )
+
+    for fn in (DeepHuntQueryPlanner.plan, DeepHuntRelevanceFilter.score):
+        param = inspect.signature(fn).parameters["ai_service"]
+        assert param.default is inspect.Parameter.empty, (
+            f"{fn.__qualname__} made ai_service optional again — that is exactly "
+            "how SCHOLARDOCX-0204 L1/L2 happened"
+        )
+
+
+def test_jina_fee_scales_with_token_count(tmp_path):
+    """L8: a 60-page paper must not cost the same as a one-page abstract, while
+    still raising exactly one charge (the SCHOLARDOCX-0180 invariant)."""
+    from app.services.research_paper_service import EMBEDDING_MODEL
+
+    settings = make_settings(tmp_path)
+    session = get_session(settings)
+    try:
+        base = ai_tokens.get_jina_call_cost_usd(session)
+        small, _ = ai_tokens.compute_cost(EMBEDDING_MODEL, 1_000, 0, session,
+                                          provider="jina")
+        large, _ = ai_tokens.compute_cost(EMBEDDING_MODEL, 5_000_000, 0, session,
+                                          provider="jina")
+        assert base + large > base + small
     finally:
         session.close()
 

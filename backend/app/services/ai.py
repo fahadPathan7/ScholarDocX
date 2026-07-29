@@ -113,14 +113,21 @@ class AiService:
         output_tokens,
         source,
         ref_id=None,
-    ) -> None:
-        """Charge an AI call to the attached billing context. No-op when no
-        billing context is attached. Used by chat() and by external calls that
-        bypass chat() (e.g. Advisor Atlas vision)."""
+    ) -> dict | None:
+        """Charge an AI call to the attached billing context. No-op (None)
+        when no billing context is attached. Used by chat() and by external
+        calls that bypass chat() (e.g. Advisor Atlas vision).
+
+        Returns the `ai_tokens.charge()` result dict, whose `charged` field is
+        the real number of credits actually deducted (may be less than the
+        call's cost if the balance ran out mid-call) — the figure callers that
+        need to report "credits actually spent" (e.g. Advisor Atlas research
+        metrics) should accumulate, not the raw token/cost estimate.
+        """
         if self._billing_user is None or self._billing_session is None:
-            return
+            return None
         from app.services import ai_tokens
-        ai_tokens.charge(
+        return ai_tokens.charge(
             self._billing_user,
             model_id=model_id,
             provider=provider,
@@ -131,18 +138,67 @@ class AiService:
             ref_id=ref_id,
         )
 
-    def record_external_search(self, *, source: str) -> None:
-        """Record an external search (e.g. a Tavily call) as a NON-billing
-        ledger counter row (tokens_delta=0, cost 0) so unbilled searches — such
-        as Advisor Atlas research, which uses the web-search Tavily key but is
-        not metered per call — still surface in usage dashboards. No-op when no
-        billing context is attached."""
+    # NOTE (SCHOLARDOCX-0204 L5): `record_external_search()` used to live here.
+    # It wrote a ledger row at tokens_delta=0 so an unbilled provider call would
+    # still appear in the admin dashboard — which made the call *look* accounted
+    # for while the operator paid for it. Its only caller (Advisor Atlas Tavily
+    # search) now uses `charge_external_call` below. Do not reintroduce a
+    # "record but don't charge" helper: per BD-011 there is no category of
+    # provider call the user does not pay for, so a helper whose purpose is to
+    # skip the charge has no legitimate caller.
+
+    def charge_external_call(self, *, cost_usd: float, source: str) -> dict | None:
+        """Bill a flat-fee external API call against the attached billing context.
+
+        Used by metered third-party calls that are not token-based — OpenAlex
+        author resolution (SCHOLARDOCX-0183) and Advisor Atlas Tavily search
+        (SCHOLARDOCX-0204).
+
+        Returns the `ai_tokens.charge_flat_fee()` result dict when a charge was
+        raised (its `charged` field is the real credits deducted). Returns None
+        when no billing context is attached, the cost is zero, or the charge
+        failed — in every such case no internal/system call goes unbilled by
+        mistake, and a billing failure never sinks an otherwise good run.
+        """
         if self._billing_user is None or self._billing_session is None:
-            return
+            return None
+        if cost_usd <= 0:
+            return None
         from app.services import ai_tokens
-        ai_tokens.charge_flat_fee(
-            self._billing_user, self._billing_session, 0.0, source=source
-        )
+
+        try:
+            return ai_tokens.charge_flat_fee(
+                self._billing_user, self._billing_session, cost_usd, source=source
+            )
+        except Exception:
+            logger.warning("External call charge failed for source=%s", source, exc_info=True)
+            return None
+
+    def external_billing_cost(self, getter) -> float:
+        """Read an admin-configured flat fee using the attached billing session.
+
+        `getter` is one of the `ai_tokens.get_*_cost_usd` accessors. Returns 0.0
+        when no billing context is attached, so an unbilled context cannot
+        accidentally charge a default price.
+        """
+        if self._billing_session is None:
+            return 0.0
+        try:
+            return float(getter(self._billing_session))
+        except Exception:
+            return 0.0
+
+    def can_spend_external(self) -> bool:
+        """Pre-flight for a billable external call. True when unbilled or funded."""
+        if self._billing_user is None or self._billing_session is None:
+            return True
+        from app.services import ai_tokens
+
+        try:
+            ai_tokens.ensure_can_spend(self._billing_user, self._billing_session, min_tokens=1)
+            return True
+        except Exception:
+            return False
 
     async def chat(
         self,
@@ -261,13 +317,15 @@ class AiService:
                 else:
                     answer, usage = await self._chat_with_glm(model_name, sys_prompt, full_message, max_tokens)
                 if self._billing_user is not None and self._billing_session is not None:
-                    self.charge_tokens(
+                    charge_result = self.charge_tokens(
                         model_id=model_name,
                         provider=provider,
                         input_tokens=usage.get("input_tokens", 0),
                         output_tokens=usage.get("output_tokens", 0),
                         source=(request_label or "ai_chat"),
                     )
+                    if charge_result is not None:
+                        usage["credits_charged"] = charge_result.get("charged", 0)
                 return {
                     "mode": f"{provider}-{model_name}",
                     "answer": answer,
@@ -371,6 +429,18 @@ class AiService:
         if needs_search and search_query and max_results > 0:
             try:
                 search_results = await self._tavily_search(search_query, max_results=max_results)
+                # Charge for the search that was actually issued
+                # (SCHOLARDOCX-0204). The route used to charge before this
+                # branch was reached, so a request whose routing agent returned
+                # needs_search=false paid for a Tavily call that never happened.
+                from app.services import ai_tokens
+
+                self.charge_external_call(
+                    cost_usd=self.external_billing_cost(
+                        ai_tokens.get_tavily_call_cost_usd
+                    ),
+                    source="web_search",
+                )
                 search_context = self._format_search_context(search_results, max_results=max_results, max_chars=max_chars)
                 combined_context = self._combine_context(context, f"Web Search Results:\n{search_context}")
 

@@ -5,15 +5,31 @@
 /*  these context-aware prompts. Each `build()` returns a natural-     */
 /*  language message phrased as an imperative action request so the   */
 /*  existing `/ai/actions/plan` -> `/ai/actions/execute` flow picks   */
-/*  it up (see looksLikeWorkspaceAction in FloatingAssistant). No     */
-/*  cell values are sent — only schema + selection, matching the      */
-/*  action planner's design (it uses read actions to inspect data).   */
+/*  it up (see looksLikeWorkspaceAction in FloatingAssistant).        */
 /*                                                                    */
-/*  Prompt design rules (user feedback 2026-07-19):                   */
+/*  SCHOLARDOCX-0179: rewritten around row/column scope after a user  */
+/*  report that the prior whole-sheet catalog (draft an email for     */
+/*  every row, fill every empty cell, summarize every row, etc.) was  */
+/*  "too heavy for AI". Root cause: the planner's JSON output is      */
+/*  capped at 1200 tokens (AiActionService.plan) and only ever sees   */
+/*  the sheet's first 30 rows of real data (_target_sheet_block in    */
+/*  ai_actions.py) — a request needing unique generated content for   */
+/*  every row of a 50+ row sheet cannot fit in that budget, and a     */
+/*  request aimed at row 45 had no visibility into that row at all.   */
+/*  Every prompt below targets one row, one column, or a small        */
+/*  user-selected set of rows, and every build() explicitly tells     */
+/*  the model to say so — not guess — when it doesn't have enough     */
+/*  data for what was asked. Row-scoped and multi-row-compare         */
+/*  prompts embed a `(row_index: N)` / `(row_indices: [N,M,...])`     */
+/*  marker that `_target_sheet_block` reads to guarantee those exact  */
+/*  rows' real data is included even outside the first-30 window.    */
+/*                                                                    */
+/*  Prompt design rules:                                              */
 /*    - Concrete and metric-driven, not vague ("analyze it").         */
 /*    - Descriptions are complete sentences shown inline, not hover   */
 /*      tooltips — the user must understand the prompt before click.  */
 /*    - Every prompt maps to a real action the planner can run.       */
+/*    - Every prompt tells the model to admit insufficient data.      */
 /* ------------------------------------------------------------------ */
 
 import type { ColumnDef } from "./sheetModel";
@@ -39,12 +55,14 @@ export type AskAiContext = {
   rowCount: number;
   /** number of currently selected rows (0 if none). */
   selectionCount: number;
+  /** 0-based indices of the currently selected rows, sorted ascending. */
+  selectedRowIndices: number[];
   /** human-readable summary of the current selection/focus, for context. */
   selectionSummary?: string;
   focusedCell?: { rowIndex: number; colName: string } | null;
 };
 
-export type AskAiPromptGroup = "analyze" | "transform" | "selection";
+export type AskAiPromptGroup = "row" | "column" | "compare" | "deadlines";
 
 export type AskAiPrompt = {
   id: string;
@@ -79,146 +97,163 @@ export function target(ctx: AskAiContext): string {
   return `${sheetPart}${namePart}${projectPart} ${rowsPart}`;
 }
 
+/**
+ * Row-scoped targeting clause: `target()` plus a structured `(row_index: N)`
+ * marker. `_target_sheet_block` (backend) parses this to guarantee the
+ * planner sees that row's real data even when it falls outside the default
+ * first-30-rows injection window (SCHOLARDOCX-0179).
+ */
+export function rowTarget(ctx: AskAiContext): string {
+  const cell = ctx.focusedCell;
+  if (!cell) return target(ctx);
+  return `${target(ctx)} (row_index: ${cell.rowIndex})`;
+}
+
+/** Like {@link rowTarget}, for a small set of selected rows (compare). */
+export function selectedRowsTarget(ctx: AskAiContext): string {
+  if (ctx.selectedRowIndices.length === 0) return target(ctx);
+  return `${target(ctx)} (row_indices: [${ctx.selectedRowIndices.join(", ")}])`;
+}
+
+/** 1-based row number for the currently focused cell, defaulting to 1. */
+function focusedRowNumber(ctx: AskAiContext): number {
+  return (ctx.focusedCell?.rowIndex ?? 0) + 1;
+}
 
 export const ASK_AI_PROMPTS: AskAiPrompt[] = [
-  // ── Analyze (read-only) ───────────────────────────────────────────
-  {
-    id: "deadline-risk",
-    title: "What deadlines are coming up?",
-    description:
-      "Shows every deadline in the next 45 days, warns about anything overdue, and breaks down how many are due this week, next two weeks, and this month.",
-    group: "analyze",
-    build: (ctx) =>
-      `Show me all upcoming deadlines in ${target(ctx)} for the next 45 days. ` +
-      `Also check for any overdue items with dates that already passed. ` +
-      `Present: 1) OVERDUE items first (if any), 2) upcoming deadlines sorted soonest-first with university/professor name and the date, ` +
-      `3) count: how many due in 7 days, 14 days, 30 days. ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
-  {
-    id: "missing-info",
-    title: "Find incomplete rows",
-    description:
-      "Scans every row for missing deadlines, empty program names, blank emails, or no status — then lists exactly what's missing and what to fix first.",
-    group: "analyze",
-    build: (ctx) =>
-      `Read all rows in ${target(ctx)} and find which ones have missing or empty values in important columns ` +
-      `(deadlines, university/program name, status, contact emails, professor name). ` +
-      `For each incomplete row, tell me: the row number, what specific fields are blank, ` +
-      `and rank by urgency (missing deadlines = fix first, missing notes = fix last). ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
-  {
-    id: "find-duplicates",
-    title: "Find duplicate entries",
-    description:
-      "Checks if any university, professor, or program appears more than once in your sheet so you can clean up accidental duplicates.",
-    group: "analyze",
-    build: (ctx) =>
-      `Read all rows in ${target(ctx)} and check for duplicate entries. ` +
-      `Look at key identifier columns (university name, professor name, program name, email) ` +
-      `and flag any values that appear in more than one row. ` +
-      `For each duplicate found, show: the duplicate value, which rows contain it (by row number), ` +
-      `and whether the rows are exact duplicates or partial matches. ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
-  {
-    id: "daily-action-plan",
-    title: "What should I work on today?",
-    description:
-      "Reads your data and gives you a plain-English to-do list: which emails to send, which deadlines to prepare for, which applications need attention right now.",
-    group: "analyze",
-    build: (ctx) =>
-      `Read all rows in ${target(ctx)} and create a concrete, prioritized action list for today. ` +
-      `Look at: 1) deadlines in the next 7 days (prepare or submit), ` +
-      `2) rows where an email was sent but no response yet (follow up if 7+ days), ` +
-      `3) rows with status like "Researching" or blank that need progress, ` +
-      `4) anything overdue that needs immediate action. ` +
-      `Present as a numbered to-do list with specific actions like "Email Prof. X at Y University" ` +
-      `or "Finalize SOP for Z (deadline: DATE)". Keep it actionable, not analytical. ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
-
-  // ── Smart Actions (writes) ────────────────────────────────────────
-  {
-    id: "draft-emails",
-    title: "Write outreach emails for each row",
-    description:
-      "Creates an Email Draft column and writes a unique, professional first-contact email for each professor/program that mentions their name and your interest.",
-    group: "transform",
-    build: (ctx) =>
-      `Add a new "Email Draft" text column to ${target(ctx)}, then draft a personalized ` +
-      `first-contact email for every row. Each email must reference that row's university/professor/program, be professional ` +
-      `and concise (120–180 words), and express genuine interest. Read the existing rows first so each email matches its row. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.`,
-  },
-  {
-    id: "fill-empty-cells",
-    title: "Fill all empty cells",
-    description:
-      "Scans every row for blank cells and fills in what it can infer from context — like missing statuses, dates, or program details based on other columns.",
-    group: "transform",
-    build: (ctx) =>
-      `Read all rows in ${target(ctx)} and identify every empty cell. ` +
-      `For each empty cell, try to infer a reasonable value from the other columns in the same row. ` +
-      `Examples: if university and program are filled but status is empty, set status to "Researching". ` +
-      `If a deadline column is empty but other deadline info exists in notes, extract it. ` +
-      `If a boolean column (like "GRE Required" or "Applied") is blank, infer from context. ` +
-      `Only fill cells where you have reasonable confidence. Skip cells you can't infer. ` +
-      `Use update_row to fill each cell. Report what you filled and what you skipped. ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
-  {
-    id: "row-summaries",
-    title: "Add a summary for each row",
-    description:
-      "Creates a Summary column and writes a one-line plain-English description of each application's current state — great for quick scanning.",
-    group: "transform",
-    build: (ctx) =>
-      `Add a new "Summary" text column to ${target(ctx)}, then read all rows and write a concise ` +
-      `one-line summary for each row (max 100 characters). The summary should capture the most important ` +
-      `current state, for example: "MIT CS PhD — applied Nov 15, waiting for response" or ` +
-      `"Prof. Chen at Stanford — emailed, no reply yet, deadline Dec 1". ` +
-      `Use the row's actual data, not generic text. Each summary must be unique to its row. ` +
-      `Columns in this sheet: ${columnList(ctx.columns)}.`,
-  },
-
-  // ── Selection-aware (shown only with a selection / focused cell) ──
-  {
-    id: "compare-selected",
-    title: "Compare these rows side by side",
-    description:
-      "Creates a detailed comparison of your selected rows highlighting key differences in deadlines, funding, status, and requirements so you can make a decision.",
-    group: "selection",
-    build: (ctx) =>
-      `I have selected ${ctx.selectionCount} row(s) in ${target(ctx)}.` +
-      `${ctx.selectionSummary ? ` ${ctx.selectionSummary}.` : ""} ` +
-      `Read all rows, then compare ONLY the selected rows side by side. ` +
-      `Create a comparison covering: ` +
-      `1. Key facts (university, program, professor if available) ` +
-      `2. Deadlines — which is soonest? ` +
-      `3. Funding/scholarships — which offers more? ` +
-      `4. Status — where is each application in the process? ` +
-      `5. Missing info — which one has more gaps? ` +
-      `Present as a markdown comparison table, then give a brief recommendation on which to prioritize. ` +
-      `Columns available: ${columnList(ctx.columns)}.`,
-  },
+  // ── This Row (needs a focused cell) ────────────────────────────────
   {
     id: "fill-cell",
     title: "Smart-fill this cell",
     description:
-      "Reads the data in this row and intelligently suggests what should go in the cell you're focused on, then offers to fill it in for you.",
-    group: "selection",
+      "Reads this row's other data and suggests a value for the cell you're focused on, then offers to write it in — or tells you if there isn't enough context to suggest anything.",
+    group: "row",
     build: (ctx) => {
       const cell = ctx.focusedCell;
       if (!cell) {
-        return `Look at ${target(ctx)} and suggest a value for ` +
-          `the most important empty cell in the top row. Columns: ${columnList(ctx.columns)}.`;
+        return `Focus a cell first, then ask me to smart-fill it. Columns in ${target(ctx)}: ${columnList(ctx.columns)}.`;
       }
-      return `Look at the "${cell.colName}" cell in row ${cell.rowIndex + 1} of ${target(ctx)}. ` +
-        `Read that row's other data, then propose a sensible value for the "${cell.colName}" cell ` +
-        `and offer to write it in. Columns in this sheet: ${columnList(ctx.columns)}.`;
+      return (
+        `Using ONLY the actual data shown for row ${cell.rowIndex + 1} in ${rowTarget(ctx)}, propose a sensible ` +
+        `value for the "${cell.colName}" cell in that row and offer to write it in with update_row. ` +
+        `If you do not have this row's real data in view, or the row's other cells don't give you enough to infer ` +
+        `a confident value, say so plainly and name what's missing instead of guessing. ` +
+        `Columns in this sheet: ${columnList(ctx.columns)}.`
+      );
     },
+  },
+  {
+    id: "row-summary",
+    title: "Summarize this row",
+    description:
+      "Writes one plain-English sentence describing this row's current state — e.g. \"MIT CS PhD — applied Nov 15, no response yet\" — using only this row's real data.",
+    group: "row",
+    build: (ctx) =>
+      `Using ONLY the actual data shown for row ${focusedRowNumber(ctx)} in ${rowTarget(ctx)}, add a "Summary" ` +
+      `text column if it doesn't already exist, then write one plain-English sentence (max 20 words) describing ` +
+      `that row's current state, e.g. "MIT CS PhD — applied Nov 15, no response yet". Write it into that one row only. ` +
+      `If you do not have this row's real data in view, or the row has no data yet to summarize, say so plainly ` +
+      `instead of inventing a summary. Columns in this sheet: ${columnList(ctx.columns)}.`,
+  },
+  {
+    id: "row-email-draft",
+    title: "Draft an email for this row",
+    description:
+      "Writes one personalized outreach email for this row's university/professor/program, using only what's actually in the row — and tells you if there's not enough there to personalize it.",
+    group: "row",
+    build: (ctx) =>
+      `Using ONLY the actual data shown for row ${focusedRowNumber(ctx)} in ${rowTarget(ctx)}, add an "Email Draft" ` +
+      `text column if it doesn't already exist, then write ONE personalized first-contact email (120-180 words, ` +
+      `professional, concise) for that row only, referencing its real university/professor/program values. Do not ` +
+      `write emails for any other row. If this row doesn't have enough identifying information (e.g. no university ` +
+      `or professor name) to personalize an email, say so plainly and name what's missing instead of writing a ` +
+      `generic one. Columns in this sheet: ${columnList(ctx.columns)}.`,
+  },
+  {
+    id: "row-next-step",
+    title: "What's next for this row?",
+    description:
+      "Looks at this one row's deadline, status, and outreach fields and tells you the single next action to take — or says there isn't enough tracked yet to suggest one.",
+    group: "row",
+    build: (ctx) =>
+      `Using ONLY the actual data shown for row ${focusedRowNumber(ctx)} in ${rowTarget(ctx)}, tell me the single ` +
+      `most important next action for this application, e.g. "Follow up with Prof. X — no response in 9 days" or ` +
+      `"Submit before the Dec 1 deadline". Base it strictly on this row's deadline, status, and outreach fields — ` +
+      `nothing invented. If this row doesn't have enough tracked data (no deadline, no status, no outreach info) to ` +
+      `suggest a concrete next step, say so plainly instead of giving generic advice. ` +
+      `Columns in this sheet: ${columnList(ctx.columns)}.`,
+  },
+
+  // ── This Column (needs a focused cell, used for its column name) ───
+  {
+    id: "column-missing",
+    title: "Find rows missing this column",
+    description:
+      "Checks the column you're focused on and lists every row where it's empty, so you know exactly what to fill in.",
+    group: "column",
+    build: (ctx) => {
+      const col = ctx.focusedCell?.colName;
+      if (!col) {
+        return `Focus a cell in a column first, then ask me to find rows missing that column. Columns in ${target(ctx)}: ${columnList(ctx.columns)}.`;
+      }
+      return (
+        `In ${target(ctx)}, filter rows where the "${col}" column is empty and list them by row number. ` +
+        `If the "${col}" column doesn't exist, or every row already has a value in it, tell me that directly ` +
+        `instead of listing unrelated rows. Columns in this sheet: ${columnList(ctx.columns)}.`
+      );
+    },
+  },
+  {
+    id: "column-breakdown",
+    title: "Break down this column's values",
+    description:
+      "Shows every distinct value in the focused column and how many rows have each one — useful for spotting duplicates or an uneven status spread.",
+    group: "column",
+    build: (ctx) => {
+      const col = ctx.focusedCell?.colName;
+      if (!col) {
+        return `Focus a cell in a column first, then ask me to break down its values. Columns in ${target(ctx)}: ${columnList(ctx.columns)}.`;
+      }
+      return (
+        `In ${target(ctx)}, get the unique values in the "${col}" column and how many rows have each one. Call out ` +
+        `any value that appears in more than one row (a likely duplicate) and how many rows have no value at all. ` +
+        `If the "${col}" column doesn't exist, tell me that directly. Columns in this sheet: ${columnList(ctx.columns)}.`
+      );
+    },
+  },
+
+  // ── Compare (needs 2+ selected rows) ────────────────────────────────
+  {
+    id: "compare-selected",
+    title: "Compare selected rows",
+    description:
+      "Creates a side-by-side comparison of the rows you've selected (2-5 works best) — deadlines, funding, status, and what's missing — with a recommendation on which to prioritize.",
+    group: "compare",
+    build: (ctx) => {
+      const rowNumbers = ctx.selectedRowIndices.map((i) => i + 1).join(", ");
+      return (
+        `Using ONLY the actual data shown for rows ${rowNumbers} in ${selectedRowsTarget(ctx)}, compare exactly ` +
+        `those rows side by side and nothing else. Cover: key identifying facts, deadlines (which is soonest), ` +
+        `funding/scholarships (which offers more), status, and which has more missing information. Present as a ` +
+        `markdown table, then one line recommending which to prioritize. If any of these rows' data is not ` +
+        `available to you, say so by row number instead of guessing its contents. ` +
+        `Columns available: ${columnList(ctx.columns)}.`
+      );
+    },
+  },
+
+  // ── Deadlines (single-purpose column scan, always available) ───────
+  {
+    id: "deadline-risk",
+    title: "What deadlines are coming up?",
+    description:
+      "Scans the deadline column for what's due in the next 45 days and flags anything overdue — tells you plainly if this sheet doesn't track deadlines yet.",
+    group: "deadlines",
+    build: (ctx) =>
+      `Show me all upcoming deadlines in ${target(ctx)} for the next 45 days, and separately flag anything overdue ` +
+      `with a date that already passed. Sort soonest-first, including each row's identifying info (university/` +
+      `professor/program) and the date. If this sheet has no deadline-type column, tell me that directly instead ` +
+      `of treating an unrelated column as a deadline. Columns available: ${columnList(ctx.columns)}.`,
   },
 ];
 
@@ -253,7 +288,8 @@ export function buildAskAiContext(args: {
     .filter((c) => c.type !== "group")
     .map((c) => ({ name: c.name, type: c.type }));
 
-  const selectionCount = selectedRows.size;
+  const selectedRowIndices = Array.from(selectedRows).sort((a, b) => a - b);
+  const selectionCount = selectedRowIndices.length;
   let selectionSummary: string | undefined;
   if (selectionCount > 0) {
     selectionSummary = `${selectionCount} row${selectionCount > 1 ? "s" : ""} selected`;
@@ -270,13 +306,24 @@ export function buildAskAiContext(args: {
     columns: dataColumns,
     rowCount: rows.length,
     selectionCount,
+    selectedRowIndices,
     selectionSummary,
     focusedCell,
   };
 }
 
-/** Prompts that should only render when the user has a selection or focus. */
+/**
+ * Prompts gated on sheet state (SCHOLARDOCX-0179): "row"/"column" prompts
+ * need a focused cell (that's the only reliable single-row/single-column
+ * reference point today); "compare" needs 2+ selected rows; "deadlines" is
+ * always available (single-purpose column scan, safe at any sheet size).
+ */
 export function visiblePrompts(ctx: AskAiContext): AskAiPrompt[] {
-  const hasSelection = ctx.selectionCount > 0 || !!ctx.focusedCell;
-  return ASK_AI_PROMPTS.filter((p) => p.group !== "selection" || hasSelection);
+  const hasFocusedCell = !!ctx.focusedCell;
+  const hasCompareSelection = ctx.selectedRowIndices.length >= 2;
+  return ASK_AI_PROMPTS.filter((p) => {
+    if (p.group === "row" || p.group === "column") return hasFocusedCell;
+    if (p.group === "compare") return hasCompareSelection;
+    return true;
+  });
 }

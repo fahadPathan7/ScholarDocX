@@ -17,10 +17,195 @@ MAX_VISUAL_BYTES = 4_000_000
 ALLOWED_CONTENT_TYPES = ("text/html", "text/plain", "application/xhtml+xml")
 ALLOWED_VISUAL_CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp")
 VISUAL_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
-FACULTY_HINTS = ("faculty", "people", "staff", "professor", "profile", "directory", "lab")
-NAME_PATTERN = re.compile(
-    r"^(?:Dr\.?\s+|Prof\.?\s+)?([A-Z][A-Za-z'`.-]+(?:\s+[A-Z][A-Za-z'`.-]+){1,3})$"
+FACULTY_HINTS = (
+    "faculty", "people", "staff", "professor", "profile", "directory", "lab",
+    # Elsevier Pure portals (used by many universities) serve /persons/<name>;
+    # /person/, /member/, /team/, /employee/ and /researcher/ are also common.
+    # Requiring only the original seven silently skipped all of them.
+    "person", "member", "team", "employee", "researcher", "academic", "author",
 )
+
+# Honorifics stripped before matching. Without this, "Professor John Smith"
+# matched as a *name* and the title was stored in display_name.
+HONORIFIC_PATTERN = re.compile(
+    r"^\s*(?:"
+    r"prof(?:\.|essor)?|dr\.?|doctor|assoc(?:\.|iate)?|asst\.?|assistant"
+    r"|mr\.?|mrs\.?|ms\.?|miss|sir|dame|rev\.?|hon\.?"
+    r"|a/?prof\.?|em(?:\.|eritus)?|lect(?:\.|urer)?|univ\.?"
+    r")\s+",
+    re.IGNORECASE,
+)
+# Trailing post-nominals ("John Smith, PhD", "Jane Doe MD, FRSC").
+POSTNOMINAL_PATTERN = re.compile(
+    r"[,\s]+(?:ph\.?d|m\.?d|d\.?phil|sc\.?d|m\.?sc|m\.?a|b\.?sc|b\.?a"
+    r"|frs[a-z]*|fieee|facm|cpa|p\.?eng|jr|sr|i{1,3}|iv)\.?\s*$",
+    re.IGNORECASE,
+)
+
+# A single name word. Unicode-aware by construction:
+#   \w with re.UNICODE covers accented Latin (María, Müller, Lefèvre, Å),
+#   CJK (李明), Cyrillic, Greek, and Devanagari.
+# The leading character may be uppercase OR a lowercase nobiliary particle
+# (van, de, der, dos, di, von, bin, al-) which legitimately appears mid-name.
+# Digits and underscore are excluded so link labels like "Room 214" are rejected.
+_NAME_WORD = r"(?:[^\W\d_][\w'`.\-’]*)"
+NAME_PATTERN = re.compile(
+    rf"^({_NAME_WORD}(?:[\s ]+{_NAME_WORD}){{1,4}})$",
+    re.UNICODE,
+)
+# Single-token names (common for CJK, e.g. 李明) are accepted separately, but
+# only when the token is non-Latin — a lone Latin word like "Directory" or
+# "Publications" is far more likely to be navigation than a person.
+CJK_NAME_PATTERN = re.compile(
+    r"^([㐀-䶿一-鿿぀-ヿ가-힯]{2,12})$"
+)
+# Link labels that pass the shape test but are never people.
+NON_NAME_LABELS = {
+    "read more", "learn more", "view profile", "contact us", "our people",
+    "faculty directory", "research faculty", "all faculty", "back to top",
+    "skip to content", "privacy policy", "terms of use", "site map",
+    "graduate program", "undergraduate program", "news events", "apply now",
+}
+
+# Lowercase particles that legitimately appear inside a personal name
+# ("Ludwig van Beethoven", "Ana de la Cruz", "Ibn al-Haytham").
+NAME_PARTICLES = {
+    "van", "von", "de", "del", "della", "der", "den", "di", "da", "das",
+    "dos", "du", "la", "le", "el", "al", "bin", "ibn", "ter", "ten", "af",
+    "av", "bint", "san", "santa", "st", "mac", "mc", "op", "'t",
+}
+
+# Function words. A personal name does not contain them; a page heading or a
+# navigation label almost always does ("Message from the Chair", "Masters in
+# Computer Science", "Skip to main content", "Faculty and Staff").
+NAME_STOPWORDS = {
+    "and", "or", "for", "the", "an", "of", "in", "to", "from", "with", "at",
+    "on", "by", "about", "into", "via", "our", "your", "their", "its", "my",
+    "this", "that", "these", "those", "us", "we", "you", "all", "more",
+    "here", "how", "what", "why", "when", "where", "who", "which", "is",
+    "are", "was", "were", "be", "&",
+}
+
+# Institutional nouns. A label containing one of these describes a page, an
+# organisation or a document — never a person.
+#
+# SCHOLARDOCX-0190: without this, every university site's own chrome was
+# harvested as faculty. One live Discovery run reported "CHNG Brochure",
+# "Faculty Resources", "Dean's Office Staff", "Council Members", "Personnel
+# Profile", "Online Programs" and "CLICK HERE FOR FULL RESUME" among its
+# "79 verified professors".
+#
+# Deliberately excluded because they are also real surnames: page, read, main,
+# dean, chair, church, young, park, bishop, major. Those labels are caught by
+# the stopword rule or by their companion tokens instead.
+NON_PERSON_TOKENS = {
+    # organisational units and pages
+    "faculty", "staff", "personnel", "directory", "department", "departments",
+    "school", "schools", "college", "university", "universities", "institute",
+    "institution", "center", "centre", "division", "office", "offices",
+    "council", "committee", "board", "administration", "campus", "portal",
+    "library", "dashboard", "homepage", "sitemap", "site", "menu",
+    "navigation", "index", "overview", "mission", "vision", "welcome",
+    "about", "home",
+    # programmes, degrees and courses
+    "program", "programs", "programme", "programmes", "curriculum", "course",
+    "courses", "degree", "degrees", "certificate", "certificates", "minor",
+    "masters", "bachelors", "bachelor", "doctoral", "doctorate", "phd",
+    "undergraduate", "graduate", "postgraduate", "admission", "admissions",
+    "tuition", "scholarship", "scholarships", "syllabus", "catalog",
+    "catalogue", "handbook", "seminar", "seminars", "colloquium", "workshop",
+    "conference",
+    # documents, actions and chrome
+    "brochure", "resume", "cv", "vitae", "resource", "resources", "profile",
+    "profiles", "publication", "publications", "project", "projects",
+    "research", "areas", "team", "teams", "group", "groups", "lab", "labs",
+    "laboratory", "people", "member", "members", "student", "students",
+    "alumni", "career", "careers", "job", "jobs", "employment", "news",
+    "event", "events", "calendar", "newsletter", "announcement",
+    "announcements", "message", "contact", "contacts", "information", "info",
+    "click", "skip", "content", "submit", "download", "downloads", "form",
+    "forms", "link", "links", "faq", "faqs", "help", "search", "login",
+    "logout", "apply", "application", "applications", "give", "giving",
+    "donate", "support", "services", "service", "gallery", "photo", "photos",
+    "map", "maps", "directions", "policy", "privacy", "terms", "list",
+    "listing", "view", "next", "previous", "now", "online", "virtual",
+    # role words that survive honorific stripping mid-label
+    "professor", "professors", "lecturer", "lecturers", "instructor",
+    "instructors", "adjunct", "emeritus", "emerita", "emeriti", "provost",
+    "chancellor", "president", "registrar", "coordinator", "director",
+    "administrator", "advisor", "advisors", "fellowship",
+}
+
+
+def _looks_like_person(name: str) -> bool:
+    """Reject labels whose *words* say "page heading", not "person".
+
+    Runs after the shape test in `clean_person_name`, which only proves the
+    label is a run of capitalised words — a bar that "Graduate Faculty" and
+    "Council Members" clear just as easily as "Ayush Goyal".
+    """
+    tokens = [
+        re.sub(r"[^\w'’\-]", "", token).lower()
+        for token in name.split()
+    ]
+    tokens = [token for token in tokens if token]
+    if len(tokens) < 2:
+        # Single-token names only reach here through CJK_NAME_PATTERN, which
+        # is already narrow enough.
+        return True
+    for token in tokens:
+        # A middle initial ("Ali A. Pilehvari") is a single letter, which would
+        # otherwise collide with the article "a".
+        if len(token) == 1 or token in NAME_PARTICLES:
+            continue
+        if token in NAME_STOPWORDS or token in NON_PERSON_TOKENS:
+            return False
+    # A name made only of particles is not a name.
+    return any(token not in NAME_PARTICLES for token in tokens)
+
+
+def clean_person_name(label: str) -> str | None:
+    """Normalise a link label to a bare personal name, or None if it isn't one.
+
+    Handles honorifics, post-nominals, "Last, First" directory ordering, and
+    Unicode scripts. Returns None for navigation text and non-name strings.
+    """
+    text = re.sub(r"\s+", " ", (label or "")).strip()
+    if not text:
+        return None
+
+    previous = None
+    while previous != text:
+        previous = text
+        text = HONORIFIC_PATTERN.sub("", text).strip()
+        text = POSTNOMINAL_PATTERN.sub("", text).strip()
+
+    # Directory listings frequently use "Smith, John" — flip to natural order.
+    if text.count(",") == 1:
+        surname, _, given = text.partition(",")
+        surname, given = surname.strip(), given.strip()
+        if surname and given and " " not in surname.strip():
+            text = f"{given} {surname}"
+    text = text.strip(" ,;:.-")
+    if not text or normalize_label(text) in NON_NAME_LABELS:
+        return None
+    if CJK_NAME_PATTERN.match(text):
+        return text
+    match = NAME_PATTERN.match(text)
+    if not match:
+        return None
+    candidate = match.group(1).strip()
+    # Require at least one capitalised or non-Latin token so all-lowercase
+    # navigation ("view all people") cannot slip through as a name.
+    if not any(word[:1].isupper() or not word[:1].isascii() for word in candidate.split()):
+        return None
+    if not _looks_like_person(candidate):
+        return None
+    return candidate
+
+
+def normalize_label(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 
 
@@ -277,11 +462,10 @@ class PublicCrawler:
         source_host = urlparse(page["url"]).netloc
         for link in page.get("links", []):
             label = re.sub(r"\s+", " ", link.get("text", "")).strip()
-            match = NAME_PATTERN.match(label)
+            name = clean_person_name(label)
             path = urlparse(link["url"]).path.lower()
-            if not match or not any(hint in path for hint in FACULTY_HINTS):
+            if not name or not any(hint in path for hint in FACULTY_HINTS):
                 continue
-            name = match.group(1).strip()
             key = name.lower()
             if key in seen:
                 continue

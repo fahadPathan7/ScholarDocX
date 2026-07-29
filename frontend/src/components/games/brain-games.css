@@ -1,0 +1,1025 @@
+/* Brain Games (SCHOLARDOCX-0198).
+   Uses the established ScholarDocX palette — paper, ink, teal — so a break
+   still looks like it belongs in the workspace. */
+
+.brain-games {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 22px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.brain-games-header {
+  padding: 18px 22px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(47, 125, 116, 0.12), transparent 58%),
+    linear-gradient(145deg, #ffffff, #eef6f2);
+}
+
+.brain-games-eyebrow {
+  color: #2f7d74;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brain-games-header h2 {
+  margin: 4px 0 5px;
+  color: #17201d;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+}
+
+.brain-games-header p {
+  margin: 0;
+  max-width: 54ch;
+  color: #65756d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.brain-games-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.brain-games-picker button {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  text-align: left;
+  border: 1px solid rgba(31, 101, 94, 0.14);
+  border-radius: 13px;
+  background: #fff;
+  color: #5b706d;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.brain-games-picker button:hover {
+  border-color: rgba(32, 123, 111, 0.35);
+}
+
+.brain-games-picker button.active {
+  color: #17201d;
+  border-color: rgba(32, 123, 111, 0.45);
+  background: linear-gradient(145deg, #fff, #edf8f4);
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.08);
+}
+
+.brain-games-picker strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.brain-games-picker small {
+  display: block;
+  margin-top: 2px;
+  color: #70827f;
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+/* Shown after choosing a game and before it runs. Choosing should not commit
+   you to playing — and sudoku's generator is real work to fire off just from
+   browsing the list. */
+.game-start {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  align-items: center;
+  padding: 44px 24px;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 32, 29, 0.05);
+  text-align: center;
+}
+
+.game-start-mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.game-start h3 {
+  margin: 4px 0 0;
+  color: #17201d;
+  font-size: 1.12rem;
+}
+
+.game-start p {
+  margin: 0;
+  max-width: 52ch;
+  color: #65756d;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.game-start-btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+.game-start-btn:hover {
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.22);
+}
+
+.game-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid rgba(31, 101, 94, 0.13);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23, 32, 29, 0.05);
+}
+
+.game-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.game-difficulty,
+.game-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.game-difficulty {
+  padding: 4px;
+  border: 1px solid rgba(37, 102, 96, 0.12);
+  border-radius: 11px;
+  background: #f3f7f5;
+}
+
+.game-difficulty button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #60736f;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-difficulty button.active {
+  color: #17201d;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(27, 79, 74, 0.08);
+}
+
+.game-difficulty button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-actions button,
+.game-reset {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 13px;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 9px;
+  background: #fff;
+  color: #1f4f5a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-actions button:hover:not(:disabled),
+.game-reset:hover:not(:disabled) {
+  background: #f2f8f5;
+}
+
+.game-actions button:disabled,
+.game-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-status {
+  margin: 0;
+  color: #65756d;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.game-status.finished {
+  color: #1f4f5a;
+  font-size: 1rem;
+}
+
+.game-score {
+  display: flex;
+  gap: 22px;
+}
+
+.game-score span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #70827f;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.game-score strong {
+  color: #17201d;
+  font-size: 1.15rem;
+}
+
+.game-footnote {
+  margin: 0;
+  max-width: 48ch;
+  color: #93a5a1;
+  font-size: 0.73rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* --- Tic-tac-toe --- */
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 8px;
+}
+
+.ttt-cell {
+  display: grid;
+  height: 76px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 12px;
+  background: #f8fbf9;
+  color: #17201d;
+  font-size: 1.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.ttt-cell:hover:not(:disabled) {
+  border-color: rgba(32, 123, 111, 0.45);
+  background: #edf8f4;
+}
+
+.ttt-cell:disabled {
+  cursor: default;
+}
+
+.ttt-cell.filled.x { color: #1f4f5a; }
+.ttt-cell.filled.o { color: #b06a2c; }
+
+.ttt-cell.winning {
+  border-color: #38a37f;
+  background: #e1f2ed;
+  animation: ttt-win 460ms ease;
+}
+
+@keyframes ttt-win {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* --- Sudoku --- */
+
+.sudoku-meta {
+  display: flex;
+  gap: 16px;
+  color: #70827f;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.sudoku-meta .bad { color: #8c3b32; }
+.sudoku-meta .good { color: #246d63; }
+
+.sudoku-building {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 60px 20px;
+  color: #93a5a1;
+}
+
+.sudoku-building p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.sudoku-board {
+  display: grid;
+  grid-template-columns: repeat(9, 40px);
+  border: 2px solid #17201d;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #17201d;
+  gap: 1px;
+}
+
+.sudoku-cell {
+  display: grid;
+  height: 40px;
+  place-items: center;
+  border: none;
+  background: #fff;
+  color: #2f6d7a;
+  font-size: 1.02rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The 3x3 block boundaries, drawn as thicker interior edges. */
+.sudoku-cell.edge-right { box-shadow: inset -2px 0 0 #17201d; }
+.sudoku-cell.edge-bottom { box-shadow: inset 0 -2px 0 #17201d; }
+.sudoku-cell.edge-right.edge-bottom { box-shadow: inset -2px 0 0 #17201d, inset 0 -2px 0 #17201d; }
+
+.sudoku-cell.given {
+  color: #17201d;
+  background: #f4f7f5;
+  font-weight: 800;
+  cursor: default;
+}
+
+.sudoku-cell.peer { background: #eef6f2; }
+.sudoku-cell.given.peer { background: #e7efeb; }
+.sudoku-cell.same { background: #ddeee8; }
+
+.sudoku-cell.selected {
+  background: #c9e6dc;
+  box-shadow: inset 0 0 0 2px #2f7d74;
+}
+
+.sudoku-cell.wrong {
+  color: #8c3b32;
+  background: #fbe9e6;
+}
+
+/* Candidate notes: a 3x3 sub-grid inside the square, laid out so a given
+   digit always sits in the same corner whether or not its neighbours are
+   pencilled in — the position is what makes them scannable. */
+.sudoku-notes {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  color: #7d918d;
+  font-size: 0.54rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sudoku-notes i {
+  display: grid;
+  place-items: center;
+  font-style: normal;
+}
+
+.sudoku-cell.selected .sudoku-notes { color: #2f7d74; }
+
+.sudoku-keypad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* Notes mode: the keypad writes candidates, so it looks like the candidates. */
+.sudoku-keypad.noting button:not(.erase) {
+  border-style: dashed;
+  border-color: rgba(31, 101, 94, 0.4);
+  background: #f6faf8;
+  color: #4c6b66;
+  font-size: 0.8rem;
+}
+
+.sudoku-keypad button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 10px;
+  background: #fff;
+  color: #1f4f5a;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sudoku-keypad button:hover:not(:disabled) {
+  background: #edf8f4;
+}
+
+.sudoku-keypad button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-score.inline {
+  gap: 18px;
+}
+
+/* --- 2048 --- */
+
+.g2048-board {
+  display: grid;
+  grid-template-columns: repeat(4, 70px);
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #d9e5e0;
+  touch-action: none;
+}
+
+.g2048-tile {
+  display: grid;
+  height: 70px;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef3f1;
+  color: #17201d;
+  font-size: 1.32rem;
+  font-weight: 800;
+}
+
+.g2048-tile.empty { background: #e6eeea; }
+
+/* Warmer and darker as the value climbs, so progress is legible at a glance. */
+.g2048-tile.v2    { background: #eef6f2; }
+.g2048-tile.v4    { background: #ddeee8; }
+.g2048-tile.v8    { background: #ffe9cd; color: #8a5a15; }
+.g2048-tile.v16   { background: #ffd9ab; color: #8a5a15; }
+.g2048-tile.v32   { background: #fcc389; color: #7a4a10; }
+.g2048-tile.v64   { background: #f6a866; color: #fff; }
+.g2048-tile.v128  { background: #4fae90; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v256  { background: #38a37f; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v512  { background: #2f7d74; color: #fff; font-size: 1.16rem; }
+.g2048-tile.v1024 { background: #1f4f5a; color: #fff; font-size: 0.98rem; }
+.g2048-tile.v2048 { background: #17201d; color: #f8dfa3; font-size: 0.98rem; }
+
+/* A static grid gives no clue what a swipe actually did. The merge swells,
+   the new tile grows in — enough to follow the move, over before it is in
+   the way of the next one. */
+.g2048-tile.merged { animation: g2048-pop 200ms ease; }
+.g2048-tile.fresh { animation: g2048-appear 200ms ease; }
+
+@keyframes g2048-pop {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+@keyframes g2048-appear {
+  0% { transform: scale(0.4); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- Minesweeper --- */
+
+.mine-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.mine-board {
+  display: grid;
+  gap: 2px;
+  margin: 0 auto;
+  width: fit-content;
+}
+
+.mine-cell {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 5px;
+  background: #e8f0ec;
+  color: #17201d;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mine-cell:hover:not(.open) { background: #dbe9e3; }
+
+.mine-cell.open {
+  border-color: rgba(31, 101, 94, 0.09);
+  background: #fbfdfc;
+  cursor: default;
+}
+
+.mine-cell.flagged { color: #8c3b32; background: #fdf0ec; }
+.mine-cell.mine { background: #f6d3cd; color: #8c3b32; }
+
+.mine-cell.n1 { color: #2f6d7a; }
+.mine-cell.n2 { color: #3b6d11; }
+.mine-cell.n3 { color: #a32d2d; }
+.mine-cell.n4 { color: #534ab7; }
+.mine-cell.n5 { color: #8a5a15; }
+.mine-cell.n6 { color: #0f6e56; }
+.mine-cell.n7 { color: #17201d; }
+.mine-cell.n8 { color: #5f5e5a; }
+
+/* A number whose flags are all placed can be double-clicked to open the rest
+   of its neighbours. Marking it is the only way a player finds out that is
+   possible without being told twice. */
+.mine-cell.chordable {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(47, 125, 116, 0.55);
+}
+
+.mine-cell.chordable:hover { background: #dff0e9; }
+
+/* Toggled-on toolbar buttons: Sudoku's Notes, Minesweeper's Flag mode. */
+.game-actions button.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+}
+
+/* The generic hover above sets a near-white background and is *more*
+   specific than `.active` (it carries an extra pseudo-class), so without
+   this an active button hovers to white-on-white and disappears. Needs to
+   out-specify that rule, hence `.active` and `:hover` together. */
+.game-actions button.active:hover:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(135deg, #2a5f6b, #37907f);
+}
+
+/* --- Word of the day --- */
+
+.word-day,
+.word-remaining {
+  color: #70827f;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.word-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.word-row {
+  display: flex;
+  gap: 6px;
+}
+
+.word-tile {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 2px solid rgba(31, 101, 94, 0.16);
+  border-radius: 8px;
+  background: #fff;
+  color: #17201d;
+  font-size: 1.28rem;
+  font-weight: 800;
+}
+
+.word-tile.typed { border-color: #2f7d74; }
+.word-tile.green { border-color: transparent; background: #38a37f; color: #fff; }
+.word-tile.amber { border-color: transparent; background: #d99a3d; color: #fff; }
+.word-tile.grey  { border-color: transparent; background: #b4b2a9; color: #fff; }
+
+.word-grid.shake { animation: word-shake 0.36s ease; }
+
+@keyframes word-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* The row turns over letter by letter (the delay is set per tile inline).
+   All five marks appearing at once reads as the board changing state rather
+   than as an answer being given.
+
+   The keyframes carry the *unmarked* colours through the first half and then
+   let go, so the mark lands as the tile turns edge-on. `backwards` applies
+   that first frame during the tile's delay too — without it a tile would sit
+   showing its answer while waiting its turn, which defeats the point. */
+.word-tile.revealing {
+  animation: word-flip 340ms ease backwards;
+}
+
+@keyframes word-flip {
+  0%, 49% {
+    border-color: rgba(31, 101, 94, 0.16);
+    background: #fff;
+    color: #17201d;
+  }
+  0% { transform: rotateX(0deg); }
+  49% { transform: rotateX(90deg); }
+  50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+
+.word-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.word-key-row {
+  display: flex;
+  gap: 4px;
+}
+
+.word-key-row button {
+  min-width: 30px;
+  height: 42px;
+  padding: 0 7px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-radius: 6px;
+  background: #fff;
+  color: #17201d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.word-key-row button.wide { min-width: 44px; }
+.word-key-row button:hover { background: #edf8f4; }
+.word-key-row button.green { border-color: transparent; background: #38a37f; color: #fff; }
+.word-key-row button.amber { border-color: transparent; background: #d99a3d; color: #fff; }
+.word-key-row button.grey  { border-color: transparent; background: #cfd5d2; color: #6b7a76; }
+
+.brain-games-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 60px 24px;
+  color: #70827f;
+  border: 1px dashed rgba(31, 101, 94, 0.25);
+  border-radius: 16px;
+  background: #fcf9f2;
+  text-align: center;
+}
+
+.brain-games-locked h3 {
+  margin: 0;
+  color: #17201d;
+  font-size: 1rem;
+}
+
+.brain-games-locked p {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 560px) {
+  .sudoku-board { grid-template-columns: repeat(9, 34px); }
+  .sudoku-cell { height: 34px; font-size: 0.92rem; }
+  .ttt-board { grid-template-columns: repeat(3, 64px); }
+  .ttt-cell { height: 64px; font-size: 1.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-games-picker button,
+  .ttt-cell {
+    transition: none;
+  }
+
+  /* The feedback these carry is also in the colours and the status line, so
+     removing the motion costs nothing. Tiles must still be visible — the word
+     row is mid-flip at 90 degrees, so the transform has to be cleared, not
+     just the animation. */
+  .g2048-tile.merged,
+  .g2048-tile.fresh,
+  .ttt-cell.winning,
+  .word-tile.revealing,
+  .word-grid.shake {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* --- How to play modal --- */
+/* Scoped by .game-rules-panel so these rules never leak into other modals.
+   The backdrop + panel base come from the global .modal-panel / <Modal>. */
+
+.game-rules-panel {
+  width: min(440px, 92vw);
+  max-height: 80vh;
+}
+
+.game-rules-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(31, 101, 94, 0.12);
+  background: linear-gradient(145deg, #ffffff, #eef6f2);
+}
+
+.game-rules-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: linear-gradient(140deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.game-rules-eyebrow {
+  display: block;
+  color: #2f7d74;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.game-rules-head h3 {
+  margin: 2px 0 0;
+  color: #17201d;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.game-rules-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.game-rules-goal,
+.game-rules-tip {
+  margin: 0;
+  color: #46544f;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.game-rules-goal strong,
+.game-rules-tip strong {
+  color: #17201d;
+}
+
+.game-rules-tip {
+  padding: 11px 14px;
+  border: 1px solid rgba(31, 101, 94, 0.16);
+  border-left: 3px solid #2f7d74;
+  border-radius: 9px;
+  background: #f5faf8;
+}
+
+.game-rules-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: #46544f;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.game-rules-steps li {
+  margin-bottom: 7px;
+}
+
+.game-rules-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.game-rules-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(31, 101, 94, 0.12);
+}
+
+.game-rules-close {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+.game-rules-close:hover {
+  box-shadow: 0 8px 20px rgba(28, 91, 84, 0.22);
+}
+
+/* ==========================================================================
+   Pattern Memory (SCHOLARDOCX-0199)
+   ========================================================================== */
+
+.pattern-memory-game {
+  width: 100%;
+}
+
+.pattern-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  color: #60736f;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pattern-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pattern-lives {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.heart-active {
+  color: #e11d48;
+  fill: #e11d48;
+}
+
+.heart-lost {
+  color: #cbd5e1;
+  fill: transparent;
+}
+
+.pattern-memory-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.status-memorize {
+  color: #0f766e;
+  font-size: 0.95rem;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+
+.status-recall {
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.status-success-banner,
+.status-gameover-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.status-success-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.status-gameover-banner {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+.pattern-btn-next,
+.pattern-btn-restart {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.pattern-btn-next {
+  background: linear-gradient(135deg, #166534, #22c55e);
+}
+
+.pattern-btn-restart {
+  background: linear-gradient(135deg, #9f1239, #f43f5e);
+}
+
+.pattern-btn-next:hover,
+.pattern-btn-restart:hover {
+  transform: scale(1.04);
+}
+
+.pattern-memory-board {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-size, 3), 1fr);
+  grid-template-rows: repeat(var(--grid-size, 3), 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 1 / 1;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.pattern-memory-cell {
+  background: #e2e8f0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 200ms ease, transform 120ms ease, box-shadow 200ms ease;
+}
+
+.pattern-memory-cell:hover:not(:disabled) {
+  background: #cbd5e1;
+  transform: scale(1.02);
+}
+
+.pattern-memory-cell.cell-memorize {
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
+  box-shadow: 0 0 14px rgba(20, 184, 166, 0.5);
+}
+
+.pattern-memory-cell.cell-correct {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.pattern-memory-cell.cell-wrong {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.pattern-memory-cell.cell-revealed {
+  background: #94a3b8;
+  opacity: 0.6;
+}
+

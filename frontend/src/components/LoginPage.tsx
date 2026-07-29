@@ -239,8 +239,13 @@ export function LoginPage() {
               <textarea id="inviteDesc" rows={3} maxLength={500} className="auth-input auth-textarea" value={inviteDesc} onChange={(e) => setInviteDesc(e.target.value)} />
             </div>
             <button type="submit" disabled={inviteLoading} className="auth-submit">
-              {inviteLoading ? "Submitting..." : "Submit Request"}
+              {inviteLoading ? (<><span className="auth-spinner" aria-hidden="true" />Submitting…</>) : "Submit Request"}
             </button>
+            {inviteLoading && (
+              <p className="auth-loading-note">
+                The first load after a period of inactivity may take up to a minute while the server wakes up.
+              </p>
+            )}
             <div className="auth-switch-row">
               <button type="button" onClick={() => setShowInviteRequest(false)} className="auth-link-btn muted">Back to login</button>
               <span className="auth-switch-sep">•</span>
@@ -286,8 +291,13 @@ export function LoginPage() {
                 />
               </div>
               <button type="submit" disabled={forgotLoading} className="auth-submit">
-                {forgotLoading ? "Submitting..." : "Submit Request"}
+                {forgotLoading ? (<><span className="auth-spinner" aria-hidden="true" />Submitting…</>) : "Submit Request"}
               </button>
+              {forgotLoading && (
+                <p className="auth-loading-note">
+                  The first load after a period of inactivity may take up to a minute while the server wakes up.
+                </p>
+              )}
               <div className="auth-switch-row">
                 <button type="button" onClick={() => setShowForgotPassword(false)} className="auth-link-btn muted">Back to login</button>
                 <span className="auth-switch-sep">•</span>
@@ -354,8 +364,13 @@ export function LoginPage() {
               </div>
 
               <button type="submit" disabled={loading} className="auth-submit">
-                {loading ? "Logging in..." : "Log In"}
+                {loading ? (<><span className="auth-spinner" aria-hidden="true" />Logging in…</>) : "Log In"}
               </button>
+              {loading && (
+                <p className="auth-loading-note">
+                  The first load after a period of inactivity may take up to a minute while the server wakes up.
+                </p>
+              )}
 
               <div className="auth-divider">
                 <span>or</span>

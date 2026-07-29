@@ -141,11 +141,19 @@ test-frontend-build: ## Verify frontend TypeScript compilation and build
 # Quality / Lint
 # ──────────────────────────────────────────────────────────
 
-# Full regression gate: both test suites + frontend build. This is the same
-# command the CI workflow (.github/workflows/ci.yml) runs, so a green `make
-# check` locally means CI will be green too.
+# Static guard: every external provider call must charge the user (BD-011).
+# Runs first in `check` because it is instant and catches the failure mode that
+# code review kept missing — billing that is present in the file but never on
+# the path taken (SCHOLARDOCX-0204).
+.PHONY: guard-billing
+guard-billing: ## Verify every provider call charges the user
+	@python3 scripts/check-provider-call-billing.py
+
+# Full regression gate: billing guard + both test suites + frontend build. This
+# is the same command the CI workflow (.github/workflows/ci.yml) runs, so a
+# green `make check` locally means CI will be green too.
 .PHONY: check
-check: test-backend test-frontend test-frontend-build ## Regression gate: both suites + build (matches CI)
+check: guard-billing test-backend test-frontend test-frontend-build ## Regression gate: guard + both suites + build (matches CI)
 
 # Alias for `check` — documents the exact command CI runs, in case you want to
 # reproduce a CI run locally without remembering the target name.

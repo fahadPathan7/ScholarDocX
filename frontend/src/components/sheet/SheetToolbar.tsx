@@ -2,14 +2,17 @@
 /*  SheetToolbar — actions row above the sheet grid                    */
 /* ------------------------------------------------------------------ */
 
-import { useState, useRef } from "react";
-import { ExternalLink, Mail, Plus, Settings, Search, EyeOff, X, Columns, Database, Download, Upload, Save, ListFilter, Rows3, Check, Calendar, Info } from "lucide-react";
+import { useRef, useState } from "react";
+import { Calendar, Check, Columns, Database, Download, ExternalLink, Eye, EyeOff, Keyboard, ListFilter, Mail, Palette, Pin, Plus, Rows3, Save, Search, Settings, Table2, Trash2, Upload, X } from "lucide-react";
 import type { ColumnDef, CellStyle } from "./sheetModel";
 import type { SheetView } from "./sheetFilters";
 import { useDialog } from "../DialogProvider";
 import { CellStyleBar } from "./CellStyleBar";
 import { AskAiMenuFromSheet } from "./AskAiMenu";
 import { DropdownPortal } from "./DropdownPortal";
+import { SheetMenu, SheetMenuDivider, SheetMenuItem, SheetMenuLabel, SheetMenuToggle } from "./SheetMenu";
+import { DENSITIES, type Density } from "./sheetGrid";
+import "./sheet-chrome.css";
 import type { RecordMap } from "../../lib/api";
 
 /* ------------------------------------------------------------------ */
@@ -26,10 +29,8 @@ export function SheetToolbarActions({
   sheetName,
   degreeType,
   onAskAi,
-  onExportCsv,
-  onImportCsv,
-  onSaveTemplate,
   focusedCell,
+  onClearFocus,
   selectedRows,
   rows,
   columns,
@@ -48,10 +49,8 @@ export function SheetToolbarActions({
   degreeType?: string;
   /** SCHOLARDOCX-0150: receives the built prompt message. */
   onAskAi: (message: string) => void;
-  onExportCsv: () => void;
-  onImportCsv: () => void;
-  onSaveTemplate: () => void;
   focusedCell: { rowIndex: number; colName: string } | null;
+  onClearFocus: () => void;
   selectedRows: Set<number>;
   rows: RecordMap[];
   columns: ColumnDef[];
@@ -60,9 +59,6 @@ export function SheetToolbarActions({
   bulkRowCellStyle: (rowIndices: number[], patch: CellStyle) => void;
   bulkClearRowFormatting: (rowIndices: number[]) => void;
 }) {
-  const [showDataMenu, setShowDataMenu] = useState(false);
-  const dataBtnRef = useRef<HTMLButtonElement>(null);
-
   const btnStyle: React.CSSProperties = { fontSize: '11px', padding: '4px 10px' };
 
   return (
@@ -87,6 +83,18 @@ export function SheetToolbarActions({
                   Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
                 </span>
               )}
+              {/* A selected cell had no visible way out — Escape worked only
+                  when the grid container happened to hold focus, so in
+                  practice the highlight was stuck. */}
+              <button
+                type="button"
+                className="sheet-cell-clear"
+                onClick={() => onClearFocus()}
+                title="Deselect this cell (Esc)"
+                aria-label="Deselect cell"
+              >
+                <X size={12} /> Deselect cell
+              </button>
               <CellStyleBar
                 style={displayStyle}
                 onChange={(patch) => {
@@ -110,44 +118,10 @@ export function SheetToolbarActions({
         })()
       )}
 
-      {/* Import / Export */}
-      <div className="data-menu-container" style={{ position: 'relative' }}>
-        <button
-          ref={dataBtnRef}
-          className={`secondary ${showDataMenu ? 'active' : ''}`}
-          onClick={() => setShowDataMenu(!showDataMenu)}
-          style={btnStyle}
-          title="Import/Export data"
-        >
-          <Database size={12} /> Import / Export
-        </button>
-        {showDataMenu && (
-          <DropdownPortal triggerRef={dataBtnRef} onOutsideClick={() => setShowDataMenu(false)}>
-            <div className="data-dropdown-menu" style={{
-              backgroundColor: 'var(--ui-paper-strong)',
-              border: '1px solid var(--ui-line)',
-              borderRadius: '6px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              padding: '4px',
-              width: '180px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px'
-            }}>
-              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onExportCsv(); }}>
-                <Download size={14} style={{ marginRight: '8px' }} /> Export CSV
-              </button>
-              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onImportCsv(); }}>
-                <Upload size={14} style={{ marginRight: '8px' }} /> Import CSV
-              </button>
-              <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }}></div>
-              <button className="text-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }} onClick={() => { setShowDataMenu(false); onSaveTemplate(); }}>
-                <Save size={14} style={{ marginRight: '8px' }} /> Save as Template
-              </button>
-            </div>
-          </DropdownPortal>
-        )}
-      </div>
+      {/* Import / Export used to live here as its own menu, duplicating the
+          Data menu in the toolbar below — two controls, different labels,
+          same three actions. Removed; "Save as Template" moved into Data,
+          which is where the rest of it already was. */}
 
       {/* Ask AI — SCHOLARDOCX-0150: dropdown of context-aware prompts */}
       <AskAiMenuFromSheet
@@ -184,9 +158,10 @@ export function SheetToolbar({
   columns,
   rows,
   viewRows,
-  recordsPerSheetLimit,
   fullScreenMode,
   showEditColumns,
+  isEmailConfigOpen,
+  showDateColorConfig,
   searchQuery,
   onSearchChange,
   onToggleColumnVisibility,
@@ -194,8 +169,6 @@ export function SheetToolbar({
   onOpenEditColumns,
   onOpenEmailConfig,
   onOpenDateColors,
-  isEmailConfigOpen,
-  showDateColorConfig,
   groupBy,
   onGroupByChange,
   savedViews,
@@ -203,6 +176,14 @@ export function SheetToolbar({
   onSaveView,
   onLoadView,
   onDeleteView,
+  density,
+  onDensityChange,
+  onOpenShortcuts,
+  onOpenFormatRules,
+  ruleCount,
+  onExportCsv,
+  onImportCsv,
+  onSaveTemplate,
 }: {
   columns: ColumnDef[];
   rows: Record<string, string>[];
@@ -226,269 +207,273 @@ export function SheetToolbar({
   onSaveView: (name: string) => void;
   onLoadView: (id: string | null) => void;
   onDeleteView: (id: string) => void;
+  density: Density;
+  onDensityChange: (density: Density) => void;
+  onOpenShortcuts: () => void;
+  onOpenFormatRules: () => void;
+  ruleCount: number;
+  onExportCsv: () => void;
+  onImportCsv: () => void;
+  onSaveTemplate: () => void;
 }) {
-  const { showPrompt } = useDialog();
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
-  const [showViewsMenu, setShowViewsMenu] = useState(false);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const { showPrompt, showConfirm } = useDialog();
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const columnsBtnRef = useRef<HTMLButtonElement>(null);
-  const viewsBtnRef = useRef<HTMLButtonElement>(null);
-  const groupBtnRef = useRef<HTMLButtonElement>(null);
-
+  const dataColumns = columns.filter((col) => col.type !== "group");
+  const hiddenCount = dataColumns.filter((col) => col.hidden).length;
+  const groupableColumns = columns.filter((col) => col.type === "select" || col.type === "bool");
   const isFiltering = searchQuery.trim().length > 0 || viewRows.length !== rows.length;
+  const activeView = savedViews.find((view) => view.id === currentViewId);
 
   return (
-    <div className="sheet-toolbar" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '8px', width: '100%', maxWidth: '100%', overflowX: 'auto', ...(fullScreenMode ? { marginBottom: '12px' } : {}) }}>
-      <div className="toolbar-left" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'nowrap', flexShrink: 0 }}>
-
-        {/* 1. Add Record */}
-        <button className="secondary" onClick={onAddRow} disabled={columns.length === 0} title={columns.length === 0 ? "Add columns first" : "Add a new record"} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-          <Plus size={14} /> Add Record
+    <div className={`sheet-toolbar${fullScreenMode ? " is-fullscreen" : ""}`}>
+      {/* Primary actions: the two things people came here to do. Everything
+          else is a tool and lives in a menu — the old bar gave eight
+          controls identical weight and then scrolled them off the edge. */}
+      <div className="sheet-toolbar-primary">
+        <button
+          type="button"
+          className="sheet-btn is-primary"
+          onClick={onAddRow}
+          disabled={dataColumns.length === 0}
+          title={dataColumns.length === 0 ? "Add a column first" : "Add a new record"}
+        >
+          <Plus size={14} /> <span className="sheet-btn-label">Add record</span>
         </button>
 
-        {/* 2. Search */}
-        <div className="search-input-wrapper" style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        <div className={`sheet-search${searchQuery ? " has-value" : ""}`}>
+          <Search size={14} aria-hidden="true" />
           <input
+            ref={searchRef}
             type="text"
-            placeholder="Search rows..."
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onSearchChange(""); } }}
-            style={{
-              paddingLeft: '28px',
-              paddingRight: searchQuery ? '24px' : undefined,
-              height: fullScreenMode ? '28px' : '32px',
-              fontSize: fullScreenMode ? '11px' : '13px',
-              width: '180px',
-              borderRadius: '6px',
-              border: '1px solid rgba(56, 74, 67, 0.28)',
-              backgroundColor: 'var(--bg-secondary)'
+            placeholder="Search rows…"
+            aria-label="Search rows"
+            onChange={(event) => onSearchChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.stopPropagation();
+              onSearchChange("");
             }}
           />
-          {searchQuery && (
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => onSearchChange("")}
-              title="Clear search (Esc)"
-              style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', padding: '2px' }}
-            >
+          {searchQuery ? (
+            <button type="button" onClick={() => onSearchChange("")} title="Clear search (Esc)" aria-label="Clear search">
               <X size={12} />
             </button>
-          )}
+          ) : null}
         </div>
 
-        {/* Left side ends after search */}
-
-      </div>
-
-      {/* Right side */}
-      <div className="toolbar-right" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'nowrap' }}>
-
-        {/* Match count when the view is narrowed by search/filters */}
-        {isFiltering && (
+        {isFiltering ? (
           <span className="sheet-match-count" title="Rows matching the current search and filters">
             {viewRows.length} of {rows.length}
           </span>
-        )}
+        ) : null}
+      </div>
 
-        {/* 3. Columns Menu */}
-        <div className="columns-menu-container" style={{ position: 'relative' }}>
-          <button
-            ref={columnsBtnRef}
-            className={`secondary ${showColumnsMenu ? 'active' : ''}`}
-            onClick={() => setShowColumnsMenu(!showColumnsMenu)}
-            style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
-            title="Hide/show columns"
-          >
-            <Columns size={14} /> Columns
-          </button>
-          {showColumnsMenu && (
-            <DropdownPortal triggerRef={columnsBtnRef} onOutsideClick={() => setShowColumnsMenu(false)}>
-              <div className="columns-dropdown-menu" style={{
-                backgroundColor: 'var(--ui-paper-strong)',
-                border: '1px solid var(--ui-line)',
-                borderRadius: '6px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                padding: '6px 8px',
-                width: '220px',
-                maxHeight: '300px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.125px'
-              }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                  Visible columns
-                </div>
-                {columns.filter(c => c.type !== "group").map(col => (
-                  <label key={col.name} className="column-visibility-item" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '0.2px 8px',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    lineHeight: '1.2'
-                  }}>
-                    <input
-                      type="checkbox"
+      <div className="sheet-toolbar-tools">
+        {/* View — what you can see and how it is arranged. */}
+        {/* "View" and "Views" were adjacent and differed by one letter, which
+            is not a distinction anyone should have to make at a glance.
+            "Display" covers how the grid is shown; "Saved views" covers
+            stored arrangements. No shared stem. */}
+        <SheetMenu
+          label="Display"
+          icon={<Table2 size={14} />}
+          active={Boolean(groupBy) || hiddenCount > 0}
+          badge={hiddenCount ? `${hiddenCount} hidden` : null}
+          title="Row height, columns, grouping"
+        >
+          {(close) => (
+            <>
+              <SheetMenuLabel>Row height</SheetMenuLabel>
+              {(Object.keys(DENSITIES) as Density[]).map((key) => (
+                <SheetMenuToggle
+                  key={key}
+                  kind="radio"
+                  name="sheet-density"
+                  checked={density === key}
+                  onChange={() => onDensityChange(key)}
+                >
+                  {DENSITIES[key].label}
+                </SheetMenuToggle>
+              ))}
+
+              <SheetMenuDivider />
+              {/* A <select>, not a radio per column. This sheet has ten
+                  groupable columns, and eleven radio rows pushed everything
+                  below them — including the whole "Show columns" list — off
+                  the bottom of the menu, where it read as empty. One control
+                  is also simply the right shape for "pick one of many". */}
+              <SheetMenuLabel>Categorise rows</SheetMenuLabel>
+              {groupableColumns.length ? (
+                <label className="sheet-menu-select">
+                  <select
+                    value={groupBy ?? ""}
+                    aria-label="Categorise rows by column"
+                    onChange={(event) => onGroupByChange(event.target.value || null)}
+                  >
+                    <option value="">None — one flat list</option>
+                    {groupableColumns.map((col) => (
+                      <option key={col.name} value={col.name}>{col.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="sheet-menu-empty">
+                  Rows group by a dropdown or yes/no column. There isn’t one on this sheet yet.
+                </p>
+              )}
+
+              <SheetMenuDivider />
+              <SheetMenuLabel>
+                Show columns
+                {hiddenCount ? <span className="sheet-menu-label-note">{hiddenCount} hidden</span> : null}
+              </SheetMenuLabel>
+              {dataColumns.length ? (
+                <div className="sheet-menu-scroll">
+                  {dataColumns.map((col) => (
+                    <SheetMenuToggle
+                      key={col.name}
                       checked={!col.hidden}
                       onChange={() => onToggleColumnVisibility(col.name)}
-                      style={{ margin: 0 }}
-                    />
-                    {col.name}
-                    {col.hidden && <EyeOff size={12} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />}
-                  </label>
-                ))}
-              </div>
-            </DropdownPortal>
-          )}
-        </div>
-
-        {/* 4. Edit columns */}
-        <button className={`secondary btn-edit-columns ${showEditColumns ? 'active' : ''}`} onClick={onOpenEditColumns} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-          <Settings size={14} /> Edit columns
-        </button>
-
-        {/* 5. Categorize */}
-        <div className="group-menu-container" style={{ position: 'relative' }}>
-          <button
-            ref={groupBtnRef}
-            className={`secondary ${groupBy || showGroupMenu ? 'active' : ''}`}
-            onClick={() => setShowGroupMenu(!showGroupMenu)}
-            style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
-            title="Categorize rows"
-          >
-            <Rows3 size={14} />
-            <span style={{ marginLeft: '4px' }}>
-              {groupBy ? `Categorized by ${groupBy}` : 'Categorize'}
-            </span>
-          </button>
-          {showGroupMenu && (
-            <DropdownPortal triggerRef={groupBtnRef} onOutsideClick={() => setShowGroupMenu(false)}>
-              <div className="group-dropdown-menu" style={{
-                backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
-                borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                padding: '6px 8px', width: '220px', maxHeight: '300px',
-                overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.125px'
-              }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                  Categorize by column
-                </div>
-                <label className="group-item" style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
-                  lineHeight: '1.2'
-                }}>
-                  <input
-                    type="radio"
-                    name="group_by"
-                    checked={groupBy === null}
-                    onChange={() => { onGroupByChange(null); setShowGroupMenu(false); }}
-                    style={{ margin: 0 }}
-                  />
-                  <span style={{ color: 'var(--text-secondary)' }}>None (Flat list)</span>
-                </label>
-
-                {columns.filter(c => c.type === 'select' || c.type === 'bool').map(col => (
-                  <label key={col.name} className="group-item" style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '0.2px 8px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px',
-                    lineHeight: '1.2'
-                  }}>
-                    <input
-                      type="radio"
-                      name="group_by"
-                      checked={groupBy === col.name}
-                      onChange={() => { onGroupByChange(col.name); setShowGroupMenu(false); }}
-                      style={{ margin: 0 }}
-                    />
-                    {col.name}
-                  </label>
-                ))}
-              </div>
-            </DropdownPortal>
-          )}
-        </div>
-
-        {/* 6. Date Colors */}
-        <button className={`secondary ${showDateColorConfig ? 'active' : ''}`} onClick={onOpenDateColors} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-          <Calendar size={14} /> Date Colors
-        </button>
-
-        {/* 7. Email Config */}
-        <button className={`secondary ${isEmailConfigOpen ? 'active' : ''}`} onClick={onOpenEmailConfig} style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}>
-          <Mail size={14} /> Email Config
-        </button>
-
-        {/* Views Menu */}
-        <div className="views-menu-container" style={{ position: 'relative' }}>
-          <button
-            ref={viewsBtnRef}
-            className={`secondary ${showViewsMenu || currentViewId ? 'active' : ''}`}
-            onClick={() => setShowViewsMenu(!showViewsMenu)}
-            style={fullScreenMode ? { fontSize: '11px', padding: '6px 12px' } : {}}
-            title="Saved Views"
-          >
-            <ListFilter size={14} />
-            <span style={{ marginLeft: '4px' }}>
-              {currentViewId ? savedViews.find(v => v.id === currentViewId)?.name || 'Views' : 'Views'}
-            </span>
-          </button>
-          {showViewsMenu && (
-            <DropdownPortal triggerRef={viewsBtnRef} onOutsideClick={() => setShowViewsMenu(false)}>
-              <div className="views-dropdown-menu" style={{
-                backgroundColor: 'var(--ui-paper-strong)', border: '1px solid var(--ui-line)',
-                borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                padding: '4px', width: '200px', display: 'flex',
-                flexDirection: 'column', gap: '2px'
-              }}>
-                <button
-                  className="text-button"
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}
-                  onClick={() => { setShowViewsMenu(false); onLoadView(null); }}
-                >
-                  <span>Reset to default</span>
-                </button>
-
-                {savedViews.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>}
-
-                {savedViews.map(view => (
-                  <div key={view.id} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <button
-                      className={`text-button ${currentViewId === view.id ? 'active' : ''}`}
-                      style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'space-between', padding: '6px 12px', fontSize: '13px' }}
-                      onClick={() => { setShowViewsMenu(false); onLoadView(view.id); }}
+                      trailing={col.hidden ? <EyeOff size={12} /> : null}
                     >
-                      <span>{view.name}</span>
-                      {currentViewId === view.id && <Check size={14} />}
+                      {col.name}
+                    </SheetMenuToggle>
+                  ))}
+                </div>
+              ) : (
+                <p className="sheet-menu-empty">No columns yet.</p>
+              )}
+            </>
+          )}
+        </SheetMenu>
+
+        {/* Views — saved arrangements of the above. */}
+        <SheetMenu
+          label={activeView ? activeView.name : "Saved views"}
+          icon={<ListFilter size={14} />}
+          active={Boolean(currentViewId)}
+          title="Saved views — stored filters, sorting and column layouts"
+          width={224}
+        >
+          {(close) => (
+            <>
+              <SheetMenuLabel>Saved views</SheetMenuLabel>
+              {savedViews.length ? (
+                savedViews.map((view) => (
+                  <div className="sheet-menu-row" key={view.id}>
+                    <SheetMenuItem
+                      selected={currentViewId === view.id}
+                      icon={currentViewId === view.id ? <Check size={13} /> : <span />}
+                      onClick={() => { onLoadView(view.id); close(); }}
+                    >
+                      {view.name}
+                    </SheetMenuItem>
+                    <button
+                      type="button"
+                      className="sheet-menu-row-delete"
+                      title={`Delete the "${view.name}" view`}
+                      aria-label={`Delete the ${view.name} view`}
+                      onClick={async () => {
+                        // A saved view is a few minutes of setup, so this
+                        // asks first — unlike the old menu, which offered no
+                        // way to delete one at all.
+                        const ok = await showConfirm(`Delete the "${view.name}" view? The rows are not affected.`, "Delete view");
+                        if (ok) onDeleteView(view.id);
+                      }}
+                    >
+                      <Trash2 size={12} />
                     </button>
                   </div>
-                ))}
+                ))
+              ) : (
+                <p className="sheet-menu-empty">
+                  A view remembers your filters, sorting, hidden columns and grouping.
+                </p>
+              )}
 
-                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                <button
-                  className="text-button"
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px', fontSize: '13px' }}
-                  onClick={async () => {
-                    setShowViewsMenu(false);
-                    const name = await showPrompt("Save current view as:");
-                    if (name) onSaveView(name);
-                  }}
-                  title="Saves your current filters, sorting, column visibility, and grouping state so you can quickly restore them later."
-                >
-                  <Save size={14} style={{ marginRight: '8px' }} /> Save view
-                  <Info size={14} style={{ marginLeft: 'auto', color: 'var(--text-secondary)' }} />
-                </button>
-              </div>
-            </DropdownPortal>
+              <SheetMenuDivider />
+              <SheetMenuItem
+                icon={<Save size={13} />}
+                onClick={async () => {
+                  close();
+                  const name = await showPrompt("Save current view as:");
+                  if (name) onSaveView(name);
+                }}
+                hint="Remembers your filters, sorting, column visibility and grouping."
+              >
+                Save this arrangement
+              </SheetMenuItem>
+              <SheetMenuItem
+                icon={<Eye size={13} />}
+                onClick={() => { onLoadView(null); close(); }}
+              >
+                Reset to default
+              </SheetMenuItem>
+            </>
           )}
-        </div>
+        </SheetMenu>
 
+        {/* Format — how the grid looks, as opposed to what it shows. */}
+        <SheetMenu
+          label="Format"
+          icon={<Palette size={14} />}
+          active={Boolean(showDateColorConfig) || showEditColumns || ruleCount > 0}
+          title="Columns and colours"
+        >
+          {(close) => (
+            <>
+              <SheetMenuItem icon={<Settings size={13} />} onClick={() => { onOpenEditColumns(); close(); }}>
+                Edit columns…
+              </SheetMenuItem>
+              <SheetMenuItem icon={<Calendar size={13} />} onClick={() => { onOpenDateColors(); close(); }}>
+                Deadline colours…
+              </SheetMenuItem>
+              <SheetMenuItem icon={<Palette size={13} />} onClick={() => { onOpenFormatRules(); close(); }}>
+                Colour rules…
+                {ruleCount ? <span className="sheet-btn-badge">{ruleCount}</span> : null}
+              </SheetMenuItem>
+            </>
+          )}
+        </SheetMenu>
+
+        {/* Data — things that cross the sheet's boundary. */}
+        <SheetMenu
+          label="Data"
+          icon={<Database size={14} />}
+          active={Boolean(isEmailConfigOpen)}
+          title="Import, export and email"
+          width={224}
+        >
+          {(close) => (
+            <>
+              <SheetMenuItem icon={<Upload size={13} />} onClick={() => { onImportCsv(); close(); }}>
+                Import from CSV…
+              </SheetMenuItem>
+              <SheetMenuItem icon={<Download size={13} />} onClick={() => { onExportCsv(); close(); }}>
+                Export to CSV
+              </SheetMenuItem>
+              <SheetMenuItem icon={<Save size={13} />} onClick={() => { onSaveTemplate(); close(); }}>
+                Save columns as a template
+              </SheetMenuItem>
+              <SheetMenuDivider />
+              <SheetMenuItem icon={<Mail size={13} />} onClick={() => { onOpenEmailConfig(); close(); }}>
+                Email settings…
+              </SheetMenuItem>
+            </>
+          )}
+        </SheetMenu>
+
+        <button
+          type="button"
+          className="sheet-btn sheet-btn-icon"
+          onClick={onOpenShortcuts}
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+        >
+          <Keyboard size={14} />
+        </button>
       </div>
     </div>
   );

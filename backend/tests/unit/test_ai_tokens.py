@@ -94,6 +94,41 @@ def test_compute_cost_unknown_model_is_free(tmp_path):
         session.close()
 
 
+def test_compute_cost_falls_back_to_provider_price(tmp_path):
+    """SCHOLARDOCX-0204 (L4): an uncatalogued model still bills at the
+    provider's house rate rather than silently costing the user nothing."""
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_target))
+    try:
+        cost_usd, tokens = ai_tokens.compute_cost(
+            "some-model-nobody-seeded", 1_000_000, 0, session, provider="openrouter"
+        )
+        assert cost_usd > 0.0
+        assert tokens > 0
+    finally:
+        session.close()
+
+
+def test_configured_openrouter_model_is_priced(tmp_path):
+    """The exact id OPENROUTER_FREE_MODEL resolves to must be priced.
+
+    This is the regression guard for L4: the settings default
+    ("openrouter/free") did not match the seeded row ("openrouter"), so every
+    OpenRouter charge computed $0 while still writing a ledger row.
+    """
+    settings = make_settings(tmp_path)
+    session = next(get_db(settings.database_target))
+    try:
+        assert ai_tokens.validate_model_pricing(session, settings) == []
+        cost_usd, tokens = ai_tokens.compute_cost(
+            settings.openrouter_free_model, 1_000_000, 0, session
+        )
+        assert cost_usd > 0.0
+        assert tokens > 0
+    finally:
+        session.close()
+
+
 # ── monthly reset ────────────────────────────────────────────────────────────
 
 def test_refresh_balance_grants_monthly_allowance(tmp_path):

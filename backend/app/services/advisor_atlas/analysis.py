@@ -38,6 +38,59 @@ FUNDING_SIGNAL = re.compile(
 YEAR_PATTERN = re.compile(r"\b(20\d{2})\b")
 
 
+def _json_default(value: Any) -> str:
+    """Last-resort encoder for values `json` cannot serialise on its own."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def json_dump(value: Any) -> str:
+    """`json.dumps` that can never abort a run on an exotic value.
+
+    SCHOLARDOCX-0190: a candidate re-read from storage carries real
+    ``datetime`` objects (``created_at`` / ``updated_at``). Plain
+    ``json.dumps`` raises ``TypeError`` on those, and because the deep
+    research phase passes stored candidates (the screening phase passes
+    freshly-built dicts, which have no datetimes), *every* deep pass died
+    at the first prompt — the run still completed, so the failure surfaced
+    only as silently shallower dossiers.
+    """
+    return json.dumps(value, default=_json_default)
+
+
+# Fields worth showing the model when it is asked to analyse a professor.
+# Everything else on a stored candidate row is either storage bookkeeping
+# (ids, timestamps, shortlist state) or the *previous* run's own conclusions —
+# feeding those back in anchors the model on its own earlier output instead of
+# on the evidence.
+CANDIDATE_PROMPT_FIELDS = (
+    "display_name",
+    "title",
+    "position",
+    "institution",
+    "department",
+    "department_relation",
+    "email",
+    "official_profile_url",
+    "personal_url",
+    "lab_url",
+    "linkedin_url",
+    "google_scholar_url",
+)
+
+
+def candidate_prompt_payload(candidate: dict[str, Any]) -> dict[str, Any]:
+    """Reduce a candidate to the identity fields a prompt should see."""
+    return {
+        key: candidate[key]
+        for key in CANDIDATE_PROMPT_FIELDS
+        if candidate.get(key) not in (None, "", [], {})
+    }
+
+
 def tokenize(text: str) -> set[str]:
     return {
         token
@@ -102,12 +155,18 @@ def deterministic_analysis(
         recruitment_state = "unknown"
         recruitment_summary = "No current recruiting statement was verified."
 
-    years = [int(value) for value in YEAR_PATTERN.findall(combined)]
+    # SCHOLARDOCX-0188: YEAR_PATTERN matches any bare 20xx number, so a Google
+    # Scholar "Cited by 2094"-style citation count (or any other stray 4-digit
+    # figure in that range) was being read as a real year, producing
+    # impossible "latest visible year" values from the future. A year can
+    # never be later than the current year, so clamp here.
+    current_year = datetime.now(timezone.utc).year
+    years = [int(value) for value in YEAR_PATTERN.findall(combined) if int(value) <= current_year]
     latest_year = max(years) if years else None
     risks = []
     if len(sources) < 2:
         risks.append("limited_source_coverage")
-    if latest_year and latest_year < datetime.now(timezone.utc).year - 3:
+    if latest_year and latest_year < current_year - 3:
         risks.append("stale_visible_activity")
     if recruitment_state == "unknown":
         risks.append("recruitment_unverified")
@@ -220,7 +279,13 @@ def deterministic_analysis(
             },
             "lab_environment": {
                 "summary": "Lab information is shown only when supported by public pages.",
-                "known": "lab" in combined.lower(),
+                # SCHOLARDOCX-0188: plain substring `in` — "lab" is a substring
+                # of "collaborate", "elaborate", "label" etc., so this could
+                # report lab info as "known" purely off an unrelated word.
+                # `coverage["laboratory"]` above already guards this the right
+                # way (padded, whole-word); this one just hadn't been aligned
+                # to it.
+                "known": " lab " in f" {combined.lower()} ",
                 "limitations": ["Mentoring quality and private lab culture cannot be inferred reliably."],
             },
             "trajectory": {
@@ -253,7 +318,22 @@ def _publication_fallback(
     candidate: dict[str, Any],
     profile: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    return extract_verified_professor_facts(candidate, sources).get("publications", [])
+    """No-op today (SCHOLARDOCX-0188) — kept only so the call site's intent
+    (a fallback path exists) stays visible in a diff/blame.
+
+    This used to re-call `extract_verified_professor_facts(candidate,
+    sources)` with byte-identical arguments to the `verified = ...` call the
+    caller already made moments earlier. Since that function is a pure,
+    deterministic function of exactly those two arguments, the "fallback"
+    could only ever reproduce the same (already-empty, since the caller only
+    reaches this branch via `verified.get("publications") or ...`) result —
+    it was dead code disguised as a safety net, silently doing nothing on
+    every single run. Returning `[]` directly is honest about that and skips
+    the wasted recomputation. A *genuine* looser-heuristic fallback (e.g.
+    scanning for bare DOI/arXiv identifiers) is a real feature to design
+    deliberately, not something to fake here.
+    """
+    return []
 
 
 async def analyze_with_glm(
@@ -386,11 +466,11 @@ async def analyze_with_glm(
         "Every uncertain area must be marked unknown or incomplete. Keep summaries concise."
     )
     prompt = (
-        f"Candidate:\n{json.dumps(candidate)}\n\n"
-        f"Student profile:\n{json.dumps(profile)}\n\n"
-        f"Specialist analyses:\n{json.dumps(specialist_context or {})}\n\n"
-        f"Sources:\n{json.dumps(compact_sources)}\n\n"
-        f"Required schema:\n{json.dumps(schema)}"
+        f"Candidate:\n{json_dump(candidate_prompt_payload(candidate))}\n\n"
+        f"Student profile:\n{json_dump(profile)}\n\n"
+        f"Specialist analyses:\n{json_dump(specialist_context or {})}\n\n"
+        f"Sources:\n{json_dump(compact_sources)}\n\n"
+        f"Required schema:\n{json_dump(schema)}"
     )
     response = await ai_service.chat(
         prompt,
@@ -398,7 +478,10 @@ async def analyze_with_glm(
         override_system_prompt=system,
         request_label="Advisor Atlas · Final Synthesis",
     )
-    _record_ai_usage(usage, system, prompt, response.get("answer", ""))
+    _record_ai_usage(
+        usage, system, prompt, response.get("answer", ""),
+        response.get("usage"), response.get("mode"),
+    )
     if response.get("mode") in {"local-fallback", "provider-error"}:
         return None
     return extract_json_object(response.get("answer", ""))
@@ -437,6 +520,22 @@ async def analyze_professor_specialists(
             ),
         ),
         (
+            "career_teaching",
+            "Advisor Atlas · Career & Teaching",
+            {"identity", "official_profile", "research", "news_activity"},
+            (
+                "Extract the professor's career timeline and teaching/advising load. "
+                "For the timeline, list every academic rank held with institution and "
+                "period, ordered most recent first, and mark exactly one as current. "
+                "A rank held previously or at a different institution is history, never "
+                "the current appointment. Also extract courses taught, supervision "
+                "record (current students, recent graduates and their placements), and "
+                "administrative or editorial roles. Return JSON only. Omit anything the "
+                "evidence does not support rather than inferring it, and keep source "
+                "URLs attached to every item."
+            ),
+        ),
+        (
             "funding_recruitment",
             "Advisor Atlas · Funding & Recruitment",
             {"funding", "recruitment", "news_activity", "official_profile"},
@@ -471,9 +570,9 @@ async def analyze_professor_specialists(
             "Do not infer facts that are not visible. Preserve source URLs. " + instruction
         )
         prompt = (
-            f"Professor:\n{json.dumps(candidate)}\n\n"
-            f"Student context:\n{json.dumps(profile)}\n\n"
-            f"Purpose-tagged sources:\n{json.dumps(selected)}"
+            f"Professor:\n{json_dump(candidate_prompt_payload(candidate))}\n\n"
+            f"Student context:\n{json_dump(profile)}\n\n"
+            f"Purpose-tagged sources:\n{json_dump(selected)}"
         )
         response = await ai_service.chat(
             prompt,
@@ -481,7 +580,10 @@ async def analyze_professor_specialists(
             override_system_prompt=system,
             request_label=request_label,
         )
-        _record_ai_usage(usage, system, prompt, response.get("answer", ""))
+        _record_ai_usage(
+            usage, system, prompt, response.get("answer", ""),
+            response.get("usage"), response.get("mode"),
+        )
         parsed = extract_json_object(response.get("answer", ""))
         if parsed:
             results[key] = parsed
@@ -493,14 +595,32 @@ def _record_ai_usage(
     system: str,
     prompt: str,
     answer: str,
+    response_usage: dict[str, Any] | None = None,
+    mode: str | None = None,
 ) -> None:
+    """Record one AI call against the run's usage counters.
+
+    SCHOLARDOCX-0191: a call that never reached a provider used to be counted
+    here as an "AI analysis" like any other. The dossier then read
+    "1 AI analyses · 0 Credits used" with no publications and no explanation —
+    the run had silently fallen back to the deterministic analyser. A failed
+    call is now counted separately so the dossier can say so.
+    """
     if usage is None:
+        return
+    if mode in {"local-fallback", "provider-error"}:
+        usage["failed_ai_calls"] = int(usage.get("failed_ai_calls", 0)) + 1
+        usage["last_ai_failure"] = mode
         return
     usage["ai_calls"] = int(usage.get("ai_calls", 0)) + 1
     usage["estimated_input_tokens"] = int(usage.get("estimated_input_tokens", 0)) + estimate_tokens(
         f"{system}\n{prompt}"
     )
     usage["estimated_output_tokens"] = int(usage.get("estimated_output_tokens", 0)) + estimate_tokens(answer)
+    if response_usage:
+        usage["credits_charged"] = int(usage.get("credits_charged", 0)) + int(
+            response_usage.get("credits_charged", 0)
+        )
 
 
 async def analyze_visual_source(
@@ -559,13 +679,17 @@ async def analyze_visual_source(
     # pre-check) so an optional enrichment never aborts a run; the next required
     # call hard-stops if the balance is truly exhausted.
     usage_meta = data.get("usage") or {}
-    ai_service.charge_tokens(
+    charge_result = ai_service.charge_tokens(
         model_id=ai_service.settings.advisor_atlas_vision_model,
         provider="glm",
         input_tokens=usage_meta.get("prompt_tokens", 0),
         output_tokens=usage_meta.get("completion_tokens", 0),
         source="advisor_atlas_vision",
     )
+    if usage is not None and charge_result is not None:
+        usage["credits_charged"] = int(usage.get("credits_charged", 0)) + int(
+            charge_result.get("charged", 0)
+        )
     result = extract_json_object(answer)
     if not result or not result.get("relevant"):
         return None
@@ -585,3 +709,108 @@ async def analyze_visual_source(
             "model": ai_service.settings.advisor_atlas_vision_model,
         },
     }
+
+
+async def map_related_units_with_glm(
+    ai_service: AiService,
+    university_name: str,
+    requested_field: str,
+    observed_units: list[str] | None = None,
+    usage: dict[str, Any] | None = None,
+) -> list[dict[str, Any]] | None:
+    """Map `field + university` to related academic units (FR-9.25a).
+
+    This is the PRIMARY related-unit mapper. It replaced a hardcoded five-family
+    taxonomy that returned zero related units for any discipline outside
+    computing/EE/HCI/bioinformatics/statistics — chemistry, economics, public
+    health and most of academia received only their own department, which
+    collapsed the entire discovery funnel because `collect()` searches and crawls
+    per mapped unit (SCHOLARDOCX-0181).
+
+    Returns ``None`` on any failure so the caller falls back to the deterministic
+    regex + taxonomy path and discovery is never worse than before.
+    """
+    if not ai_service.settings.glm_api_key:
+        return None
+    field = (requested_field or "").strip()
+    if not field:
+        return None
+
+    system = (
+        "You map university academic structures for a PhD-advisor discovery tool. "
+        "You know that related advisors are frequently housed outside the "
+        "applicant's named department — in adjacent departments, interdisciplinary "
+        "institutes, and research centres. Return one JSON object only. Never "
+        "invent a unit you do not believe plausibly exists at this university; "
+        "prefer widely-standard unit names when unsure. A unit is an organisation "
+        "that employs faculty: a department, school, college, institute or research "
+        "centre. Never return a degree or its programme (\"Master of Science in X\", "
+        "\"BSc X\", a minor or a certificate), a person's job title, or a web page "
+        "heading as a unit."
+    )
+    schema = {
+        "units": [
+            {
+                "name": "string, the academic unit name without the university name",
+                "relation": "direct|adjacent|interdisciplinary",
+                "relevance_score": "integer 50-100",
+                "reason": "one short sentence on why a relevant advisor may sit here",
+            }
+        ]
+    }
+    prompt = (
+        f"University: {university_name or 'unspecified'}\n"
+        f"Applicant's field: {field}\n"
+        f"Units already observed on the site: {json.dumps(sorted(set(observed_units or []))[:40])}\n\n"
+        "List up to 12 academic units at this university where a professor "
+        f"researching {field} could plausibly be found. Include the applicant's own "
+        "department, closely adjacent departments, and interdisciplinary institutes "
+        "or centres. Use 'direct' only when the unit name names the field itself.\n\n"
+        f"Required schema:\n{json.dumps(schema)}"
+    )
+
+    response = await ai_service.chat(
+        prompt,
+        model=ai_service.settings.advisor_atlas_glm_model,
+        override_system_prompt=system,
+        request_label="Advisor Atlas · Unit Mapping",
+    )
+    _record_ai_usage(
+        usage, system, prompt, response.get("answer", ""),
+        response.get("usage"), response.get("mode"),
+    )
+    if response.get("mode") in {"local-fallback", "provider-error"}:
+        return None
+
+    parsed = extract_json_object(response.get("answer", ""))
+    if not isinstance(parsed, dict):
+        return None
+    raw_units = parsed.get("units")
+    if not isinstance(raw_units, list):
+        return None
+
+    units: list[dict[str, Any]] = []
+    for entry in raw_units[:12]:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        if not name or len(name) > 100:
+            continue
+        relation = str(entry.get("relation") or "adjacent").strip().lower()
+        if relation not in {"direct", "adjacent", "interdisciplinary"}:
+            relation = "adjacent"
+        try:
+            score = int(entry.get("relevance_score") or 70)
+        except (TypeError, ValueError):
+            score = 70
+        units.append(
+            {
+                "name": name,
+                "relation": relation,
+                "relevance_score": max(50, min(100, score)),
+                "reason": str(entry.get("reason") or "").strip()
+                or "Identified as academically related to the requested field.",
+                "source_url": None,
+            }
+        )
+    return units or None

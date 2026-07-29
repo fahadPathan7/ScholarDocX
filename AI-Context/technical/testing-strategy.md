@@ -18,6 +18,11 @@ Every feature should add or update unit tests when it introduces:
 
 If unit tests are not needed, the Jira task must explain why.
 
+**Never execute tests on your own initiative.** Creating/updating test files
+after feature work is mandatory; running them (`pytest`, `npm test`, `make
+test`, `make check`, etc.) is not — only run tests when the user explicitly
+asks in that session. See [CODE_RULES.md](../CODE_RULES.md) Testing Rules.
+
 ## Priority Areas
 
 1. Workspace initialization.
@@ -138,8 +143,10 @@ make test-backend  # backend only
 make test-frontend # frontend only
 ```
 
-Before pushing, run `make check` locally — there is no CI safety net to catch
-regressions otherwise.
+Before pushing, `make check` should be run locally — there is no CI safety
+net to catch regressions otherwise. As with all test execution, only run it
+when the user explicitly asks; otherwise remind the user to run it themselves
+before they push.
 
 ### Fast feedback: smoke and regression subsets
 

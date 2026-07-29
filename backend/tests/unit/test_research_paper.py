@@ -18,7 +18,10 @@ from sqlalchemy.orm import Session
 from app.db.connection import connect
 from app.db.models import ResearchPaperChunks, ResearchPapers
 from app.services import ai_tokens
-from app.services.research_paper_service import ResearchPaperService
+from app.services.research_paper_service import (
+    EMBEDDING_DIMENSIONS,
+    ResearchPaperService,
+)
 from tests.helpers import (
     cleanup_user_records,
     get_balance,
@@ -382,12 +385,76 @@ def test_charge_jina_embedding_uses_admin_configured_cost(db_session):
             cleanup_user_records(conn, user["id"])
 
 
+class _FakeJinaResponse:
+    """Stand-in for the Jina HTTP response, returning correctly-sized vectors."""
+
+    status_code = 200
+    text = ""
+
+    def __init__(self, batch_size: int) -> None:
+        self._batch_size = batch_size
+
+    def json(self) -> dict:
+        return {
+            "data": [
+                {"embedding": [0.01] * EMBEDDING_DIMENSIONS}
+                for _ in range(self._batch_size)
+            ]
+        }
+
+
+class _FakeJinaClient:
+    """Async-context-manager double for ``httpx.AsyncClient``.
+
+    Counts POSTs so a test can assert how many Jina API batches an operation
+    made, independently of how many times the user was charged.
+    """
+
+    post_count = 0
+
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc) -> bool:
+        return False
+
+    async def post(self, url, json=None, headers=None):
+        type(self).post_count += 1
+        return _FakeJinaResponse(len(json.get("input", [])))
+
+
+def _patch_jina():
+    """Patch the Jina HTTP client and guarantee an API key is present.
+
+    Deliberately does NOT patch `_generate_embeddings` or `_charge_jina_embedding`
+    — those are the code under test for the single-charge invariant. Mocking them
+    is how the original version of this test ended up asserting a charge on a
+    path it had itself removed.
+    """
+    _FakeJinaClient.post_count = 0
+    return patch("app.services.research_paper_service.httpx.AsyncClient", _FakeJinaClient)
+
+
 @pytest.mark.asyncio
-async def test_analyze_paper_charges_jina_query_embedding(db_session):
-    """The analyze-flow query embedding is now billed (was previously unbilled)."""
+async def test_analyze_paper_charges_jina_query_embedding_exactly_once(db_session):
+    """One analysis query → exactly one Jina fee, labelled as the query source.
+
+    Regression guard for SCHOLARDOCX-0180: `_generate_single_embedding` used to
+    charge on top of the charge already raised inside `_generate_embeddings`, so
+    every question a user asked was billed twice. This test runs the real
+    `search_relevant_chunks` → `_generate_single_embedding` → `_generate_embeddings`
+    chain and mocks only the outbound Jina HTTP call and the AI chat call.
+    """
     settings, session = db_session
     user = make_user(settings, roles=["pro_user"])
+    jina_cost_before = _snapshot_jina_cost(settings)
     try:
+        settings.jina_api_key = "test-key"
+        ai_tokens.refresh_balance(user, session)
+        _set_jina_cost(settings, 0.002)
         service = ResearchPaperService(settings, session, user)
 
         paper = ResearchPapers(
@@ -398,39 +465,142 @@ async def test_analyze_paper_charges_jina_query_embedding(db_session):
             status="ready",
         )
         session.add(paper)
-        chunk = ResearchPaperChunks(
-            id="chunk-jina-analyze",
-            paper_id="paper-jina-analyze",
-            chunk_index=0,
-            chunk_text="Relevant content for the analysis query.",
-            token_count=8,
+        session.add(
+            ResearchPaperChunks(
+                id="chunk-jina-analyze",
+                paper_id="paper-jina-analyze",
+                chunk_index=0,
+                chunk_text="Relevant content for the analysis query.",
+                token_count=8,
+                embedding=[0.01] * EMBEDDING_DIMENSIONS,
+            )
         )
-        session.add(chunk)
         session.commit()
 
-        with patch.object(service, "search_relevant_chunks", new_callable=AsyncMock) as mock_search:
-            mock_search.return_value = [
-                {
-                    "chunk_id": "chunk-jina-analyze",
-                    "chunk_index": 0,
-                    "chunk_text": "Relevant content for the analysis query.",
-                    "token_count": 8,
-                    "similarity_score": 0.9,
-                }
-            ]
+        with _patch_jina():
             with patch("app.services.research_paper_service.AiService") as mock_ai_cls:
                 mock_ai_instance = MagicMock()
                 mock_ai_instance.chat = AsyncMock(
-                    return_value={"mode": "gemini", "answer": "ok", "usage": {"input_tokens": 10, "output_tokens": 5}}
+                    return_value={
+                        "mode": "glm",
+                        "answer": "ok",
+                        "usage": {"input_tokens": 10, "output_tokens": 5},
+                    }
                 )
                 mock_ai_cls.return_value = mock_ai_instance
 
                 await service.analyze_paper("paper-jina-analyze", "question?")
 
         rows = ledger_rows(settings, user["id"])
-        # Exactly one jina query-embedding charge for this analyze operation
         query_rows = [r for r in rows if r["source"] == "jina_embedding_query"]
-        assert len(query_rows) == 1
+        assert len(query_rows) == 1, "query embedding must be charged exactly once"
+        assert query_rows[0]["cost_usd"] == pytest.approx(0.002)
+
+        # The generic upload-side label must NOT also appear: that duplicate row
+        # is precisely the double-charge this test exists to prevent.
+        assert not [r for r in rows if r["source"] == "jina_embedding"], (
+            "analysis query raised a second, upload-labelled Jina charge"
+        )
+    finally:
+        if jina_cost_before is not None:
+            _set_jina_cost(settings, float(jina_cost_before))
+        with connect(settings.database_target) as conn:
+            cleanup_user_records(conn, user["id"])
+
+
+@pytest.mark.asyncio
+async def test_multi_batch_embedding_charges_one_fee(db_session):
+    """A paper large enough to need several Jina batches is still charged once.
+
+    The fee is per user operation, not per HTTP call, so indexing cost must not
+    scale with paper length.
+    """
+    settings, session = db_session
+    user = make_user(settings, roles=["pro_user"])
+    jina_cost_before = _snapshot_jina_cost(settings)
+    try:
+        settings.jina_api_key = "test-key"
+        ai_tokens.refresh_balance(user, session)
+        _set_jina_cost(settings, 0.002)
+        service = ResearchPaperService(settings, session, user)
+
+        # 40 chunks at batch_size 16 → 3 HTTP batches.
+        chunks = [f"chunk text number {i}" for i in range(40)]
+
+        with _patch_jina():
+            embeddings, _ = await service._generate_embeddings(
+                chunks, charge_source="jina_embedding"
+            )
+
+        assert len(embeddings) == 40
+        assert _FakeJinaClient.post_count == 3, "expected 3 batches of 16"
+
+        rows = [r for r in ledger_rows(settings, user["id"]) if r["source"] == "jina_embedding"]
+        assert len(rows) == 1, "3 API batches must still cost exactly one fee"
+    finally:
+        if jina_cost_before is not None:
+            _set_jina_cost(settings, float(jina_cost_before))
+        with connect(settings.database_target) as conn:
+            cleanup_user_records(conn, user["id"])
+
+
+@pytest.mark.asyncio
+async def test_generate_embeddings_can_skip_charging(db_session):
+    """`charge_source=None` generates vectors without billing.
+
+    This is the escape hatch that lets a wrapper own the charge, so a single
+    user-visible operation is never billed by two layers at once.
+    """
+    settings, session = db_session
+    user = make_user(settings, roles=["pro_user"])
+    try:
+        settings.jina_api_key = "test-key"
+        ai_tokens.refresh_balance(user, session)
+        service = ResearchPaperService(settings, session, user)
+
+        with _patch_jina():
+            embeddings, _ = await service._generate_embeddings(
+                ["only one chunk"], charge_source=None
+            )
+
+        assert len(embeddings) == 1
+        jina_rows = [
+            r for r in ledger_rows(settings, user["id"])
+            if str(r["source"]).startswith("jina_")
+        ]
+        assert jina_rows == []
+    finally:
+        with connect(settings.database_target) as conn:
+            cleanup_user_records(conn, user["id"])
+
+
+@pytest.mark.asyncio
+async def test_failed_jina_call_charges_nothing(db_session):
+    """A failed embedding run must not debit the user.
+
+    The charge is raised only after every batch returns successfully, so a paper
+    that dies mid-indexing costs the user nothing.
+    """
+    settings, session = db_session
+    user = make_user(settings, roles=["pro_user"])
+    try:
+        settings.jina_api_key = "test-key"
+        ai_tokens.refresh_balance(user, session)
+        service = ResearchPaperService(settings, session, user)
+
+        class _FailingClient(_FakeJinaClient):
+            async def post(self, url, json=None, headers=None):
+                raise RuntimeError("jina is down")
+
+        with patch("app.services.research_paper_service.httpx.AsyncClient", _FailingClient):
+            with pytest.raises(HTTPException):
+                await service._generate_embeddings(["a chunk"], charge_source="jina_embedding")
+
+        jina_rows = [
+            r for r in ledger_rows(settings, user["id"])
+            if str(r["source"]).startswith("jina_")
+        ]
+        assert jina_rows == [], "a failed Jina run must not be billed"
     finally:
         with connect(settings.database_target) as conn:
             cleanup_user_records(conn, user["id"])
@@ -473,4 +643,86 @@ async def test_analyze_paper_blocks_when_out_of_credits(db_session):
     finally:
         with connect(settings.database_target) as conn:
             cleanup_user_records(conn, user["id"])
+
+
+# ── Retrieval honesty (SCHOLARDOCX-0180) ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_boosted_chunks_report_real_similarity(db_session):
+    """Section-boosted chunks carry measured similarity, not a placeholder.
+
+    The UI renders `similarity_score` to the user as a "Relevance: N%" badge next
+    to each citation. Boosting used to stamp a flat 0.85 on keyword hits, so that
+    badge was a fabricated number. Every score leaving this method must come from
+    the pgvector cosine computation.
+    """
+    settings, session = db_session
+    user = make_user(settings, roles=["pro_user"])
+    try:
+        settings.jina_api_key = "test-key"
+        ai_tokens.refresh_balance(user, session)
+        service = ResearchPaperService(settings, session, user)
+
+        paper = ResearchPapers(
+            id="paper-boost-score",
+            user_id=user["id"],
+            title="Boost Scoring",
+            chunk_count=3,
+            status="ready",
+        )
+        session.add(paper)
+        # Chunk 0 mentions the section keyword early (the chunk the old
+        # chunk_index-ordered boost would have grabbed); chunk 2 is the real
+        # limitations section.
+        for idx, body in enumerate(
+            [
+                "In this work we briefly note a limitation of prior systems.",
+                "Unrelated background material about datasets.",
+                "Limitations: our approach degrades under distribution shift.",
+            ]
+        ):
+            session.add(
+                ResearchPaperChunks(
+                    id=f"chunk-boost-{idx}",
+                    paper_id="paper-boost-score",
+                    chunk_index=idx,
+                    chunk_text=body,
+                    token_count=10,
+                    embedding=[0.01 * (idx + 1)] * EMBEDDING_DIMENSIONS,
+                )
+            )
+        session.commit()
+
+        with _patch_jina():
+            results = await service.search_relevant_chunks(
+                "paper-boost-score", "What are the limitations?", top_k=3
+            )
+
+        assert results, "expected the boost pass to return chunks"
+        for r in results:
+            assert r["similarity_score"] != 0.85, (
+                "found the retired hardcoded boost score being shown as relevance"
+            )
+            assert -1.0 <= r["similarity_score"] <= 1.0
+    finally:
+        with connect(settings.database_target) as conn:
+            cleanup_user_records(conn, user["id"])
+
+
+def test_delete_paper_does_not_refund_monthly_quota(db_session):
+    """Deleting a paper must NOT hand back a monthly upload slot.
+
+    `research_papers_per_month` counts uploads performed in the billing period,
+    not papers currently held. Resyncing it from a live COUNT(*) on delete would
+    let a user cycle upload → delete → upload without limit. The genuine problem
+    it was tempting to fix that way — a *failed* upload burning a slot — is
+    handled in `upload_and_process_paper`, which only increments on success.
+    """
+    from app.auth import limits as limits_module
+
+    assert "research_papers_per_month" not in limits_module._USAGE_COUNT_QUERIES, (
+        "research_papers_per_month must stay out of the resync table, otherwise "
+        "delete-and-reupload silently bypasses the monthly quota"
+    )
 

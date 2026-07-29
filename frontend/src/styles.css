@@ -347,7 +347,14 @@ h2 {
 
 .dashboard-upcoming {
   grid-column: 3;
-  grid-row: 1 / 4;
+  grid-row: 2 / 4;
+}
+
+/* SCHOLARDOCX-0176: "Today" sits in column 3, row 1 — the top of the third
+   column. "Next 10 Days" (.dashboard-upcoming) fills rows 2-3 below it. */
+.dashboard-today {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 /* Sheet detail view: flex column so the section can fill remaining height */
@@ -923,6 +930,37 @@ h2 {
   margin-top: 4px;
 }
 
+/* SCHOLARDOCX-0187: a Workspace Snapshot count at/over its cap turns red. */
+.metric-card strong.metric-at-cap {
+  color: #b3261e;
+}
+
+/* Scoped smaller cards for the Workspace Snapshot section only
+   (the shared .metric-card/.metric-grid classes are also used by
+   ProjectDashboard, so we override under .dashboard-snapshot). */
+.dashboard-snapshot .metric-grid {
+  gap: 8px;
+}
+
+.dashboard-snapshot .metric-card {
+  padding: 6px 10px !important;
+  line-height: 1.3 !important;
+}
+
+.dashboard-snapshot .metric-card span {
+  font-size: 12px !important;
+  color: #65756d !important;
+  margin-bottom: 3px !important;
+  line-height: 1.3 !important;
+}
+
+.dashboard-snapshot .metric-card strong {
+  font-size: 22px !important;
+  margin-top: 2px !important;
+  line-height: 1.2 !important;
+  display: block !important;
+}
+
 .status-pill {
   align-items: center;
   display: flex;
@@ -940,8 +978,8 @@ h2 {
   border: 1px solid rgba(23, 32, 29, 0.08);
   border-radius: 8px;
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px 10px;
 }
 
 .upcoming-event-list {
@@ -958,10 +996,10 @@ h2 {
   color: #17201d;
   cursor: pointer;
   display: grid;
-  gap: 12px;
-  grid-template-columns: 76px 1fr;
-  min-height: 76px;
-  padding: 12px;
+  gap: 10px;
+  grid-template-columns: 52px 1fr;
+  min-height: 0;
+  padding: 8px 10px;
   text-align: left;
 }
 
@@ -972,22 +1010,64 @@ h2 {
 .upcoming-event>span {
   background: #e7f3ef;
   border: 1px solid #79a895;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #2f6d7a;
+  font-size: 11px;
   font-weight: 700;
-  padding: 10px;
+  padding: 5px 4px;
   text-align: center;
 }
 
 .upcoming-event div {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
+}
+
+.upcoming-event strong {
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .upcoming-event small {
   color: #65756d;
-  font-size: 13px;
+  font-size: 11.5px;
+}
+
+/* SCHOLARDOCX-0185: Today/Next 10 Days done checkbox — dashboard-only, never
+   written back to the sheet row. */
+.upcoming-event-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upcoming-event-row .upcoming-event {
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-event-checkbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #2f6d7a;
+}
+
+.upcoming-event-delete {
+  flex-shrink: 0;
+  color: #9a3b3b;
+}
+
+.upcoming-event-row.done .upcoming-event {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+.upcoming-event-row.done .upcoming-event strong {
+  text-decoration: line-through;
 }
 
 .list strong,
@@ -2650,6 +2730,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .dashboard-pinned-sheets,
   .dashboard-pinned-docs,
   .dashboard-pinned-empty,
+  .dashboard-today,
   .dashboard-upcoming {
     grid-column: 1 / -1;
   }

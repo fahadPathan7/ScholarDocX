@@ -1,7 +1,6 @@
 import { FormEvent, MouseEvent, ReactNode, useEffect, useState, Fragment } from "react";
 import {
   Bell,
-  CalendarDays,
   CheckCircle2,
   Crown,
   FileText,
@@ -25,6 +24,7 @@ import {
   Trash2,
   X,
   Pin,
+  Puzzle,
   Square,
   Settings,
   Shield,
@@ -65,6 +65,7 @@ import { FloatingAssistant } from "./components/FloatingAssistant";
 import { FloatingNotifications } from "./components/FloatingNotifications";
 
 import { AboutView } from "./components/AboutView";
+import { DashboardView } from "./components/DashboardView";
 import { AiTokenUsageButton } from "./components/AiTokenUsageButton";
 import { ProfileView } from "./components/ProfileView";
 import { AdminView } from "./components/AdminView";
@@ -73,12 +74,12 @@ import { BuyTokensView } from "./components/BuyTokensView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
 import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
-import { StickyNotesView } from "./components/StickyNotesView";
+import { StickyNotesView } from "./components/sticky/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
+import { BrainGamesView } from "./components/games/BrainGamesView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
-import { ResearchReaderView } from "./components/ResearchReaderView";
-import { CalendarMonthView } from "./components/CalendarMonthView";
+import { ResearchExpertView } from "./components/ResearchExpertView";
 import { Field } from "./components/Field";
 import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
@@ -92,8 +93,14 @@ import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from
 import { getToken, decodeToken } from "./lib/auth";
 import "./components/splash-screen.css";
 
-type Dashboard = {
+export type FeatureLibraryCount = { label: string; count: number; max: number | null };
+
+export type Dashboard = {
   counts: Record<string, number>;
+  // SCHOLARDOCX-0187: per-feature library counts + fixed/role caps (Advisor
+  // Atlas history, Scholarship Hunt Opportunity Library + Previous Searches,
+  // Research Expert library) for the Workspace Snapshot section.
+  feature_libraries: Record<string, FeatureLibraryCount>;
   status_counts: { status: string; count: number }[];
   upcoming_deadlines: RecordMap[];
   reminders: RecordMap[];
@@ -108,6 +115,7 @@ type Dashboard = {
 
 const emptyDashboard: Dashboard = {
   counts: {},
+  feature_libraries: {},
   status_counts: [],
   upcoming_deadlines: [],
   reminders: [],
@@ -190,6 +198,15 @@ export function App() {
     }
   };
 
+  // SCHOLARDOCX-0185: re-fetch just the dashboard summary (calendar items,
+  // reminders, counts) without touching activeTab/refreshTrigger — used
+  // after adding/toggling/deleting a manual reminder or checkbox from
+  // DashboardView, regardless of which tab happens to be active.
+  const reloadDashboard = async () => {
+    const summary = await api.get<Dashboard>("/dashboard/summary");
+    setDashboard(summary);
+  };
+
   // Context-aware refresh - only refreshes the active tab
   const refreshActiveTab = async () => {
     setIsRefreshing(true);
@@ -212,7 +229,7 @@ export function App() {
 
         case "research":
           // Research Expert manages its own paper list; the refreshTrigger
-          // bump above signals ResearchReaderView to reload.
+          // bump above signals ResearchExpertView to reload.
           break;
 
         case "documents":
@@ -352,11 +369,12 @@ export function App() {
     ["dashboard", "Dashboard", LayoutDashboard],
     ["projects", "Projects", FolderOpen],
     ["documents", "Documents", FileText],
-    ["sticky", "Sticky Notes", StickyNote],
-    ["whiteboard", "Whiteboard", Square],
-    ["atlas", "Advisor Atlas", Map],
     ["news", "Scholarship Hunt", Compass],
     ["research", "Research Expert", BookOpen],
+    ["atlas", "Advisor Atlas", Map],
+    ["sticky", "Sticky Notes", StickyNote],
+    ["whiteboard", "Whiteboard", Square],
+    ["games", "Brain Games", Puzzle],
     ["profile", "Profile", User],
     ["about", "About", Info]
   ] as const;
@@ -390,12 +408,19 @@ export function App() {
     ? (usageData.limits?.can_use_scholarship_hunt ?? 0) === 1
     : isProOrMaxRole;
 
-  const canUseResearchReader = usageData
+  const canUseResearchExpert = usageData
     ? (usageData.limits?.can_use_research_reader ?? 0) === 1
     : isProOrMaxRole;
 
+  // Brain Games is on for every tier by default, so the optimistic value while
+  // limits load is `true` — the opposite of the paid features above. Assuming
+  // locked here would flash a lock on a tab nobody's plan actually locks.
+  const canUseBrainGames = usageData
+    ? (usageData.limits?.can_use_brain_games ?? 1) === 1
+    : true;
+
   useEffect(() => {
-    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "atlas", "news", "research"].includes(activeTab)) {
+    if (workspace && !currentHasUserPlan && ["dashboard", "projects", "documents", "sticky", "whiteboard", "games", "atlas", "news", "research"].includes(activeTab)) {
       setActiveTab(currentIsAdmin ? "admin" : "profile");
     }
   }, [workspace, currentHasUserPlan, currentIsAdmin, activeTab]);
@@ -412,14 +437,20 @@ export function App() {
     return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
   }, []);
 
+  // Where the workspace items end and the always-visible account items begin.
+  // Derived rather than hardcoded: this was `slice(0, 8)` / `slice(8)`, so
+  // inserting any nav item above Profile silently pushed the last workspace
+  // item into the account group (SCHOLARDOCX-0195).
+  const accountNavStart = baseNavItems.findIndex(([key]) => key === "profile");
+
   let navItems: any[] = [];
   if (currentHasUserPlan) {
-    navItems.push(...baseNavItems.slice(0, 8));
+    navItems.push(...baseNavItems.slice(0, accountNavStart));
   }
   if (currentIsAdmin) {
     navItems.push(adminItem);
   }
-  navItems.push(...baseNavItems.slice(8));
+  navItems.push(...baseNavItems.slice(accountNavStart));
 
   const handleSidebarNav = (key: string) => {
     if (key === "atlas" && !canUseAdvisorAtlas) {
@@ -436,7 +467,15 @@ export function App() {
       setMobileNavOpen(false);
       return;
     }
-    if (key === "research" && !canUseResearchReader) {
+    // Not a plan upsell: Brain Games ships on for every tier, so if it is off
+    // an admin turned it off. Sending the user to the plans page would be
+    // telling them to buy something that would not change anything.
+    if (key === "games" && !canUseBrainGames) {
+      showToast("Brain Games has been turned off for your account.");
+      setMobileNavOpen(false);
+      return;
+    }
+    if (key === "research" && !canUseResearchExpert) {
       const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
       setActiveTab("plans");
       showToast(`Research Expert is available on ${phrase}.`);
@@ -494,16 +533,17 @@ export function App() {
             const [key, label, Icon] = item;
             const atlasLocked = key === "atlas" && !canUseAdvisorAtlas;
             const newsLocked = key === "news" && !canUseScholarshipHunt;
-            const researchLocked = key === "research" && !canUseResearchReader;
-            const isLocked = atlasLocked || newsLocked || researchLocked;
+            const researchLocked = key === "research" && !canUseResearchExpert;
+            const gamesLocked = key === "games" && !canUseBrainGames;
+            const isLocked = atlasLocked || newsLocked || researchLocked || gamesLocked;
             return (
               <Fragment key={key}>
-                {currentHasUserPlan && i === 8 && <div className="nav-spacer" />}
+                {currentHasUserPlan && i === accountNavStart && <div className="nav-spacer" />}
                 <button
                   aria-label={label}
                   className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}
                   onClick={() => handleSidebarNav(key)}
-                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : navCollapsed ? label : undefined}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : gamesLocked ? "Brain Games has been turned off for your account" : navCollapsed ? label : undefined}
                   style={isLocked ? { opacity: 0.55 } : undefined}
                 >
                   <Icon size={18} />
@@ -584,6 +624,7 @@ export function App() {
               notificationCount={notifications.filter((item) => !item.read_at).length}
               onCalendarEventClick={navigateToCalendarEvent}
               onProjectClick={navigateToProject}
+              onRefreshDashboard={reloadDashboard}
             />
           </div>
 
@@ -618,6 +659,10 @@ export function App() {
             <WhiteboardView refreshTrigger={refreshTrigger} onToast={showToast} />
           </div>
 
+          <div className={`tab-container ${activeTab === "games" ? "" : "hidden-tab"}`}>
+            <BrainGamesView canUse={canUseBrainGames} />
+          </div>
+
           {canUseAdvisorAtlas && (
             <div className={`tab-container ${activeTab === "atlas" ? "" : "hidden-tab"}`}>
               <AdvisorAtlasView refreshTrigger={refreshTrigger} onToast={showToast} />
@@ -631,7 +676,7 @@ export function App() {
           )}
 
           <div className={`tab-container ${activeTab === "research" ? "" : "hidden-tab"}`}>
-            <ResearchReaderView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
+            <ResearchExpertView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
           </div>
 
           <div className={`tab-container ${activeTab === "profile" ? "" : "hidden-tab"}`}>
@@ -677,205 +722,6 @@ export function App() {
       {toast ? <div className="toast-message">{toast}</div> : null}
     </div>
   );
-}
-
-function DashboardView({
-  dashboard,
-  notificationCount,
-  onCalendarEventClick,
-  onProjectClick
-}: {
-  dashboard: Dashboard;
-  notificationCount: number;
-  onCalendarEventClick: (event: RecordMap) => void;
-  onProjectClick?: (projectId: string) => void;
-}) {
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const cards = [
-    ["Projects", dashboard.counts.projects ?? 0],
-    ["Sheets", dashboard.counts.project_sheets ?? 0],
-    ["Documents", dashboard.counts.documents ?? 0],
-    ["Sticky notes", dashboard.counts.sticky_notes ?? 0],
-    ["White boards", dashboard.counts.whiteboards ?? 0],
-    ["Calendar dates", futureCalendarCount(dashboard.calendar_items || [])]
-  ];
-  const nextEvents = upcomingEvents(dashboard.calendar_items || [], 10);
-  const nextCalendarEvent = nextFeaturedEvent(dashboard.calendar_items || []);
-  const pinnedProjects = dashboard.pinned_projects || [];
-  const pinnedSheets = dashboard.pinned_sheets || [];
-  const pinnedDocs = dashboard.pinned_docs || [];
-
-  return (
-    <div className="page-grid dashboard-grid">
-      <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
-        <div className="metric-grid">
-          {cards.map(([label, value]) => (
-            <article className="metric-card" key={label}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </article>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Project Calendar" eyebrow="Upcoming row dates" className="dashboard-calendar">
-        <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
-          <CalendarDays size={22} />
-          <div>
-            <strong>{futureCalendarCount(dashboard.calendar_items || [])}</strong>
-            <span>upcoming row date{futureCalendarCount(dashboard.calendar_items || []) === 1 ? "" : "s"}</span>
-          </div>
-          <small>
-            {nextCalendarEvent
-              ? `Next: ${formatShortDate(nextCalendarEvent.date_key || nextCalendarEvent.date)} · ${nextCalendarEvent.title || "Untitled row"}`
-              : "Open full calendar"}
-          </small>
-        </button>
-
-        {isCalendarOpen ? (
-          <div className="modal-backdrop" onClick={() => setIsCalendarOpen(false)}>
-            <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Project Calendar</h2>
-                <button className="icon-button" type="button" onClick={() => setIsCalendarOpen(false)} title="Close calendar">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content">
-                <CalendarMonthView
-                  events={dashboard.calendar_items || []}
-                  empty="Add dates in project sheet rows to build the central calendar."
-                  focusDate={nextCalendarEvent?.date_key || nextCalendarEvent?.date || null}
-                  scopeLabel="All projects"
-                  onEventClick={(event) => {
-                    setIsCalendarOpen(false);
-                    onCalendarEventClick(event);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Section>
-
-      {/* formatDegreeType helper ensures 'phd' is properly capitalized */}
-      <Section title="Pinned Projects" eyebrow="Dashboard" className="dashboard-pinned-projects">
-        <List
-          items={pinnedProjects}
-          empty="Pin projects to dashboard."
-          onClick={(item) => onProjectClick?.(item.id)}
-          render={(item) => (
-            <>
-              <FolderOpen size={16} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-
-      <Section title="Next 10 Days" eyebrow="Upcoming row dates" className="dashboard-upcoming">
-        {nextEvents.length ? (
-          <div className="upcoming-event-list">
-            {nextEvents.map((event, index) => (
-              <button
-                className="upcoming-event"
-                key={`${event.page_id}-${event.row_index}-${event.date_field}-${index}`}
-                type="button"
-                onClick={() => onCalendarEventClick(event)}
-              >
-                <span>{formatShortDate(event.date_key || event.date)}</span>
-                <div>
-                  <strong>{event.title || "Untitled row"}</strong>
-                  <small>{event.date_field || "Date"} · {event.source || "Sheet"} · {event.project_name || "Project"}</small>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="empty">No row dates in the next 10 days.</p>
-        )}
-      </Section>
-
-      <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
-        <List
-          items={pinnedSheets}
-          empty="Pin sheets to dashboard."
-          onClick={(item) => onCalendarEventClick({ project_id: item.project_id, sheet_id: item.sheet_id, page_id: item.id })}
-          render={(item) => (
-            <>
-              <FileText size={16} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.project_name || "Project"} · Created {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-
-      <Section title="Pinned Docs" eyebrow="Dashboard" className="dashboard-pinned-docs">
-        <List
-          items={pinnedDocs}
-          empty="Pin docs to dashboard."
-          onClick={(item) => {
-            const token = getToken();
-            const url = `${API_BASE}/files/${item.id}/content${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-            window.open(url, "_blank", "noopener,noreferrer");
-          }}
-          render={(item) => (
-            <>
-              <FileText size={16} />
-              <div>
-                <strong>{item.display_name}</strong>
-                <span>{item.file_type || "Document"} · {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
-    </div>
-  );
-}
-
-function futureCalendarCount(events: RecordMap[]) {
-  const today = startOfLocalDay(new Date());
-  return events.filter((event) => {
-    const date = parseLocalDate(event.date_key || event.date);
-    return date ? date >= today : false;
-  }).length;
-}
-
-function nextFeaturedEvent(events: RecordMap[]) {
-  const today = startOfLocalDay(new Date());
-  return [...events]
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date >= today : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    })[0];
-}
-
-function upcomingEvents(events: RecordMap[], dayWindow: number) {
-  const today = startOfLocalDay(new Date());
-  const end = new Date(today);
-  end.setDate(today.getDate() + dayWindow);
-  return events
-    .filter((event) => {
-      const date = parseLocalDate(event.date_key || event.date);
-      return date ? date >= today && date <= end : false;
-    })
-    .sort((first, second) => {
-      const firstDate = parseLocalDate(first.date_key || first.date)?.getTime() || 0;
-      const secondDate = parseLocalDate(second.date_key || second.date)?.getTime() || 0;
-      return firstDate - secondDate;
-    });
 }
 
 function HierarchyView(props: {
@@ -1634,25 +1480,6 @@ function DataForm({
         Save
       </button>
     </form>
-  );
-}
-
-function List({ items, empty, onClick, render }: { items: RecordMap[]; empty: string; onClick?: (item: RecordMap) => void; render: (item: RecordMap) => ReactNode }) {
-  if (!items.length) {
-    return <p className="empty">{empty}</p>;
-  }
-  return (
-    <div className="list">
-      {items.map((item) => (
-        <article
-          key={item.id}
-          onClick={onClick ? () => onClick(item) : undefined}
-          style={onClick ? { cursor: 'pointer' } : undefined}
-        >
-          {render(item)}
-        </article>
-      ))}
-    </div>
   );
 }
 

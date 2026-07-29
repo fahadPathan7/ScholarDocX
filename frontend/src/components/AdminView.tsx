@@ -158,7 +158,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
           tone: "sky",
           infoText: "Cloud storage space consumed by files in the Documents workspace."
         },
-        { label: "Files in Research", value: stats.counts.research_files || 0, icon: BookOpen, tone: "purple", infoText: "Total number of PDF research papers in the Research Reader." },
+        { label: "Files in Research", value: stats.counts.research_files || 0, icon: BookOpen, tone: "purple", infoText: "Total number of PDF research papers in the Research Expert." },
         {
           label: "Storage in Research",
           value: (
@@ -169,7 +169,7 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
           ),
           icon: Cpu,
           tone: "emerald",
-          infoText: "Cloud storage space consumed by PDF papers in the Research Reader."
+          infoText: "Cloud storage space consumed by PDF papers in the Research Expert."
         },
       ],
     },

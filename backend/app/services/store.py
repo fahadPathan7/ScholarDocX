@@ -14,6 +14,8 @@ from sqlalchemy.sql import func
 
 from app.core.categories import category_display_name, normalize_media_category
 from app.db import models
+from app.db import calendar_models
+from app.services import calendar_service
 
 MAX_DOCUMENT_CATEGORIES = 16
 
@@ -45,19 +47,21 @@ MODEL_MAP = {
     "scholarship_search_feedback": models.ScholarshipSearchFeedback,
     "saved_scholarship_queries": models.SavedScholarshipQueries,
     "scholarship_opportunities": models.ScholarshipOpportunities,
+    "calendar_reminders": calendar_models.CalendarReminders,
 }
 
 TABLE_COLUMNS = {
     # SCHOLARDOCX-0178: "hunt_profile_json" removed — Hunt Profile is deleted.
     # The physical column is left in place, orphaned (matches this codebase's
     # existing pattern for removed features), just no longer writable.
-    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings"},
+    "local_profiles": {"user_id", "display_name", "email", "preferred_email_provider", "timezone", "notes", "avatar", "notification_settings", "advisor_profile_json"},
     "projects": {"user_id", "name", "degree_type", "intake_term", "status", "description", "is_pinned", "pinned_to_dashboard"},
     "project_sheets": {"user_id", "project_id", "name", "is_pinned", "pinned_to_dashboard"},
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},
     "notifications": {"user_id", "project_id", "title", "body", "notification_type", "preference_key", "due_at", "read_at"},
     "document_categories": {"user_id", "slug", "display_name", "sort_order"},
-    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned"},
+    # SCHOLARDOCX-0201 added tags_json, due_at, archived_at and sort_order.
+    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned", "tags_json", "due_at", "archived_at", "sort_order"},
     "degree_workspaces": {"user_id", "degree_type", "display_name", "enabled"},
     "universities": {"user_id", "name", "country", "region", "website_url", "notes"},
     "programs": {"user_id", "university_id", "name", "degree_type", "department", "application_url", "funding_url", "notes"},
@@ -155,6 +159,15 @@ TABLE_COLUMNS = {
         "last_deadline_notified_at",
         "deep_hunt_run_id",
     },
+    "calendar_reminders": {"user_id", "project_id", "title", "note", "reminder_date", "is_done"},
+}
+
+# Optional TIMESTAMP columns a client is allowed to clear. See the coercion in
+# ``_filter_payload``: JSON cannot express "cleared" other than as null or "",
+# and "" is a Postgres type error rather than a validation failure, so the
+# empty string is normalized to NULL for exactly these columns.
+NULLABLE_TIMESTAMP_COLUMNS: dict[str, tuple[str, ...]] = {
+    "sticky_notes": ("due_at", "archived_at"),
 }
 
 DEFAULT_SORT = {
@@ -173,6 +186,7 @@ DEFAULT_SORT = {
     "scholarship_search_feedback": "created_at DESC",
     "saved_scholarship_queries": "last_used_at DESC",
     "scholarship_opportunities": "updated_at DESC",
+    "calendar_reminders": "reminder_date ASC",
 }
 
 def get_columns_for_degree(degree_type: str) -> list[dict]:
@@ -698,6 +712,7 @@ class Store:
         ]
         return {
             "counts": counts,
+            "feature_libraries": self._feature_library_counts(uid),
             "status_counts": statuses,
             "upcoming_deadlines": upcoming_deadlines,
             "reminders": reminders,
@@ -707,7 +722,9 @@ class Store:
             "pinned_projects": pinned_projects,
             "pinned_sheets": pinned_sheets,
             "pinned_docs": pinned_docs,
-            "calendar_items": self._calendar_items(project_pages),
+            "calendar_items": calendar_service.build_calendar_items(
+                self.db, self.current_user_id, self._calendar_items(project_pages)
+            ),
         }
 
     def project_summary(self, project_id: str) -> dict:
@@ -761,7 +778,9 @@ class Store:
             "sheets": sheets,
             "pages": pages,
             "notifications": notifications,
-            "calendar_items": self._calendar_items(pages),
+            "calendar_items": calendar_service.build_calendar_items(
+                self.db, self.current_user_id, self._calendar_items(pages), project_id=project_id
+            ),
         }
 
     def project_meta(self, project_id: str, include_calendar: bool = True) -> dict:
@@ -832,7 +851,9 @@ class Store:
             "notifications": notifications,
         }
         if include_calendar:
-            result["calendar_items"] = self._calendar_items(decoded_pages)
+            result["calendar_items"] = calendar_service.build_calendar_items(
+                self.db, self.current_user_id, self._calendar_items(decoded_pages), project_id=project_id
+            )
         return result
 
     def get_project_page(self, page_id: str) -> dict:
@@ -984,6 +1005,58 @@ class Store:
             ), {"uid": uid}).scalar())
         return int(self.db.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar())
 
+    def _feature_library_counts(self, uid: str | None) -> dict:
+        """Workspace Snapshot library counts + fixed caps (SCHOLARDOCX-0187) for
+        Advisor Atlas, Scholarship Hunt (Opportunity Library + Previous
+        Searches), and Research Expert. None of these tables are in
+        MODEL_MAP/TABLE_COLUMNS, so _count() doesn't apply — scoped directly.
+        """
+        if not uid:
+            return {}
+
+        def scoped_count(table: str) -> int:
+            return int(
+                self.db.execute(
+                    text(f"SELECT COUNT(*) FROM {table} WHERE user_id = :uid"), {"uid": uid}
+                ).scalar()
+                or 0
+            )
+
+        # Research Expert's library cap is role-based (Settings -> Plan
+        # Pricing / Role Limits), unlike the other three fixed constants
+        # below — mirrors ResearchPaperService.get_library_limit().
+        from app.auth.limits import get_user_limit
+        role_row = self.db.execute(
+            text("SELECT roles FROM users WHERE id = :uid"), {"uid": uid}
+        ).mappings().fetchone()
+        roles = safe_json_loads(role_row["roles"], default=[]) if role_row else []
+        research_expert_max = get_user_limit(
+            {"id": uid, "roles": roles}, "max_research_papers_library", self.db
+        )
+
+        return {
+            "advisor_atlas_history": {
+                "label": "Advisor Atlas history",
+                "count": scoped_count("advisor_atlas_runs"),
+                "max": 100,  # MAX_ADVISOR_ATLAS_RUNS, app/api/advisor_atlas.py
+            },
+            "scholarship_opportunity_library": {
+                "label": "Opportunity Library",
+                "count": scoped_count("scholarship_opportunities"),
+                "max": 100,  # MAX_LIBRARY_ENTRIES, app/api/scholarship_opportunities.py
+            },
+            "scholarship_previous_searches": {
+                "label": "Scholarship Hunt searches",
+                "count": scoped_count("scholarship_deep_hunt_runs"),
+                "max": 10,  # MAX_STORED_RUNS, app/services/scholarship_deep_hunt.py
+            },
+            "research_expert_library": {
+                "label": "Research Expert library",
+                "count": scoped_count("research_papers"),
+                "max": research_expert_max if research_expert_max > 0 else None,
+            },
+        }
+
     def _filter_payload(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         accepted = TABLE_COLUMNS[table]
         filtered = {key: value for key, value in payload.items() if key in accepted}
@@ -991,6 +1064,14 @@ class Store:
         # Profile email is identity-bound and must not be user-editable from profile updates.
         if table == "local_profiles":
             filtered.pop("email", None)
+
+        # Clearing an optional date. JSON has no distinction between "unset"
+        # and "cleared", so callers send "" — which Postgres rejects on a
+        # TIMESTAMP column with a 500 rather than a validation error. Coerce
+        # here so every caller (UI, AI actions) clears a date the same way.
+        for key in NULLABLE_TIMESTAMP_COLUMNS.get(table, ()):  # noqa: SIM118
+            if key in filtered and isinstance(filtered[key], str) and not filtered[key].strip():
+                filtered[key] = None
 
         return filtered
 

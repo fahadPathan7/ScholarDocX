@@ -20,28 +20,10 @@ _CREDIT_SETTING_TO_ROLE = {
 }
 
 DEFAULT_ROLE_LIMITS = {
-    'free_user': [
-        ('ai_messages_per_session', 0, 'per_session'),
-        ('can_use_gemini', 1, 'never'),
-        ('can_use_glm', 0, 'never'),
-        ('can_use_groq', 0, 'never'),
-        ('can_use_mistral', 0, 'never'),
-        ('can_use_agents', 0, 'never'),
-        ('can_use_web_search', 0, 'never'),
-        ('can_use_advisor_atlas', 0, 'never'),
-        ('can_use_scholarship_hunt', 0, 'never'),
-        ('can_use_research_reader', 0, 'never'),
-        ('research_papers_per_month', 0, 'monthly'),
-        ('max_research_papers_library', 0, 'never'),
-        ('total_projects', 1, 'never'),
-        ('total_sheets', 2, 'never'),
-        ('total_records', 100, 'never'),
-        ('sheets_per_project', 2, 'never'),
-        ('records_per_sheet', 50, 'never'),
-        ('total_documents_bytes', 5242880, 'never'),
-        ('total_sticky_notes', 3, 'never'),
-        ('total_whiteboards', 1, 'never'),
-    ],
+    # NOTE: `free_user` is defined once, at the END of this dict. An earlier
+    # duplicate key used to sit here; Python keeps the last definition, so that
+    # block was dead and any edit made to it silently did nothing. Removed in
+    # SCHOLARDOCX-0198. If you are adding a free-tier limit, add it there.
     'general_user': [
         ('ai_messages_per_session', 10, 'per_session'),
         ('can_use_gemini', 1, 'never'),
@@ -53,6 +35,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 0, 'never'),
         ('can_use_scholarship_hunt', 0, 'never'),
         ('can_use_research_reader', 0, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 0, 'monthly'),
         ('max_research_papers_library', 0, 'never'),
         ('total_projects', 3, 'never'),
@@ -77,6 +60,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 1, 'never'),
         ('can_use_scholarship_hunt', 1, 'never'),
         ('can_use_research_reader', 1, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 30, 'monthly'),
         ('max_research_papers_library', 20, 'never'),
         ('total_projects', 10, 'never'),
@@ -102,6 +86,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 1, 'never'),
         ('can_use_scholarship_hunt', 1, 'never'),
         ('can_use_research_reader', 1, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 100, 'monthly'),
         ('max_research_papers_library', 20, 'never'),
         ('total_projects', 50, 'never'),
@@ -175,6 +160,7 @@ DEFAULT_ROLE_LIMITS = {
         ('can_use_advisor_atlas', 0, 'never'),
         ('can_use_scholarship_hunt', 0, 'never'),
         ('can_use_research_reader', 0, 'never'),
+        ('can_use_brain_games', 1, 'never'),
         ('research_papers_per_month', 0, 'monthly'),
         ('max_research_papers_library', 0, 'never'),
         ('total_projects', 1, 'never'),
@@ -277,7 +263,10 @@ class AdminService:
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'web_search') AS tavily_web_search,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('scholarship_hunt', 'scholarship_deep_hunt_search')) AS tavily_scholarship_hunt,
               (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'advisor_atlas_search') AS tavily_advisor_atlas,
-              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('jina_embedding', 'jina_embedding_retry', 'jina_embedding_query')) AS jina_total
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('jina_embedding', 'jina_embedding_retry', 'jina_embedding_query')) AS jina_total,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source IN ('openalex_author_lookup', 'openalex_works_lookup')) AS openalex_total,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_author_lookup') AS openalex_author_lookups,
+              (SELECT COUNT(*) FROM ai_token_ledger WHERE source = 'openalex_works_lookup') AS openalex_works_lookups
             """
         ).fetchone()
         c = dict(counts_row) if counts_row else {}
@@ -367,6 +356,12 @@ class AdminService:
                 "tavily_scholarship_hunt": _count("tavily_scholarship_hunt"),
                 "tavily_advisor_atlas": _count("tavily_advisor_atlas"),
                 "jina_total": _count("jina_total"),
+                # SCHOLARDOCX-0191: a professor can now cost two OpenAlex calls
+                # of different classes and prices. `openalex_total` stays the
+                # all-calls figure it always was; the split shows which kind.
+                "openalex_total": _count("openalex_total"),
+                "openalex_author_lookups": _count("openalex_author_lookups"),
+                "openalex_works_lookups": _count("openalex_works_lookups"),
             },
             "recent_registrations": recent_registrations,
             "recent_logins": recent_logins,
@@ -1103,22 +1098,48 @@ class AdminService:
             """,
             (key, value)
         )
-        # SCHOLARDOCX-0140: when a plan_ai_credits_* setting changes, force every
-        # user on that tier to re-seed their monthly balance so the new allowance
-        # applies immediately (mirrors the old update_role_limit FORCE_RESET).
+        # SCHOLARDOCX-0184: when a plan_ai_credits_* setting changes, adjust
+        # every affected user's grant for the CURRENT cycle in place — do NOT
+        # wipe usage already accrued (that was the SCHOLARDOCX-0140 behavior,
+        # via subscription_period = 'FORCE_RESET', which made refresh_balance()
+        # treat this identically to a genuine month-boundary rollover: full
+        # reset, usage back to 0). That is wrong for a live pricing edit:
+        # - Lowering the cap below what a user already used must block further
+        #   spend immediately, not hand them a fresh full pool at the new
+        #   (lower) amount.
+        # - Raising the cap must only grant the additional headroom above what
+        #   they already used, not reset usage to 0 and hand out a full fresh
+        #   allowance on top of what they already spent — that is free credits
+        #   the business eats the real API cost for.
+        # subscription_period is intentionally left untouched: this is not a
+        # new billing period, so the user's natural reset schedule
+        # (plan_started_at-based) is unaffected. Role/tier CHANGES for a
+        # specific user (upgrade/downgrade, admin role edit) are a different
+        # event — those still use the old full-reset FORCE_RESET path
+        # elsewhere in this file, which is correct there (a plan change is
+        # reasonably a fresh start for that user).
         tier = _CREDIT_SETTING_TO_ROLE.get(key)
         if tier:
-            self.connection.execute(
-                """
-                UPDATE ai_token_balances
-                SET subscription_period = 'FORCE_RESET'
-                WHERE user_id IN (
-                    SELECT id FROM users
-                    WHERE roles ILIKE ?
+            try:
+                new_allowance = int(value)
+            except (TypeError, ValueError):
+                new_allowance = None
+            if new_allowance is not None and new_allowance >= 0:
+                self.connection.execute(
+                    """
+                    UPDATE ai_token_balances
+                    SET subscription_remaining = GREATEST(
+                            0,
+                            ? - GREATEST(0, subscription_granted - subscription_remaining)
+                        ),
+                        subscription_granted = ?
+                    WHERE user_id IN (
+                        SELECT id FROM users
+                        WHERE roles ILIKE ?
+                    )
+                    """,
+                    (new_allowance, new_allowance, f'%"{tier}"%'),
                 )
-                """,
-                (f'%"{tier}"%',),
-            )
         self.connection.commit()
         self.log_audit_action(admin_id, "update_app_setting", "app_settings", key, {"new_value": value})
         return {"status": "success", "message": f"Setting {key} updated successfully."}

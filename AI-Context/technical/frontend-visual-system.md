@@ -202,6 +202,8 @@ interactive, and polished without becoming decorative marketing UI.
   `index.tsx` barrel) rather than a single component, to respect the file-size
   rule as the page grew. `main.tsx` imports it as `./components/LandingPage` and
   resolves to the barrel with no router change.
+- **Landing Page Feature Spotlight Showcase (`PillarsShowcase.tsx` & `PillarsShowcase.css`)**:
+  Separately features and markets the 3 core power tools: **Research Expert** (deep AI paper & proposal analysis), **Advisor Atlas** (research-fit scoring & verified faculty contact details), and **Focus Games** (6 cognitive micro-break games). Includes an interactive 3-tab stage with live simulated UI card mockups (analytical prompts selector, professor match score gauge, mini-game previews), glowing ambient light nodes, themed accent badges (`accent-cyan`, `accent-emerald`, `accent-amber`), and direct header navigation (`#featured-tools`).
 - Landing-page motion is dependency-free: a `useReveal()` hook wraps
   `IntersectionObserver` and toggles a shared `.reveal` → `.in-view` CSS
   transition (staggered via a `--reveal-delay` custom property). It honors
@@ -286,3 +288,157 @@ interactive, and polished without becoming decorative marketing UI.
 
 
 
+
+- **Brain Games surface (SCHOLARDOCX-0198 / 0199 / 0200)**: the six games under
+  `frontend/src/components/games/` share one stylesheet, `brain-games.css`,
+  scoped entirely under `.brain-games`, `.game-*`, and per-game prefixes
+  (`.sudoku-*`, `.g2048-*`, `.mine-*`, `.word-*`, `.ttt-*`, `.pattern-*`). It
+  does not participate in `responsive.css`; its two breakpoint blocks live at
+  the foot of the file with the rest of the games' rules, because nothing
+  outside this view consumes them.
+  - **Game rules are never in components.** Every rule, generator and search
+    lives as a pure function in `frontend/src/lib/games/`, and the components
+    hold only rendering and input. This is deliberate and load-bearing: the
+    repo has no DOM testing library, so logic kept out of the components is
+    the only game logic that can be tested at all. A new game or mechanic
+    goes in `lib/games/` first.
+  - **Motion is feedback, not decoration.** Animations here exist to make a
+    state change legible (a 2048 merge, a word row's marks arriving, a won
+    tic-tac-toe line) and are all short one-shots driven by a class the
+    component clears on a timer. Every one of them must also be listed in the
+    `@media (prefers-reduced-motion: reduce)` block at the foot of
+    `brain-games.css`, clearing `transform` as well as `animation` — a tile
+    caught mid-flip at 90 degrees is invisible if only the animation is
+    removed.
+  - **Copy in `gameRules.ts` and the `howTo` blurbs follows the no-jargon
+    rule above**: plain language only, no "minimax", "flood fill", "chord",
+    "vector" or similar. Describe the move, not the mechanism.
+  - `brain-games.css` is at ~1015 lines, over the 1000-line target and inside
+    the grace band in `CODE_RULES.md`. A seventh game should split it
+    per-game (`games/styles/`) rather than extend it further.
+
+- **Sheet chrome vs. sheet grid (SCHOLARDOCX-0202)**: sheet styling is split by
+  role across two files and they should stay that way.
+  `frontend/src/sheet-table-polish.css` owns the **grid** — table, headers,
+  cells, row/column resize, sticky columns. `components/sheet/sheet-chrome.css`
+  owns everything **around** it — toolbar, buttons, menus, the shortcuts panel
+  and the blank state. New sheet styling goes in one of these, never inline:
+  the toolbar previously carried ~400 lines of inline style objects, every
+  button restating its own padding and font size and every dropdown its own
+  border and shadow, which is precisely why the menus had drifted apart from
+  one another.
+  - **One dropdown component.** `components/sheet/SheetMenu.tsx` is the only
+    menu primitive (`SheetMenu` + `SheetMenuItem` / `SheetMenuToggle` /
+    `SheetMenuLabel` / `SheetMenuDivider`). Adding a menu means composing
+    these, not writing another portal-and-panel block.
+  - **Toolbar grouping is by purpose**: View (what you see), Views (saved
+    arrangements), Format (how it looks), Data (what crosses the boundary).
+    Only *Add record* and search sit outside a menu. A new control belongs in
+    whichever menu matches its purpose rather than as another top-level button.
+  - **Row density drives the existing `--sheet-row-height` and
+    `--sheet-cell-lines` variables**, not a parallel set of rules, so anything
+    already sized from them follows automatically. Density and the frozen-column
+    preference are per-person and live in `localStorage`, never on the shared
+    page record.
+  - **Grid rules are pure functions** in `components/sheet/sheetGrid.ts`
+    (density presets, type alignment, bulk-edit change sets, the shortcut list
+    as data), tested in `sheetGrid.test.ts`. Same arrangement as
+    `sheetFilters.ts`, `lib/games/` and `lib/stickyNotes.ts`, and for the same
+    reason: this repo has no DOM test harness.
+
+- **Sheet insights and colour rules (SCHOLARDOCX-0203)**: column statistics and
+  conditional-formatting evaluation are pure functions in
+  `components/sheet/sheetInsights.ts`, tested in `sheetInsights.test.ts`.
+  - **Parse sheet dates with `parseSheetDate`, never `new Date(value)`.**
+    JavaScript parses a date-only string (`"2026-08-05"`) as UTC midnight but a
+    timestamped one as local. Sheet date columns store the date-only form, so
+    comparing them against a locally computed "today" is off by a day for
+    anyone east of UTC — a deadline rule firing a day early in a product built
+    around deadlines. Any new date comparison in the sheet must go through this
+    helper.
+  - **Date-sensitive tests run under multiple timezones.** The suite is
+    executed under UTC, Asia/Dhaka and US/Hawaii; a single-timezone run would
+    not have caught the above.
+  - **Colour rules resolve last-wins**, matching the spreadsheet convention:
+    the rule added at the bottom of the list is the one that takes effect.
+    Rule operators are filtered by column type so a rule that can never fire
+    cannot be constructed.
+  - **Conditional tints are a background wash plus a left marker**, never a
+    saturated fill — a strongly coloured row makes its own text harder to read.
+  - **Per-reader settings live in `localStorage`, not on the page record**:
+    density, frozen column, and colour rules all describe how one person wants
+    to read a shared sheet.
+  - **The command palette (`Ctrl/Cmd+K`) keeps a fixed order**, not a
+    usage ranking. Stable ordering is what makes it faster than a menu.
+
+- **Modal backdrops — one implementation, no exceptions (SCHOLARDOCX-0203)**:
+  every dialog in the sheet and sticky-note views now goes through `<Modal>`
+  from `components/Modal.tsx`. Converted in this task: `ShortcutsPanel`,
+  `CommandPalette`, `FormatRulesModal`, the column-stats layer, `RowPeekPanel`
+  (which had inline `position`/`backdropFilter` overrides), `CsvImportModal`,
+  `NoteComposer` and `NoteViewer`. There are no remaining hand-rolled
+  `modal-backdrop` divs under `components/sheet/` or `components/sticky/`.
+  `DialogProvider` (`showAlert`/`showConfirm`/`showPrompt`) was the opposite
+  defect — a fixed full-viewport backdrop that blurred the TopBar and Sidebar
+  — and now portals into `.main-content` with a `.scoped-main` class, falling
+  back to fixed full-viewport only where no `.main-content` exists (login,
+  splash). If a new dialog needs a backdrop, use `<Modal>`; if `<Modal>` does
+  not fit, change `Modal.tsx` rather than writing a second backdrop.
+
+- **Sheet grid: no sticky first data column (SCHOLARDOCX-0203)**. Attempted and
+  removed after two regressions. The sheet grid combines `position: sticky`
+  row headers, `content-visibility: auto` on rows (an off-screen-row perf
+  optimisation), `table-layout: fixed`, `min-width: 1200px` and a rounded
+  `overflow: auto` container. Those interact badly and the failure modes are
+  layout-level, so they are invisible to type-checking and to CSS specificity
+  analysis. `.is-first-data-col` is still emitted on the first data cell as a
+  hook. Do not re-attempt this without a browser to check the result in.
+
+- **The sheet's sticky row-number column must stay opaque (SCHOLARDOCX-0203)**.
+  `.sheet-table td.row-header` is `position: sticky`. A sticky cell without an
+  opaque background is a window — the rows scrolling horizontally underneath
+  show through it, and cell text appears to bleed across the row numbers.
+  Seventeen selectors across four stylesheets set a background on `... td` and
+  out-rank it (row hover, the `due-urgent`/`due-warning`/`due-watch` deadline
+  tints, `row-focused`, and zebra banding). Most predate this task; the banding
+  only made a long-standing bug visible on every even row rather than on hover.
+  The column therefore defends itself: `background` and `box-shadow` are set
+  with `!important` at the foot of `sheet-chrome.css`, with hover and selected
+  variants so it still responds. **Any new rule that backgrounds sheet cells
+  must target `td.data-cell`, not a bare `td`.** Enforced by
+  `scripts/check-sticky-column.py`, which fails if the `!important` defence is
+  removed or if a new rule in `sheet-chrome.css` out-ranks it without one.
+
+- **Sticky note fonts: never reset `font` wholesale (SCHOLARDOCX-0201 fix)**.
+  A note's font is applied by `.font-{caveat,sans,serif,mono} X` rules in
+  `sticky-notes.css`, one per themed element (`.check-item`, `.sticky-body`,
+  `.note-title`, `.sticky-title-input`, `h2.sticky-view-title`,
+  `.sticky-check-row span`) — all at specificity (0,2,0), and applied to the
+  elements rather than to the card. Any rule that sets `font` or
+  `font-family` on one of those with higher specificity silently wins, and the
+  note renders in the wrong font. The `font: inherit` shorthand is the usual
+  culprit: it includes `font-family`, and `inherit` resolves to the card's
+  Caveat default rather than the user's choice. When resetting a control
+  (a `<button>` used as a checklist row, say), reset size, weight, style,
+  line-height, letter-spacing and colour — never the family. Enforced by
+  `scripts/check-sticky-note-fonts.py`.
+- **Two standing CSS guards.** `scripts/check-sticky-column.py` and
+  `scripts/check-sticky-note-fonts.py` both encode the same lesson: a generic
+  rule out-ranking a specific one is invisible in review and in type-checking,
+  and shows up only as a rendering bug. Run both after touching sheet or
+  sticky-note styling.
+- **Never reuse a global utility class name as a local modifier
+  (SCHOLARDOCX-0201 fix)**. `styles.css` and `visual-refresh.css` define bare
+  single-class utilities (`.secondary`, `.primary`, `.compact`, …) that carry
+  real layout. `<div className="sticky-toolbar-row secondary">` picks up
+  `justify-content: center`, `min-height`, padding and a radius from the
+  secondary-*button* utility — which centred the sticky-notes filter row and
+  made the chips jump left as soon as a "Clear filters" button appeared beside
+  them. Name modifiers for what they are (`.filters`, `.tools`), never for
+  where they sit. Enforced by `scripts/check-css-modifier-collisions.py`.
+- **Run all three CSS guards after touching sheet or sticky-note styling**:
+  `scripts/check-sticky-column.py`, `scripts/check-sticky-note-fonts.py`,
+  `scripts/check-css-modifier-collisions.py`. They encode three regressions
+  with one shared cause — a broad rule silently out-ranking a specific one —
+  which is invisible to TypeScript and to code review, and shows up only as a
+  rendering bug.

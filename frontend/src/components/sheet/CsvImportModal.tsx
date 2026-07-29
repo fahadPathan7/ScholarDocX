@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, ArrowRight, Upload } from "lucide-react";
+import { Modal } from "../Modal";
 import { parseCSV } from "./sheetCsv";
 import type { ColumnDef, ColumnType } from "./sheetModel";
 
@@ -124,8 +125,12 @@ export function CsvImportModal({
   const isOverQuota = csvData.length > remainingQuota;
 
   return (
-    <div className="modal-backdrop modal-backdrop-main">
-      <div className="modal-panel" style={{ width: '600px', maxWidth: '90vw' }}>
+    <Modal onClose={() => { if (!importing) onClose(); }}>
+      <div
+        className="modal-panel"
+        style={{ width: '600px', maxWidth: '90vw' }}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>Import CSV</h2>
           <button className="icon-button" onClick={onClose} disabled={importing}><X size={20} /></button>
@@ -205,6 +210,6 @@ export function CsvImportModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

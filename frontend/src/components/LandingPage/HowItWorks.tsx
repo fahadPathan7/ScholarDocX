@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { FolderKanban, CalendarClock, Sparkles, type LucideProps } from "lucide-react";
+import { FolderKanban, Compass, Sparkles, type LucideProps } from "lucide-react";
 import { useReveal } from "./useReveal";
 import "./HowItWorks.css";
 
@@ -12,18 +12,18 @@ type Step = {
 const STEPS: Step[] = [
   {
     Icon: FolderKanban,
-    title: "Set up your workspace",
-    body: "Create a project for each program. Add universities, professors, and documents in one secure place.",
+    title: "Set up workspace & deadlines",
+    body: "Create projects for each program, track requirements in customized sheets, and monitor deadlines in one place.",
   },
   {
-    Icon: CalendarClock,
-    title: "Track applications & deadlines",
-    body: "Manage requirements, deadlines, and funding status in one centralized dashboard.",
+    Icon: Compass,
+    title: "Analyze research & vet advisors",
+    body: "Upload papers for deep AI analysis with Research Expert and match prospective professors with Advisor Atlas.",
   },
   {
     Icon: Sparkles,
-    title: "Draft outreach with AI",
-    body: "Generate personalized emails and summaries tailored to your research goals.",
+    title: "Draft outreach & refresh focus",
+    body: "Generate personalized outreach emails tailored to your goals and take cognitive micro-breaks with built-in Focus Games.",
   },
 ];
 

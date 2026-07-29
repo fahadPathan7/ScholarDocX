@@ -601,4 +601,27 @@
   to { transform: rotate(360deg); }
 }
 
+.auth-loading-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ui-text-muted, #6b7280);
+  text-align: center;
+}
+
+/* Generic inline spinner for auth submit buttons (Log In, Create Account,
+   Submit Request) — same visual as .auth-google-spinner, kept as its own
+   class so it isn't coupled to the Google button's markup. */
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: auth-google-spin 0.7s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
 

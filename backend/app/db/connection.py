@@ -15,6 +15,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db.schema import SEED_SQL
 from app.db.models import Base
+# SCHOLARDOCX-0185: new tables live outside models.py (already past the
+# 1150-line file-size hard cap) but register on the same Base — importing
+# here (before create_all() runs below) is what makes that registration take
+# effect.
+from app.db import calendar_models  # noqa: F401
 
 
 def _resolve_database_url(database_url: str) -> str:
@@ -131,9 +136,47 @@ def initialize_database(database_url: str) -> None:
         _add_signup_method_column(conn)
         _add_scholarship_fields_of_study_columns(conn)
         _add_deep_hunt_results_column(conn)
+        _add_publication_provenance_columns(conn)
+        _add_paper_embedding_task_column(conn)
+        _add_advisor_profile_column(conn)
+        _add_subscription_granted_column(conn)
+        _add_purchase_request_price_snapshot_columns(conn)
+        _add_sticky_note_planning_columns(conn)
         _seed_registration_mode_default(conn)
         _ensure_pgvector_extension(conn)
         _create_vector_index(conn)
+        _warn_on_unpriced_models(conn)
+
+
+def _warn_on_unpriced_models(conn) -> None:
+    """Log loudly if any env-configured model has no ``ai_models`` pricing row.
+
+    SCHOLARDOCX-0204 (L4): an unpriced model does not fail — it bills the user
+    $0 and writes a ledger row that looks like a successful charge, so the gap
+    is invisible until someone reconciles provider invoices against revenue.
+    Surfacing it at boot is the only cheap moment to catch it.
+
+    Warn rather than raise: a pricing gap must not stop an already-running
+    deployment from starting, and `compute_cost` logs again at each call site.
+    """
+    from app.core.config import get_settings
+    from app.services.ai_tokens import validate_model_pricing
+
+    class _ConnSession:
+        """Minimal shim so validate_model_pricing can take either a Session or
+        a raw connection — initialize_database has no ORM Session in hand."""
+
+        def __init__(self, c):
+            self._c = c
+
+        def execute(self, *args, **kwargs):
+            return self._c.execute(*args, **kwargs)
+
+    try:
+        for problem in validate_model_pricing(_ConnSession(conn), get_settings()):
+            print(f"AI PRICING WARNING: {problem}")
+    except Exception as exc:  # pragma: no cover - never block startup
+        print("AI pricing validation skipped:", exc)
 
 
 def _migrate_yearly_to_quarterly(conn) -> None:
@@ -276,6 +319,106 @@ def _add_scholarship_fields_of_study_columns(conn) -> None:
     )
 
 
+def _add_advisor_profile_column(conn) -> None:
+    """Add local_profiles.advisor_profile_json if missing (SCHOLARDOCX-0189).
+
+    Explicit, user-managed Advisor Atlas research defaults (interests,
+    degree_target, intake_term), edited from the Profile page and read by
+    the Advisor Atlas search form as one-time prefill. ``ADD COLUMN IF NOT
+    EXISTS`` makes this safe on every boot; fresh installs get the column
+    from ``create_all`` and this is a no-op.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE local_profiles "
+            "ADD COLUMN IF NOT EXISTS advisor_profile_json TEXT NOT NULL DEFAULT '{}'"
+        )
+    )
+
+
+def _add_sticky_note_planning_columns(conn) -> None:
+    """Add the sticky_notes planning columns if missing (SCHOLARDOCX-0201).
+
+    Four columns that turn sticky notes from a scratchpad into a planning
+    surface:
+
+    - ``tags_json`` — JSON array of lowercase tags (default ``'[]'``). Colour
+      was previously the only way to organise a board and there are six of
+      them, which stops being enough at about twenty notes.
+    - ``due_at`` — optional deadline. Nullable rather than defaulted: most
+      notes never get one, and a sentinel date would turn "has a deadline"
+      into a comparison against a magic value in every caller.
+    - ``archived_at`` — set when archived. A timestamp rather than a boolean
+      so the archive can be listed most-recent-first without a second column.
+    - ``sort_order`` — manual board position for drag-to-reorder. Defaults to
+      ``0`` so every existing note ties and falls back to the previous
+      ``updated_at`` ordering until the user actually drags something.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot: fresh installs
+    get the columns from ``create_all`` and this is a no-op. Existing notes
+    keep working untouched — an untagged, undated, unarchived note behaves
+    exactly as it did before.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE sticky_notes "
+            "ADD COLUMN IF NOT EXISTS tags_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE sticky_notes "
+            "ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0"
+        )
+    )
+    conn.execute(
+        text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS due_at TIMESTAMP WITH TIME ZONE")
+    )
+    conn.execute(
+        text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE")
+    )
+
+
+def _add_paper_embedding_task_column(conn) -> None:
+    """Add research_papers.embedding_task if missing (SCHOLARDOCX-0193).
+
+    Records which Jina task a paper's passages were indexed with. New papers
+    use the asymmetric retrieval pair; papers indexed before the switch stay on
+    the symmetric ``text-matching`` task until re-indexed, and their questions
+    are embedded to match. The default is deliberately the **legacy** value, so
+    every existing row is labelled correctly by the migration itself rather
+    than being silently mislabelled as already migrated — which would compare
+    new queries against old vectors and quietly return nonsense.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE research_papers "
+            "ADD COLUMN IF NOT EXISTS embedding_task TEXT NOT NULL "
+            "DEFAULT 'text-matching'"
+        )
+    )
+
+
+def _add_publication_provenance_columns(conn) -> None:
+    """Add advisor_atlas_publications provenance columns (SCHOLARDOCX-0191).
+
+    ``evidence_source`` records where a publication came from — a crawled page
+    or the scholarly index — and ``citation_count`` carries the index's own
+    figure. Needed because the dossier's publication list now draws on OpenAlex
+    (Google Scholar cannot be crawled at all: its robots.txt disallows
+    ``/citations``), and the two kinds of evidence are not equally strong.
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the columns from ``create_all`` and this is a no-op.
+    """
+    for statement in (
+        "ALTER TABLE advisor_atlas_publications "
+        "ADD COLUMN IF NOT EXISTS citation_count INTEGER",
+        "ALTER TABLE advisor_atlas_publications "
+        "ADD COLUMN IF NOT EXISTS evidence_source TEXT",
+    ):
+        conn.execute(text(statement))
+
+
 def _add_deep_hunt_results_column(conn) -> None:
     """Add scholarship_deep_hunt_runs.results_json if missing (SCHOLARDOCX-0178).
 
@@ -289,6 +432,85 @@ def _add_deep_hunt_results_column(conn) -> None:
         text(
             "ALTER TABLE scholarship_deep_hunt_runs "
             "ADD COLUMN IF NOT EXISTS results_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    )
+
+
+def _add_subscription_granted_column(conn) -> None:
+    """Add ai_token_balances.subscription_granted if missing (SCHOLARDOCX-0184).
+
+    ``subscription_used`` was previously computed in the API layer as
+    ``get_role_monthly_allowance(user) - subscription_remaining`` — mixing a
+    value that changes the instant an admin edits Plan Pricing (the live
+    allowance) with one that only changes at the user's own period boundary
+    (``subscription_remaining``). Whenever an admin corrected a monthly credit
+    value mid-cycle, every existing user's "used this month" figure went
+    nonsensical until their own next reset (observed live: a corrected
+    plan_ai_credits_max of 70000 combined with a stale request computed
+    against the old 1000000 to display "930,004 / 1,000,000 used").
+
+    ``subscription_granted`` freezes the amount actually granted at the last
+    reset, so "used" is computed from two values that only ever change
+    together (see ``refresh_balance``), immune to later Plan Pricing edits.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the column from ``create_all`` and this is a no-op. The backfill sets
+    every pre-migration row's granted amount equal to its current remaining
+    balance (a one-time "used so far this cycle = 0" approximation — the only
+    option available since there is no historical per-period grant amount to
+    recover). This is corrected precisely at each user's very next reset.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_balances "
+            "ADD COLUMN IF NOT EXISTS subscription_granted INTEGER NOT NULL DEFAULT 0"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE ai_token_balances SET subscription_granted = subscription_remaining "
+            "WHERE subscription_granted = 0 AND subscription_remaining > 0"
+        )
+    )
+
+
+def _add_purchase_request_price_snapshot_columns(conn) -> None:
+    """Add ai_token_purchase_requests.token_amount/price_usd if missing (SCHOLARDOCX-0184).
+
+    Every read of a purchase request (submit, list, and — critically —
+    resolve/approve) joined live to ``ai_token_packs`` for ``token_amount``/
+    ``price_usd``, so a pack price/amount edit made *after* a user submitted a
+    request but *before* an admin approved it would silently change what got
+    granted, to whatever the pack now says instead of what the user actually
+    agreed to. Unlike the monthly subscription allowance (which SHOULD apply
+    to everyone immediately, see ``_add_subscription_granted_column``), a pack
+    purchase is a one-time transaction at a specific price — it must freeze at
+    request time and stay fixed regardless of later catalog edits.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot; fresh installs
+    get the columns from ``create_all`` and this is a no-op. Backfills existing
+    rows (pending or historical) from the pack's current catalog values — the
+    best available approximation, since no per-request snapshot existed before
+    this migration. New requests snapshot at submission time going forward.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_purchase_requests "
+            "ADD COLUMN IF NOT EXISTS token_amount INTEGER"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE ai_token_purchase_requests "
+            "ADD COLUMN IF NOT EXISTS price_usd DOUBLE PRECISION"
+        )
+    )
+    conn.execute(
+        text(
+            "UPDATE ai_token_purchase_requests r SET "
+            "token_amount = p.token_amount, price_usd = p.price_usd "
+            "FROM ai_token_packs p "
+            "WHERE r.pack_id = p.id AND r.token_amount IS NULL"
         )
     )
 
@@ -401,6 +623,20 @@ def _seed_ai_token_defaults(conn) -> None:
     # SCHOLARDOCX-0149: collect all model rows then one batched executemany
     # (was one INSERT per model — ~17 round-trips). sort_order keeps the
     # provider/model ordering stable across the flattened list.
+    # SCHOLARDOCX-0204 (L4): the OpenRouter model id is env-driven
+    # (OPENROUTER_FREE_MODEL). Seeding only the literal "openrouter" left the
+    # configured id — "openrouter/free" by default — unpriced, so every
+    # OpenRouter call computed $0 and the operator ate the cost. Seed both: the
+    # configured id for exact-match pricing, and the bare provider name as the
+    # house-rate row `_lookup_price` falls back to for any other OpenRouter
+    # model. Duplicates collapse via ON CONFLICT.
+    from app.core.config import get_settings
+
+    openrouter_model_ids = ["openrouter"]
+    configured_openrouter = (get_settings().openrouter_free_model or "").strip()
+    if configured_openrouter and configured_openrouter not in openrouter_model_ids:
+        openrouter_model_ids.append(configured_openrouter)
+
     model_rows = []
     order = 0
     for provider, model_ids in (
@@ -408,11 +644,16 @@ def _seed_ai_token_defaults(conn) -> None:
         ("gemini", DEFAULT_GEMINI_MODELS),
         ("groq", DEFAULT_GROQ_MODELS),
         ("mistral", DEFAULT_MISTRAL_MODELS),
-        ("openrouter", ["openrouter"]),
+        ("openrouter", openrouter_model_ids),
         ("jina", ["jina-embeddings-v4"]),
     ):
         for model_id in model_ids:
-            in_price, out_price = prices.get(model_id, (0.0, 0.0))
+            in_price, out_price = prices.get(
+                model_id,
+                # An OpenRouter id we have not individually catalogued still
+                # gets the provider's house rate, never $0.
+                prices["openrouter"] if provider == "openrouter" else (0.0, 0.0),
+            )
             model_rows.append(
                 {
                     "provider": provider,

@@ -1,94 +1,63 @@
 # AI Integrations
 
-## CRITICAL: Billing Enforcement Requirements
+> **Audit status (SCHOLARDOCX-0204, 2026-07-29): audited and fixed.** Every
+> provider call in this file is now charged to the user. Four paths were
+> unbilled (Deep Hunt query planner, Deep Hunt relevance filter, the
+> scholarship-extraction OpenRouter fallback, and every Advisor Atlas Tavily
+> search) and all OpenRouter charges computed $0 because the settings model id
+> did not match the seeded `ai_models` row. Coverage table:
+> [technical/ai-token-economy.md](ai-token-economy.md#billing-coverage-scholardocx-0204--audited-and-fixed-2026-07-29).
+> Note that a "BILLING ENFORCEMENT" paragraph in this file records the
+> *requirement*; it is not by itself evidence the code bills. Verify at the call
+> site. Detail:
+> [SCHOLARDOCX-0204](../jira-tasks/Epic-BillingAndPlans/SCHOLARDOCX-0204-billing-leak-audit-unbilled-provider-calls.md).
 
-**EVERY AI AND SEARCH PROVIDER CALL MUST BE BILLED AND GATED BY USER PLAN LIMITS.**
+## Billing Enforcement
 
-This is the absolute, non-negotiable requirement for all AI integrations in ScholarDocX. Before reading the provider-specific details below, internalize these rules:
+**Every provider call here is billed to the user. The contract — the real API,
+enforcement locations, gates, and the checklist for adding a provider — is in
+[billing-contract.md](billing-contract.md).**
 
-### Mandatory Billing Flow For All Operations
+This file used to restate that contract in full. The restatement drifted: it
+told agents to call `charge_ai_tokens`, `check_available_tokens`, and
+`check_flat_fee_balance` (none of which exist), and to enforce at
+`NewsService.search` and two other methods that also do not exist. It is gone;
+read the contract instead.
 
-1. **Pre-flight validation** (before calling external provider):
-   ```python
-   # Check feature gate
-   from app.auth.limits import check_and_increment_limit
-   check_and_increment_limit(user, "can_use_<provider>", 0, session)  # 0 = permission check only
-   
-   # Check token balance (for token-metered operations)
-   from app.services.ai_tokens import check_available_tokens
-   required_tokens = estimate_tokens(request)  # provider-specific estimation
-   if not check_available_tokens(user, required_tokens, session):
-       raise HTTPException(403, "Insufficient AI credits to complete this request")
-   
-   # OR check flat-fee balance (for flat-fee operations like Scholarship Hunt)
-   from app.services.ai_tokens import check_flat_fee_balance
-   if not check_flat_fee_balance(user, flat_fee_amount, session):
-       raise HTTPException(403, "Insufficient credits for this operation")
-   ```
+### The failure mode this keeps hitting
 
-2. **Provider call** (only if pre-flight passed):
-   ```python
-   response = await provider.call_api(request)
-   ```
+Every leak found in SCHOLARDOCX-0204 was *"billing wired but never invoked"*,
+not *"billing forgotten"*. The charge helper existed, was documented, and was
+skipped at runtime by one of three mechanisms:
 
-3. **Post-call charge recording** (after successful response):
-   ```python
-   # For token-metered operations
-   from app.services.ai_tokens import charge_ai_tokens
-   actual_tokens = extract_token_count(response)  # from provider response metadata
-   charge_ai_tokens(user, actual_tokens, session)
-   session.commit()
-   
-   # OR for flat-fee operations
-   from app.services.ai_tokens import charge_flat_fee
-   charge_flat_fee(user, flat_fee_amount, session, category="scholarship_hunt", operation_id=run_id)
-   session.commit()
-   ```
+1. **An optional `ai_service` parameter defaulting to `None`.** The charge sits
+   behind `if ai_service is not None`; a call site omits the argument and the
+   whole billing branch is dead. (L1, L2.)
+2. **A fallback added after the fact.** The primary call is billed; the retry
+   next to it is not. (L3.)
+3. **A price lookup that silently misses.** An unknown model resolved to $0, so
+   a charge was raised, a ledger row written, and nothing deducted. (L4.)
 
-### Zero-Exception Policy
-
-- **"Free" providers are NOT free to users**: OpenRouter Free, Gemini free tier, and any other provider labeled "free" by the vendor still consume ScholarDocX user credits. Users must have sufficient token balance and the appropriate plan gate.
-- **Background tasks are NOT exempt**: Advisor Atlas runs, Deep Hunt runs, scheduled research, and webhook-triggered AI operations MUST load the user context via `load_user_dict(user_id, session)` and charge that user's balance. There is no "system account" bypass.
-- **Admin operations are NOT exempt**: AI operations triggered from the admin panel must identify the target user and charge their balance. If an admin is testing a feature, charge the admin's own balance.
-- **Development/testing must use mocks**: Local development and test suites MUST mock external provider calls. Do not make real API calls during tests. Use `unittest.mock.patch` or test fixtures to simulate provider responses.
-
-### Enforcement Location
-
-Place billing checks at the **service-layer entry point** where both user context and database session are available:
-- `AiService.chat()` — enforces chat provider billing
-- `AiService.research()` — enforces web search + synthesis billing
-- `NewsService.search()` — enforces Scholarship Hunt Tavily billing
-- `AdvisorAtlasService.run_discovery()` — enforces Advisor Atlas flat-fee billing
-- `DeepHuntService.start_run()` — enforces Deep Hunt flat-fee + extraction billing
-
-Do NOT place billing logic deep inside provider adapters (e.g., `glm/client.py`, `gemini/client.py`, `tavily/client.py`) because those layers lack user context.
-
-### Audit Requirements For New Integrations
-
-When adding a new AI provider, search provider, or credit-consuming feature:
-1. **Document in Jira task**: Explicitly state how billing is enforced (which gate, token-metered or flat-fee, pre-flight check location, charge-recording location).
-2. **Update this file**: Add the provider to the "Providers" section below and document its billing contract.
-3. **Update admin panel**: Ensure the plan comparison UI exposes the new `can_use_<feature>` gate for admin configuration.
-4. **Add test coverage**: Add a test case to `tests/regression/test_limits_billing_guards.py` that verifies the gate and charge recording work correctly.
-5. **Update expected behavior table**: Add the provider to the "Provider-Specific Enforcement Requirements" table in `AGENTS.md`.
-
----
+So: make the billing context **non-optional in the signature**, and make an
+unpriced model a startup warning rather than a free call. `make guard-billing`
+enforces both.
 
 ## Providers
 
 - GLM AI API for chat, drafting, summarization, and rewriting.
 
-- Google AI Studio Gemini API for optional chat, drafting, summarization,
-  rewriting fallback, and Research Expert embeddings (`text-embedding-004`).
+- Google AI Studio Gemini API for optional chat, drafting, summarization, and
+  rewriting fallback. (Research Expert embeddings moved off Gemini to Jina AI —
+  see the Research Expert Vector Embeddings section below.)
 - Tavily API for real-time AI-chat web research and the separate filtered
   Scholarship Hunt web-discovery workspace.
 - OpenRouter Free for generating a Scholarship Hunt query from structured
   filter choices before the existing user-review step.
 - **Research Expert (SCHOLARDOCX-0174)**:
-  - Vector embeddings via Gemini REST API `text-embedding-004:batchEmbedContents` (768 dimensions).
-  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`.
-  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction.
-  - Token consumption is metered via `ai_tokens.charge(...)` for embedding generation and `AiService.charge_tokens` for query analysis.
+  - Vector embeddings via the Jina AI REST API (`jina-embeddings-v4`, `task="text-matching"`, 1024 dimensions, batches of 16). No fallback provider.
+  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`, including the keyword section-boost pass, which is ranked by the same cosine distance so every relevance score shown to the user is measured rather than assumed.
+  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, using a GLM-5.2 → Groq compound model cascade.
+  - Billing: one charge per Jina operation — a `jina_call_cost_usd` base fee plus a token component priced from the `ai_models` row for `jina-embeddings-v4` (SCHOLARDOCX-0204 L8, so a long paper costs more than a short one) — plus standard `AiService` token metering for the analysis call. See [ai-token-economy.md](ai-token-economy.md).
 
 Gemini support is built around free-tier local use:
 
@@ -133,7 +102,18 @@ backend/app/services/ai_assistant/
   1. Check `can_use_advisor_atlas` gate BEFORE proceeding.
   2. Check `advisor_atlas_searches_per_month` limit (General=3, Pro=10, Max=30) BEFORE proceeding.
   3. Charge a flat fee via `charge_flat_fee(user, fee, session, category="advisor_atlas", operation_id=run_id)` at run start.
-  4. All internal Tavily searches and GLM/vision calls during the run consume the user's token balance via `charge_ai_tokens`. The flat fee covers the "search unit" but does NOT pre-pay the provider token costs—those are charged incrementally as the run progresses.
+  4. All internal Tavily searches and GLM/vision calls during the run consume the user's token balance. The flat fee covers the "search unit" but does NOT pre-pay the provider token costs—those are charged incrementally as the run progresses.
+     - GLM chat + vision: **IMPLEMENTED** (`AiService.chat()`, `analyze_visual_source`).
+     - OpenAlex: **IMPLEMENTED** (SCHOLARDOCX-0183, flat fee per metered call).
+     - Tavily: **IMPLEMENTED (L5, SCHOLARDOCX-0204)** — `_tavily_search` charges
+       `get_tavily_call_cost_usd` via `charge_external_call`, pre-flighted with
+       `can_spend_external()`. It previously called `record_external_search()`,
+       writing a `tokens_delta=0` counter row and charging nothing, which made it
+       the largest single unbilled surface in the product: `search_depth:
+       "advanced"` searches issued many times per run (discovery + per-candidate
+       passes + deep research across up to 80 candidates). A run that cannot pay
+       now raises `OutOfTokens` and fails rather than continuing to spend —
+       Discovery's per-candidate `except Exception` re-raises it deliberately.
   5. Background Advisor Atlas runs MUST load user context via `load_user_dict(user_id, session)` and charge that user's balance. There is no system bypass.
 - Advisor Atlas text and vision analysis omit provider output-token fields,
   matching standard AI chat behavior. Schema prompts, source compaction, and
@@ -519,6 +499,70 @@ or call cloud storage.
 2. **Execution is quota-gated but not double-billed**: `/ai/actions/execute` enforces workspace limits (`total_projects`, etc.) via `check_and_increment_limit` but does NOT make additional AI calls or charge additional tokens (the plan was already billed). However, role limits must be enforced before mutating.
 3. **Background agent tasks do not exist**: Agent actions are always user-initiated. There are no background or admin-triggered agent executions that bypass the user context or billing flow.
 
+## Sheet Ask AI menu: scale constraints and row-targeting (SCHOLARDOCX-0179)
+
+The sheet **Ask AI** dropdown (`frontend/src/components/sheet/askAiPrompts.ts`,
+`AskAiMenu.tsx`) feeds the plan-confirm-execute pipeline above one preset
+message at a time. Two hard constraints shape what a preset can safely ask
+for, discovered via a user report that the prior whole-sheet catalog was
+"too heavy for AI":
+
+1. **`AiActionService.plan` caps the planner's completion at
+   `max_tokens=1200`** for the entire JSON plan. A request needing unique
+   generated text per row (an email, a summary) turns into one `update_row`
+   action per row, each carrying that text — this reliably exceeds the
+   budget past roughly 5-8 rows. This is a token ceiling, not a prompt-
+   wording problem, so presets must not ask for unique per-row content
+   across "every row."
+2. **`_build_planner_prompt` injects real cell data for at most the first
+   30 rows of the target sheet** (`_target_sheet_block`, added
+   SCHOLARDOCX-0156) when the message carries `(sheet_id: "...")`. A preset
+   aimed at a specific row beyond that window had zero visibility into it.
+   SCHOLARDOCX-0179 fixed this: a message can also carry a structured
+   `(row_index: N)` or `(row_indices: [N,M,...])` marker (embedded by
+   `askAiPrompts.ts`'s `rowTarget()`/`selectedRowsTarget()` helpers), and
+   `_target_sheet_block` guarantees those specific rows are included even
+   outside the first-30 window (capped at 20 extra rows, parsed by the
+   `_extract_targeted_row_indices` static method).
+
+Given these constraints, every Ask AI preset is scoped to one of:
+- **One row** (`fill-cell`, `row-summary`, `row-email-draft`,
+  `row-next-step`) — visible only when a cell is focused (that's the only
+  reliable single-row reference point today).
+- **One column** (`column-missing`, `column-breakdown`) — visible only
+  when a cell is focused (its column is the target); routes through
+  `filter_rows`/`get_column_values`, which are backend-computed over the
+  full row set via `Store` and are NOT limited by the 30-row injection
+  window, so these are accurate at any sheet size.
+- **A small user-selected set of rows** (`compare-selected`) — visible
+  only with 2+ selected rows; the actual selected row indices are now sent
+  explicitly (`AskAiContext.selectedRowIndices`, previously only a count
+  was sent, so "compare the selected rows" had no way to know which rows
+  those were).
+- **A single always-available column scan** (`deadline-risk`) — safe at
+  any scale because it's backend-computed (`get_deadlines`/`analyze_sheet`)
+  and the read results go through the bounded, truncation-honest
+  `analyze_results` second pass (see below), not the 1200-token planner
+  output.
+
+Every preset's `build()` text explicitly instructs the model to say so —
+and name what's missing — when the targeted row/column doesn't have
+enough data, rather than guessing (reinforced by planner Parsing Rule 18 in
+`ACTION_PLANNER_SYSTEM_PROMPT`).
+
+### Post-execution analysis pass (SCHOLARDOCX-0156, still in use)
+
+For auto-executed read-only plans, `AiActionService.analyze_results` runs a
+**second** LLM call (`max_tokens=2048`) over the executed results so the
+final answer is a real analysis, not a raw row dump. `serialize_results_for_
+analysis` (`ai_actions_analyze.py`) hard-bounds the payload (~150-200 rows,
+12k chars, 120-char cells) and sets a `truncated` flag; the analyst system
+prompt (`ACTION_ANALYST_SYSTEM_PROMPT`) requires the model to state plainly
+when results are truncated or when the supplied data can't answer the
+question — this is the existing, general-purpose form of the "say so, don't
+guess" pattern SCHOLARDOCX-0179 extended into the planner phase for
+row/column-scoped presets.
+
 ## Agent Execution & Normalization Enhancements (SCHOLARDOCX-0172)
 
 To ensure high performance and zero multi-step failures in agent execution:
@@ -543,7 +587,11 @@ web-search ingredient so results actually match the goal:
   `field_synonyms` list. Falls back to the deterministic `_fallback_queries`
   templates on any error. `SEARCH_PASSES` bumped 3→4 so the field-specific
   query is not truncated.
-  - **BILLING ENFORCEMENT**: The query planner call is charged via `charge_ai_tokens` against the user's token balance. Even though the model is "OpenRouter Free", the user must have sufficient tokens before the call is made.
+  - **BILLING ENFORCEMENT (L1, SCHOLARDOCX-0204 — fixed):** charged against the
+    user's balance even though the model is "OpenRouter Free". `ai_service` is a
+    **required** parameter of `plan()`; it used to default to `None` with the
+    charge behind `if ai_service is not None`, and the sole call site omitted it,
+    so the guard was permanently false.
 - **Relevance Filter** (`DeepHuntRelevanceFilter`): one batched OpenRouter
   Free call judges every extracted opportunity RELEVANT/OFF_TOPIC against the
   goal's field/degree/funding intent, returning a 0–1 `relevance_score`. The
@@ -553,7 +601,9 @@ web-search ingredient so results actually match the goal:
   overlap-but-broad-umbrella-listing, 0.5 unstated — SCHOLARDOCX-0177 added
   the broad-umbrella case) when AI is unavailable — relevance is always
   enforced.
-  - **BILLING ENFORCEMENT**: The relevance filter call is charged via `charge_ai_tokens` against the user's token balance. This is a single batched call per run (all extracted opportunities in one request).
+  - **BILLING ENFORCEMENT (L2, SCHOLARDOCX-0204 — fixed):** one batched call per
+    run, charged. `ai_service` is required on `score()` for the same reason as on
+    `plan()`.
 - **Field-of-study dimension**: extracted end-to-end. `fields_of_study` is
   part of the extraction schema (`scholarship_extraction.py`), persisted as
   `scholarship_opportunities.fields_of_study_json`, unpacked by
@@ -566,26 +616,245 @@ web-search ingredient so results actually match the goal:
   `ORDER BY relevance_score DESC` (then `updated_at DESC`), so on-topic
   results surface first instead of by update time.
 - **Cost**: +2 OpenRouter Free calls per run (planner + relevance batch),
-  both with `reasoning: {exclude: true}` and billing-free from OpenRouter's perspective. However, **ScholarDocX users are still charged tokens via `charge_ai_tokens` for both calls**. Extraction cost unchanged (already billed per opportunity). `field_of_study` is a manual Search-form field (`CreateDeepHuntRunRequest.field_of_study`, stored on `scholarship_deep_hunt_runs.fields_of_study`) sent to the backend so the planner and filter can use it — SCHOLARDOCX-0178 removed the Hunt Profile it used to optionally prefill from.
+  both with `reasoning: {exclude: true}`. "Free" is OpenRouter's pricing tier for
+  the model, **not** a reason to skip billing the user — see the two
+  markers above. Extraction cost unchanged (billed per opportunity on the
+  primary path, and — since SCHOLARDOCX-0204 L3 — on its OpenRouter fallback
+  too).
+  `field_of_study` is a manual Search-form field
+  (`CreateDeepHuntRunRequest.field_of_study`, stored on
+  `scholarship_deep_hunt_runs.fields_of_study`) sent to the backend so the planner
+  and filter can use it — SCHOLARDOCX-0178 removed the Hunt Profile it used to
+  optionally prefill from.
 
-**CRITICAL BILLING REMINDERS FOR DEEP HUNT**:
-1. **Flat-fee at start**: Charge one flat-fee unit (`charge_flat_fee(user, fee, session, category="deep_hunt", operation_id=run_id)`) when the run starts, gated by `can_use_scholarship_hunt` (Deep Hunt is a Scholarship Hunt feature).
-2. **Query planner is billed**: The OpenRouter Free call to generate diverse queries MUST charge tokens via `charge_ai_tokens`. Pre-flight check token balance before making the call.
-3. **Relevance filter is billed**: The OpenRouter Free batched relevance-filtering call MUST charge tokens via `charge_ai_tokens` after extracting all opportunities.
-4. **Extraction is billed**: Each scholarship extraction call (configured provider or OpenRouter Free fallback) MUST charge tokens via `charge_ai_tokens`.
-5. **Background runs are billed**: Deep Hunt runs are asynchronous. They MUST load user context via `load_user_dict(user_id, session)` at run start and charge the user's balance for all provider calls. No system account bypass.
+**CRITICAL BILLING REMINDERS FOR DEEP HUNT** (required behaviour; current state
+marked per item — see SCHOLARDOCX-0204):
+1. **Per-hit search charge**: Brave results are charged per raw hit before
+   filtering (`get_brave_call_cost_per_hit_usd`), with a worst-case
+   `ensure_can_spend` pre-flight at `POST /runs`. Gated by
+   `can_use_scholarship_hunt`. **IMPLEMENTED** — see "Per-hit billing (FR-8.48)".
+2. **Query planner is billed**: the OpenRouter call generating diverse queries
+   charges tokens. **IMPLEMENTED (L1)**.
+3. **Relevance filter is billed**: the batched relevance call charges tokens.
+   **IMPLEMENTED (L2)**.
+4. **Extraction is billed**: on *both* the configured-provider path
+   (`AiService.chat()`) and the OpenRouter fallback (`charge_tokens` in
+   `_openrouter_fallback`, pre-flighted with `can_spend()`).
+   **IMPLEMENTED (L3)**.
+5. **Background runs are billed**: Deep Hunt runs are asynchronous. They MUST
+   load user context via `load_user_dict(user_id, session)` at run start and
+   charge that user for all provider calls. No system-account bypass.
+   **IMPLEMENTED**. `load_user_dict` now applies plan expiry via
+   `app/auth/plan_state.py` and refuses suspended accounts **(L6 fixed)**.
+6. **A "free" model still costs the user**: `settings.openrouter_free_model` is
+   seeded into `ai_models` at init, and `compute_cost` falls back to the
+   provider's house rate for any uncatalogued model id, so an OpenRouter call can
+   no longer price at `$0`. `validate_model_pricing()` reports any remaining gap
+   at startup. **IMPLEMENTED (L4)** — this was the prerequisite for 2–4 above
+   deducting anything at all.
+### Advisor Atlas Scholarly Graph (OpenAlex) — SCHOLARDOCX-0183
+
+- **Provider**: OpenAlex (`https://api.openalex.org`), client in
+  `app/services/advisor_atlas/openalex.py`.
+- **Environment Keys**: `OPENALEX_API_KEY` (**optional**), `OPENALEX_BASE_URL`.
+- **Cost model**: freemium, *not* free-and-keyless. **$0.10/day of usage without
+  a key, $1/day with a free key** (account only, no payment details). Within the
+  budget: single-entity lookups unlimited, ~10,000 list+filter calls, ~1,000
+  searches. The CC0 bulk snapshot is entirely free but is hundreds of GB and
+  quarterly. See https://developers.openalex.org/guides/authentication.
+- **Spend discipline**: a dossier costs **one metered search** to resolve the
+  author, then unlimited single-entity lookups. Enrichment runs on **deep runs
+  only** — a Discovery run screening 80 candidates would exhaust the daily budget
+  on names it may never surface.
+- **BILLING (flat fee per author lookup)**: charged like Tavily/Jina/Brave via
+  `charge_flat_fee(..., source="openalex_author_lookup")`, admin-configurable at
+  **Settings → External APIs & Agents Pricing** (`app_settings.openalex_call_cost_usd`,
+  default `0.001`, matching OpenAlex's own $1/1,000 search list price), read via
+  `ai_tokens.get_openalex_call_cost_usd()`.
+  - Charged **once per metered author `search`**, and on the *call*, not on a
+    successful match — OpenAlex bills the search whether or not we accept the
+    result. `OpenAlexClient.attempted_metered_call` is the flag the service bills
+    on.
+  - The follow-on single-entity record lookups are **free at OpenAlex and are not
+    charged**.
+  - Never billed when: the name is blank, the budget guard has tripped, or a 429
+    was latched — in all three cases no request is issued.
+  - Pre-flight `AiService.can_spend_external()` runs first, so a user at zero
+    credits skips enrichment rather than being charged into the negative.
+  - Billing goes through `AiService.charge_external_call()` /
+    `.external_billing_cost()` rather than reaching into the service's private
+    billing context, and never raises — a billing failure must not sink a run.
+- **Budget guard**: OpenAlex does **not** hard-stop at the daily budget — usage
+  beyond it draws on any prepaid balance, so running to zero can cost real money.
+  The client reads `X-RateLimit-Limit` / `-Remaining` / `-Credits-Used` and
+  `meta.cost_usd` from every response and stops issuing metered calls once
+  remaining drops below `BUDGET_RESERVE_FRACTION` (5%) of the daily limit. This
+  also leaves headroom for browsing openalex.org, which draws on the same budget.
+- **Admin dashboard**: reports `openalex_total` — count of ledger rows with
+  `source = 'openalex_author_lookup'` (alongside `tavily_*` and `jina_total`).
+- **Degradation is mandatory**: missing key, exhausted budget (429), rejected
+  credentials (401/403), outage, or timeout all return `None` and leave the run
+  exactly as capable as it is without OpenAlex. Never fails a run.
+- **Identity safety**: an author record is attached only above a confidence floor
+  combining full-name, given-name, and institution matching. A surname-only match
+  or two near-tied candidates attach **nothing** — the wrong researcher's h-index
+  beside a professor's name is worse than no h-index.
+- **Privacy**: only the professor's name and institution are sent — public facts
+  already sent to Tavily on every run. The applicant's interests, documents, SOP
+  and profile never leave the machine; topic matching happens locally afterwards.
+  The `api_key` identifies the deployment, never the end user.
+- **Fields consumed**: `summary_stats.h_index` / `.i10_index` /
+  `.2yr_mean_citedness`, `works_count`, `cited_by_count`, `counts_by_year`
+  (publication cadence), `topics[]`, `affiliations[].institution` +
+  `.years` (structured career timeline), `orcid`, `works_api_url`.
+
+### Advisor Atlas Publications Come From The Index, Not A Crawl (SCHOLARDOCX-0191)
+
+- The dossier's "Latest publications" list is built from **OpenAlex works**
+  (`OpenAlexClient.recent_works`), not from crawling a scholarly profile.
+  Google Scholar disallows `/citations` in `robots.txt`; ORCID and Semantic
+  Scholar return JavaScript shells with no text (all verified live in
+  SCHOLARDOCX-0188). Crawling was never going to work for this section.
+- Indexed works **bypass** `_validate_analysis`'s publication checks by design.
+  Those checks exist to stop a *model* inventing a paper; these carry DOIs from
+  the same API that identified the author. Do not "fix" this by routing them
+  through the allowlist — it would discard every one of them.
+- The works lookup is a **second billable OpenAlex call, of a different and
+  cheaper class**. Bill from `client.metered_calls` (an ordered list of
+  `"search"` / `"list"`), never from `attempted_metered_call` and never from a
+  bare count: `app_settings.openalex_call_cost_usd` is the *search* price, and
+  a list call is a tenth of it (`METERED_CALL_COST_RATIO`). Each class has its
+  own ledger source (`METERED_CALL_SOURCE`) so the admin dashboard does not
+  read two author lookups where there was one. Fetch works *before* the charge
+  block so nothing goes out unbilled, and re-run `can_spend_external()` before
+  the second call — the first one already spent against the same balance.
+- Enrichment stays deep-runs-only. A screened candidate legitimately has no
+  publications; the UI must say "not researched deeply yet", not "none found" —
+  they are different answers and only one is a cue to press Refresh.
+
+### A Failed Provider Call Is Not Work Done (SCHOLARDOCX-0191)
+
+`AiService.chat` returns `mode: "provider-error"` / `"local-fallback"` with
+zero-token usage rather than raising. Any caller that counts calls must check
+the mode first: counting a failure as an AI call produced a dossier reading
+"1 AI analyses · 0 Credits used" with no publications and no explanation, when
+what had actually happened was a total analysis failure and a silent fallback
+to the deterministic analyser. Advisor Atlas counts these into
+`research_metrics.failed_ai_calls` / `.analysis_degraded` and the dossier
+renders a notice. A metric that renders "0" for "free", "not attempted" and
+"failed" alike is not a metric.
+
+### Advisor Atlas Research Metrics — Real Credits, Not Token Estimates (SCHOLARDOCX-0189)
+
+- The dossier's Research Metrics panel must never show the word "tokens" —
+  only "credits" (the vocabulary used everywhere else in the app).
+- `AiService.charge_tokens()` and `.charge_external_call()` now return the
+  underlying `ai_tokens.charge()` / `.charge_flat_fee()` result dict (or
+  `None` when no billing context is attached / nothing was charged) instead
+  of discarding it. The `charged` field is the real number of credits
+  actually deducted — it can be less than the call's cost if the balance ran
+  out mid-call, which is exactly why an estimate is the wrong number to show
+  a user.
+- `chat()` merges `credits_charged` into its returned `usage` dict whenever a
+  charge was raised.
+- Advisor Atlas (`analysis.py`'s `_record_ai_usage`, the vision path, and
+  `service.py`'s OpenAlex charge site) accumulates every call's real
+  `credits_charged` into the run's `usage` dict, exposed to the frontend as
+  `research_metrics.credits_used`. Tavily searches are billed at
+  $0 for Advisor Atlas (`record_external_search`) and contribute nothing to
+  this figure — it reflects only the AI (GLM chat/vision) and metered
+  external (OpenAlex) calls the run actually made.
+  **SUPERSEDED (L5, SCHOLARDOCX-0204):** Tavily searches are now charged at the
+  configured rate and DO contribute to `credits_used`. The per-run figure is
+  correspondingly higher than before the fix — that is the true cost surfacing,
+  not a regression.
+- This return-value change is additive: `charge_tokens()`/`charge_external_call()`
+  have exactly one other set of callers each (`deep_hunt_query_planner.py`,
+  the OpenAlex site in `advisor_atlas/service.py`), none of which used the
+  previous `None`/`bool` return value.
+
+### Advisor Atlas Discovery Quality Gates (SCHOLARDOCX-0190)
+
+Four invariants Discovery must hold. Each was violated in a live run and each
+cost the user real credits, not just result quality.
+
+1. **Never `json.dumps` a stored record into a prompt.** Candidates re-read
+   from storage carry `datetime` fields, which raise `TypeError` and — inside
+   the deep phase's `except Exception` — silently reduced every dossier to its
+   screening pass. Use `analysis.json_dump`. Prompts must also send
+   `candidate_prompt_payload(candidate)`, never the whole row: the row holds
+   the previous analysis, and a model shown its own earlier conclusions
+   re-derives them instead of re-reading the evidence.
+2. **A candidate must look like a person.** `crawler.clean_person_name` tests
+   shape *and* vocabulary (`_looks_like_person`). Capitalised page furniture
+   ("Graduate Faculty", "CHNG Brochure", "Skip to main content") has the same
+   shape as a name and was being screened, billed and surfaced as faculty.
+3. **A unit only owns faculty found on its own pages.**
+   `discovery.source_belongs_to_unit` gates both search-derived and
+   directory-crawled candidates; a page failing it is recorded as
+   `fetch_status: "off_target"` and reported as a coverage gap. Without it a
+   "Computer Science" directory search that landed on Chemistry filed twelve
+   chemists as Computer Science professors.
+4. **A unit is an organisation that employs faculty.**
+   `intelligence.is_academic_unit_name` rejects job titles and degree
+   programmes before they reach the unit list, because `collect()` spends up
+   to two searches and four crawls *per unit*.
+
+Presentation follows from these: an entry the pipeline cannot attribute to a
+real person, a real unit, or its own evidence must be dropped at discovery, not
+flagged downstream — by the time analysis flags it, it has already been paid
+for and shown.
+
+Three further rules govern what reaches the user, all in
+`advisor_atlas/candidate_quality.py` and all deliberately **deterministic** —
+they run on every candidate, so a model call here would cost credits per
+candidate and fail open:
+
+5. **Rank an advisor, not a person.** `advising_eligibility` classifies
+   `eligible` / `limited` / `ineligible` from title, email domain, and (only
+   when the title is missing) the professor's own profile text. A candidate who
+   cannot supervise is excluded from research matches and shown with a reason —
+   never deleted. Protect `Senior Lecturer`, `Reader` and
+   `Research Assistant Professor`: those ranks do supervise, and a naive
+   keyword list buries them.
+6. **Confidence must be earned, never generated.**
+   `calibrate_evidence_confidence` caps the figure by how many distinct sources
+   name the person (0 → 25 … 3+ → 85, +10 official, max 95) and only ever
+   lowers it. It must run before `opportunity_forecast`, which caps its own
+   confidence at the candidate's.
+7. **Merge conservatively.** `same_person` matches on shared profile URL,
+   shared email, or surname + compatible first name + same institution.
+   "Compatible" is initial-vs-full only — a prefix rule merges `Hua Li` with
+   `Hui Li`, two real people.
+
 ### Research Expert Vector Embeddings (Jina AI)
 
 - **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)
 - **Environment Key**: `JINA_API_KEY`
 - **Model**: `jina-embeddings-v4`
-- **Task**: `text-matching`
-- **Dimensions**: `2048`
+- **Task (SCHOLARDOCX-0193)**: **asymmetric pair** — `retrieval.passage` when
+  indexing a paper, `retrieval.query` when embedding a question. Searching a
+  paper is a short question against a long passage, which is what the
+  `retrieval` adapter exists for; `text-matching` is the *symmetric* adapter
+  ("is sentence A like sentence B") and using it for retrieval compresses the
+  score spread until on-topic and off-topic passages are indistinguishable.
+  - **Never mix the two.** A query embedded with one adapter compared against
+    passages embedded with another does not error — it returns meaningless
+    numbers. `research_papers.embedding_task` records what each paper was
+    indexed with and `QUERY_TASK_FOR_PASSAGE_TASK` picks the matching query
+    task. Papers indexed before this change stay on `text-matching` for both
+    sides until re-indexed, and an unknown stored value resolves to legacy,
+    never to the new task.
+  - Re-indexing an existing paper (`retry_paper_processing`) is the upgrade
+    path and is **user-initiated**, because it spends credits.
+- **Dimensions**: `1024` (`EMBEDDING_DIMENSIONS`; kept under pgvector's
+  2000-dim ceiling for HNSW/IVFFlat indexes)
 - **Policy**: Exclusive provider (no fallback). If Jina API fails or `JINA_API_KEY` is missing/invalid, an explicit HTTP 500/503 exception is raised to the user.
-- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`). Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, called once after each successful Jina HTTP call:
+- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174, corrected in SCHOLARDOCX-0180)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`) and is read through `ai_tokens.get_jina_call_cost_usd()`. Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, raised exactly once per operation via the `charge_source` parameter of `_generate_embeddings()`, after all batches for that operation succeed:
   - Upload → `charge_flat_fee(..., source="jina_embedding")`
   - Retry → `charge_flat_fee(..., source="jina_embedding_retry")`
-  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")` (this path was previously unbilled; the gap is now closed).
+  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")`
+  - **Do not add a second charge in a wrapper.** `_generate_embeddings()` is the single charging point. The analyze path previously charged there *and* again in `_generate_single_embedding()`, double-billing every question; and `_charge_jina_embedding()` read a non-existent `research_paper_jina_cost_usd` key, so the admin-configured price was ignored in favour of a hardcoded `0.005`.
   - Pre-flight `ensure_can_spend()` runs before the call and raises `OutOfTokens` (HTTP 402) if the user's combined subscription + purchased balance cannot cover it. Access itself is gated by the existing `can_use_research_reader` role limit (Pro/Max) — no separate Jina gate.
   - The prior token-metered path (`ai_tokens.charge` with `provider="jina"`) was **removed**; the `ai_models` row for `jina-embeddings-v4` is retained only as a pricing reference and no longer drives billing.
 

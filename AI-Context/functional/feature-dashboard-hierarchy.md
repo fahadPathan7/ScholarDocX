@@ -77,6 +77,49 @@ The central dashboard calendar should use a compact summary panel by default,
 matching the project dashboard calendar pattern. Clicking it should open the
 full calendar in a floating panel focused on the next featured row date.
 
+## Workspace Snapshot Feature Library Counts
+
+Alongside Projects/Sheets/Documents/Sticky notes/White boards/Calendar
+dates, the Workspace Snapshot section also shows each AI feature's stored
+item count against its cap: Advisor Atlas research history (100), Scholarship
+Hunt Opportunity Library (100) and Previous Searches (10, FIFO-evicted),
+and Research Expert library (role-based, e.g. 20 on Pro/Max by default,
+admin-editable via Role Limits). A count shown as `count/max` turns red once
+the user is at or over that cap, matching the same fixed caps documented in
+the admin Info tab.
+
+## Manual Calendar Reminders
+
+Not every important date comes from a sheet row. Users can add manual
+calendar entries (reminders or any other date) from two places:
+
+- The central Dashboard: general-purpose, no project link. A general entry
+  only ever appears on the central Dashboard — never inside any project's
+  own calendar.
+- A specific project's dashboard: scoped to that project. It appears in that
+  project's own calendar and also rolls up into the central Dashboard's
+  aggregated calendar, the same way sheet-row dates already aggregate
+  across all projects.
+
+A manual entry has a title, a date, and an optional note. Users can delete a
+manual entry they created. Editing an entry after creation is not supported
+yet (delete and re-add instead).
+
+## Today / Next 10 Days Done Checkbox
+
+Every item in the central Dashboard's "Today" and "Next 10 Days" sections
+(both sheet-row-derived dates and manual reminders) has a checkbox. This is
+a dashboard-only management aid:
+
+- Checking an item marks it done. It stays visible but moves to the bottom
+  of its section (unchecked items stay on top, in date order). The row
+  becomes visually muted and no longer opens its source on click; the
+  checkbox itself remains clickable to undo.
+- Checking a sheet-row-derived item never modifies the underlying sheet
+  row — the "done" state is tracked separately from the row's own data.
+- This checkbox only appears on the central Dashboard's Today/Next 10 Days
+  lists. A project's own calendar view does not show it.
+
 The central dashboard Recent Projects section should show at most 5 projects
 and include project creation dates.
 

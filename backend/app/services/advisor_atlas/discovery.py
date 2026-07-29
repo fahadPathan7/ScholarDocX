@@ -7,12 +7,59 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.services.advisor_atlas.crawler import NAME_PATTERN, PublicCrawler
+from app.services.advisor_atlas.crawler import PublicCrawler, clean_person_name
 from app.services.advisor_atlas.intelligence import extract_related_units, normalize
 
 
 Search = Callable[[str, int], Awaitable[list[dict[str, Any]]]]
 DIRECTORY_HINTS = ("faculty", "people", "staff", "directory", "professor")
+
+# Words that appear in almost every academic unit name and therefore prove
+# nothing about which unit a page belongs to.
+GENERIC_UNIT_TOKENS = {
+    "department", "departments", "school", "schools", "college", "colleges",
+    "faculty", "faculties", "institute", "institutes", "center", "centre",
+    "centers", "centres", "program", "programs", "programme", "programmes",
+    "division", "laboratory", "lab", "labs", "group", "groups", "science",
+    "sciences", "studies", "research", "university", "graduate",
+    "undergraduate", "and", "of", "for", "in", "the", "applied", "advanced",
+    "engineering", "academic", "unit",
+}
+
+
+def unit_identity_tokens(unit_name: str) -> set[str]:
+    """The tokens that actually identify a unit ("computer" in Computer Science)."""
+    return {
+        token
+        for token in normalize(unit_name).split()
+        if token not in GENERIC_UNIT_TOKENS and len(token) > 2
+    }
+
+
+def source_belongs_to_unit(haystack: str, unit_name: str) -> bool:
+    """Does this page/result plausibly belong to `unit_name`?
+
+    SCHOLARDOCX-0190: nothing checked this. A faculty-directory search issued
+    for "Computer Science" returned the Chemistry department's directory, every
+    name on it was harvested, and twelve chemists were presented to the user as
+    verified Computer Science professors — each one later flagged by the
+    analysis pass as a "CRITICAL department mismatch" it had no way to undo.
+
+    Units with no distinctive tokens of their own (e.g. a bare "Engineering")
+    are unverifiable, so they are accepted rather than silently dropped.
+    """
+    tokens = unit_identity_tokens(unit_name)
+    if not tokens:
+        return True
+    hay = normalize(haystack)
+    if not hay:
+        return False
+    hits = sum(
+        1
+        for token in tokens
+        if re.search(rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])", hay)
+    )
+    return hits >= max(1, (len(tokens) + 1) // 2)
 
 
 def university_map_queries(run: dict[str, Any]) -> list[str]:
@@ -93,14 +140,25 @@ def candidates_from_search(
     unit: dict[str, Any],
 ) -> list[dict[str, Any]]:
     candidates = []
+    unit_name = str(unit.get("name") or "")
     for item in results:
         title = re.sub(r"\s+", " ", str(item.get("title") or "")).strip()
+        # A result only contributes faculty to this unit if it is actually
+        # about this unit — otherwise its names inherit a department they have
+        # nothing to do with.
+        if not source_belongs_to_unit(
+            f"{title} {item.get('url') or ''} {str(item.get('content') or '')[:2000]}",
+            unit_name,
+        ):
+            continue
         segments = re.split(r"\s+[-|–—:]\s+", title)
         possible = segments[0].strip()
-        match = NAME_PATTERN.match(possible)
-        if not match:
+        # Shared with the crawler so search-derived and directory-derived names
+        # obey identical rules: Unicode-aware, honorifics stripped,
+        # "Last, First" flipped.
+        name = clean_person_name(possible)
+        if not name:
             continue
-        name = match.group(1)
         if any(
             blocked in name.lower()
             for blocked in ("faculty directory", "research faculty", "department", "university")
@@ -120,16 +178,24 @@ def candidates_from_search(
     return candidates
 
 
+UnitMapper = Callable[[str, str, list[str]], Awaitable[list[dict[str, Any]] | None]]
+
+
 class DiscoveryResearcher:
     def __init__(
         self,
         crawler: PublicCrawler,
         search: Search,
         usage: dict[str, Any] | None = None,
+        unit_mapper: UnitMapper | None = None,
     ) -> None:
         self.crawler = crawler
         self.search = search
         self.usage = usage
+        # Optional AI mapper (analysis.map_related_units_with_glm). When absent
+        # or when it returns nothing, collect() falls back to the deterministic
+        # regex + taxonomy path, so discovery never regresses.
+        self.unit_mapper = unit_mapper
 
     async def collect(
         self,
@@ -145,7 +211,30 @@ class DiscoveryResearcher:
                 item["source_kind"] = "university_map_search"
             sources.extend(results)
 
-        mapped_units = extract_related_units(run.get("department", ""), sources)
+        # Ask the AI mapper first (FR-9.25a). It sees the units already visible in
+        # the search snippets so it can prefer names that actually exist at this
+        # university rather than generic ones.
+        ai_units: list[dict[str, Any]] | None = None
+        if self.unit_mapper is not None:
+            observed = [
+                item["name"]
+                for item in extract_related_units(run.get("department", ""), sources)
+            ]
+            try:
+                ai_units = await self.unit_mapper(
+                    run.get("university_name", "") or "",
+                    run.get("department", "") or "",
+                    observed,
+                )
+            except Exception:
+                # Mapping is an enhancement; never fail a run because of it.
+                ai_units = None
+            if ai_units and self.usage is not None:
+                self.usage["ai_mapped_units"] = len(ai_units)
+
+        mapped_units = extract_related_units(
+            run.get("department", ""), sources, mapped_units=ai_units
+        )
         sources.append(
             {
                 "title": "Advisor Atlas university map",
@@ -188,10 +277,19 @@ class DiscoveryResearcher:
                         self.usage["pages_crawled"] = int(
                             self.usage.get("pages_crawled", 0)
                         ) + 1
-                    found = self.crawler.faculty_candidates(
-                        page,
-                        run.get("university_name"),
+                    on_target = source_belongs_to_unit(
+                        f"{page.get('title') or ''} {page.get('url') or ''} "
+                        f"{str(page.get('text') or '')[:4000]}",
                         unit["name"],
+                    )
+                    found = (
+                        self.crawler.faculty_candidates(
+                            page,
+                            run.get("university_name"),
+                            unit["name"],
+                        )
+                        if on_target
+                        else []
                     )
                     for candidate in found:
                         candidate["department_relation"] = unit
@@ -203,10 +301,15 @@ class DiscoveryResearcher:
                             "url": page["url"],
                             "content": page["text"][:7000],
                             "page": page,
-                            "fetch_status": "accessible",
+                            "fetch_status": "accessible" if on_target else "off_target",
                             "faculty_candidates": len(found),
                         }
                     )
+                    if not on_target:
+                        directory_source["access_note"] = (
+                            "The page opened but belongs to a different academic "
+                            "unit, so its people were not attributed here."
+                        )
                 except (httpx.HTTPError, PermissionError, ValueError) as exc:
                     directory_source.update(
                         {
@@ -288,6 +391,18 @@ def build_discovery_action_center(
             "is_research_match",
             item.get("match_score", 0) >= 60,
         )
+        # A lab manager, an emeritus or a lecturer with no doctoral supervision
+        # rights is not a research match no matter how well the topics align.
+        and item.get("intelligence", {})
+        .get("advising_eligibility", {})
+        .get("can_supervise", True)
+    ]
+    supervision_limited = [
+        item
+        for item in ranked
+        if not item.get("intelligence", {})
+        .get("advising_eligibility", {})
+        .get("can_supervise", True)
     ]
     opportunity_matches = [
         item
@@ -311,6 +426,11 @@ def build_discovery_action_center(
     ]
     inaccessible_directories = [
         item for item in directories if item.get("fetch_status") == "inaccessible"
+    ]
+    # Opened, but belongs to another unit — reported as a coverage gap rather
+    # than as a directory that was successfully covered.
+    off_target_directories = [
+        item for item in directories if item.get("fetch_status") == "off_target"
     ]
     relation_counts = Counter(
         str(unit.get("relation") or "related") for unit in mapped_units
@@ -346,12 +466,18 @@ def build_discovery_action_center(
     ]
     coverage_gaps = [
         f"{item.get('mapped_unit') or item.get('title')}: {item.get('access_note')}"
-        for item in inaccessible_directories[:6]
+        for item in (inaccessible_directories + off_target_directories)[:6]
     ]
     coverage_gaps.extend(
         f"No verified faculty were extracted for {name}."
         for name in units_without_faculty[:6]
     )
+    if supervision_limited:
+        coverage_gaps.append(
+            f"{len(supervision_limited)} of the people found hold roles without "
+            "doctoral supervision authority (lab, teaching, adjunct, or "
+            "emeritus). They are listed but excluded from research matches."
+        )
     summary = {
         "mode": run.get("mode"),
         "requested_field": run.get("department"),
@@ -365,7 +491,9 @@ def build_discovery_action_center(
             "directories_inspected": len(directories),
             "directories_accessible": len(accessible_directories),
             "directories_inaccessible": len(inaccessible_directories),
+            "directories_off_target": len(off_target_directories),
             "verified_faculty": len(ranked),
+            "supervision_limited": len(supervision_limited),
             "research_matches": len(research_matches),
             "opportunity_matches": len(opportunity_matches),
             "completeness": "best_effort" if ranked else "insufficient_evidence",

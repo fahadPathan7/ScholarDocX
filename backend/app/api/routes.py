@@ -381,6 +381,7 @@ for table_name in (
     "ai_conversations",
     "research_notes",
     "whiteboards",
+    "calendar_reminders",
 ):
     _crud_routes(table_name)
 
@@ -576,14 +577,17 @@ async def ai_research(
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
     # External web searches (Tavily) are metered by the central AI-token balance
-    # via a flat USD fee per call.
+    # via a flat USD fee per call. The gate and the affordability pre-check
+    # belong here; the charge itself does not (SCHOLARDOCX-0204) — it now
+    # happens inside AiService.research(), next to the Tavily call it pays for.
+    # Charging here billed every request with web search enabled, including the
+    # ones where the routing agent decided no search was needed and none was
+    # made.
     if payload.web_search_max_results > 0:
         check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
-        from app.services.ai_tokens import charge_flat_fee, get_tavily_call_cost_usd, ensure_can_spend
-        # Pre-check if they have enough balance to cover the flat fee before hitting Tavily
+        from app.services.ai_tokens import ensure_can_spend
+        # Pre-check they can cover the flat fee before we start any work.
         ensure_can_spend(current_user, store.db)
-        cost_usd = get_tavily_call_cost_usd(store.db)
-        charge_flat_fee(current_user, store.db, cost_usd, source="web_search")
     return await AiService(settings, user=current_user, session=store.db).research(
         payload.message,
         payload.context,

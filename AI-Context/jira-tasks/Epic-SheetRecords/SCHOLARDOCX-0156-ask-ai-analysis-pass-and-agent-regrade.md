@@ -1,6 +1,20 @@
 # SCHOLARDOCX-0156: Sheet Ask AI — Analysis Pass, Agent Re-Grade, and Planner Data Access
 
-Status: In Progress
+Status: Superseded (backend half shipped; frontend catalog plan replaced by SCHOLARDOCX-0179)
+
+**2026-07-28 update**: this task's backend pieces (the `ai_actions_analyze.py`
+analysis pass, `_target_sheet_block` row injection in `ai_actions.py`) were
+implemented and are live. Its frontend half — the re-graded 9-agent catalog
+below (`application-readiness`, `email-follow-up`, `funding-scan`, etc.) and
+the "send explicit selected row numbers" fix — was never implemented; the
+production catalog stayed on the pre-0156 agent list until a direct user
+report ("commands are too heavy for AI") prompted a narrower redesign in
+`SCHOLARDOCX-0179`, which supersedes the catalog plan below (it keeps
+whole-sheet analytical agents like `deadline-risk`/`daily-action-plan`;
+0179 replaces those with row/column-scoped presets instead per updated
+user direction). The row-numbers fix and the row-injection-window gap this
+task never closed are both completed in 0179. Leaving this file as a
+historical record of the root-cause diagnosis rather than deleting it.
 
 Owner: AI Agent
 

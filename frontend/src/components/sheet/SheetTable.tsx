@@ -4,6 +4,9 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { ArrowUp, ArrowDown, Filter, X, Plus } from "lucide-react";
+import { ColumnTypeIcon } from "./ColumnTypeIcon";
+import { alignFor, DENSITIES, TYPE_LABELS, type Density } from "./sheetGrid";
+import { formattingForRow, type FormatRule } from "./sheetInsights";
 import type { ColumnDef, DateColorConfig, CellStyle } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
 import { SortState, ColumnFilter, filterSummary } from "./sheetFilters";
@@ -108,7 +111,17 @@ export function SheetTable({
   onCellStyle,
   onCellClearFormatting,
   onRowStyle,
+  density,
+  formatRules,
+  now,
+  onOpenColumnStats,
 }: {
+  density: Density;
+  formatRules: FormatRule[];
+  /** One clock for the whole render — see StickyNotesView for the same
+   *  reasoning: two reads of Date.now() can disagree across a table. */
+  now: Date;
+  onOpenColumnStats: (columnName: string) => void;
   columns: ColumnDef[];
   rows: Record<string, string>[];
   viewRows: Record<string, string>[];
@@ -341,6 +354,29 @@ export function SheetTable({
     cell?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [focusedCell]);
 
+  /* Deselecting a cell (SCHOLARDOCX-0202 follow-up).
+
+     Escape was already handled, but only on the scroll container's own
+     keydown — which requires that container to hold focus. Clicking a cell
+     does not reliably give it focus, so in practice a selected cell could
+     not be dismissed at all. This binds the same escape hatch on the window,
+     and skips it while an editor is open so Escape still means "cancel this
+     edit" first. */
+  useEffect(() => {
+    if (!focusedCell) return;
+    const onWindowKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const active = document.activeElement as HTMLElement | null;
+      const typing =
+        active?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(active?.tagName || "");
+      if (typing || editingCell || modalCell) return;
+      onFocusedCellChange(null);
+    };
+    window.addEventListener("keydown", onWindowKey);
+    return () => window.removeEventListener("keydown", onWindowKey);
+  }, [focusedCell, editingCell, modalCell, onFocusedCellChange]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Global undo/redo
     if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
@@ -425,13 +461,31 @@ export function SheetTable({
     }
   };
 
+  // Marks the column the freeze rules pin. Not always index 0: a collapsed
+  // group renders a control cell ahead of the first real column.
+  const firstDataColIndex = renderColumns.findIndex((c) => c.type !== 'group-control');
+
   return (
     <div
       ref={containerRef}
       className="sheet-scroll"
-      style={fullScreenMode ? { fontSize: '11px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' } : {}}
+      /* Density drives the existing --sheet-* variables rather than a new
+         set of rules, so every height already derived from them follows
+         automatically. */
+      style={{
+        ["--sheet-row-height" as string]: `${DENSITIES[density].rowHeight}px`,
+        ["--sheet-cell-lines" as string]: String(DENSITIES[density].lines),
+        ...(fullScreenMode ? { fontSize: '11px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' } : {}),
+      }}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onMouseDown={(event) => {
+        // Only a click on the scroll container's own background, not on a
+        // cell that happens to bubble up here.
+        if (event.target !== event.currentTarget) return;
+        onFocusedCellChange(null);
+        setEditingCell(null);
+      }}
       onFocus={(e) => {
         // If focusing the container without a cell, default to first cell
         if (!focusedCell && viewRows.length > 0 && e.target === e.currentTarget) {
@@ -503,7 +557,7 @@ export function SheetTable({
                 return (
                   <th
                     key={`col-${rCol.col.name}-${cIndex}`}
-                    className={`${rCol.groupName ? "group-child-cell" : ""} ${isDragged ? "dragging" : ""} ${isDragOver ? "drag-over" : ""}`}
+                    className={`${rCol.groupName ? "group-child-cell" : ""} ${isDragged ? "dragging" : ""} ${isDragOver ? "drag-over" : ""} align-${alignFor(rCol.col.type)} ${firstDataColIndex === cIndex ? "is-first-data-col" : ""}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, rCol.originalIndex)}
                     onDragOver={(e) => handleDragOver(e, rCol.originalIndex)}
@@ -531,6 +585,18 @@ export function SheetTable({
                           style={{ cursor: 'pointer', flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
                           title="Sort (click to cycle)"
                         >
+                          {/* The type was previously invisible: a date column
+                              and a text column looked identical until you
+                              tried to edit one. */}
+                          <button
+                            type="button"
+                            className="column-stats-trigger"
+                            title={`${TYPE_LABELS[rCol.col.type]} column — click for a summary`}
+                            aria-label={`Summary of ${rCol.col.name}`}
+                            onClick={(event) => { event.stopPropagation(); onOpenColumnStats(rCol.col.name); }}
+                          >
+                            <ColumnTypeIcon type={rCol.col.type} />
+                          </button>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.col.name}</span>
                           {sortDir === "asc" && <ArrowUp size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
                           {sortDir === "desc" && <ArrowDown size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
@@ -662,6 +728,7 @@ export function SheetTable({
                     modalColName={modalCell?.rowIndex === rowIndex ? modalCell.colName : null}
                     searchQuery={searchQuery}
                     dateColorConfig={dateColorConfig}
+                    formatting={formatRules.length ? formattingForRow(formatRules, row, now) : undefined}
                     callbacks={rowCallbacks}
                   />
                 </React.Fragment>

@@ -47,6 +47,10 @@
   color: var(--ui-ink);
 }
 
+.lp-section-title span {
+  color: var(--ui-primary, #347f78);
+}
+
 .lp-section-subtitle {
   font-size: 15px;
   color: var(--ui-muted);

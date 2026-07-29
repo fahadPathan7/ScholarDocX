@@ -245,6 +245,9 @@ async def test_planner_falls_back_when_openrouter_unconfigured(monkeypatch):
     planner = DeepHuntQueryPlanner(settings=_no_openrouter_settings())
     plan = await planner.plan(
         "emjm fully fund in cse background",
+        # ai_service is required (SCHOLARDOCX-0204 L1). None is only valid here
+        # because the unconfigured-OpenRouter path returns before any charge.
+        ai_service=None,
         field_of_study="CSE",
         fallback_queries=["cse background scholarship funding official application"],
     )

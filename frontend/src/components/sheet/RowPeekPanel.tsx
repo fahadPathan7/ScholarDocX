@@ -1,6 +1,6 @@
-import React from "react";
-import { createPortal } from "react-dom";
-import { X, ExternalLink, Edit } from "lucide-react";
+import React, { useEffect } from "react";
+import { X, ExternalLink, Edit, ChevronLeft, ChevronRight } from "lucide-react";
+import { Modal } from "../Modal";
 import type { ColumnDef } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
 
@@ -9,14 +9,33 @@ export function RowPeekPanel({
   columns,
   files,
   onClose,
-  onEdit
+  onEdit,
+  position,
+  onStep,
 }: {
   row: Record<string, string>;
   columns: ColumnDef[];
   files: RecordMap[];
   onClose: () => void;
   onEdit: () => void;
+  /** 1-based position within the current view, for "3 of 24". */
+  position?: { index: number; total: number };
+  /** Step to the previous/next row without closing (SCHOLARDOCX-0203).
+   *  Reviewing a list means moving through it; closing and reopening the
+   *  panel for every row turns a scan into a chore. */
+  onStep?: (delta: number) => void;
 }) {
+  useEffect(() => {
+    if (!onStep) return;
+    const onKey = (event: KeyboardEvent) => {
+      // Left/right rather than up/down: the arrows that move between cells
+      // in the grid should not also move between records here.
+      if (event.key === "ArrowLeft") { event.preventDefault(); onStep(-1); }
+      if (event.key === "ArrowRight") { event.preventDefault(); onStep(1); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onStep]);
   // The peek panel shows plain default values — no cell formatting.
   const renderValue = (col: ColumnDef): React.ReactNode => {
     const val = row[col.name];
@@ -65,27 +84,20 @@ export function RowPeekPanel({
     return <span>{val}</span>;
   };
 
-  // Render into the sheet work surface (not document.body) so the backdrop
-  // blurs only the work area, never the TopBar or left Sidebar.
-  const mount = typeof document !== 'undefined'
-    ? (document.getElementById('sheet-work-surface') || document.body)
-    : null;
-  if (!mount) return null;
-
-  return createPortal(
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose} style={{
-      position: 'absolute', inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-      backdropFilter: 'blur(6px)',
-      zIndex: 1000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
-    }}>
+  /* AGENTS.md names this file as a known offender: it portalled into
+     `#sheet-work-surface` and then re-stated position, background, blur and
+     z-index inline, so it neither matched the canonical backdrop nor stayed
+     in step when that backdrop changed. It now uses <Modal>, which portals
+     into `.main-content` and applies `.modal-backdrop-main` — one contract
+     for every dialog in the app. */
+  return (
+    <Modal onClose={onClose}>
       <div
         className="record-peek-modal"
         onClick={e => e.stopPropagation()}
         style={{
           width: 'min(640px, 100%)',
-          maxHeight: '85vh',
+          maxHeight: 'calc(100% - 40px)',
           backgroundColor: 'var(--bg-primary, #fffefb)',
           borderRadius: '16px',
           boxShadow: '0 24px 70px rgba(18,33,31,0.30)',
@@ -104,9 +116,33 @@ export function RowPeekPanel({
         }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Record Details</h3>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Read-only preview</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {position ? `Record ${position.index} of ${position.total} · ← → to move` : "Read-only preview"}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {onStep && position ? (
+              <div className="peek-stepper">
+                <button
+                  type="button"
+                  onClick={() => onStep(-1)}
+                  disabled={position.index <= 1}
+                  title="Previous record (←)"
+                  aria-label="Previous record"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onStep(1)}
+                  disabled={position.index >= position.total}
+                  title="Next record (→)"
+                  aria-label="Next record"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            ) : null}
             <button className="secondary compact" onClick={onEdit} title="Edit this record">
               <Edit size={14} style={{ marginRight: '4px' }} /> Edit
             </button>
@@ -150,7 +186,6 @@ export function RowPeekPanel({
           </div>
         </div>
       </div>
-    </div>,
-    mount,
+    </Modal>
   );
 }

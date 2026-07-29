@@ -7,6 +7,7 @@ import {
   Map,
   Plus,
   Trash2,
+  Users,
 } from "lucide-react";
 import { useDialog } from "./DialogProvider";
 import { useUsage } from "../contexts/UsageContext";
@@ -20,6 +21,7 @@ import {
 import { AdvisorAtlasSearchForm } from "./advisor-atlas/AdvisorAtlasSearchForm";
 import { AdvisorRunWorkspace } from "./advisor-atlas/AdvisorRunWorkspace";
 import { AdvisorDossierDrawer } from "./advisor-atlas/AdvisorDossierDrawer";
+import { AdvisorSavedProfessors } from "./advisor-atlas/AdvisorSavedProfessors";
 import "./advisor-atlas/advisor-atlas.css";
 import "./advisor-atlas/advisor-atlas-detail.css";
 import "./advisor-atlas/advisor-atlas-intelligence.css";
@@ -31,6 +33,12 @@ type Props = {
   refreshTrigger?: number;
 };
 
+// SCHOLARDOCX-0186: fixed research-history cap, mirrors the backend's
+// MAX_ADVISOR_ATLAS_RUNS constant (app/api/advisor_atlas.py). Not admin-
+// configurable, so hardcoded here rather than fetched — same pattern the
+// admin Info tab already uses for the other fixed per-user caps.
+const MAX_HISTORY = 100;
+
 export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const { showConfirm } = useDialog();
   const { refreshUsage } = useUsage();
@@ -41,7 +49,17 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [candidateId, setCandidateId] = useState<string | null>(null);
+  // Set instead of `candidateId` when opening the frozen copy of a saved
+  // professor whose originating search has been deleted.
+  const [savedDossierId, setSavedDossierId] = useState<string | null>(null);
   const [refreshingCandidateId, setRefreshingCandidateId] = useState<string | null>(null);
+  // "search" runs and inspects discoveries; "saved" is where the professors
+  // kept out of those runs live. Two modes of the same feature — saving a
+  // dossier led nowhere before, because the destination did not exist.
+  const [mode, setMode] = useState<"search" | "saved">("search");
+  // Bumped when a dossier is saved, so the saved list re-fetches on the way in
+  // rather than showing a stale set.
+  const [savedRefresh, setSavedRefresh] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   const loadRuns = async (selectLatest = false) => {
@@ -149,9 +167,14 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const deleteRun = async (runId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    // Saved professors keep their own frozen dossier (SCHOLARDOCX-0197), so
+    // deleting a search no longer takes them with it. Say so — the previous
+    // wording implied everything went, which is what made deleting history
+    // feel risky.
     const confirmed = await showConfirm(
-      "Are you sure you want to delete this search? All discovered candidates will be removed. This cannot be undone.",
-      "Delete search history?",
+      "Every professor discovered by this search is removed with it, and this cannot be undone. "
+        + "Anyone you saved stays in Saved professors, with the dossier as it was when you saved them.",
+      "Delete this search?",
       "danger",
     );
     if (!confirmed) return;
@@ -189,12 +212,17 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
     }
   };
 
-  const confirmSave = (candidate: AdvisorCandidateDetail) =>
-    showConfirm(
-      "This creates or updates a professor record in your personal ScholarDocX workspace using the verified dossier fields.",
+  const confirmSave = (candidate: AdvisorCandidateDetail) => {
+    // The saved list is re-fetched on the way in, so a save made while
+    // "Search" is showing is already there when the user switches over.
+    setSavedRefresh((value) => value + 1);
+    return showConfirm(
+      "This adds them to your Saved professors, using the verified dossier fields. "
+        + "Saved professors are what outreach, email drafts and applications link to.",
       `Save ${candidate.display_name}?`,
       "success",
     );
+  };
 
   return (
     <div className="advisor-atlas-view">
@@ -208,12 +236,46 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
           <p>Map the university. Find the fit. See the opportunity.</p>
         </div>
         <div className="atlas-hero-actions">
-          <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
-            <Plus size={18} /> New search
-          </button>
+          {mode === "search" && (
+            <button className="atlas-new-search" onClick={() => setShowNewSearch(true)}>
+              <Plus size={18} /> New search
+            </button>
+          )}
+          {/* Same control the search form uses for its own two modes, reused
+              rather than restyled. */}
+          <div className="atlas-mode-toggle" role="tablist" aria-label="Advisor Atlas mode">
+            <button
+              role="tab"
+              aria-selected={mode === "search"}
+              className={mode === "search" ? "active" : ""}
+              onClick={() => setMode("search")}
+            >
+              <Map size={15} /> Search
+            </button>
+            <button
+              role="tab"
+              aria-selected={mode === "saved"}
+              className={mode === "saved" ? "active" : ""}
+              onClick={() => {
+                setMode("saved");
+                setSavedRefresh((value) => value + 1);
+              }}
+            >
+              <Users size={15} /> Saved professors
+            </button>
+          </div>
         </div>
       </header>
 
+      {mode === "saved" ? (
+        <AdvisorSavedProfessors
+          refreshTrigger={savedRefresh}
+          onToast={onToast}
+          onOpenDossier={setCandidateId}
+          onOpenSavedDossier={setSavedDossierId}
+          onBackToSearch={() => setMode("search")}
+        />
+      ) : (
       <div className={`atlas-shell ${isSidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <aside className="atlas-history-panel">
           <div className="atlas-history-title">
@@ -222,6 +284,9 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                   <History size={17} />
                   <span>Research history</span>
+                  <span className={`atlas-history-count${runs.length >= MAX_HISTORY ? " full" : ""}`}>
+                    {runs.length}/{MAX_HISTORY}
+                  </span>
                 </div>
                 <button 
                   type="button" 
@@ -264,7 +329,10 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
                   </div>
                   <div className="atlas-run-info">
                     <strong>{title}</strong>
-                    <small>{run.department || run.mode} · {run.candidate_count || 0} profiles</small>
+                    <small>
+                      {run.department || run.mode} · {run.candidate_count || 0} profiles
+                      {run.shortlist_count ? ` · ${run.shortlist_count} shortlisted` : ""}
+                    </small>
                   </div>
                   <div className="atlas-run-actions">
                     <div
@@ -306,12 +374,24 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
           )}
         </div>
       </div>
+      )}
 
-      {candidateId != null && (
+      {(candidateId != null || savedDossierId != null) && (
         <AdvisorDossierDrawer
           candidateId={candidateId}
-          onClose={() => setCandidateId(null)}
-          onChanged={reloadActive}
+          savedProfessorId={savedDossierId}
+          onClose={() => {
+            setCandidateId(null);
+            setSavedDossierId(null);
+          }}
+          onChanged={async () => {
+            // The dossier can be opened from either side, so a change has to
+            // reach both: the run's candidate list and the saved library.
+            // `reloadActive` no-ops when there is no active run, which is the
+            // case when the dossier was opened from the library.
+            await reloadActive();
+            setSavedRefresh((value) => value + 1);
+          }}
           onToast={onToast}
           onConfirmSave={confirmSave}
         />

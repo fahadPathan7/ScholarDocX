@@ -516,7 +516,7 @@ export function CellRenderer({
               )}
             </>
           ) : (
-            <span className="empty-cell">-</span>
+            <span className="empty-cell" aria-hidden="true" />
           )}
         </span>
         {viewerOpen ? viewer : null}
@@ -618,7 +618,7 @@ export function CellRenderer({
             </>
           )
         ) : (
-          <span className="empty-cell">-</span>
+          <span className="empty-cell" aria-hidden="true" />
         )}
       </span>
       {viewerOpen ? createPortal(viewer, document.body) : null}

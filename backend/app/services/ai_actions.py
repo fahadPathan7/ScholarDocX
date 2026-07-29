@@ -517,7 +517,18 @@ class AiActionService:
             "is absent and the fill depends on existing cell values, emit a "
             "read first. For fills, emit `add_column` (if the column is new) "
             "followed by `update_row` per row (distinct values per row) or "
-            "`bulk_update_rows` per group (same value for a group).\n\n"
+            "`bulk_update_rows` per group (same value for a group).\n"
+            "18. NOT ENOUGH DATA (SCHOLARDOCX-0179): if the request names a "
+            "specific row (via '(row_index: N)' or '(row_indices: [...])' in "
+            "the message) and that row_index is NOT present in TARGET SHEET "
+            "DATA, or the row IS present but every field you would need is "
+            "empty/null, do NOT guess or invent a value. Return status "
+            "needs_info with a message plainly stating you don't have enough "
+            "data for that row (name the row number and, if known, which "
+            "fields are missing) instead of building a write action from "
+            "nothing. The same applies to column-scoped requests: if the named "
+            "column does not exist on this sheet, say so by name rather than "
+            "silently picking a different column.\n\n"
             "DECISION LOGIC:\n"
             "- If user is just chatting/asking questions → status: no_action\n"
             "- If critical info is missing and cannot be inferred from CONTEXT → status: needs_info, list missing fields\n"
@@ -547,12 +558,50 @@ class AiActionService:
                 for c in cols
                 if not (isinstance(c, dict) and c.get("type") == "group")
             ]
+            included_indices: set[int] = set()
             bounded_rows = []
             for idx, r in enumerate(rows[:30]):
                 bounded_rows.append({"row_index": idx, **{k: v for k, v in r.items() if k in col_names}})
+                included_indices.add(idx)
+
+            # SCHOLARDOCX-0179: row-scoped prompts (smart-fill, row summary,
+            # draft email, compare-selected) name the exact row(s) they target
+            # via a `(row_index: N)` or `(row_indices: [N,M,...])` marker so the
+            # planner sees that row's real data even when it falls outside the
+            # first-30 window above (a normal thing on any sheet with 30+ rows).
+            # Bounded to keep the extra injection small and cheap.
+            targeted_indices = self._extract_targeted_row_indices(message)
+            extra = 0
+            for idx in targeted_indices:
+                if extra >= 20:
+                    break
+                if idx in included_indices or idx < 0 or idx >= len(rows):
+                    continue
+                bounded_rows.append({"row_index": idx, **{k: v for k, v in rows[idx].items() if k in col_names}})
+                included_indices.add(idx)
+                extra += 1
+
             return f"TARGET SHEET DATA ({sheet.get('name')}, id: {sheet_id}):\n" + json.dumps(bounded_rows, ensure_ascii=True) + "\n\n"
         except Exception:
             return ""
+
+    @staticmethod
+    def _extract_targeted_row_indices(message: str) -> list[int]:
+        """Parse an explicit `(row_index: N)` or `(row_indices: [N,M,...])`
+        marker from a prompt message (SCHOLARDOCX-0179). Row-scoped Ask AI
+        prompts embed these so the planner is guaranteed real data for the
+        exact row(s) it was asked to act on, regardless of sheet size."""
+        indices: list[int] = []
+        single = re.search(r"\(row_index:\s*(\d+)\)", message)
+        if single:
+            indices.append(int(single.group(1)))
+        multi = re.search(r"\(row_indices:\s*\[([\d,\s]*)\]\)", message)
+        if multi:
+            for piece in multi.group(1).split(","):
+                piece = piece.strip()
+                if piece.isdigit():
+                    indices.append(int(piece))
+        return indices
 
     def _workspace_snapshot(self) -> dict[str, Any]:
         projects = []

@@ -574,16 +574,19 @@ main {
 }
 
 .list article {
-  padding: 11px;
+  padding: 8px 10px;
 }
 
 .list strong {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.25;
 }
 
-.list span,
+.list span {
+  font-size: 11.5px;
+}
+
 .empty {
   font-size: 12.5px;
 }
@@ -908,14 +911,14 @@ main {
 
 .upcoming-event {
   align-items: center;
-  min-height: 68px;
+  min-height: 0;
 }
 
 .upcoming-event>span {
   background: linear-gradient(135deg, var(--ui-primary), var(--ui-primary-2));
   border: 0;
   color: #fffffb;
-  min-width: 72px;
+  min-width: 0;
 }
 
 .modal-backdrop,

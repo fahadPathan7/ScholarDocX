@@ -30,8 +30,28 @@ JSON_FIELDS = {
 }
 
 
+class SavedProfessorLimitReached(Exception):
+    """The saved-professor library is full (SCHOLARDOCX-0196).
+
+    Its own type rather than a bare ValueError so the API layer can answer 409
+    ("you already have as many as you can keep") instead of 400 ("your request
+    was malformed") — the request was fine, the collection is full.
+    """
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+
+
+def _json_safe(value: Any) -> str:
+    """`_json` for payloads read back out of storage.
+
+    A candidate loaded from the database carries `datetime` objects, which
+    plain `json.dumps` refuses — the same defect that silently killed every
+    deep-research pass in SCHOLARDOCX-0190. `default=str` keeps a snapshot from
+    ever failing on a type rather than on its content.
+    """
+    return json.dumps(value, ensure_ascii=True, separators=(",", ":"), default=str)
 
 
 def _decode_row(row) -> dict[str, Any]:
@@ -77,6 +97,14 @@ class AdvisorAtlasRepository:
             )
             db.commit()
             return self.get_run(str(cursor.lastrowid), user_id)
+
+    def count_runs(self, user_id: str) -> int:
+        with legacy_session(self.database_url) as db:
+            row = db.execute(
+                "SELECT COUNT(*) AS n FROM advisor_atlas_runs WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            return int(row["n"]) if row else 0
 
     def list_runs(self, user_id: str) -> list[dict[str, Any]]:
         with legacy_session(self.database_url) as db:
@@ -313,8 +341,9 @@ class AdvisorAtlasRepository:
                     """
                     INSERT INTO advisor_atlas_publications (
                       candidate_id, title, authors_json, publication_year, venue,
-                      doi, source_url, relevance_reason, reading_priority
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      doi, source_url, relevance_reason, citation_count,
+                      evidence_source, reading_priority
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         candidate_id,
@@ -325,6 +354,8 @@ class AdvisorAtlasRepository:
                         item.get("doi"),
                         item.get("source_url"),
                         item.get("relevance_reason"),
+                        item.get("citation_count"),
+                        item.get("evidence_source"),
                         int(item.get("reading_priority", 0)),
                     ),
                 )
@@ -445,23 +476,290 @@ class AdvisorAtlasRepository:
                 db.commit()
         return self.get_candidate(candidate_id, user_id)
 
-    def save_to_professors(self, candidate_id: str, user_id: str) -> dict[str, Any]:
-        candidate = self.get_candidate(candidate_id, user_id)
+    def _resolve_university(
+        self,
+        db: Any,
+        user_id: str,
+        name: str | None,
+    ) -> str | None:
+        """Find (or create) the user's university record for this institution.
+
+        SCHOLARDOCX-0195: saving a professor used to leave `university_id` null
+        even though the run knew the institution, so a saved advisor arrived
+        detached from the university they work at — invisible to anything that
+        organises by institution.
+        """
+        clean = (name or "").strip()
+        if not clean:
+            return None
+        row = db.execute(
+            """
+            SELECT id FROM universities
+            WHERE user_id = ? AND lower(name) = lower(?)
+            ORDER BY id LIMIT 1
+            """,
+            (user_id, clean),
+        ).fetchone()
+        if row:
+            return str(row["id"])
+        # `country` is NOT NULL on this table and Advisor Atlas does not
+        # capture it, so it is left explicitly unknown rather than guessed.
+        cursor = db.execute(
+            "INSERT INTO universities (user_id, name, country) VALUES (?, ?, ?)",
+            (user_id, clean, "Unspecified"),
+        )
+        return str(cursor.lastrowid)
+
+    def _resolve_program(
+        self,
+        db: Any,
+        user_id: str,
+        university_id: str | None,
+        department: str | None,
+        degree_target: str | None,
+    ) -> str | None:
+        """Find (or create) a program row for this department at this university."""
+        clean = (department or "").strip()
+        if not clean or not university_id:
+            return None
+        row = db.execute(
+            """
+            SELECT id FROM programs
+            WHERE user_id = ? AND university_id = ? AND lower(name) = lower(?)
+            ORDER BY id LIMIT 1
+            """,
+            (user_id, university_id, clean),
+        ).fetchone()
+        if row:
+            return str(row["id"])
+        cursor = db.execute(
+            """
+            INSERT INTO programs (user_id, university_id, name, degree_type, department)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, university_id, clean, degree_target, clean),
+        )
+        return str(cursor.lastrowid)
+
+    def count_saved_professors(self, user_id: str) -> int:
+        """How many professors the user has kept.
+
+        Counts the `professors` table rather than candidates carrying a
+        `saved_professor_id`: two candidates from different runs can point at
+        the same professor, and the library holds one card for them.
+        """
+        with legacy_session(self.database_url) as db:
+            row = db.execute(
+                "SELECT COUNT(*) AS n FROM professors WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            return int(row["n"]) if row else 0
+
+    def list_saved_professors(self, user_id: str) -> list[dict[str, Any]]:
+        """The saved-professor library, each row carrying its dossier link.
+
+        SCHOLARDOCX-0196: the library is a way back into the dossier, so the
+        candidate id has to come with the professor — the frontend cannot
+        derive it (the foreign key points the other way, from candidate to
+        professor). The newest link wins when a professor was saved from more
+        than one run.
+        """
+        with legacy_session(self.database_url) as db:
+            rows = db.execute(
+                """
+                SELECT p.*,
+                       u.name AS university_name,
+                       pr.name AS program_name,
+                       (
+                         SELECT c.id FROM advisor_atlas_candidates c
+                         WHERE c.saved_professor_id = p.id AND c.user_id = p.user_id
+                         ORDER BY c.updated_at DESC
+                         LIMIT 1
+                       ) AS candidate_id,
+                       s.saved_at AS dossier_saved_at,
+                       s.source_run_label,
+                       CASE WHEN s.id IS NULL THEN 0 ELSE 1 END AS has_dossier
+                FROM professors p
+                LEFT JOIN advisor_atlas_saved_dossiers s
+                  ON s.professor_id = p.id AND s.user_id = p.user_id
+                LEFT JOIN universities u ON u.id = p.university_id
+                LEFT JOIN programs pr ON pr.id = p.program_id
+                WHERE p.user_id = ?
+                ORDER BY p.updated_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_saved_dossier(self, professor_id: str, user_id: str) -> dict[str, Any]:
+        """The frozen dossier for a saved professor.
+
+        Returned even when the originating search still exists — the snapshot
+        is what the user chose to keep, and reading it costs one row rather
+        than reassembling four tables.
+        """
+        with legacy_session(self.database_url) as db:
+            row = db.execute(
+                """
+                SELECT * FROM advisor_atlas_saved_dossiers
+                WHERE professor_id = ? AND user_id = ?
+                """,
+                (professor_id, user_id),
+            ).fetchone()
+            if not row:
+                raise LookupError("No saved dossier for that professor.")
+            record = dict(row)
+            snapshot = safe_json_loads(record.get("snapshot_json") or "{}", default={})
+            return {
+                "professor_id": professor_id,
+                "saved_at": record.get("saved_at"),
+                "source_run_label": record.get("source_run_label"),
+                "candidate": snapshot if isinstance(snapshot, dict) else {},
+            }
+
+    def _write_saved_dossier(
+        self,
+        db: Any,
+        professor_id: str,
+        user_id: str,
+        candidate: dict[str, Any],
+        source_run_label: str | None,
+    ) -> None:
+        """Freeze the candidate's full dossier against the saved professor.
+
+        Re-saving overwrites: the user asked for the current state of the
+        research, and keeping the older copy would leave two answers to
+        "what did I save?".
+        """
+        payload = _json_safe(candidate)
+        existing = db.execute(
+            "SELECT id FROM advisor_atlas_saved_dossiers WHERE professor_id = ?",
+            (professor_id,),
+        ).fetchone()
+        if existing:
+            db.execute(
+                """
+                UPDATE advisor_atlas_saved_dossiers
+                SET snapshot_json = ?, source_run_label = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (payload, source_run_label, str(existing["id"])),
+            )
+            return
+        db.execute(
+            """
+            INSERT INTO advisor_atlas_saved_dossiers
+              (professor_id, user_id, snapshot_json, source_run_label)
+            VALUES (?, ?, ?, ?)
+            """,
+            (professor_id, user_id, payload, source_run_label),
+        )
+
+    def remove_saved_professor(self, professor_id: str, user_id: str) -> dict[str, Any]:
+        """Drop a professor from the library.
+
+        Clears `saved_professor_id` on any candidate pointing at them first,
+        so the dossier's Save button becomes available again instead of
+        staying stuck on "Saved to professors" against a record that is gone.
+        """
         with legacy_session(self.database_url) as db:
             existing = db.execute(
-                """
-                SELECT id FROM professors
-                WHERE user_id = ? AND lower(name) = lower(?)
-                ORDER BY id LIMIT 1
-                """,
-                (user_id, candidate["display_name"]),
+                "SELECT id FROM professors WHERE id = ? AND user_id = ?",
+                (professor_id, user_id),
             ).fetchone()
+            if not existing:
+                raise LookupError("Saved professor not found.")
+            db.execute(
+                """
+                UPDATE advisor_atlas_candidates
+                SET saved_professor_id = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE saved_professor_id = ? AND user_id = ?
+                """,
+                (professor_id, user_id),
+            )
+            db.execute(
+                "DELETE FROM professors WHERE id = ? AND user_id = ?",
+                (professor_id, user_id),
+            )
+            db.commit()
+            return {"removed": professor_id}
+
+    def save_to_professors(
+        self,
+        candidate_id: str,
+        user_id: str,
+        max_saved: int | None = None,
+    ) -> dict[str, Any]:
+        candidate = self.get_candidate(candidate_id, user_id)
+        run = self.get_run(str(candidate["run_id"]), user_id, include_candidates=False)
+        with legacy_session(self.database_url) as db:
+            university_id = self._resolve_university(
+                db,
+                user_id,
+                candidate.get("institution") or run.get("university_name"),
+            )
+            program_id = self._resolve_program(
+                db,
+                user_id,
+                university_id,
+                candidate.get("department") or run.get("department"),
+                run.get("degree_target"),
+            )
+            # Match within the institution, not across the whole workspace.
+            # Two different people can share a name; the same person at the
+            # same university is the case worth merging. When the institution
+            # is unknown, fall back to the old name-only match rather than
+            # creating a duplicate.
+            if university_id:
+                existing = db.execute(
+                    """
+                    SELECT id FROM professors
+                    WHERE user_id = ? AND lower(name) = lower(?)
+                      AND (university_id = ? OR university_id IS NULL)
+                    ORDER BY id LIMIT 1
+                    """,
+                    (user_id, candidate["display_name"], university_id),
+                ).fetchone()
+            else:
+                existing = db.execute(
+                    """
+                    SELECT id FROM professors
+                    WHERE user_id = ? AND lower(name) = lower(?)
+                    ORDER BY id LIMIT 1
+                    """,
+                    (user_id, candidate["display_name"]),
+                ).fetchone()
+            # The cap applies to *adding* a professor. Re-saving one already in
+            # the library refreshes them and must keep working at the cap —
+            # refusing that would strand the user's most useful action.
+            if not existing and max_saved is not None:
+                total = db.execute(
+                    "SELECT COUNT(*) AS n FROM professors WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+                if total and int(total["n"]) >= max_saved:
+                    raise SavedProfessorLimitReached(
+                        f"You've saved the maximum of {max_saved} professors. "
+                        "Remove one from Saved professors before adding another."
+                    )
+
             if existing:
                 professor_id = str(existing["id"])
+                # COALESCE on the incoming side: a re-save refreshes what the
+                # dossier now knows and leaves the rest alone. Passing a bare
+                # value would blank a field the user had filled in by hand
+                # whenever this run happened not to find it.
                 db.execute(
                     """
-                    UPDATE professors SET title=?, email=?, profile_url=?,
-                      research_interests=?, notes=?, updated_at=CURRENT_TIMESTAMP
+                    UPDATE professors SET
+                      title=COALESCE(?, title),
+                      email=COALESCE(?, email),
+                      profile_url=COALESCE(?, profile_url),
+                      research_interests=COALESCE(?, research_interests),
+                      notes=COALESCE(?, notes),
+                      university_id=COALESCE(?, university_id),
+                      program_id=COALESCE(?, program_id),
+                      updated_at=CURRENT_TIMESTAMP
                     WHERE id=? AND user_id=?
                     """,
                     (
@@ -470,6 +768,8 @@ class AdvisorAtlasRepository:
                         candidate.get("official_profile_url"),
                         candidate.get("research_summary"),
                         candidate.get("user_notes"),
+                        university_id,
+                        program_id,
                         professor_id,
                         user_id,
                     ),
@@ -478,8 +778,9 @@ class AdvisorAtlasRepository:
                 cursor = db.execute(
                     """
                     INSERT INTO professors (
-                      user_id, name, title, email, profile_url, research_interests, notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                      user_id, name, title, email, profile_url, research_interests,
+                      notes, university_id, program_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         user_id,
@@ -489,12 +790,30 @@ class AdvisorAtlasRepository:
                         candidate.get("official_profile_url"),
                         candidate.get("research_summary"),
                         candidate.get("user_notes"),
+                        university_id,
+                        program_id,
                     ),
                 )
                 professor_id = str(cursor.lastrowid)
             db.execute(
                 "UPDATE advisor_atlas_candidates SET saved_professor_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (professor_id, candidate_id),
+            )
+            # SCHOLARDOCX-0197: freeze the dossier alongside the five columns
+            # above. Deleting the search cascades the candidate away, so
+            # without this "saved" survives as a name and an email.
+            self._write_saved_dossier(
+                db,
+                professor_id,
+                user_id,
+                candidate,
+                run.get("professor_name")
+                or " · ".join(
+                    part
+                    for part in (run.get("university_name"), run.get("department"))
+                    if part
+                )
+                or None,
             )
             db.commit()
             row = db.execute("SELECT * FROM professors WHERE id = ?", (professor_id,)).fetchone()

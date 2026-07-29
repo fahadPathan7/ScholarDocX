@@ -139,18 +139,30 @@ For every new feature or feature modification:
 - For file operations, test path validation and workspace initialization.
 - Do not leave feature work complete with "tests skipped" unless the reason is recorded in the task file.
 
+### STRICT: Create/update test files after every feature, but never execute tests unless explicitly told
+
+After implementing or modifying a feature, create new test files or update
+existing ones to cover the changed behavior — this step is not optional and
+is not gated on the user asking for it. Do NOT run those tests, or any
+other tests (`pytest`, `npm test`, `make test`, `make check`, etc.), unless
+the user explicitly asks you to run them in that session. Writing/updating
+test files and executing them are separate actions; the first is always
+required, the second is opt-in only. If asked to run tests, see the scoped-run
+rule below for which tests to run.
+
 ### STRICT: Run scoped tests, not the whole suite, for a single feature change
 
-This backend suite runs against a real shared database with no ephemeral
-per-run isolation (see the strict rule below) — every additional test file
-in a verification run is more real network round trips, more runtime, and
-more surface area for the shared-state races described below. After
-implementing or fixing one feature, run only the test file(s) that cover
-that feature (and any file whose behavior you directly changed). Do not
-proactively run the entire backend or frontend suite "to be safe" — a full
-run is expensive on this database and is the user's call to make, not the
-default after every change. Run the full suite only when the user
-explicitly asks for it (e.g. "run everything," "run the whole suite").
+This rule only applies once the user has explicitly asked you to run tests
+(see the rule above — never run tests on your own initiative). This backend
+suite runs against a real shared database with no ephemeral per-run isolation
+(see the strict rule below) — every additional test file in a verification
+run is more real network round trips, more runtime, and more surface area for
+the shared-state races described below. When asked to verify one feature,
+run only the test file(s) that cover that feature (and any file whose
+behavior you directly changed). Do not run the entire backend or frontend
+suite "to be safe" — a full run is expensive on this database and is the
+user's call to make. Run the full suite only when the user explicitly asks
+for it (e.g. "run everything," "run the whole suite").
 
 ### STRICT: Never permanently mutate shared/global state for a test (SCHOLARDOCX-0178 incident)
 

@@ -17,6 +17,8 @@
   --d-info-border: hsl(210, 60%, 88%);
 }
 
+/* Full-viewport by default — correct on the login and splash screens,
+   where there is no app chrome to keep sharp. */
 .custom-dialog-backdrop {
   position: fixed;
   top: 0;
@@ -31,6 +33,18 @@
   align-items: center;
   justify-content: center;
   animation: fadeInDialog 0.2s ease-out;
+}
+
+/* Inside the app, the dialog portals into `.main-content` and covers only
+   the work surface, leaving the TopBar and Sidebar crisp. Same contract as
+   `.modal-backdrop-main`; see AGENTS.md "Modal backdrop blur". */
+.custom-dialog-backdrop.scoped-main {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-height: 100%;
+  z-index: 1100;
 }
 
 .custom-dialog-panel {

@@ -2,16 +2,26 @@
 
 ## Overview
 
-ScholarDocX Research Expert is a privacy-first, vector-search augmented research paper analysis workspace designed for academic applicants (Master's, PhD, and research-focused candidates). It allows users to upload PDF research papers, extract text, generate 768-dimension vector embeddings using Gemini `text-embedding-004`, perform pgvector cosine similarity search, and analyze papers using 13 predefined analytical prompts or custom questions.
+ScholarDocX Research Expert is a privacy-first, vector-search augmented research paper analysis workspace designed for academic applicants (Master's, PhD, and research-focused candidates). It allows users to upload PDF research papers, extract text, generate 1024-dimension vector embeddings using Jina AI `jina-embeddings-v4`, perform pgvector cosine similarity search, and analyze papers using 13 predefined analytical prompts or custom questions.
 
 ## Access & Role Limits
 
 - **Role Gate**: `can_use_research_reader` (Pro: 1, Max: 1, Free: 0, General: 0).
 - **Upload Quota**: `research_papers_per_month` (Pro: 30, Max: 100, Free/General: 0).
 - **Billing Enforcement**:
-  - Embedding generation calls Gemini REST API `text-embedding-004:batchEmbedContents` and meters tokens via `ai_tokens.charge(..., source="research_paper_embedding")`.
-  - Paper analysis queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, metering input/output tokens via `AiService.charge_tokens`.
+  - Embedding generation calls the Jina AI REST API (`jina-embeddings-v4`, `task="text-matching"`, 1024 dims) and is billed as a **flat USD fee per operation** via `ai_tokens.charge_flat_fee(...)`, converted to credits at the current token rate. The fee is read from `app_settings.research_paper_jina_cost_usd` (default `0.005`).
+  - Exactly **one** flat fee is charged per user-visible embedding operation:
+    - `source="jina_embedding"` — once per successful upload (or retry) indexing pass, regardless of how many API batches the paper required.
+    - `source="jina_embedding_query"` — once per analysis query, for the single query-vector embedding.
+  - If processing fails before embeddings are generated, no embedding fee is charged.
+  - Paper analysis additionally passes through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, metering input/output tokens through the standard AI token economy.
   - Both embedding generation and paper analysis require pre-flight credit checks (`ensure_can_spend`) and fail with HTTP 402 if credits are zero.
+
+## Quota Behaviour
+
+- The monthly `research_papers_per_month` slot is consumed only when a paper is **successfully processed**. An upload that fails during text extraction or embedding generation does not burn a slot.
+- Deleting a paper resyncs both `total_documents_bytes` and `research_papers_per_month`, so slots are returned to the user.
+- The concurrent library cap (`max_research_papers_library`, default 20) is checked before upload and is independent of the monthly quota.
 
 ## Key Workflows & Features
 
@@ -24,14 +34,16 @@ ScholarDocX Research Expert is a privacy-first, vector-search augmented research
    - Splits document text into overlapping semantic chunks (~1100 characters per chunk, ~150 characters overlap). Smaller chunks give tighter similarity matches and keep unrelated/garbled math out of a single retrieved section.
    - Every chunk is stamped with the page it starts on (`--- Page N ---`) even when it falls entirely between two page markers, so page-based "View in PDF" jump/highlight always resolves a page.
    - Analysis retrieves a larger top-k (default 10) to compensate for the smaller chunk size.
-   - Generates 768-dimension float vectors via Gemini `text-embedding-004` API in batches.
-   - Stores chunks and vector embeddings in PostgreSQL `research_paper_chunks` table (`embedding` column type `Vector(768)`).
+   - Generates 1024-dimension float vectors via the Jina AI `jina-embeddings-v4` API in batches of 16. 1024 dims is chosen to stay under pgvector's 2000-dimension limit for HNSW/IVFFlat indexes.
+   - Stores chunks and vector embeddings in PostgreSQL `research_paper_chunks` table (`embedding` column type `Vector(1024)`).
    - Uses HNSW index with `vector_cosine_ops` for fast nearest-neighbour queries.
 
 3. **Vector Similarity Search**:
-   - Generates single 768-dimension query embedding for user prompts.
+   - Generates a single 1024-dimension query embedding for user prompts.
    - Executes pgvector SQL cosine distance query: `SELECT id, chunk_index, chunk_text, token_count, 1 - (embedding <=> :query_vec) AS similarity FROM research_paper_chunks WHERE paper_id = :pid ORDER BY embedding <=> :query_vec ASC LIMIT :k`.
-   - Retrieves top-k (default 5) most relevant chunks with similarity scores.
+   - Retrieves top-k (default 10) most relevant chunks with similarity scores.
+   - **Section boosting**: when the query implies a named paper section (limitations, future work, conclusion, methodology), a keyword pass guarantees that section's chunks are considered. Boosted candidates are ranked by **real cosine distance to the query vector** — never by document position — and every score returned to the user is a genuine computed similarity. No synthetic or placeholder relevance value is ever surfaced.
+   - **Reference filtering**: chunks that are predominantly bibliography (4+ `[n]` citation markers, or a `REFERENCES`/`BIBLIOGRAPHY` heading) are demoted unless the query explicitly asks about references or citations.
 
 4. **Predefined & Custom AI Analysis**:
    - **13 Predefined Prompts**, tuned for technically-literate readers (they embrace domain terminology and go for analytical depth rather than beginner hand-holding) and ordered most-analytical-first. Each prompt is engineered for rigorous, structured output; kept in sync between `frontend/src/lib/researchPrompts.ts` and backend `PREDEFINED_PROMPTS`.

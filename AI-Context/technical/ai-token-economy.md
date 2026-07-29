@@ -434,9 +434,10 @@ token-metered.
 - **Pre-flight**: `AiService.can_spend_external()` runs before the call; a user at
   zero credits skips enrichment rather than going negative.
 - **Plumbing**: `AiService.charge_external_call()` and `.external_billing_cost()`
-  encapsulate the billing context, mirroring the existing
-  `record_external_search()` (which stays zero-cost, for unbilled counters).
-  Neither raises — a billing error must never fail an Advisor Atlas run.
+  encapsulate the billing context. Neither raises — a billing error must never
+  fail an Advisor Atlas run. (They once had a sibling that recorded a call at
+  zero cost; it was deleted in SCHOLARDOCX-0204 because nothing legitimately
+  needs it.)
 - **Scope**: deep runs only. A Discovery run screening 80 candidates would both
   exhaust the OpenAlex daily budget and bill the user 80 times for candidates
   that may never surface.

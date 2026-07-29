@@ -422,13 +422,15 @@
    sticky-notes.css. The note's chosen font is applied to `.check-item`
    directly, not to the card, so inheriting picks up the card's Caveat default
    instead — which is why a note set to Modern rendered its body correctly and
-   its checklist items in handwriting. Everything except the family is reset
-   here; the family stays with the theme rules that own it. */
+   its checklist items in handwriting. Family AND size are excluded from this
+   reset for the same reason: `.size-small/medium/large .check-item` in
+   sticky-notes.css also sit at (0,2,0), so a `font-size: inherit` here would
+   silently win over the chosen note size and pin every checklist row to the
+   card's base 20px regardless of the size picker. */
 .sticky-check-list .check-item.tickable {
   width: 100%;
   border: none;
   background: transparent;
-  font-size: inherit;
   font-weight: inherit;
   font-style: inherit;
   line-height: inherit;

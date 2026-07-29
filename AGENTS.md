@@ -38,17 +38,13 @@ Before writing or changing product code:
   - raw HTTP status ("Request failed: 403") → "Something went wrong. Please try again."
 
   When in doubt, describe the **user outcome**, not the mechanism. A reviewer seeing "vector", "embedding", "chunk", "pgvector", "extraction", or a provider name in rendered UI copy should treat it as a regression to fix. Internal code (variable names, comments, type fields, CSS classes, console logs, API payloads) is exempt.
-- **ABSOLUTE BILLING ENFORCEMENT FOR ALL CREDIT-CONSUMING OPERATIONS**: Every operation that consumes external API credits—AI chat, AI research, Tavily searches, OpenRouter calls, Gemini calls, GLM calls, Groq calls, Mistral calls, scholarship extraction, query generation, Deep Hunt operations, Advisor Atlas research, background AI tasks, and ANY other external provider call—MUST go through the centralized billing system (`ai_tokens.py`) and MUST enforce admin-configured role limits BEFORE making the external call. This is NON-NEGOTIABLE and applies to:
-  - **Foreground user-initiated operations**: All `/ai/chat`, `/ai/research`, `/ai/summarize`, `/ai/actions/plan`, `/ai/actions/execute`, `/news/search`, `/news/query-preview` calls.
-  - **Background asynchronous operations**: Advisor Atlas runs, Deep Hunt runs, scholarship extraction, automated research, batch processing, scheduled tasks, webhook-triggered AI operations.
-  - **Administrative operations**: Admin-panel-triggered AI operations, bulk processing, system maintenance tasks that call AI providers.
-  - **All provider types**: GLM, Gemini, Groq, Mistral, OpenRouter (including OpenRouter Free), Tavily (including both main and Scholarship Hunt keys), Google AI Studio, and any future provider additions.
-  - **Zero exceptions**: The phrase "OpenRouter Free" or "background task" does NOT exempt an operation from billing enforcement. If it calls an external provider, it MUST be billed and gated by the user's plan limits set in the admin panel.
-  - **Pre-flight validation**: Check `can_use_<provider>`, token balance, and feature-specific quotas (`can_use_scholarship_hunt`, `can_use_advisor_atlas`, `can_use_web_search`, `can_use_agents`) BEFORE calling the provider. Reject the request with a clear error if the user lacks permission or credits.
-  - **Mandatory charge recording**: Every successful provider call MUST record token usage via `charge_ai_tokens` or `charge_flat_fee` so admin dashboards accurately reflect consumption and users are properly billed against their subscription or purchased token balance.
-  - **Enforcement location**: Place billing checks at the service-layer entry point (e.g., `AiService.chat`, `NewsService.search`, `DeepHuntService.start_run`, `AdvisorAtlasService.run_discovery`) where the user context and session are available, NOT deep inside provider adapters or utility functions.
-  - **No silent bypasses**: Do not add conditional logic that skips billing for "internal" or "system" operations. If a background task needs to call AI, it must load the user context via `load_user_dict` and charge that user's balance.
-  - **Audit requirement**: When adding a new AI or search integration, explicitly document the billing enforcement in the feature's Jira task and update `AI-Context/technical/ai-integrations.md` with the billing flow.
+- **ABSOLUTE BILLING ENFORCEMENT**: every external provider call made on a
+  user's behalf is charged to that user, with the plan gate checked before the
+  call. Foreground, background, admin-triggered, fallback, retry, and
+  vendor-"free" calls are all included; there are no exempt categories. The
+  full contract lives in
+  [AI-Context/technical/billing-contract.md](AI-Context/technical/billing-contract.md)
+  — read it before touching provider code, and do not restate it here.
 ## Repo-Carried Agent Skills
 
 ScholarDocX keeps project-specific `SKILL.md` files natively integrated in `.agents/skills`, `.claude/skills`, and `.codex/skills`. These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
@@ -81,100 +77,29 @@ Use this order when resolving conflicts:
 
 ## Billing And Credit Enforcement Rules
 
-Every external provider call that consumes API credits MUST be properly billed and gated. This section defines the absolute requirements that apply to ALL AI and search integrations without exception.
+Every external provider call made on a user's behalf is charged to that user.
+There are no exempt categories: background tasks, fallback paths, retries,
+models the vendor prices at $0, and calls whose results get discarded are all
+billed. The operator never absorbs provider cost.
 
-### Core Billing Principles
+**The contract — API, enforcement locations, gates, and the checklist for adding
+a provider — lives in one place:
+[AI-Context/technical/billing-contract.md](AI-Context/technical/billing-contract.md).**
+Read it before touching anything that calls a provider. It is kept honest by
+`scripts/check-context-drift.py`, so its function names are real; this section
+deliberately holds no API detail of its own, because the copy that used to live
+here drifted for a year and told agents to call four functions that never
+existed (SCHOLARDOCX-0205).
 
-1. **Every credit-consuming operation goes through centralized billing**: All AI chat, research, summarization, drafting, agent actions, Tavily searches, OpenRouter calls, and any external provider API call MUST use `ai_tokens.py` (charge_ai_tokens, charge_flat_fee, check_available_tokens) to enforce plan limits and record usage.
+Two guards enforce this, both wired into `make check`:
 
-2. **Admin panel is the source of truth for limits**: Plan limits configured in the admin panel (`can_use_gemini`, `can_use_glm`, `can_use_groq`, `can_use_mistral`, `can_use_web_search`, `can_use_scholarship_hunt`, `can_use_advisor_atlas`, `can_use_agents`, `can_use_purchased_tokens`, monthly AI token allowances) MUST be checked before every provider call. The configured limits apply to all users in that role.
+- `make guard-billing` — fails when a function talks to a provider without
+  charging, or makes its billing context optional.
+- `make guard-context` — fails when context names code that does not exist.
 
-3. **No "free" or "background" exceptions**: Operations labeled "free tier", "OpenRouter Free", "background task", "admin operation", or "internal" are NOT exempt from billing. If an operation calls an external provider, it counts against a user's quota and token balance.
-
-4. **Pre-flight validation before external calls**: Before calling GLM, Gemini, Groq, Mistral, OpenRouter, Tavily, or any other provider:
-   - Check the feature gate (`can_use_<provider>`, `can_use_<feature>`).
-   - Check available token balance via `check_available_tokens` or `get_ai_token_balance`.
-   - For flat-fee operations (Scholarship Hunt, Advisor Atlas, specific agent actions), check the flat-fee balance via `check_flat_fee_balance`.
-   - Reject the request with an informative error if the user lacks permission or credits. Do NOT make the external call and then fail.
-
-5. **Mandatory charge recording after successful calls**: After every successful provider response:
-   - Call `charge_ai_tokens(user, token_count, session)` for token-metered operations.
-   - Call `charge_flat_fee(user, fee_amount, session, category, operation_id)` for flat-fee operations.
-   - Commit the charge to the database so usage dashboards and user balances remain accurate.
-
-6. **Background tasks must load user context for billing**: Background operations (Advisor Atlas runs, Deep Hunt runs, scheduled research, webhook-triggered AI tasks) MUST load the user context via `load_user_dict(user_id, session)` and pass it to the billing service. Background tasks are not a special case—they consume the user's token balance.
-
-7. **Service-layer enforcement point**: Billing checks belong at the service entry point where user context and session are available (e.g., `AiService.chat`, `NewsService.search`, `DeepHuntService.start_run`, `AdvisorAtlasService.run_discovery`), NOT deep inside adapters or low-level utility functions that lack user context.
-
-8. **Audit trail for new integrations**: When adding a new AI provider, search provider, or credit-consuming feature:
-   - Document the billing enforcement in the Jira task.
-   - Update `AI-Context/technical/ai-integrations.md` with the billing flow.
-   - Add test coverage to `tests/regression/test_limits_billing_guards.py`.
-   - Verify that the admin panel plan comparison UI reflects the new limit or feature toggle.
-
-### Provider-Specific Enforcement Requirements
-
-| Provider | Environment Key | Plan Gate | Billing Method | Notes |
-|---|---|---|---|---|
-| **GLM AI** | `GLM_API_KEY` | `can_use_glm` | `charge_ai_tokens` (token-metered) | Default configured provider for Max plan users |
-| **Google Gemini** | `GEMINI_API_KEY` | `can_use_gemini` | `charge_ai_tokens` (token-metered) | Default for Free/General/Pro; user selects chat + background models |
-| **Groq** | `GROQ_API_KEY` | `can_use_groq` | `charge_ai_tokens` (token-metered) | Available to Pro/Max users |
-| **Mistral** | `MISTRAL_API_KEY` | `can_use_mistral` | `charge_ai_tokens` (token-metered) | Available to Max users |
-| **OpenRouter** | `OPENROUTER_API_KEY` | Varies by endpoint | `charge_ai_tokens` or `charge_flat_fee` | Used for Scholarship Hunt query preview (`/news/query-preview`), Deep Hunt query planner, Deep Hunt relevance filter. Even "OpenRouter Free" calls count against user balance |
-| **Tavily (main)** | `TAVILY_API_KEY` | `can_use_web_search` | `charge_flat_fee` (per-search flat fee) | Used by `/ai/research` web research flow; gated by `can_use_web_search` + session/monthly research limits |
-| **Tavily (Scholarship Hunt)** | `TAVILY_API_KEY_SCHOLARSHIP_HUNT` | `can_use_scholarship_hunt` | `charge_flat_fee` (per-search flat fee) | Used by `/news/search` and Scholarship Hunt catalog cycle checks; gated by `can_use_scholarship_hunt` + daily/monthly limits |
-
-### Feature-Specific Enforcement Checklist
-
-**AI Assistant Chat (`/ai/chat`)**:
-- Check `can_use_<provider>` for the configured chat provider.
-- Check `ai_messages_per_session` limit.
-- Check token balance before provider call.
-- Charge tokens after successful response.
-- Enforce `can_use_web_search` if the routing prompt triggers Tavily.
-
-**AI Research (`/ai/research`)**:
-- Check `can_use_web_search`.
-- Check `web_searches_per_session` and `web_searches_per_month` limits.
-- Charge flat fee for the Tavily search.
-- Charge tokens for the synthesis call via the configured provider.
-
-**AI Summarization (`/ai/summarize`)**:
-- Check `can_use_<provider>` for the configured background model.
-- Check token balance.
-- Charge tokens after successful summary.
-
-**Agent Actions (`/ai/actions/plan`, `/ai/actions/execute`)**:
-- Check `can_use_agents`.
-- For plan generation: check `can_use_<provider>` and token balance, then charge tokens.
-- For execute: enforce create-action role limits (total_projects, total_sheets, etc.) via `check_and_increment_limit`.
-
-**Scholarship Hunt (`/news/query-preview`, `/news/search`)**:
-- Check `can_use_scholarship_hunt`.
-- Check `news_searches_per_day` and `news_searches_per_month` limits.
-- Query preview: charge tokens for the OpenRouter Free call (even though the model is "free", the user's token balance must be sufficient).
-- Search: charge flat fee for the Tavily Scholarship Hunt call.
-
-**Advisor Atlas (`/advisor-atlas/run-discovery`, `/advisor-atlas/request-update`)**:
-- Check `can_use_advisor_atlas`.
-- Check `advisor_atlas_searches_per_month` limit.
-- Charge flat fee at run start (one unit per run or refresh).
-- All internal Tavily calls and GLM/vision calls during the run count against the user's token and flat-fee balances.
-
-**Deep Hunt (`/deep-hunt/start`, background scholarship extraction)**:
-- Check `can_use_scholarship_hunt` (Deep Hunt is a Scholarship Hunt feature).
-- Check monthly Deep Hunt run limit if configured.
-- Charge flat fee for each run.
-- Query planner (OpenRouter Free) and relevance filter (OpenRouter Free) MUST charge tokens.
-- Scholarship extraction (configured provider or OpenRouter Free fallback) MUST charge tokens.
-
-### Enforcement Testing Requirements
-
-When touching any billing-related code:
-- Update `tests/regression/test_limits_billing_guards.py` (or add a new case) so existing guards stay covered. Do not run it yourself unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md) testing rules.
-- Add a new test case if introducing a new provider, feature, or billing flow.
-- Verify that rejected requests (insufficient tokens, missing gate, exceeded quota) return clear user-facing error messages without exposing provider internals.
-- Verify that successful operations correctly decrement the user's subscription_remaining and/or purchased_remaining token buckets in `ai_tokens` table.
+When you touch billing code, update
+`backend/tests/regression/test_limits_billing_guards.py`. Do not run it yourself
+unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md).
 
 ## File Size And Modularity Rule
 

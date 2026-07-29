@@ -404,11 +404,21 @@
 .sticky-check-list button span {
   align-items: center;
   border: 1px solid rgba(23, 32, 29, 0.32);
-  border-radius: 6px;
+  border-radius: 0.3em;
   display: inline-flex;
-  height: 18px;
+  flex-shrink: 0;
+  height: 0.9em;
   justify-content: center;
-  width: 18px;
+  width: 0.9em;
+}
+
+/* The Check glyph is rendered at a fixed pixel size by lucide; force it to
+   fill its box so it scales with the note's font size instead of staying
+   pinned to one size across small/medium/large notes. */
+.sticky-check-list .check-item span svg,
+.sticky-check-list button span svg {
+  height: 65%;
+  width: 65%;
 }
 
 .sticky-card small:not(.sticky-card-date) {

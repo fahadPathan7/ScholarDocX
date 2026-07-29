@@ -12,98 +12,35 @@
 > site. Detail:
 > [SCHOLARDOCX-0204](../jira-tasks/Epic-BillingAndPlans/SCHOLARDOCX-0204-billing-leak-audit-unbilled-provider-calls.md).
 
-## CRITICAL: Billing Enforcement Requirements
+## Billing Enforcement
 
-**EVERY AI AND SEARCH PROVIDER CALL MUST BE BILLED AND GATED BY USER PLAN LIMITS.**
+**Every provider call here is billed to the user. The contract — the real API,
+enforcement locations, gates, and the checklist for adding a provider — is in
+[billing-contract.md](billing-contract.md).**
 
-This is the absolute, non-negotiable requirement for all AI integrations in ScholarDocX. Before reading the provider-specific details below, internalize these rules:
+This file used to restate that contract in full. The restatement drifted: it
+told agents to call `charge_ai_tokens`, `check_available_tokens`, and
+`check_flat_fee_balance` (none of which exist), and to enforce at
+`NewsService.search` and two other methods that also do not exist. It is gone;
+read the contract instead.
 
-### The failure mode this rule keeps hitting
+### The failure mode this keeps hitting
 
-Every leak found in SCHOLARDOCX-0204 was *"billing wired but never invoked"*, not
-*"billing forgotten"*. The charge helper existed, was documented, and was
+Every leak found in SCHOLARDOCX-0204 was *"billing wired but never invoked"*,
+not *"billing forgotten"*. The charge helper existed, was documented, and was
 skipped at runtime by one of three mechanisms:
 
-1. **An optional `ai_service` parameter that defaults to `None`.** The charge sits
+1. **An optional `ai_service` parameter defaulting to `None`.** The charge sits
    behind `if ai_service is not None`; a call site omits the argument and the
    whole billing branch is dead. (L1, L2.)
-2. **A fallback path added after the fact.** The primary provider call is billed;
-   the retry/fallback next to it is not. (L3.)
-3. **A price lookup that silently misses.** `compute_cost` returns `$0` for an
-   unknown `model_id` rather than raising, so a charge is raised, logged, and
-   deducts nothing. (L4.)
+2. **A fallback added after the fact.** The primary call is billed; the retry
+   next to it is not. (L3.)
+3. **A price lookup that silently misses.** An unknown model resolved to $0, so
+   a charge was raised, a ledger row written, and nothing deducted. (L4.)
 
-When adding a provider call, make billing **non-optional in the signature** —
-require the billing context as a positional parameter rather than accepting
-`None` — and make an unpriced model a startup failure, not a free call.
-
-### Mandatory Billing Flow For All Operations
-
-1. **Pre-flight validation** (before calling external provider):
-   ```python
-   # Check feature gate
-   from app.auth.limits import check_and_increment_limit
-   check_and_increment_limit(user, "can_use_<provider>", 0, session)  # 0 = permission check only
-   
-   # Check token balance (for token-metered operations)
-   from app.services.ai_tokens import check_available_tokens
-   required_tokens = estimate_tokens(request)  # provider-specific estimation
-   if not check_available_tokens(user, required_tokens, session):
-       raise HTTPException(403, "Insufficient AI credits to complete this request")
-   
-   # OR check flat-fee balance (for flat-fee operations like Scholarship Hunt)
-   from app.services.ai_tokens import check_flat_fee_balance
-   if not check_flat_fee_balance(user, flat_fee_amount, session):
-       raise HTTPException(403, "Insufficient credits for this operation")
-   ```
-
-2. **Provider call** (only if pre-flight passed):
-   ```python
-   response = await provider.call_api(request)
-   ```
-
-3. **Post-call charge recording** (after successful response):
-   ```python
-   # For token-metered operations
-   from app.services.ai_tokens import charge_ai_tokens
-   actual_tokens = extract_token_count(response)  # from provider response metadata
-   charge_ai_tokens(user, actual_tokens, session)
-   session.commit()
-   
-   # OR for flat-fee operations
-   from app.services.ai_tokens import charge_flat_fee
-   charge_flat_fee(user, flat_fee_amount, session, category="scholarship_hunt", operation_id=run_id)
-   session.commit()
-   ```
-
-### Zero-Exception Policy
-
-- **"Free" providers are NOT free to users**: OpenRouter Free, Gemini free tier, and any other provider labeled "free" by the vendor still consume ScholarDocX user credits. Users must have sufficient token balance and the appropriate plan gate.
-- **Background tasks are NOT exempt**: Advisor Atlas runs, Deep Hunt runs, scheduled research, and webhook-triggered AI operations MUST load the user context via `load_user_dict(user_id, session)` and charge that user's balance. There is no "system account" bypass.
-- **Admin operations are NOT exempt**: AI operations triggered from the admin panel must identify the target user and charge their balance. If an admin is testing a feature, charge the admin's own balance.
-- **Development/testing must use mocks**: Local development and test suites MUST mock external provider calls. Do not make real API calls during tests. Use `unittest.mock.patch` or test fixtures to simulate provider responses.
-
-### Enforcement Location
-
-Place billing checks at the **service-layer entry point** where both user context and database session are available:
-- `AiService.chat()` — enforces chat provider billing
-- `AiService.research()` — enforces web search + synthesis billing
-- `NewsService.search()` — enforces Scholarship Hunt Tavily billing
-- `AdvisorAtlasService.run_discovery()` — enforces Advisor Atlas flat-fee billing
-- `DeepHuntService.start_run()` — enforces Deep Hunt flat-fee + extraction billing
-
-Do NOT place billing logic deep inside provider adapters (e.g., `glm/client.py`, `gemini/client.py`, `tavily/client.py`) because those layers lack user context.
-
-### Audit Requirements For New Integrations
-
-When adding a new AI provider, search provider, or credit-consuming feature:
-1. **Document in Jira task**: Explicitly state how billing is enforced (which gate, token-metered or flat-fee, pre-flight check location, charge-recording location).
-2. **Update this file**: Add the provider to the "Providers" section below and document its billing contract.
-3. **Update admin panel**: Ensure the plan comparison UI exposes the new `can_use_<feature>` gate for admin configuration.
-4. **Add test coverage**: Add a test case to `tests/regression/test_limits_billing_guards.py` that verifies the gate and charge recording work correctly.
-5. **Update expected behavior table**: Add the provider to the "Provider-Specific Enforcement Requirements" table in `AGENTS.md`.
-
----
+So: make the billing context **non-optional in the signature**, and make an
+unpriced model a startup warning rather than a free call. `make guard-billing`
+enforces both.
 
 ## Providers
 

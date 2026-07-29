@@ -79,26 +79,16 @@ def get_current_user(
         )
         
     user_dict["roles"] = json.loads(user_dict["roles"])
-    
-    # Check plan expiration and fallback to free_user dynamically
-    plan_ends_at = user_dict.get("plan_ends_at")
-    if plan_ends_at:
-        try:
-            from datetime import datetime, timezone
-            if isinstance(plan_ends_at, datetime):
-                end_dt = plan_ends_at
-            else:
-                end_dt = datetime.fromisoformat(str(plan_ends_at).replace("Z", "+00:00").split("+")[0])
-                
-            if end_dt.date() < datetime.utcnow().date():
-                user_roles = user_dict["roles"]
-                user_roles = [r for r in user_roles if r not in ["max_user", "pro_user", "general_user", "free_user"]]
-                if "free_user" not in user_roles:
-                    user_roles.append("free_user")
-                user_dict["roles"] = user_roles
-        except (ValueError, AttributeError, TypeError):
-            pass
-            
+
+    # Check plan expiration and fall back to free_user dynamically. Shared with
+    # background billing via app.auth.plan_state so the two cannot drift —
+    # see SCHOLARDOCX-0204 (L6).
+    from app.auth.plan_state import apply_plan_expiry
+
+    user_dict["roles"] = apply_plan_expiry(
+        user_dict["roles"], user_dict.get("plan_ends_at")
+    )
+
     return user_dict
 
 def require_role(allowed_roles: list[str]):

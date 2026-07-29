@@ -231,6 +231,49 @@ Implications:
 - Vector embeddings (768 Float dimensions) live in Supabase PostgreSQL via pgvector extension (`Vector(768)`).
 - All AI calls are metered and gated by user token balances.
 
+## BD-011: The Operator Never Absorbs Provider Cost (SCHOLARDOCX-0204)
+
+Status: Accepted
+
+Decision:
+
+Every external provider call issued on a user's behalf is charged to that user's
+AI credit balance. There are no exempt categories. Specifically, none of the
+following is a reason to skip a charge: the call runs in a background task; the
+call is a fallback or retry; the provider's own price for that model is $0
+("free tier"); the call is auxiliary rather than user-initiated (routing,
+planning, relevance scoring, summarization); the result was discarded, filtered
+out, or never shown to the user. The work was performed *for* that user, so that
+user pays for it.
+
+Where this conflicts with an earlier per-feature choice to bill a provider at
+$0 — Advisor Atlas Tavily searches, previously recorded as a deliberate
+zero-cost counter — this decision supersedes it.
+
+Rationale:
+
+Unbilled calls are direct margin loss carried by the operator, and they scale
+with success: the more the product is used, the more the operator pays. They are
+also invisible in the admin dashboards, which count ledger rows and so report a
+$0 call as activity with no cost. The SCHOLARDOCX-0204 audit found eight such
+paths, none of which were "billing forgotten" — each had a documented charge
+helper that was never actually invoked at runtime.
+
+Implications:
+
+- A charge site takes its billing context as a required parameter. An optional
+  `ai_service=None` that guards the charge is prohibited.
+- `compute_cost()` returning `$0` for an unrecognized model is a configuration
+  failure to surface at startup, not a free call to let through.
+- A gated feature with no `role_limits` row is denied, not allowed.
+- Background billing resolves the same effective role a live request would —
+  plan expiry and suspension included.
+- User-visible credit figures (Advisor Atlas `research_metrics.credits_used`,
+  the balance widget) will rise once the unbilled paths are wired. That is the
+  correct number appearing for the first time, not a regression.
+- Pricing levels are unaffected. This decision governs *whether* a call is
+  billed, not *how much* — per-call prices stay admin-configurable.
+
 ## Pending Decisions
 
 - Final desktop/local delivery model: browser app with local backend vs packaged desktop shell.

@@ -1,9 +1,12 @@
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from datetime import datetime, timedelta, timezone
+import logging
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 class UsageLimitExceeded(HTTPException):
     def __init__(self, detail: str):
@@ -47,11 +50,29 @@ def invalidate_limits_cache():
     global _role_limits_cache
     _role_limits_cache.clear()
 
+
+def _log_unseeded_feature(role: str, feature: str) -> None:
+    """Report a feature that is gated in code but absent from ``role_limits``.
+
+    Such a feature is now denied (SCHOLARDOCX-0204 L7). Denying is the safe
+    default — the previous default-allow silently opened any newly gated
+    feature to every tier, ``free_user`` included, until someone noticed the
+    missing seed row. But a denial with no explanation is hard to diagnose, so
+    say exactly which row is missing: the fix is to add it to
+    ``DEFAULT_ROLE_LIMITS`` in ``app/services/admin.py``.
+    """
+    logger.error(
+        "UNSEEDED ROLE LIMIT: no role_limits row for role=%r feature=%r — "
+        "denying access. Add it to DEFAULT_ROLE_LIMITS (SCHOLARDOCX-0204 L7).",
+        role,
+        feature,
+    )
+
 def get_user_limit(user: dict, feature: str, session: Session) -> int:
     """Returns the limit_count for a given user and feature.
 
-    Missing feature row → -1 (no cap), matching check_and_increment_limit's
-    default-allow for undefined features. No user-tier role → 0 (blocked).
+    Missing feature row → 0 (blocked), matching check_and_increment_limit's
+    deny-by-default. No user-tier role → 0 (blocked).
     """
     primary_role = get_primary_user_role(user)
     if not primary_role:
@@ -69,7 +90,10 @@ def get_user_limit(user: dict, feature: str, session: Session) -> int:
         if limit_record:
             limit_record = dict(limit_record)
             _role_limits_cache[cache_key] = limit_record
-    return limit_record["limit_count"] if limit_record else -1
+    if not limit_record:
+        _log_unseeded_feature(primary_role, feature)
+        return 0
+    return limit_record["limit_count"]
 
 def check_and_increment_limit(user: dict, feature: str, increment: int = 1, session: Optional[Session] = None):
     if session is None:
@@ -136,10 +160,18 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
         if limit_row:
             limit_record = dict(limit_row)
             _role_limits_cache[cache_key] = limit_record
-    
+
     if not limit_record:
-        return True # Default to allow if no limit defined
-        
+        # Deny-by-default (SCHOLARDOCX-0204 L7). This used to return True, so a
+        # feature gated in code before its seed row shipped was silently
+        # unlimited for every tier including free_user.
+        _log_unseeded_feature(primary_role, feature)
+        raise UsageLimitExceeded(
+            f"{feature.replace('can_use_', '').replace('_', ' ').title()} is not "
+            "available on your plan."
+        )
+
+
     # Get user usage
     usage_record = session.execute(
         text("SELECT * FROM user_usage_stats WHERE user_id = :uid AND feature = :feature"),

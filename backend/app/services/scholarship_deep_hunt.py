@@ -459,6 +459,9 @@ class ScholarshipDeepHuntService:
         fallback = _fallback_queries(run)
         plan = await self.query_planner.plan(
             goal,
+            # Billing context (SCHOLARDOCX-0204 L1): the planner charges the
+            # user for its OpenRouter call. run() attaches it before this runs.
+            ai_service=self.ai_service,
             degree_level=run.get("degree_level"),
             destinations=run.get("destinations") or [],
             intake_term=run.get("intake_term"),
@@ -711,6 +714,8 @@ class ScholarshipDeepHuntService:
                 relevance_scores = await self.relevance_filter.score(
                     str(run.get("goal") or ""),
                     well_formed,
+                    # Billing context (SCHOLARDOCX-0204 L2).
+                    ai_service=self.ai_service,
                     field_synonyms=field_synonyms,
                     degree_level=run.get("degree_level"),
                 )

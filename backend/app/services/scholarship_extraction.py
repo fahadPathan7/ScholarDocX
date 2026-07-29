@@ -93,7 +93,7 @@ class ScholarshipExtractionService:
             if parsed is not None:
                 return self._normalize(parsed, source="configured_provider")
 
-        parsed = await self._openrouter_fallback(prompt)
+        parsed = await self._openrouter_fallback(prompt, ai_service)
         if parsed is not None:
             return self._normalize(parsed, source="openrouter_fallback")
 
@@ -107,9 +107,26 @@ class ScholarshipExtractionService:
             f"Required schema:\n{json.dumps(EXTRACTION_SCHEMA_HINT)}"
         )
 
-    async def _openrouter_fallback(self, prompt: str) -> Optional[Dict[str, Any]]:
+    async def _openrouter_fallback(
+        self, prompt: str, ai_service: AiService
+    ) -> Optional[Dict[str, Any]]:
+        """Second-chance extraction through OpenRouter, billed to the user.
+
+        SCHOLARDOCX-0204 (L3): this path had no charge site at all. The primary
+        call above bills through ``AiService.chat()``, but this one is a direct
+        httpx call, so it billed nothing — and when no chat provider is
+        configured at all, ``chat()`` short-circuits to ``local-fallback``
+        without billing and this becomes the *only* extraction path, i.e.
+        permanently free. It is a real provider call for a real user, so it is
+        charged like any other.
+
+        Pre-flighted like ``chat()``: a user who cannot pay does not get the
+        call. ``ensure_can_spend`` raises ``OutOfTokens`` (HTTP 402), which
+        propagates to the caller exactly as it would from ``chat()``.
+        """
         if not self.settings.openrouter_api_key:
             return None
+        ai_service.can_spend()
         payload = {
             "model": self.settings.openrouter_free_model,
             "messages": [
@@ -136,6 +153,17 @@ class ScholarshipExtractionService:
                 )
                 response.raise_for_status()
             response_data = response.json()
+            # Charge before parsing: OpenRouter has already billed us for the
+            # call, so a malformed body is our problem to absorb, not a reason
+            # to hand the user a free provider call.
+            usage = response_data.get("usage") or {}
+            ai_service.charge_tokens(
+                model_id=self.settings.openrouter_free_model,
+                provider="openrouter",
+                input_tokens=int(usage.get("prompt_tokens", 0) or 0),
+                output_tokens=int(usage.get("completion_tokens", 0) or 0),
+                source="Scholarship Hunt · Extraction Fallback",
+            )
             content = response_data["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 return None

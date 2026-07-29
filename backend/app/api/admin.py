@@ -105,7 +105,14 @@ def validate_roles_assignment(requested_roles: List[str], can_manage_admin_roles
             raise ValueError("Only super_admin can assign or modify administrative roles")
 
 @router.get("/dashboard")
-def get_dashboard(admin_service: AdminService = Depends(get_admin_service)):
+def get_dashboard(
+    admin_service: AdminService = Depends(get_admin_service),
+    current_user: dict = Depends(get_current_user),
+):
+    # SCHOLARDOCX-0204: admin_view_dashboard was honoured by the frontend (it
+    # hides the Dashboard tab) but never enforced here, so an admin with the
+    # toggle off could still read the stats directly.
+    require_feature("admin_view_dashboard", current_user, admin_service.db)
     return admin_service.get_dashboard_stats()
 
 @router.get("/info/rate-limits")
@@ -259,7 +266,12 @@ def send_admin_notifications(
 
 @router.get("/limits")
 def list_role_limits(admin_service: AdminService = Depends(get_admin_service)):
-    # All admins can view limits (read-only)
+    # Deliberately readable by every admin, NOT gated on
+    # admin_manage_role_limits (SCHOLARDOCX-0204). This is the endpoint
+    # AdminView.tsx calls to discover its own admin_* permissions and decide
+    # which tabs to render — gating it on one of those permissions would 403 the
+    # bootstrap and blank the whole admin UI for an admin who merely lacks the
+    # Role Limits tab. The mutating routes below carry the real gates.
     return admin_service.list_role_limits()
 
 @router.post("/limits/{role}/reset")

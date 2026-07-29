@@ -138,25 +138,21 @@ class AiService:
             ref_id=ref_id,
         )
 
-    def record_external_search(self, *, source: str) -> None:
-        """Record an external search (e.g. a Tavily call) as a NON-billing
-        ledger counter row (tokens_delta=0, cost 0) so unbilled searches — such
-        as Advisor Atlas research, which uses the web-search Tavily key but is
-        not metered per call — still surface in usage dashboards. No-op when no
-        billing context is attached."""
-        if self._billing_user is None or self._billing_session is None:
-            return
-        from app.services import ai_tokens
-        ai_tokens.charge_flat_fee(
-            self._billing_user, self._billing_session, 0.0, source=source
-        )
+    # NOTE (SCHOLARDOCX-0204 L5): `record_external_search()` used to live here.
+    # It wrote a ledger row at tokens_delta=0 so an unbilled provider call would
+    # still appear in the admin dashboard — which made the call *look* accounted
+    # for while the operator paid for it. Its only caller (Advisor Atlas Tavily
+    # search) now uses `charge_external_call` below. Do not reintroduce a
+    # "record but don't charge" helper: per BD-011 there is no category of
+    # provider call the user does not pay for, so a helper whose purpose is to
+    # skip the charge has no legitimate caller.
 
     def charge_external_call(self, *, cost_usd: float, source: str) -> dict | None:
         """Bill a flat-fee external API call against the attached billing context.
 
-        The billing counterpart to `record_external_search`, which records a
-        zero-cost counter row. Used by metered third-party calls that are not
-        token-based — OpenAlex author resolution (SCHOLARDOCX-0183).
+        Used by metered third-party calls that are not token-based — OpenAlex
+        author resolution (SCHOLARDOCX-0183) and Advisor Atlas Tavily search
+        (SCHOLARDOCX-0204).
 
         Returns the `ai_tokens.charge_flat_fee()` result dict when a charge was
         raised (its `charged` field is the real credits deducted). Returns None
@@ -433,6 +429,18 @@ class AiService:
         if needs_search and search_query and max_results > 0:
             try:
                 search_results = await self._tavily_search(search_query, max_results=max_results)
+                # Charge for the search that was actually issued
+                # (SCHOLARDOCX-0204). The route used to charge before this
+                # branch was reached, so a request whose routing agent returned
+                # needs_search=false paid for a Tavily call that never happened.
+                from app.services import ai_tokens
+
+                self.charge_external_call(
+                    cost_usd=self.external_billing_cost(
+                        ai_tokens.get_tavily_call_cost_usd
+                    ),
+                    source="web_search",
+                )
                 search_context = self._format_search_context(search_results, max_results=max_results, max_chars=max_chars)
                 combined_context = self._combine_context(context, f"Web Search Results:\n{search_context}")
 

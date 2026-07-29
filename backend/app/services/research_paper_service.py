@@ -841,17 +841,41 @@ class ResearchPaperService:
 
         return chunks
 
-    def _charge_jina_embedding(self, source: str = "jina_embedding") -> dict:
-        """Charge the flat fee for one Jina embedding operation.
+    def _charge_jina_embedding(
+        self, source: str = "jina_embedding", input_tokens: int = 0
+    ) -> dict:
+        """Charge for one Jina embedding operation: a base fee plus token cost.
 
         Price comes from the admin-configurable ``jina_call_cost_usd`` setting via
         ``ai_tokens.get_jina_call_cost_usd``. Do not re-introduce a local key
         lookup here: the previous version read a ``research_paper_jina_cost_usd``
         key that is seeded nowhere, so it always fell back to a hardcoded 0.005
         and ignored whatever the admin had configured.
+
+        SCHOLARDOCX-0204 (L8): the charge used to be that base fee alone,
+        regardless of size. Jina bills per token, so a 60-page paper split into
+        dozens of batches recovered the same $0.002 as a one-page abstract and
+        the operator absorbed the difference. The fee now has two parts:
+
+        - ``jina_call_cost_usd`` — the per-operation base, unchanged in meaning,
+          still one per user-visible operation.
+        - a token component priced from the existing ``ai_models`` row for
+          ``jina-embeddings-v4`` ($0.02/1M input by default), which was seeded
+          as a "pricing reference" and previously drove nothing.
+
+        Still exactly **one** charge per operation — the SCHOLARDOCX-0180
+        single-charge invariant is preserved. Both knobs stay admin-editable.
         """
-        cost_usd = ai_tokens.get_jina_call_cost_usd(self.db)
-        return ai_tokens.charge_flat_fee(user=self.user, session=self.db, cost_usd=cost_usd, source=source)
+        base_cost = ai_tokens.get_jina_call_cost_usd(self.db)
+        token_cost, _ = ai_tokens.compute_cost(
+            EMBEDDING_MODEL, int(input_tokens or 0), 0, self.db, provider="jina"
+        )
+        return ai_tokens.charge_flat_fee(
+            user=self.user,
+            session=self.db,
+            cost_usd=base_cost + token_cost,
+            source=source,
+        )
 
     async def _generate_embeddings(
         self,
@@ -940,7 +964,11 @@ class ResearchPaperService:
             )
 
         if charge_source:
-            self._charge_jina_embedding(source=charge_source)
+            # One charge for the whole operation, sized by the tokens every
+            # batch consumed (SCHOLARDOCX-0204 L8).
+            self._charge_jina_embedding(
+                source=charge_source, input_tokens=total_input_tokens
+            )
         return all_embeddings, total_input_tokens
 
     async def _generate_single_embedding(
@@ -1235,8 +1263,10 @@ class ResearchPaperService:
             paper_id, prompt, top_k=top_k, inventory_out=inventory
         )
 
-        # Note: Query embedding generation via Jina is infrastructure cost.
-        # Users are only charged for the actual AI analysis call below via AiService.chat()
+        # Note: the query embedding above IS charged, as "jina_embedding_query"
+        # (see _generate_single_embedding). This comment previously claimed it
+        # was unbilled infrastructure cost, which was wrong and is exactly the
+        # kind of note that talks a later reader out of billing something.
 
         if not chunks:
             # Vector search matched nothing (e.g. a paper indexed before
@@ -1361,6 +1391,10 @@ class ResearchPaperService:
             usage.get("input_tokens", 0),
             usage.get("output_tokens", 0),
             self.db,
+            # Same provider the charge used, so the displayed figure resolves
+            # through the same pricing path and cannot diverge from what was
+            # actually deducted.
+            provider=response.get("provider"),
         )
 
         # Which passages the answer actually cited, so the UI can lead with

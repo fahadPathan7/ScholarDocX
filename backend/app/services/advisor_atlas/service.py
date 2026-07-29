@@ -146,6 +146,12 @@ class AdvisorAtlasService:
                             discovery_sources,
                             deep=run["mode"] == "professor",
                         )
+                    except ai_tokens.OutOfTokens:
+                        # SCHOLARDOCX-0204 (L5): running out of credits is not a
+                        # per-candidate failure to log and move past — every
+                        # remaining candidate would issue more billable searches
+                        # the user cannot pay for. Fail the run.
+                        raise
                     except Exception:
                         # One candidate must not sink a whole Discovery run; a
                         # Professor run has exactly one candidate, so its
@@ -593,10 +599,10 @@ class AdvisorAtlasService:
             "failed_ai_calls": failed_ai_calls,
             "analysis_degraded": bool(failed_ai_calls) and not succeeded_ai_calls,
             # Real credits actually deducted from the user's balance across every
-            # billed call this run made (GLM chat/vision + OpenAlex). Tavily
-            # searches are deliberately billed at $0 (see record_external_search)
-            # so they contribute nothing here — this is the true amount cut, not
-            # a token estimate.
+            # billed call this run made: GLM chat/vision, OpenAlex, and — since
+            # SCHOLARDOCX-0204 (L5) — Tavily searches, which used to be recorded
+            # at $0 and contributed nothing. This is the true amount cut, not a
+            # token estimate.
             "credits_used": int(usage.get("credits_charged", 0)),
             "sources_inspected": len(candidate_sources),
             "elapsed_seconds": round(elapsed, 1),
@@ -1043,6 +1049,20 @@ class AdvisorAtlasService:
     ) -> list[dict[str, Any]]:
         if not self.settings.tavily_api_key:
             return []
+        # SCHOLARDOCX-0204 (L5): pre-flight before the call, not after. These
+        # are `search_depth: "advanced"` searches issued many times per run
+        # (discovery + per-candidate passes + deep research across up to 80
+        # candidates); they used to be recorded at $0 via
+        # record_external_search, which made this the largest unbilled surface
+        # in the product. A run that cannot pay stops here rather than
+        # continuing to spend the operator's money — OutOfTokens propagates and
+        # fails the run (see screen_one, which deliberately does not swallow it).
+        if not self.ai_service.can_spend_external():
+            raise ai_tokens.OutOfTokens(
+                "You're out of AI credits, so this Advisor Atlas run was "
+                "stopped mid-search. Purchase an AI Extra Credit pack or wait "
+                "for your monthly allowance to reset, then start a new run."
+            )
         payload = {
             "api_key": self.settings.tavily_api_key,
             "query": query[:1200],
@@ -1058,11 +1078,19 @@ class AdvisorAtlasService:
             response.raise_for_status()
         if usage is not None:
             usage["tavily_searches"] = int(usage.get("tavily_searches", 0)) + 1
-        # Record this Tavily call as a non-billing counter (tokens_delta=0) so it
-        # surfaces in the admin Tavily usage dashboard. Advisor Atlas uses the
-        # web-search Tavily key but is NOT metered per search — cost stays 0.
-        # Distinct source so it shows as its own card (vs. chat web-search).
-        self.ai_service.record_external_search(source="advisor_atlas_search")
+        # Bill the search at the admin-configured Tavily rate. The source label
+        # stays "advisor_atlas_search" so the admin dashboard's Tavily
+        # breakdown keeps working; only the price changed, from $0 to real.
+        charge_result = self.ai_service.charge_external_call(
+            cost_usd=self.ai_service.external_billing_cost(
+                ai_tokens.get_tavily_call_cost_usd
+            ),
+            source="advisor_atlas_search",
+        )
+        if usage is not None and charge_result is not None:
+            usage["credits_charged"] = int(usage.get("credits_charged", 0)) + int(
+                charge_result.get("charged", 0)
+            )
         return [
             {
                 "title": item.get("title") or "Untitled source",

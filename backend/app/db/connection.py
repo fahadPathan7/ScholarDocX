@@ -145,6 +145,38 @@ def initialize_database(database_url: str) -> None:
         _seed_registration_mode_default(conn)
         _ensure_pgvector_extension(conn)
         _create_vector_index(conn)
+        _warn_on_unpriced_models(conn)
+
+
+def _warn_on_unpriced_models(conn) -> None:
+    """Log loudly if any env-configured model has no ``ai_models`` pricing row.
+
+    SCHOLARDOCX-0204 (L4): an unpriced model does not fail — it bills the user
+    $0 and writes a ledger row that looks like a successful charge, so the gap
+    is invisible until someone reconciles provider invoices against revenue.
+    Surfacing it at boot is the only cheap moment to catch it.
+
+    Warn rather than raise: a pricing gap must not stop an already-running
+    deployment from starting, and `compute_cost` logs again at each call site.
+    """
+    from app.core.config import get_settings
+    from app.services.ai_tokens import validate_model_pricing
+
+    class _ConnSession:
+        """Minimal shim so validate_model_pricing can take either a Session or
+        a raw connection — initialize_database has no ORM Session in hand."""
+
+        def __init__(self, c):
+            self._c = c
+
+        def execute(self, *args, **kwargs):
+            return self._c.execute(*args, **kwargs)
+
+    try:
+        for problem in validate_model_pricing(_ConnSession(conn), get_settings()):
+            print(f"AI PRICING WARNING: {problem}")
+    except Exception as exc:  # pragma: no cover - never block startup
+        print("AI pricing validation skipped:", exc)
 
 
 def _migrate_yearly_to_quarterly(conn) -> None:
@@ -591,6 +623,20 @@ def _seed_ai_token_defaults(conn) -> None:
     # SCHOLARDOCX-0149: collect all model rows then one batched executemany
     # (was one INSERT per model — ~17 round-trips). sort_order keeps the
     # provider/model ordering stable across the flattened list.
+    # SCHOLARDOCX-0204 (L4): the OpenRouter model id is env-driven
+    # (OPENROUTER_FREE_MODEL). Seeding only the literal "openrouter" left the
+    # configured id — "openrouter/free" by default — unpriced, so every
+    # OpenRouter call computed $0 and the operator ate the cost. Seed both: the
+    # configured id for exact-match pricing, and the bare provider name as the
+    # house-rate row `_lookup_price` falls back to for any other OpenRouter
+    # model. Duplicates collapse via ON CONFLICT.
+    from app.core.config import get_settings
+
+    openrouter_model_ids = ["openrouter"]
+    configured_openrouter = (get_settings().openrouter_free_model or "").strip()
+    if configured_openrouter and configured_openrouter not in openrouter_model_ids:
+        openrouter_model_ids.append(configured_openrouter)
+
     model_rows = []
     order = 0
     for provider, model_ids in (
@@ -598,11 +644,16 @@ def _seed_ai_token_defaults(conn) -> None:
         ("gemini", DEFAULT_GEMINI_MODELS),
         ("groq", DEFAULT_GROQ_MODELS),
         ("mistral", DEFAULT_MISTRAL_MODELS),
-        ("openrouter", ["openrouter"]),
+        ("openrouter", openrouter_model_ids),
         ("jina", ["jina-embeddings-v4"]),
     ):
         for model_id in model_ids:
-            in_price, out_price = prices.get(model_id, (0.0, 0.0))
+            in_price, out_price = prices.get(
+                model_id,
+                # An OpenRouter id we have not individually catalogued still
+                # gets the provider's house rate, never $0.
+                prices["openrouter"] if provider == "openrouter" else (0.0, 0.0),
+            )
             model_rows.append(
                 {
                     "provider": provider,

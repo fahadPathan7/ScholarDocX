@@ -14,6 +14,7 @@ Charging is wired through `AiService.chat()` (instance billing). Pack catalog
 """
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 import json
+import logging
 import math
 from datetime import datetime
 from typing import Optional
@@ -21,6 +22,8 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 PURCHASE_PACKS_FEATURE = "can_purchase_token_packs"
 USE_PACKS_FEATURE = "can_use_purchased_tokens"
@@ -90,17 +93,39 @@ def load_user_dict(user_id: str, session: Session) -> dict:
     Used by background tasks (e.g. Advisor Atlas runs) that only carry a
     user_id and need the role list to resolve the monthly allowance / unlimited
     status.
+
+    SCHOLARDOCX-0204 (L6): this must resolve the same *effective* role a live
+    request would. It previously returned ``users.roles`` verbatim, while the
+    plan-expiry downgrade lived only in ``get_current_user`` and was never
+    persisted — so a background run billed an expired user at their old tier and
+    ``refresh_balance`` re-granted that tier's allowance on rollover. Suspended
+    accounts are also refused here: a queued run must not outlive the
+    suspension that was supposed to stop it.
     """
+    from app.auth.plan_state import apply_plan_expiry
+
     row = session.execute(
-        text("SELECT roles, plan_started_at FROM users WHERE id = :id"), {"id": user_id}
+        text(
+            "SELECT roles, plan_started_at, plan_ends_at, is_active "
+            "FROM users WHERE id = :id"
+        ),
+        {"id": user_id},
     ).mappings().fetchone()
     if not row:
+        return {"id": user_id, "roles": []}
+    if not row["is_active"]:
+        # No roles → get_primary_user_role returns None → every gated feature
+        # refuses, and the allowance resolves to 0.
         return {"id": user_id, "roles": []}
     try:
         roles = safe_json_loads(row["roles"], default=[])
     except (TypeError, ValueError):
         roles = []
-    return {"id": user_id, "roles": roles, "plan_started_at": row.get("plan_started_at")}
+    return {
+        "id": user_id,
+        "roles": apply_plan_expiry(roles, row.get("plan_ends_at")),
+        "plan_started_at": row.get("plan_started_at"),
+    }
 
 
 def get_token_rate(session: Session) -> int:
@@ -228,10 +253,11 @@ def can_purchase_packs(user: dict, session: Session) -> bool:
         text("SELECT limit_count FROM role_limits WHERE role = :r AND feature = :f"),
         {"r": role, "f": PURCHASE_PACKS_FEATURE},
     ).mappings().fetchone()
-    # Mirror enforcement: blocked only when the row is explicitly 0.
-    # (Unseeded → enforcement defaults to allow; -1/unlimited → allow.)
+    # Mirror enforcement: blocked when the row is explicitly 0, and also when
+    # the row is missing — enforcement now denies unseeded features
+    # (SCHOLARDOCX-0204 L7). -1/unlimited → allow.
     if not row:
-        return True
+        return False
     return int(row["limit_count"]) != 0
 
 
@@ -250,9 +276,10 @@ def can_use_purchased_tokens_feature(user: dict, session: Session) -> bool:
         text("SELECT limit_count FROM role_limits WHERE role = :r AND feature = :f"),
         {"r": role, "f": USE_PACKS_FEATURE},
     ).mappings().fetchone()
-    # Mirror enforcement: blocked only when explicitly 0
+    # Mirror enforcement: blocked when explicitly 0, and when unseeded
+    # (SCHOLARDOCX-0204 L7).
     if not row:
-        return True
+        return False
     return int(row["limit_count"]) != 0
 
 
@@ -363,39 +390,108 @@ def ensure_can_spend(user: dict, session: Session, min_tokens: int = 1) -> bool:
     return True
 
 
+def _lookup_price(
+    model_id: Optional[str], provider: Optional[str], session: Session
+) -> Optional[tuple]:
+    """Resolve (input_price_per_1m, output_price_per_1m) for a model call.
+
+    Two-step so an env-driven model id cannot silently price a call at zero
+    (SCHOLARDOCX-0204 L4). ``settings.openrouter_free_model`` defaults to
+    ``openrouter/free`` while the seeded catalog row is ``openrouter``; the exact
+    match missed, no row came back, and every OpenRouter call billed $0 while
+    still writing a ledger row that looked like a successful charge.
+
+    1. Exact ``model_id`` — the normal path, and the only one that gives
+       model-accurate pricing.
+    2. Provider-level fallback — the row a provider seeds under its own name
+       (``model_id = provider``), used as the house rate for any model of that
+       provider that is not individually catalogued.
+
+    Returns None when neither resolves, so the caller can treat an unpriced call
+    as the configuration defect it is rather than as a free call.
+    """
+    # Pricing applies regardless of is_active: deactivation blocks new
+    # selection at the route level, but internal/background calls that
+    # still hit the model must not become free.
+    for candidate, column in ((model_id, "model_id"), (provider, "provider")):
+        if not candidate:
+            continue
+        row = session.execute(
+            text(
+                "SELECT input_price_per_1m, output_price_per_1m FROM ai_models "
+                f"WHERE {column} = :m ORDER BY sort_order LIMIT 1"
+            ),
+            {"m": candidate},
+        ).mappings().fetchone()
+        if row:
+            return float(row["input_price_per_1m"] or 0), float(
+                row["output_price_per_1m"] or 0
+            )
+    return None
+
+
 def compute_cost(
     model_id: Optional[str],
     input_tokens: int,
     output_tokens: int,
     session: Session,
+    provider: Optional[str] = None,
 ) -> tuple:
     """Return (cost_usd, tokens) for a model call.
 
-    Unknown/unpriced models resolve to $0 cost → 0 tokens (free). Admins set
-    real per-model pricing via the admin panel (Phase 4).
+    Pass ``provider`` wherever it is known: it is what lets an env-configured
+    model id fall back to its provider's house rate instead of pricing at zero.
+
+    A model that resolves to no row at all is logged at ERROR and priced at $0 —
+    the call already happened, so failing here would only lose the usage record
+    on top of the revenue. `validate_model_pricing()` exists to catch that case
+    at startup, before any user is affected.
     """
-    input_price = 0.0
-    output_price = 0.0
-    if model_id:
-        # Pricing applies regardless of is_active: deactivation blocks new
-        # selection at the route level, but internal/background calls that
-        # still hit the model must not become free.
-        row = session.execute(
-            text(
-                "SELECT input_price_per_1m, output_price_per_1m FROM ai_models "
-                "WHERE model_id = :m"
-            ),
-            {"m": model_id},
-        ).mappings().fetchone()
-        if row:
-            input_price = float(row["input_price_per_1m"] or 0)
-            output_price = float(row["output_price_per_1m"] or 0)
+    price = _lookup_price(model_id, provider, session)
+    if price is None:
+        if model_id or provider:
+            logger.error(
+                "UNPRICED PROVIDER CALL: no ai_models row for model_id=%r "
+                "provider=%r — this call is being billed at $0. Seed a pricing "
+                "row (see SCHOLARDOCX-0204 L4).",
+                model_id,
+                provider,
+            )
+        price = (0.0, 0.0)
+    input_price, output_price = price
 
     cost_usd = (input_tokens * input_price / 1_000_000) + (
         output_tokens * output_price / 1_000_000
     )
     tokens = math.ceil(cost_usd * get_token_rate(session))
     return cost_usd, tokens
+
+
+def validate_model_pricing(session: Session, settings) -> list:
+    """Report every env-configured model id that no ``ai_models`` row prices.
+
+    Called at startup. Returns a list of human-readable problems (empty when
+    healthy) rather than raising, so a pricing gap is loud in the logs without
+    taking the whole app down — but it must not be ignored: each entry is a
+    provider call that will bill the user $0 and leave the operator paying.
+    """
+    problems: list = []
+    configured = [
+        (getattr(settings, "openrouter_free_model", None), "openrouter",
+         "OPENROUTER_FREE_MODEL"),
+        (getattr(settings, "advisor_atlas_vision_model", None), "glm",
+         "ADVISOR_ATLAS_GLM_MODEL"),
+    ]
+    for model_id, provider, env_var in configured:
+        if not model_id:
+            continue
+        if _lookup_price(model_id, provider, session) is None:
+            problems.append(
+                f"{env_var}={model_id!r} has no ai_models pricing row "
+                f"(provider fallback {provider!r} also missing) — calls to it "
+                f"will bill $0."
+            )
+    return problems
 
 
 def _ledger(
@@ -455,7 +551,9 @@ def charge(
     ensure_can_spend. Unlimited users log usage but deduct 0.
     """
     uid = user["id"]
-    cost_usd, tokens = compute_cost(model_id, input_tokens, output_tokens, session)
+    cost_usd, tokens = compute_cost(
+        model_id, input_tokens, output_tokens, session, provider=provider
+    )
     balance = refresh_balance(user, session)
 
     if is_unlimited(user):

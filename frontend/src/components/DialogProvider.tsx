@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Info, AlertTriangle, CheckCircle2, HelpCircle, Trash2, AlertOctagon } from "lucide-react";
 import "./dialog.css";
 
@@ -31,6 +32,31 @@ export const useDialog = () => {
   }
   return context;
 };
+
+
+/* ------------------------------------------------------------------ */
+/*  Backdrop scoping (see AGENTS.md "Modal backdrop blur")             */
+/*                                                                     */
+/*  This dialog used a fixed, full-viewport backdrop, so its blur      */
+/*  covered the TopBar and Sidebar as well as the work surface — the   */
+/*  "over-blur" symptom AGENTS.md names. It now portals into           */
+/*  `.main-content` and switches to an absolute backdrop, matching     */
+/*  Modal.tsx. Where there is no `.main-content` — the login and       */
+/*  splash screens — it falls back to the body and stays fixed, which  */
+/*  is correct there because there is no chrome to keep sharp.         */
+/* ------------------------------------------------------------------ */
+
+function mainContent(): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector(".main-content");
+}
+
+const scopedToMain = () => Boolean(mainContent());
+
+function renderDialogLayer(node: ReactNode) {
+  const target = mainContent();
+  return target ? createPortal(node, target) : node;
+}
 
 export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [dialogState, setDialogState] = useState<DialogState>({
@@ -210,8 +236,11 @@ export const DialogProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   return (
     <DialogContext.Provider value={{ showAlert, showConfirm, showPrompt }}>
       {children}
-      {dialogState.isOpen && (
-        <div className="custom-dialog-backdrop" onClick={handleBackdropClick}>
+      {dialogState.isOpen && renderDialogLayer(
+        <div
+          className={`custom-dialog-backdrop${scopedToMain() ? " scoped-main" : ""}`}
+          onClick={handleBackdropClick}
+        >
           <div
             className={`custom-dialog-panel slide-up dialog-kind-${dialogState.kind || "info"}`}
             onClick={(e) => e.stopPropagation()}

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Archive, ArchiveRestore, CalendarClock, Check, Edit, Trash2, X } from "lucide-react";
+import { Modal } from "../Modal";
 import { SketchCanvas } from "./SketchCanvas";
 import {
   checklistProgress,
@@ -58,7 +59,7 @@ export function NoteViewer({
   }, [onClose, onEdit, note]);
 
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <Modal onClose={onClose}>
       <div
         className={`modal-panel sticky-view-modal color-${note.color || "sun"} font-${note.font || "caveat"} size-${note.font_size || "medium"}`}
         onClick={(event) => event.stopPropagation()}
@@ -155,6 +156,6 @@ export function NoteViewer({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

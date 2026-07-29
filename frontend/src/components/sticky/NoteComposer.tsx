@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, Check, CheckSquare2, Eye, ListChecks, Palette, PenTool, Plus, Trash2, X } from "lucide-react";
+import { Modal } from "../Modal";
 import { SketchCanvas } from "./SketchCanvas";
 import { TagInput } from "./TagInput";
 import { NOTE_COLORS } from "./NoteToolbar";
@@ -166,7 +167,7 @@ export function NoteComposer({
   };
 
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <Modal onClose={onClose}>
       <form
         className={`modal-panel sticky-note-modal color-${draft.color} font-${draft.font} size-${draft.font_size}`}
         onClick={(event) => event.stopPropagation()}
@@ -378,6 +379,6 @@ export function NoteComposer({
           </div>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

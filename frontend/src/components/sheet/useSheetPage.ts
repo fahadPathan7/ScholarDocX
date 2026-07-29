@@ -12,6 +12,9 @@ import { SortState, ColumnFilter, SheetView, applyViewState, nextSortDirection }
 import { useUndoRedo } from "./sheetUndo";
 import { parseTSV } from "./sheetPaste";
 import { formatCSV } from "./sheetCsv";
+import { useSheetPreferences } from "./useSheetPreferences";
+import { useBulkCellEdits } from "./useBulkCellEdits";
+import type { FormatRule } from "./sheetInsights";
 
 export interface UseSheetPageParams {
   selectedPageId: string;
@@ -45,6 +48,39 @@ export function useSheetPage({
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Per-person display settings (row height, frozen first column).
+  const preferences = useSheetPreferences();
+
+  /* Conditional formatting rules (SCHOLARDOCX-0203).
+     Per sheet and per browser. They describe how *this* user wants to read
+     the sheet, and storing them on the shared page record would push one
+     person's colour scheme onto everyone who opens it. */
+  const [formatRules, setFormatRulesState] = useState<FormatRule[]>([]);
+  const rulesKey = selectedPageId ? `scholardocx.sheet.rules.${selectedPageId}` : "";
+
+  useEffect(() => {
+    if (!rulesKey) return;
+    try {
+      const raw = window.localStorage.getItem(rulesKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setFormatRulesState(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      // A corrupt blob means no rules, not a broken sheet.
+      setFormatRulesState([]);
+    }
+  }, [rulesKey]);
+
+  const setFormatRules = (next: FormatRule[]) => {
+    setFormatRulesState(next);
+    if (!rulesKey) return;
+    try {
+      window.localStorage.setItem(rulesKey, JSON.stringify(next));
+    } catch {
+      // The rules still apply this session; they just will not persist.
+    }
+  };
+
 
   const { record, undo, redo, canUndo, canRedo, resetHistory } = useUndoRedo({ columns: [], rows: [] });
 
@@ -997,6 +1033,12 @@ export function useSheetPage({
     await persistPage(columns, nextRows);
   };
 
+  // Fill down / set a column / clear a range — one undo step each.
+  const { fillDownSelection, setColumnForSelection, clearSelectedCells } = useBulkCellEdits({
+    columns, rows, selectedRows, selectedPageId,
+    setRows, record, persistPage, onToast, showConfirm,
+  });
+
   const bulkDuplicate = async () => {
     if (selectedRows.size === 0) return;
     if (!(await ensureRowCapacity(selectedRows.size))) return;
@@ -1071,6 +1113,15 @@ export function useSheetPage({
     filteredCount,
     isSaving,
     collapsedGroups,
+
+    // Presentation preferences (localStorage, per person)
+    ...preferences,
+    formatRules, setFormatRules,
+
+    // Bulk cell edits (one undo step each)
+    fillDownSelection,
+    setColumnForSelection,
+    clearSelectedCells,
 
     // View state
     searchQuery, setSearchQuery,

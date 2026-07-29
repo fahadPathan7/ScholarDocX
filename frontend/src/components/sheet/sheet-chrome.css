@@ -1,0 +1,1091 @@
+/* ------------------------------------------------------------------ */
+/*  Sheet chrome — toolbar, menus, shortcuts panel  (SCHOLARDOCX-0202) */
+/*                                                                     */
+/*  This file exists because the toolbar's appearance used to live in  */
+/*  ~400 lines of inline style objects spread through SheetToolbar.tsx */
+/*  — every button restating its own padding and font size, and every  */
+/*  dropdown its own border, shadow and radius. That is why the menus  */
+/*  had drifted apart from each other and from the rest of the app.    */
+/*  Chrome styling goes here; the grid itself stays in                 */
+/*  sheet-table-polish.css.                                            */
+/* ------------------------------------------------------------------ */
+
+.sheet-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(35, 58, 55, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fffefb, #f7faf8);
+  box-shadow: 0 2px 8px rgba(24, 37, 35, 0.05);
+}
+
+.sheet-toolbar.is-fullscreen {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+}
+
+.sheet-toolbar-primary,
+.sheet-toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sheet-toolbar-tools { flex-wrap: wrap; }
+
+/* --- Buttons --- */
+
+.sheet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid rgba(31, 101, 94, 0.22);
+  border-radius: 9px;
+  background: #fff;
+  color: #1f4f5a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.sheet-btn:hover:not(:disabled) {
+  border-color: rgba(32, 123, 111, 0.42);
+  background: #f2f8f5;
+}
+
+.sheet-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sheet-btn:focus-visible {
+  outline: 2px solid #1f4f5a;
+  outline-offset: 1px;
+}
+
+/* Add record is the one action with weight — the old bar had nothing
+   distinguishing it from "Date Colors". */
+.sheet-btn.is-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.sheet-btn.is-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2a5f6b, #37907f);
+}
+
+.sheet-btn.sheet-btn-icon { padding: 7px 9px; }
+
+.sheet-btn.is-active,
+.sheet-btn.is-open {
+  border-color: rgba(32, 123, 111, 0.5);
+  background: #e8f4ef;
+  color: #17201d;
+}
+
+.sheet-btn.is-active:hover:not(:disabled),
+.sheet-btn.is-open:hover:not(:disabled) {
+  background: #ddeee8;
+}
+
+.sheet-btn-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(31, 101, 94, 0.12);
+  color: #2f6d7a;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.sheet-menu-caret { opacity: 0.55; }
+.sheet-menu-trigger.is-open .sheet-menu-caret { transform: rotate(180deg); }
+
+.sheet-toolbar.is-fullscreen .sheet-btn {
+  padding: 5px 9px;
+  font-size: 0.71rem;
+}
+
+/* --- Search --- */
+
+.sheet-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 170px;
+  padding: 6px 10px;
+  border: 1px solid rgba(31, 101, 94, 0.22);
+  border-radius: 9px;
+  background: #fff;
+  color: #5a6f6a;
+}
+
+.sheet-search:focus-within {
+  border-color: rgba(32, 123, 111, 0.55);
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.12);
+}
+
+.sheet-search.has-value { border-color: rgba(32, 123, 111, 0.45); }
+
+.sheet-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-size: 0.8rem;
+}
+
+.sheet-search button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sheet-search button:hover { background: rgba(31, 101, 94, 0.1); }
+
+.sheet-match-count {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(31, 101, 94, 0.1);
+  color: #2f6d7a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* --- Menu panels --- */
+
+.sheet-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(420px, 70vh);
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid rgba(35, 58, 55, 0.16);
+  border-radius: 10px;
+  background: var(--ui-paper-strong, #fffefb);
+  box-shadow: 0 12px 30px rgba(24, 37, 35, 0.16);
+  color: var(--ui-ink, #17201d);
+}
+
+.sheet-menu-label {
+  padding: 6px 9px 4px;
+  color: #6d827d;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sheet-menu-divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: rgba(35, 58, 55, 0.12);
+}
+
+.sheet-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.79rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-menu-item:hover { background: rgba(31, 101, 94, 0.08); }
+
+.sheet-menu-item.is-selected { color: #1f4f5a; font-weight: 800; }
+.sheet-menu-item.is-danger { color: #8c3b32; }
+.sheet-menu-item.is-danger:hover { background: rgba(140, 59, 50, 0.09); }
+
+.sheet-menu-item-icon {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.sheet-menu-item-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-menu-item-trailing {
+  display: grid;
+  place-items: center;
+  opacity: 0.6;
+}
+
+.sheet-menu-item.as-toggle { font-weight: 600; }
+
+.sheet-menu-item.as-toggle input {
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: #2f7d74;
+}
+
+/* The columns list scrolls on its own so the sections above it can never
+   push it out of the menu entirely — which is how it came to look empty. */
+.sheet-menu-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 190px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet-menu-select {
+  display: block;
+  padding: 2px 6px 6px;
+}
+
+.sheet-menu-select select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(35, 58, 55, 0.2);
+  border-radius: 7px;
+  background: #fff;
+  color: #17201d;
+  font-family: inherit;
+  font-size: 0.79rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheet-menu-select select:focus {
+  outline: none;
+  border-color: rgba(32, 123, 111, 0.55);
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.12);
+}
+
+.sheet-menu-label-note {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(31, 101, 94, 0.12);
+  color: #2f6d7a;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sheet-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sheet-menu-row .sheet-menu-item { flex: 1; min-width: 0; }
+
+.sheet-menu-row-delete {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #93a5a1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.sheet-menu-row:hover .sheet-menu-row-delete,
+.sheet-menu-row-delete:focus-visible { opacity: 1; }
+.sheet-menu-row-delete:hover { background: rgba(140, 59, 50, 0.1); color: #8c3b32; }
+
+/* Menus explain themselves when there is nothing to show, rather than
+   presenting an empty box the user has to guess the meaning of. */
+.sheet-menu-empty {
+  margin: 0;
+  padding: 4px 10px 8px;
+  color: #7e918c;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* --- Keyboard shortcuts panel --- */
+
+.sheet-shortcuts {
+  width: min(560px, 92vw);
+  max-height: 82vh;
+}
+
+.sheet-shortcuts-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.sheet-shortcuts-group h4 {
+  margin: 0 0 8px;
+  color: #46605a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sheet-shortcuts-group dl {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+}
+
+.sheet-shortcut {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.sheet-shortcut dt {
+  padding: 2px 7px;
+  border: 1px solid rgba(35, 58, 55, 0.18);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #f6faf8;
+  color: #1f4f5a;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sheet-shortcut dd {
+  margin: 0;
+  color: #4a5f5a;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .sheet-toolbar { gap: 8px; }
+  .sheet-toolbar-primary,
+  .sheet-toolbar-tools { width: 100%; }
+  .sheet-search { flex: 1; }
+  /* Labels go, icons stay — five icon buttons fit where five labelled
+     ones would have forced the bar to scroll sideways again. */
+  .sheet-toolbar-tools .sheet-btn-label { display: none; }
+  .sheet-toolbar-tools .sheet-btn { padding: 7px 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-btn { transition: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Grid additions (SCHOLARDOCX-0202)                                  */
+/*  These are cell-level rules but they belong to the same change, and */
+/*  sheet-table-polish.css is already close to its size limit.         */
+/* ------------------------------------------------------------------ */
+
+/* --- Frozen first column: REMOVED (SCHOLARDOCX-0203) ---
+
+   A sticky first data column was attempted twice and broke the grid layout
+   both times. The rules that lived here also had to switch off the row-level
+   `content-visibility` in sheet-table-polish.css and change the row-number
+   column's width, and that combination overflowed `.sheet-scroll`.
+
+   It is removed rather than left in a half-working state. Anyone picking this
+   up again should know the three things that make it hard, all verified:
+
+   - The first data cell needs an explicit class; `:first-of-type` matches
+     nothing, because the first <td> is always the row-number header.
+   - `.sheet-table td.data-cell` sets `position: relative`, so the rule needs
+     to out-rank it (the row-number column uses `!important` for this reason).
+   - `.sheet-table-row` carries `content-visibility: auto`, and the table is
+     `table-layout: fixed` with `min-width: 1200px`. Sticky positioning,
+     containment and fixed table layout interact here in ways that need a
+     browser to get right — which is what was missing both times.
+
+   `.is-first-data-col` is still emitted by SheetTable/SheetTableRow. It is
+   harmless, correct, and the hook to build on. */
+
+/* --- Type-aware alignment ---
+   Numbers and dates right so their digits line up; a yes/no mark centred.
+   The header follows the column so the label sits over its own values. */
+.sheet-table td.align-right,
+.sheet-table th.align-right .column-head-text { text-align: right; }
+
+.sheet-table td.align-center,
+.sheet-table th.align-center .column-head-text { justify-content: center; }
+
+.sheet-table td.align-right .sheet-cell-preview,
+.sheet-table td.align-right .sheet-cell-trigger { justify-content: flex-end; }
+
+.sheet-table td.align-center .sheet-cell-preview,
+.sheet-table td.align-center .sheet-cell-trigger { justify-content: center; }
+
+/* --- Column type glyph --- */
+.column-type-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #7d918d;
+  opacity: 0.85;
+}
+
+/* --- Empty cells ---
+   The grid used to print a "-" in every blank cell. Across a wide sheet
+   that is a field of dashes competing with the real values for attention,
+   and it also makes an empty cell look filled. A faint rule reads as
+   "nothing here" without adding a character to scan past. */
+.sheet-table .empty-cell {
+  display: inline-block;
+  width: 14px;
+  height: 1px;
+  background: rgba(35, 58, 55, 0.22);
+  vertical-align: middle;
+}
+
+/* --- Bulk value form in the selection bar --- */
+.selection-bulk-form {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px 4px;
+}
+
+.selection-bulk-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(35, 58, 55, 0.2);
+  border-radius: 7px;
+  background: #fff;
+  font-size: 0.78rem;
+}
+
+.selection-bulk-form input:focus {
+  outline: none;
+  border-color: rgba(32, 123, 111, 0.55);
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.12);
+}
+
+.selection-bulk-form button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.selection-bulk-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* --- Blank sheet state --- */
+
+.sheet-blank-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  margin: 18px 0;
+  padding: 48px 24px;
+  border: 1px dashed rgba(35, 58, 55, 0.24);
+  border-radius: 14px;
+  background: #fffefb;
+  color: #7e918c;
+  text-align: center;
+}
+
+.sheet-blank-state strong {
+  color: #17201d;
+  font-size: 1rem;
+}
+
+.sheet-blank-state p {
+  max-width: 46ch;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.sheet-blank-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+/* Visible escape hatch for a focused cell. */
+.sheet-cell-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid rgba(31, 101, 94, 0.24);
+  border-radius: 999px;
+  background: #fff;
+  color: #4a5f5a;
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sheet-cell-clear:hover { background: #f2f8f5; border-color: rgba(32, 123, 111, 0.45); }
+
+/* ==================================================================== */
+/*  SCHOLARDOCX-0203 — palette, stats, colour rules, polish             */
+/* ==================================================================== */
+
+/* --- Command palette --- */
+
+.cmdk {
+  width: min(620px, 94vw);
+  /* The canonical backdrop already pads 80px from the top of the work
+     surface, so the palette only needs to size itself. */
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(35, 58, 55, 0.18);
+  border-radius: 14px;
+  background: #fffefb;
+  box-shadow: 0 26px 60px rgba(24, 37, 35, 0.28);
+  animation: cmdk-in 140ms ease;
+}
+
+@keyframes cmdk-in {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.cmdk-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(35, 58, 55, 0.12);
+  color: #5a6f6a;
+}
+
+.cmdk-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-size: 0.95rem;
+}
+
+.cmdk-list {
+  max-height: min(52vh, 420px);
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.cmdk-section {
+  padding: 8px 10px 4px;
+  color: #6d827d;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #17201d;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmdk-item.is-active { background: #e8f4ef; }
+
+.cmdk-icon { display: grid; place-items: center; opacity: 0.7; }
+.cmdk-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cmdk-hint {
+  padding: 2px 7px;
+  border: 1px solid rgba(35, 58, 55, 0.16);
+  border-radius: 5px;
+  color: #5a6f6a;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.cmdk-empty { margin: 0; padding: 22px 12px; color: #7e918c; font-size: 0.84rem; text-align: center; }
+
+.cmdk-footer {
+  display: flex;
+  gap: 16px;
+  padding: 9px 14px;
+  border-top: 1px solid rgba(35, 58, 55, 0.1);
+  background: #f7faf8;
+  color: #6d827d;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.cmdk-footer kbd,
+.cmdk-search kbd {
+  display: inline-block;
+  min-width: 17px;
+  margin-right: 3px;
+  padding: 1px 5px;
+  border: 1px solid rgba(35, 58, 55, 0.2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 0.66rem;
+  text-align: center;
+}
+
+/* --- Column stats --- */
+
+.col-stats {
+  width: min(340px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(35, 58, 55, 0.16);
+  border-radius: 12px;
+  background: #fffefb;
+  box-shadow: 0 20px 46px rgba(24, 37, 35, 0.22);
+  animation: cmdk-in 140ms ease;
+}
+
+.col-stats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.col-stats-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #17201d;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.col-stats-head button {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #7e918c;
+  cursor: pointer;
+}
+
+.col-stats-head button:hover { background: rgba(31, 101, 94, 0.1); }
+
+.col-stats-fill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #5a6f6a;
+  font-size: 0.74rem;
+}
+
+.col-stats-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(35, 58, 55, 0.1);
+  overflow: hidden;
+}
+
+.col-stats-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2f7d74, #38a37f); }
+
+.col-stats-figures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 10px;
+  border-radius: 9px;
+  background: #f4f8f6;
+}
+
+.col-stats-figures dt {
+  color: #7e918c;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.col-stats-figures dd { margin: 2px 0 0; color: #17201d; font-size: 0.86rem; font-weight: 700; }
+.col-stats-figures dd.is-warning { color: #8c3b32; }
+
+.col-stats-top h5 {
+  margin: 0 0 7px;
+  color: #6d827d;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.col-stats-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 28px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #17201d;
+  font-family: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.col-stats-value:hover:not(:disabled) { background: rgba(31, 101, 94, 0.08); }
+.col-stats-value:disabled { cursor: default; }
+
+.col-stats-value-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.col-stats-value-bar { height: 6px; border-radius: 999px; background: rgba(35, 58, 55, 0.1); overflow: hidden; }
+.col-stats-value-bar i { display: block; height: 100%; background: #4fae90; }
+
+.col-stats-value-count { color: #5a6f6a; font-size: 0.72rem; font-weight: 800; text-align: right; }
+
+.col-stats-empty { margin: 0; color: #7e918c; font-size: 0.78rem; }
+
+.column-stats-trigger {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.column-stats-trigger:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* --- Colour rules --- */
+
+/* Two classes so this beats `.modal-panel { width: 600px }` regardless of
+   which stylesheet the bundler emits first. */
+.modal-panel.format-rules {
+  width: min(860px, 94vw);
+  max-width: min(860px, 94vw);
+  max-height: 86vh;
+}
+
+.format-rules-lede,
+.format-rules-empty {
+  margin: 0 0 14px;
+  color: #6d827d;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.format-rules-list { display: flex; flex-direction: column; gap: 8px; }
+
+/* A wrapping sentence, not a fixed grid.
+
+   The first version used eight fixed grid tracks, which could not fit inside
+   the panel and pushed the match count and delete button out through a
+   horizontal scrollbar. A rule has a variable number of parts — the value
+   input disappears entirely for "is empty" — so any fixed track count is
+   wrong for some rule. Flex-wrap lets a long rule become two lines instead
+   of overflowing. */
+.format-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid rgba(35, 58, 55, 0.12);
+  border-radius: 10px;
+  background: #fffefb;
+}
+
+/* The connective words are what make the row readable as a sentence:
+   "When [Status] [is exactly] [Rejected] colour it [red] across the whole
+   row". Without them it is a line of unlabelled dropdowns. */
+.format-rule-word {
+  color: #6d827d;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Pushed right, and allowed to drop to its own line on a narrow panel. */
+.format-rule-tail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.format-rule.is-off { opacity: 0.5; }
+
+.format-rule select,
+.format-rule input[type="text"],
+.format-rule input[type="number"] {
+  min-width: 0;
+  /* Wide enough to read a column name, capped so one long name cannot
+     stretch the row past the panel. */
+  max-width: 170px;
+  padding: 6px 8px;
+  border: 1px solid rgba(35, 58, 55, 0.18);
+  border-radius: 7px;
+  background: #fff;
+  font-size: 0.76rem;
+}
+
+.format-rule input[type="text"],
+.format-rule input[type="number"] { width: 120px; }
+
+.format-rule-novalue { color: #a8b5b1; text-align: center; }
+
+.format-rule-styles { display: flex; gap: 4px; }
+
+.format-swatch {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  color: #3f5852;
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.format-swatch.selected { border-color: #17201d; }
+.format-swatch:hover { border-color: rgba(23, 32, 29, 0.4); }
+.format-swatch.style-red { background: #f0b6ab; }
+.format-swatch.style-amber { background: #f4cf8e; }
+.format-swatch.style-green { background: #a5dcc3; }
+.format-swatch.style-blue { background: #a9cfe6; }
+.format-swatch.style-grey { background: #d3dad7; }
+.format-swatch.style-bold { background: #eef2f0; }
+
+.format-rule-scope,
+.format-rule-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #5a6f6a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.format-rule-toggle input,
+.format-rule-scope input { margin: 0; accent-color: #2f7d74; }
+
+.format-rule-count {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(31, 101, 94, 0.1);
+  color: #2f6d7a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.format-rule-count.is-zero { background: rgba(35, 58, 55, 0.07); color: #93a5a1; }
+
+@media (max-width: 720px) {
+  /* The tail stops being pushed right once the row is stacking anyway. */
+  .format-rule-tail { margin-left: 0; }
+}
+
+.format-rule-delete {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a8b5b1;
+  cursor: pointer;
+}
+
+.format-rule-delete:hover { background: rgba(140, 59, 50, 0.1); color: #8c3b32; }
+
+.format-rules-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(35, 58, 55, 0.12);
+}
+
+.format-rules-add select {
+  padding: 7px 10px;
+  border: 1px solid rgba(35, 58, 55, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.78rem;
+}
+
+/* --- Conditional formatting applied to the grid ---
+   Tints use a left marker plus a wash rather than a saturated fill: a
+   strongly coloured row makes its own text harder to read, which defeats
+   the point of drawing attention to it. */
+/* `.data-cell`, never a bare `> td`. The row-number column is sticky, and a
+   sticky cell whose opaque background gets overridden lets the scrolled
+   content slide visibly underneath it. */
+.sheet-table tr.cf-row > td.data-cell { background-image: linear-gradient(var(--cf-wash), var(--cf-wash)); }
+.sheet-table td.cf-cell { background-image: linear-gradient(var(--cf-wash), var(--cf-wash)); }
+
+.sheet-table .cf-red { --cf-wash: rgba(200, 82, 62, 0.14); }
+.sheet-table .cf-amber { --cf-wash: rgba(217, 154, 61, 0.16); }
+.sheet-table .cf-green { --cf-wash: rgba(56, 163, 127, 0.14); }
+.sheet-table .cf-blue { --cf-wash: rgba(79, 141, 174, 0.14); }
+.sheet-table .cf-grey { --cf-wash: rgba(35, 58, 55, 0.07); }
+.sheet-table .cf-bold { --cf-wash: transparent; }
+
+/* Row-level colour markers are applied to `td.row-header` at the foot of
+   this file, where the sticky column's defences live. */
+
+.sheet-table tr.cf-bold > td,
+.sheet-table td.cf-bold { font-weight: 800; }
+
+/* --- Grid polish --- */
+
+.sheet-table tbody tr { transition: background-color 120ms ease; }
+
+/* Zebra banding, kept very light so it reads as texture rather than as a
+   second kind of highlight competing with selection and colour rules.
+
+   Scoped to `.data-cell`. Written as `> td` this out-ranked
+   `.sheet-table td.row-header { background: #f7fbf8 }` — (0,2,3) beats
+   (0,2,1) — which stripped the opaque background off the *sticky* row-number
+   column. A sticky cell without an opaque background is a window: the rows
+   scrolling horizontally underneath show straight through it, so cell text
+   appeared to bleed across the row numbers on every even row. */
+.sheet-table tbody tr:nth-child(even) > td.data-cell { background-color: rgba(35, 58, 55, 0.018); }
+
+.sheet-table td.cell-focused {
+  box-shadow: inset 0 0 0 2px #2f7d74;
+  border-radius: 3px;
+}
+
+.sheet-table tbody tr.row-selected > td.data-cell { background-color: rgba(47, 125, 116, 0.09); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cmdk,
+  .col-stats { animation: none; }
+  .sheet-table tbody tr { transition: none; }
+}
+
+/* --- Record panel stepper --- */
+
+.peek-stepper {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(35, 58, 55, 0.16);
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.peek-stepper button {
+  display: grid;
+  place-items: center;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f4f5a;
+  cursor: pointer;
+}
+
+.peek-stepper button:hover:not(:disabled) { background: #e8f4ef; }
+.peek-stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+
+/* ------------------------------------------------------------------ */
+/*  Sticky row-number column: keep it opaque                           */
+/*                                                                     */
+/*  `td.row-header` is `position: sticky`. A sticky cell needs an       */
+/*  OPAQUE background or it becomes a window — the rows scrolling       */
+/*  horizontally underneath show straight through it, and cell text     */
+/*  appears to bleed across the row numbers.                            */
+/*                                                                     */
+/*  Seventeen selectors across four stylesheets set a background on     */
+/*  `... td` and out-rank `.sheet-table td.row-header`: row hover, the  */
+/*  deadline tints (due-urgent/warning/watch), row-focused, and the     */
+/*  zebra banding added in SCHOLARDOCX-0203. Most predate this task —   */
+/*  the banding merely made a long-standing bug visible on every even   */
+/*  row instead of only on hover.                                       */
+/*                                                                     */
+/*  Rather than chase each one, the column defends itself. `!important` */
+/*  matches how its `position: sticky !important` is already written    */
+/*  two files over, and the hover/selected variants keep it responsive  */
+/*  instead of freezing it. Checked by scripts/check-sticky-column.py.  */
+/* ------------------------------------------------------------------ */
+
+.sheet-table td.row-header {
+  background: #f7fbf8 !important;
+  box-shadow: 2px 0 0 rgba(35, 58, 55, 0.14) !important;
+}
+
+.sheet-table tbody tr:hover td.row-header { background: #eef7f3 !important; }
+.sheet-table tbody tr.row-selected td.row-header { background: #e3f0ea !important; }
+
+/* The colour-rule marker composes with the seam rather than replacing it. */
+.sheet-table tr.cf-row.cf-red > td.row-header { box-shadow: inset 3px 0 0 #c2543f, 2px 0 0 rgba(35, 58, 55, 0.14) !important; }
+.sheet-table tr.cf-row.cf-amber > td.row-header { box-shadow: inset 3px 0 0 #d99a3d, 2px 0 0 rgba(35, 58, 55, 0.14) !important; }
+.sheet-table tr.cf-row.cf-green > td.row-header { box-shadow: inset 3px 0 0 #38a37f, 2px 0 0 rgba(35, 58, 55, 0.14) !important; }
+.sheet-table tr.cf-row.cf-blue > td.row-header { box-shadow: inset 3px 0 0 #4f8dae, 2px 0 0 rgba(35, 58, 55, 0.14) !important; }
+.sheet-table tr.cf-row.cf-grey > td.row-header { box-shadow: inset 3px 0 0 #93a5a1, 2px 0 0 rgba(35, 58, 55, 0.14) !important; }

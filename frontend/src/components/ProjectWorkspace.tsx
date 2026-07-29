@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState, useRef } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { ChevronLeft, Edit, LayoutDashboard, Pin, Plus, Trash2, X } from "lucide-react";
 import { Field } from "./Field";
 import { Modal } from "./Modal";
@@ -30,6 +30,11 @@ import { RowPeekPanel } from "./sheet/RowPeekPanel";
 import { SelectionToolbar } from "./sheet/SelectionToolbar";
 import { CsvImportModal } from "./sheet/CsvImportModal";
 import { DateColorConfigModal } from "./sheet/DateColorConfigModal";
+import { ShortcutsPanel } from "./sheet/ShortcutsPanel";
+import { SheetBlankState } from "./sheet/SheetBlankState";
+import { CommandPalette, type Command } from "./sheet/CommandPalette";
+import { ColumnStatsPanel } from "./sheet/ColumnStatsPanel";
+import { FormatRulesModal } from "./sheet/FormatRulesModal";
 
 // Main workspace component
 
@@ -99,6 +104,17 @@ export function ProjectWorkspace({
   const [csvImportFile, setCsvImportFile] = useState<File | null>(null);
 
   const [showDateColorConfig, setShowDateColorConfig] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+  const [showFormatRules, setShowFormatRules] = useState(false);
+  const [statsColumn, setStatsColumn] = useState<string | null>(null);
+  // One clock per render pass for everything date-dependent in the sheet, so
+  // a deadline cannot read as "today" in one place and "overdue" in another.
+  const [sheetNow, setSheetNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setSheetNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [peekRowIndex, setPeekRowIndex] = useState<number | null>(null);
   const [dateColorConfig, setDateColorConfig] = useState<DateColorConfig>(() => {
     try {
@@ -118,6 +134,38 @@ export function ProjectWorkspace({
       setDateColorConfig({ redDays: 3, yellowDays: 7 });
     }
   }, [selectedProjectId]);
+
+  /* Sheet-level shortcuts (SCHOLARDOCX-0202). Bound on the window so they
+     work wherever focus happens to be in the sheet, and skipped while the
+     user is typing — "/" and "?" are ordinary characters in a cell. */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      // Ctrl/Cmd+K is checked before the typing guard: the whole point of a
+      // palette is that it opens from anywhere, including mid-edit.
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setShowPalette((open) => !open);
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName || "")
+      ) {
+        return;
+      }
+      if (event.key === "?") {
+        event.preventDefault();
+        setShowShortcuts(true);
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        document.querySelector<HTMLInputElement>(".sheet-search input")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const saveDateColorConfig = (config: DateColorConfig) => {
     setDateColorConfig(config);
@@ -176,6 +224,72 @@ export function ProjectWorkspace({
     onFilesChanged,
     recordsPerSheetLimit,
   });
+
+    const timer = window.setInterval(() => setSheetNow(new Date()), 60_000);
+    /* Command palette entries (SCHOLARDOCX-0203).
+
+     Built from the sheet's own state so the list is never stale: a column
+     added a second ago is jumpable to immediately. Order is fixed rather
+     than usage-ranked — the palette's value is that "Ctrl+K, a, Enter"
+     means the same thing every time. */
+  const sheetCommands: Command[] = useMemo(() => {
+    if (!selectedPage) return [];
+    const list: Command[] = [
+      { id: "add-record", section: "Records", label: "Add record", keywords: "new row create",
+        run: () => { sheet.addRow(); } },
+      { id: "search", section: "Records", label: "Search rows", hint: "/", keywords: "find filter",
+        run: () => document.querySelector<HTMLInputElement>(".sheet-search input")?.focus() },
+      { id: "clear-filters", section: "Records", label: "Clear all filters and search", keywords: "reset",
+        run: () => { sheet.clearFilters(); sheet.setSearchQuery(""); } },
+      { id: "undo", section: "Records", label: "Undo", hint: "Ctrl+Z", run: () => sheet.handleUndo() },
+      { id: "redo", section: "Records", label: "Redo", hint: "Ctrl+Shift+Z", run: () => sheet.handleRedo() },
+
+      { id: "density-compact", section: "Display", label: "Row height: Compact", run: () => sheet.setDensity("compact") },
+      { id: "density-cosy", section: "Display", label: "Row height: Cosy", run: () => sheet.setDensity("cosy") },
+      { id: "density-roomy", section: "Display", label: "Row height: Roomy", run: () => sheet.setDensity("roomy") },
+      { id: "ungroup", section: "Display", label: "Stop categorising rows", keywords: "group",
+        run: () => sheet.setGroupBy(null) },
+
+      { id: "rules", section: "Format", label: "Colour rules…", keywords: "conditional formatting highlight",
+        run: () => setShowFormatRules(true) },
+      { id: "columns", section: "Format", label: "Edit columns…", run: () => sheet.openEditColumns() },
+      { id: "date-colors", section: "Format", label: "Deadline colours…", run: () => setShowDateColorConfig(true) },
+
+      { id: "export", section: "Data", label: "Export to CSV", run: () => sheet.handleExportCsv() },
+      { id: "import", section: "Data", label: "Import from CSV…", run: () => fileInputRef.current?.click() },
+      { id: "email", section: "Data", label: "Email settings…", run: () => sheet.setIsEmailConfigOpen(true) },
+
+      { id: "shortcuts", section: "Help", label: "Keyboard shortcuts", hint: "?", run: () => setShowShortcuts(true) },
+    ];
+
+    sheet.columns.filter((col) => col.type !== "group").forEach((col) => {
+      list.push({
+        id: `stats-${col.name}`,
+        section: "Columns",
+        label: `Summarise “${col.name}”`,
+        keywords: `${col.name} stats insight column`,
+        run: () => setStatsColumn(col.name),
+      });
+      list.push({
+        id: `hide-${col.name}`,
+        section: "Columns",
+        label: `${col.hidden ? "Show" : "Hide"} “${col.name}”`,
+        keywords: `${col.name} visibility`,
+        run: () => sheet.toggleColumnVisibility(col.name),
+      });
+    });
+
+    sheet.savedViews.forEach((view) => {
+      list.push({
+        id: `view-${view.id}`,
+        section: "Saved views",
+        label: `Open saved view: ${view.name}`,
+        run: () => sheet.handleLoadView(view.id),
+      });
+    });
+
+    return list;
+  }, [selectedPage, sheet, fileInputRef]);
 
   /* ---------------------------------------------------------------- */
   /*  Project/sheet data loading                                       */
@@ -770,17 +884,8 @@ export function ProjectWorkspace({
                     detail: { contextMessage: message, autoSend: true, newChat: true, forceAction: true }
                   }));
                 }}
-                onExportCsv={sheet.handleExportCsv}
-                onImportCsv={() => fileInputRef.current?.click()}
-                onSaveTemplate={() => {
-                  const name = window.prompt("Enter a name for this custom template:");
-                  if (name) {
-                    saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
-                    setCustomTemplates(getCustomTemplates());
-                    onToast?.("Template saved.");
-                  }
-                }}
                 focusedCell={sheet.focusedCell}
+                onClearFocus={() => sheet.setFocusedCell(null)}
                 selectedRows={sheet.selectedRows}
                 rows={sheet.rows}
                 columns={sheet.columns}
@@ -814,6 +919,21 @@ export function ProjectWorkspace({
               onSaveView={sheet.handleSaveView}
               onLoadView={sheet.handleLoadView}
               onDeleteView={sheet.handleDeleteView}
+              density={sheet.density}
+              onDensityChange={sheet.setDensity}
+              onOpenShortcuts={() => setShowShortcuts(true)}
+              onOpenFormatRules={() => setShowFormatRules(true)}
+              ruleCount={sheet.formatRules.filter((r) => r.enabled).length}
+              onExportCsv={sheet.handleExportCsv}
+              onImportCsv={() => fileInputRef.current?.click()}
+              onSaveTemplate={() => {
+                const name = window.prompt("Enter a name for this custom template:");
+                if (name) {
+                  saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
+                  setCustomTemplates(getCustomTemplates());
+                  onToast?.("Template saved.");
+                }
+              }}
             />
 
             <SelectionToolbar
@@ -821,6 +941,12 @@ export function ProjectWorkspace({
               onClear={sheet.clearSelection}
               onDelete={sheet.bulkDelete}
               onDuplicate={sheet.bulkDuplicate}
+              columns={sheet.columns}
+              rows={sheet.rows}
+              activeColumn={sheet.focusedCell?.colName ?? null}
+              onFillDown={sheet.fillDownSelection}
+              onSetColumnValue={sheet.setColumnForSelection}
+              onClearCells={sheet.clearSelectedCells}
               onCopy={() => {
                 import("./sheet/sheetPaste").then(({ formatTSV }) => {
                   const visibleCols = sheet.columns.filter(c => c.type !== 'group' && !c.hidden);
@@ -849,7 +975,10 @@ export function ProjectWorkspace({
             />
 
             {sheet.columns.length === 0 ? (
-              <p className="empty">Add columns first to start tracking records.</p>
+              <SheetBlankState
+                onAddColumn={() => { sheet.setShowColumnForm(true); sheet.setNewColType("text"); }}
+                onEditColumns={sheet.openEditColumns}
+              />
             ) : null}
 
             {sheet.isEmailConfigOpen && (
@@ -910,6 +1039,10 @@ export function ProjectWorkspace({
             ) : null}
 
             <SheetTable
+              density={sheet.density}
+              formatRules={sheet.formatRules}
+              now={sheetNow}
+              onOpenColumnStats={setStatsColumn}
               columns={sheet.columns}
               rows={sheet.rows}
               viewRows={sheet.viewRows}
@@ -966,6 +1099,51 @@ export function ProjectWorkspace({
               />
             )}
 
+            {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
+
+            {showFormatRules && (
+              <FormatRulesModal
+                columns={sheet.columns}
+                rows={sheet.rows}
+                rules={sheet.formatRules}
+                now={sheetNow}
+                onChange={sheet.setFormatRules}
+                onClose={() => setShowFormatRules(false)}
+              />
+            )}
+
+            {statsColumn && sheet.columns.some((c) => c.name === statsColumn) && (
+              <Modal onClose={() => setStatsColumn(null)}>
+                <div onClick={(event) => event.stopPropagation()}>
+                  <ColumnStatsPanel
+                    column={sheet.columns.find((c) => c.name === statsColumn)!}
+                    rows={sheet.rows}
+                    now={sheetNow}
+                    onFilterValue={(column, value) => {
+                      const def = sheet.columns.find((c) => c.name === column);
+                      if (!def) return;
+                      // ColumnFilter is a discriminated union; a select/bool
+                      // column filters by value set, everything else by text.
+                      sheet.addFilter(
+                        def.type === "select" || def.type === "bool"
+                          ? { column, type: def.type, kind: "values", values: new Set([value]) }
+                          : { column, type: def.type, kind: "text", contains: value },
+                      );
+                      setStatsColumn(null);
+                    }}
+                    onClose={() => setStatsColumn(null)}
+                  />
+                </div>
+              </Modal>
+            )}
+
+            {showPalette && (
+              <CommandPalette
+                commands={sheetCommands}
+                onClose={() => setShowPalette(false)}
+              />
+            )}
+
             {peekRowIndex !== null && sheet.rows[peekRowIndex] && (
               <RowPeekPanel
                 row={sheet.rows[peekRowIndex]}
@@ -975,6 +1153,19 @@ export function ProjectWorkspace({
                 onEdit={() => {
                   setPeekRowIndex(null);
                   sheet.editRow(peekRowIndex);
+                }}
+                position={(() => {
+                  // Position within the *filtered, sorted* view, not the raw
+                  // row array — stepping should follow what is on screen.
+                  const order = sheet.viewRows.map((r) => sheet.rowIndexMap.get(r) ?? -1);
+                  const at = order.indexOf(peekRowIndex);
+                  return at >= 0 ? { index: at + 1, total: order.length } : undefined;
+                })()}
+                onStep={(delta) => {
+                  const order = sheet.viewRows.map((r) => sheet.rowIndexMap.get(r) ?? -1);
+                  const at = order.indexOf(peekRowIndex);
+                  const next = order[at + delta];
+                  if (next !== undefined && next >= 0) setPeekRowIndex(next);
                 }}
               />
             )}

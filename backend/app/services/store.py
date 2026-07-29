@@ -60,7 +60,8 @@ TABLE_COLUMNS = {
     "project_pages": {"user_id", "project_id", "sheet_id", "name", "columns_json", "rows_json", "email_config_json"},
     "notifications": {"user_id", "project_id", "title", "body", "notification_type", "preference_key", "due_at", "read_at"},
     "document_categories": {"user_id", "slug", "display_name", "sort_order"},
-    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned"},
+    # SCHOLARDOCX-0201 added tags_json, due_at, archived_at and sort_order.
+    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned", "tags_json", "due_at", "archived_at", "sort_order"},
     "degree_workspaces": {"user_id", "degree_type", "display_name", "enabled"},
     "universities": {"user_id", "name", "country", "region", "website_url", "notes"},
     "programs": {"user_id", "university_id", "name", "degree_type", "department", "application_url", "funding_url", "notes"},
@@ -159,6 +160,14 @@ TABLE_COLUMNS = {
         "deep_hunt_run_id",
     },
     "calendar_reminders": {"user_id", "project_id", "title", "note", "reminder_date", "is_done"},
+}
+
+# Optional TIMESTAMP columns a client is allowed to clear. See the coercion in
+# ``_filter_payload``: JSON cannot express "cleared" other than as null or "",
+# and "" is a Postgres type error rather than a validation failure, so the
+# empty string is normalized to NULL for exactly these columns.
+NULLABLE_TIMESTAMP_COLUMNS: dict[str, tuple[str, ...]] = {
+    "sticky_notes": ("due_at", "archived_at"),
 }
 
 DEFAULT_SORT = {
@@ -1055,6 +1064,14 @@ class Store:
         # Profile email is identity-bound and must not be user-editable from profile updates.
         if table == "local_profiles":
             filtered.pop("email", None)
+
+        # Clearing an optional date. JSON has no distinction between "unset"
+        # and "cleared", so callers send "" — which Postgres rejects on a
+        # TIMESTAMP column with a 500 rather than a validation error. Coerce
+        # here so every caller (UI, AI actions) clears a date the same way.
+        for key in NULLABLE_TIMESTAMP_COLUMNS.get(table, ()):  # noqa: SIM118
+            if key in filtered and isinstance(filtered[key], str) and not filtered[key].strip():
+                filtered[key] = None
 
         return filtered
 

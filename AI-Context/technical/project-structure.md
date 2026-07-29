@@ -112,3 +112,16 @@ Prefer feature-oriented folders when practical:
 ## Context Rule
 
 When actual code structure is created, update this file to match reality.
+
+- **Sticky Notes (SCHOLARDOCX-0201)**: the feature lives in
+  `frontend/src/components/sticky/` — `StickyNotesView` (container: data,
+  writes, shortcuts, undo), `NoteCard`, `NoteComposer`, `NoteViewer`,
+  `NoteToolbar`, `TagInput`, `SketchCanvas`, and two stylesheets split by role
+  (`sticky-notes.css` = board and card, `sticky-controls.css` = everything
+  surrounding a note). All rules — body parsing, tag normalization, due-date
+  bucketing, search, filter, sort, group, reorder — are pure functions in
+  `frontend/src/lib/stickyNotes.ts` with tests in
+  `frontend/src/lib/__tests__/stickyNotes.test.ts`. Components render and
+  handle input only. Follow this split when extending the feature: it is the
+  only reason any of the behaviour is testable in a repo with no DOM test
+  harness, and it is the same arrangement as `lib/games/`.

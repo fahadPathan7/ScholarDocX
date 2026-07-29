@@ -453,11 +453,22 @@ class StickyNotes(Base):
     font: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'caveat'"))
     font_size: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    # SCHOLARDOCX-0201. JSON array of lowercase tag strings; '[]' when untagged.
+    tags_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    # Manual board position. Lower sorts first within a group; ties fall back to
+    # updated_at, so notes the user has never dragged keep the old behaviour.
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
     body: Mapped[Optional[str]] = mapped_column(Text)
+    # Nullable on purpose: most notes never get a date, and a sentinel would
+    # make "has a deadline" a comparison against a magic value everywhere.
+    due_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
+    # Set when the note is archived. Archive is a timestamp rather than a flag
+    # so the archive can be listed most-recent-first without a second column.
+    archived_at: Mapped[Optional[str]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='sticky_notes')
 

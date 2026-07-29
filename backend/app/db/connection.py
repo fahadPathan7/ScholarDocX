@@ -141,6 +141,7 @@ def initialize_database(database_url: str) -> None:
         _add_advisor_profile_column(conn)
         _add_subscription_granted_column(conn)
         _add_purchase_request_price_snapshot_columns(conn)
+        _add_sticky_note_planning_columns(conn)
         _seed_registration_mode_default(conn)
         _ensure_pgvector_extension(conn)
         _create_vector_index(conn)
@@ -300,6 +301,49 @@ def _add_advisor_profile_column(conn) -> None:
             "ALTER TABLE local_profiles "
             "ADD COLUMN IF NOT EXISTS advisor_profile_json TEXT NOT NULL DEFAULT '{}'"
         )
+    )
+
+
+def _add_sticky_note_planning_columns(conn) -> None:
+    """Add the sticky_notes planning columns if missing (SCHOLARDOCX-0201).
+
+    Four columns that turn sticky notes from a scratchpad into a planning
+    surface:
+
+    - ``tags_json`` — JSON array of lowercase tags (default ``'[]'``). Colour
+      was previously the only way to organise a board and there are six of
+      them, which stops being enough at about twenty notes.
+    - ``due_at`` — optional deadline. Nullable rather than defaulted: most
+      notes never get one, and a sentinel date would turn "has a deadline"
+      into a comparison against a magic value in every caller.
+    - ``archived_at`` — set when archived. A timestamp rather than a boolean
+      so the archive can be listed most-recent-first without a second column.
+    - ``sort_order`` — manual board position for drag-to-reorder. Defaults to
+      ``0`` so every existing note ties and falls back to the previous
+      ``updated_at`` ordering until the user actually drags something.
+
+    ``ADD COLUMN IF NOT EXISTS`` makes this safe on every boot: fresh installs
+    get the columns from ``create_all`` and this is a no-op. Existing notes
+    keep working untouched — an untagged, undated, unarchived note behaves
+    exactly as it did before.
+    """
+    conn.execute(
+        text(
+            "ALTER TABLE sticky_notes "
+            "ADD COLUMN IF NOT EXISTS tags_json TEXT NOT NULL DEFAULT '[]'"
+        )
+    )
+    conn.execute(
+        text(
+            "ALTER TABLE sticky_notes "
+            "ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0"
+        )
+    )
+    conn.execute(
+        text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS due_at TIMESTAMP WITH TIME ZONE")
+    )
+    conn.execute(
+        text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE")
     )
 
 

@@ -1,0 +1,668 @@
+/* Sticky Notes — board controls and panels (SCHOLARDOCX-0201).
+
+   Split out of sticky-notes.css when that file passed the size limit in
+   CODE_RULES.md. The division is by role, not by line count: sticky-notes.css
+   holds the board and the note card itself; everything that *surrounds* a
+   note — the search/filter toolbar, group headers, tag chips, due badges, the
+   composer and viewer panels, and the undo toast — lives here.
+
+   Imported by StickyNotesView alongside sticky-notes.css. */
+/* --- Toolbar --- */
+
+.sticky-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 24px 12px;
+  border-bottom: 1px solid rgba(65, 126, 112, 0.12);
+  background: rgba(255, 253, 247, 0.6);
+}
+
+.sticky-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sticky-toolbar-row.secondary {
+  gap: 8px;
+}
+
+.sticky-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 200px;
+  padding: 7px 12px;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 10px;
+  background: #fff;
+  color: #4a5f5a;
+}
+
+.sticky-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-size: 0.84rem;
+}
+
+.sticky-search input::-webkit-search-cancel-button { cursor: pointer; }
+
+.sticky-shelf {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(37, 102, 96, 0.12);
+  border-radius: 10px;
+  background: #f3f7f5;
+}
+
+.sticky-shelf button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #60736f;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sticky-shelf button.active {
+  background: #fff;
+  color: #17201d;
+  box-shadow: 0 4px 10px rgba(27, 79, 74, 0.08);
+}
+
+.sticky-shelf .count,
+.sticky-tag .count,
+.sticky-group-head .count,
+.sticky-clear-filters .count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(31, 101, 94, 0.1);
+  color: #3d6b63;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.sticky-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(31, 101, 94, 0.2);
+  border-radius: 10px;
+  background: #fff;
+  color: #4a5f5a;
+}
+
+.sticky-sort select {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sticky-color-filter {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sticky-tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.sticky-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 10px;
+  border: 1px dashed rgba(31, 101, 94, 0.3);
+  border-radius: 999px;
+  background: transparent;
+  color: #4a5f5a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sticky-clear-filters:hover { background: rgba(31, 101, 94, 0.06); }
+
+/* --- Tag chips --- */
+
+.sticky-tag.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid rgba(31, 101, 94, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #35564f;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sticky-tag.chip.selected {
+  border-color: transparent;
+  background: linear-gradient(135deg, #1f4f5a, #2f7d74);
+  color: #fff;
+}
+
+.sticky-tag.chip.selected .count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.sticky-tag.chip.small {
+  padding: 2px 7px;
+  font-size: 0.65rem;
+  cursor: default;
+}
+
+.sticky-tag.chip.small.muted { opacity: 0.65; }
+
+.sticky-tag.chip button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.sticky-tag.chip button:hover { opacity: 1; }
+
+/* --- Tag input --- */
+
+.sticky-tag-field { flex: 1 1 220px; min-width: 0; }
+
+.sticky-tag-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(23, 32, 29, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #4a5f5a;
+}
+
+.sticky-tag-input-row input {
+  flex: 1;
+  min-width: 90px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+}
+
+.sticky-tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.sticky-tag-suggestions button {
+  padding: 3px 9px;
+  border: 1px dashed rgba(31, 101, 94, 0.3);
+  border-radius: 999px;
+  background: transparent;
+  color: #4a5f5a;
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sticky-tag-suggestions button:hover {
+  border-style: solid;
+  background: rgba(31, 101, 94, 0.08);
+}
+
+/* --- Groups --- */
+
+.sticky-groups {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 0 24px;
+}
+
+.sticky-group + .sticky-group { margin-top: 22px; }
+
+.sticky-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0 24px;
+  color: #46605a;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sticky-group-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(65, 126, 112, 0.18);
+}
+
+.sticky-group-head.group-overdue { color: #98442f; }
+.sticky-group-head.group-overdue .count { background: rgba(152, 68, 47, 0.12); color: #98442f; }
+.sticky-group-head.group-today { color: #8a5a15; }
+.sticky-group-head.group-today .count { background: rgba(138, 90, 21, 0.12); color: #8a5a15; }
+
+/* --- Due badges --- */
+
+.sticky-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin-bottom: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #3f5852;
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.sticky-due.large { font-size: 0.78rem; padding: 6px 12px; }
+
+.sticky-due.bucket-overdue { background: #f7d9d2; color: #8c3b32; }
+.sticky-due.bucket-today { background: #ffe6bd; color: #85560f; }
+.sticky-due.bucket-tomorrow { background: #e4eec8; color: #566b23; }
+
+/* A left edge on the card itself, so urgency reads from across the board
+   rather than only when you get close enough to see the pill. */
+.sticky-card.is-overdue { box-shadow: inset 4px 0 0 #c2543f; }
+.sticky-card.is-today { box-shadow: inset 4px 0 0 #d99a3d; }
+.sticky-card.is-archived { opacity: 0.72; filter: saturate(0.72); }
+
+/* --- Card structure --- */
+
+/* The card is a plain container with a full-bleed button behind its content,
+   so the whole surface opens the note while the pin/archive controls and the
+   checklist rows stay separately clickable and focusable. Nesting them inside
+   a button would be invalid HTML and unreachable by keyboard. */
+.sticky-card-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sticky-card-open:focus-visible {
+  outline: 2px solid #1f4f5a;
+  outline-offset: -3px;
+  border-radius: inherit;
+}
+
+.sticky-card-head,
+.sticky-card-content,
+.sticky-card-meta,
+.sticky-card-tags,
+.sticky-card-actions,
+.sticky-card .sticky-due {
+  position: relative;
+  z-index: 2;
+}
+
+/* Content is not interactive, so let clicks fall through to the open button
+   underneath — except the things that are. */
+.sticky-card-content,
+.sticky-card-head,
+.sticky-card-meta,
+.sticky-card-tags { pointer-events: none; }
+
+.sticky-card-content .tickable { pointer-events: auto; }
+
+/* Hidden until hover, and NOT clickable while hidden: an `opacity: 0` button
+   still swallows clicks, so without this the top-right corner of every card
+   silently toggled the pin instead of opening the note. Keyboard focus is
+   unaffected by pointer-events, so `:focus-within` still reveals them. */
+.sticky-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.sticky-card:hover .sticky-card-actions,
+.sticky-card:focus-within .sticky-card-actions,
+/* A pinned note keeps its pin on show — that is the state being displayed. */
+.sticky-card:has(.sticky-action-btn.active) .sticky-card-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* No hover on a touch screen, so hover-to-reveal means never. */
+@media (hover: none) {
+  .sticky-card-actions { opacity: 1; pointer-events: auto; }
+}
+
+.sticky-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 0 2px;
+}
+
+.sticky-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.sticky-badge-checklist.complete {
+  background: rgba(56, 163, 127, 0.18);
+  color: #1f6b52;
+}
+
+/* --- Tickable checklist rows --- */
+
+.sticky-check-list .check-item.tickable {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.sticky-check-list .check-item.tickable:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sticky-check-list .check-item.tickable:focus-visible {
+  outline: 2px solid #1f4f5a;
+  outline-offset: 1px;
+}
+
+/* --- Composer extras --- */
+
+.sticky-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sticky-save-state {
+  color: rgba(23, 32, 29, 0.55);
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.sticky-save-state.saved { color: #1f6b52; }
+
+.sticky-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.sticky-due-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(23, 32, 29, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #4a5f5a;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sticky-due-field input {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #17201d;
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+.sticky-due-field button {
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.sticky-due-field button:hover { opacity: 1; }
+
+.sticky-font-legend {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.sticky-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sticky-composer-actions { display: flex; gap: 8px; }
+
+.sticky-hint {
+  color: rgba(23, 32, 29, 0.45);
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.sticky-sketch {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.4);
+  touch-action: none;
+  cursor: crosshair;
+  margin-top: 8px;
+}
+
+.sticky-sketch.readonly {
+  background: transparent;
+  cursor: inherit;
+  margin-top: 0;
+}
+
+.sticky-sketch-wrap { position: relative; }
+
+.sticky-sketch-clear {
+  position: absolute;
+  top: 12px;
+  right: 4px;
+}
+
+/* --- Viewer --- */
+
+.sticky-view-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sticky-view-block {
+  padding: 12px;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.sticky-view-block-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: rgba(23, 32, 29, 0.6);
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sticky-progress {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(23, 32, 29, 0.12);
+  overflow: hidden;
+}
+
+.sticky-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #38a37f;
+  transition: width 200ms ease;
+}
+
+.sticky-view-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.sticky-view-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+/* --- Undo toast --- */
+
+.sticky-undo {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  background: #17201d;
+  box-shadow: 0 14px 34px rgba(23, 32, 29, 0.28);
+  color: #f4f7f5;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+.sticky-undo button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: #f8dfa3;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sticky-undo button:hover { background: rgba(255, 255, 255, 0.1); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .sticky-card-grid { columns: 1; padding: 0 16px 4px; }
+  .sticky-toolbar { padding: 12px 16px 10px; }
+  .sticky-group-head { padding: 0 16px; }
+  .sticky-clear-filters { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-card,
+  .sticky-card-actions,
+  .sticky-progress i {
+    transition: none;
+  }
+  .sticky-card:hover { transform: none; }
+}
+
+/* --- Drag to reorder (manual sort only) --- */
+
+.sticky-card.is-draggable { cursor: grab; }
+.sticky-card.is-draggable:active { cursor: grabbing; }
+
+.sticky-card.is-dragging {
+  opacity: 0.45;
+  outline: 2px dashed rgba(31, 101, 94, 0.55);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-card.is-dragging { transition: none; }
+}

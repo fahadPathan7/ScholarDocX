@@ -74,7 +74,7 @@ import { BuyTokensView } from "./components/BuyTokensView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
 import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
-import { StickyNotesView } from "./components/StickyNotesView";
+import { StickyNotesView } from "./components/sticky/StickyNotesView";
 import { WhiteboardView } from "./components/WhiteboardView";
 import { BrainGamesView } from "./components/games/BrainGamesView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";

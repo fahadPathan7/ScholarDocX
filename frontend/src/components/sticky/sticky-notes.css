@@ -194,14 +194,22 @@
   color: #a24b4b;
 }
 
+/* Masonry, not a grid of equal cells: notes are wildly different heights and
+   a row-based grid pads every card to the tallest in its row, which is where
+   the old board's ragged white gaps came from. CSS columns fill top-to-bottom
+   instead, so a short note sits directly under a short note. */
 .sticky-card-grid {
-  align-content: start;
-  align-items: start;
-  display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
-  overflow: auto;
-  padding: 24px;
+  columns: 260px;
+  column-gap: 20px;
+  padding: 0 24px 4px;
+}
+
+.sticky-card-grid > * {
+  /* Without this a card can be split across a column boundary mid-sentence. */
+  break-inside: avoid;
+  margin-bottom: 20px;
+  display: block;
+  width: 100%;
 }
 
 .sticky-card {
@@ -210,7 +218,8 @@
   color: #17201d;
   display: flex;
   flex-direction: column;
-  height: 280px;
+  min-height: 172px;
+  max-height: 340px;
   min-width: 0;
   overflow: hidden;
   padding: 18px;

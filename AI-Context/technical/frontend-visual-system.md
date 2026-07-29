@@ -202,6 +202,8 @@ interactive, and polished without becoming decorative marketing UI.
   `index.tsx` barrel) rather than a single component, to respect the file-size
   rule as the page grew. `main.tsx` imports it as `./components/LandingPage` and
   resolves to the barrel with no router change.
+- **Landing Page Feature Spotlight Showcase (`PillarsShowcase.tsx` & `PillarsShowcase.css`)**:
+  Separately features and markets the 3 core power tools: **Research Expert** (deep AI paper & proposal analysis), **Advisor Atlas** (research-fit scoring & verified faculty contact details), and **Focus Games** (6 cognitive micro-break games). Includes an interactive 3-tab stage with live simulated UI card mockups (analytical prompts selector, professor match score gauge, mini-game previews), glowing ambient light nodes, themed accent badges (`accent-cyan`, `accent-emerald`, `accent-amber`), and direct header navigation (`#featured-tools`).
 - Landing-page motion is dependency-free: a `useReveal()` hook wraps
   `IntersectionObserver` and toggles a shared `.reveal` → `.in-view` CSS
   transition (staggered via a `--reveal-delay` custom property). It honors

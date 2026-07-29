@@ -1,9 +1,23 @@
 /* FAQ — accessible accordion with smooth expand/collapse. */
 
 .lp-faq-section {
-  max-width: 800px;
+  max-width: 840px;
   margin: 0 auto;
-  padding: 72px 24px;
+  padding: 80px 24px;
+}
+
+.lp-faq-top-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(13, 148, 136, 0.08);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  color: var(--ui-teal, #0d9488);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
 
 .lp-faq-list {
@@ -15,23 +29,25 @@
 
 .lp-faq-item {
   background: rgba(255, 255, 252, 0.75);
-  border: 1px solid rgba(35, 58, 55, 0.06);
-  border-radius: 16px;
+  border: 1.5px solid rgba(35, 58, 55, 0.08);
+  border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(24, 37, 35, 0.02);
   transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  backdrop-filter: blur(8px);
 }
 
 .lp-faq-item:hover {
   background: rgba(255, 255, 252, 0.95);
   box-shadow: 0 8px 24px rgba(24, 37, 35, 0.05);
   transform: translateY(-2px);
+  border-color: rgba(52, 127, 120, 0.2);
 }
 
 .lp-faq-item.is-open {
   background: #ffffff;
-  border-color: rgba(52, 127, 120, 0.15);
-  box-shadow: 0 12px 32px rgba(52, 127, 120, 0.08);
+  border-color: rgba(52, 127, 120, 0.3);
+  box-shadow: 0 12px 32px rgba(52, 127, 120, 0.1);
   transform: translateY(-2px);
 }
 
@@ -50,6 +66,21 @@
   font-weight: 700;
   color: var(--ui-ink);
   font-family: inherit;
+}
+
+.lp-faq-q-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.lp-faq-cat-tag {
+  font-size: 0.675rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ui-teal, #0d9488);
+  text-transform: uppercase;
 }
 
 .lp-faq-chevron {

@@ -4,6 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { LandingNav } from "./LandingNav";
 import { HeroSection } from "./HeroSection";
 import { StatsBand } from "./StatsBand";
+import { PillarsShowcase } from "./PillarsShowcase";
 import { FeaturesSection } from "./FeaturesSection";
 import { HowItWorks } from "./HowItWorks";
 import { PricingSection } from "./PricingSection";
@@ -37,6 +38,7 @@ export function LandingPage() {
       <main>
         <HeroSection />
         <StatsBand />
+        <PillarsShowcase />
         <FeaturesSection />
         <HowItWorks />
         <PricingSection />

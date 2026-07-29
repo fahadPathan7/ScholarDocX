@@ -25,8 +25,12 @@
   flex-wrap: wrap;
 }
 
-.sticky-toolbar-row.secondary {
+/* Left-aligned and pinned there. The filter chips must not move when the
+   "Clear filters" button appears or disappears — a control that shifts under
+   the cursor as a side effect of using it is the worst kind of motion. */
+.sticky-toolbar-row.filters {
   gap: 8px;
+  justify-content: flex-start;
 }
 
 .sticky-search {
@@ -410,11 +414,25 @@
 
 /* --- Tickable checklist rows --- */
 
+/* Checklist items became <button>s so they can be ticked from the card, and a
+   button does not inherit typography from its parent — hence the resets.
+
+   Deliberately NOT `font: inherit`. That shorthand sets `font-family: inherit`
+   too, and at (0,3,0) it out-ranks `.font-sans .check-item` (0,2,0) from
+   sticky-notes.css. The note's chosen font is applied to `.check-item`
+   directly, not to the card, so inheriting picks up the card's Caveat default
+   instead — which is why a note set to Modern rendered its body correctly and
+   its checklist items in handwriting. Everything except the family is reset
+   here; the family stays with the theme rules that own it. */
 .sticky-check-list .check-item.tickable {
   width: 100%;
   border: none;
   background: transparent;
-  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;

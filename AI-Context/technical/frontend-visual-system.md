@@ -406,3 +406,37 @@ interactive, and polished without becoming decorative marketing UI.
   must target `td.data-cell`, not a bare `td`.** Enforced by
   `scripts/check-sticky-column.py`, which fails if the `!important` defence is
   removed or if a new rule in `sheet-chrome.css` out-ranks it without one.
+
+- **Sticky note fonts: never reset `font` wholesale (SCHOLARDOCX-0201 fix)**.
+  A note's font is applied by `.font-{caveat,sans,serif,mono} X` rules in
+  `sticky-notes.css`, one per themed element (`.check-item`, `.sticky-body`,
+  `.note-title`, `.sticky-title-input`, `h2.sticky-view-title`,
+  `.sticky-check-row span`) — all at specificity (0,2,0), and applied to the
+  elements rather than to the card. Any rule that sets `font` or
+  `font-family` on one of those with higher specificity silently wins, and the
+  note renders in the wrong font. The `font: inherit` shorthand is the usual
+  culprit: it includes `font-family`, and `inherit` resolves to the card's
+  Caveat default rather than the user's choice. When resetting a control
+  (a `<button>` used as a checklist row, say), reset size, weight, style,
+  line-height, letter-spacing and colour — never the family. Enforced by
+  `scripts/check-sticky-note-fonts.py`.
+- **Two standing CSS guards.** `scripts/check-sticky-column.py` and
+  `scripts/check-sticky-note-fonts.py` both encode the same lesson: a generic
+  rule out-ranking a specific one is invisible in review and in type-checking,
+  and shows up only as a rendering bug. Run both after touching sheet or
+  sticky-note styling.
+- **Never reuse a global utility class name as a local modifier
+  (SCHOLARDOCX-0201 fix)**. `styles.css` and `visual-refresh.css` define bare
+  single-class utilities (`.secondary`, `.primary`, `.compact`, …) that carry
+  real layout. `<div className="sticky-toolbar-row secondary">` picks up
+  `justify-content: center`, `min-height`, padding and a radius from the
+  secondary-*button* utility — which centred the sticky-notes filter row and
+  made the chips jump left as soon as a "Clear filters" button appeared beside
+  them. Name modifiers for what they are (`.filters`, `.tools`), never for
+  where they sit. Enforced by `scripts/check-css-modifier-collisions.py`.
+- **Run all three CSS guards after touching sheet or sticky-note styling**:
+  `scripts/check-sticky-column.py`, `scripts/check-sticky-note-fonts.py`,
+  `scripts/check-css-modifier-collisions.py`. They encode three regressions
+  with one shared cause — a broad rule silently out-ranking a specific one —
+  which is invisible to TypeScript and to code review, and shows up only as a
+  rendering bug.

@@ -245,6 +245,77 @@ does not affect keyboard focus, so `:focus-within` still reveals them — and a
 `@media (hover: none)` block shows them unconditionally on touch, where
 hover-to-reveal means never.
 
+### Post-release fix: the chosen font stopped reaching checklist items
+
+Reported after release — a note set to Modern rendered its title and body in
+Modern but its checklist items in handwriting.
+
+Cause is in this task. Checklist items became `<button>`s so they could be
+ticked from the card, and a button does not inherit typography from its
+parent, so the new rule reset it:
+
+```css
+.sticky-check-list .check-item.tickable { font: inherit; /* … */ }
+```
+
+The `font` shorthand sets `font-family` as well. At (0,3,0) it out-ranks
+`.font-sans .check-item` at (0,2,0) — and because the theme applies the font to
+each themed *element* rather than to the card, `inherit` resolved to the card's
+own `font-family: 'Caveat'` base. So the items inherited the default while
+everything else honoured the user's choice.
+
+Fixed by resetting everything a button actually needs — size, weight, style,
+line-height, letter-spacing, colour — and leaving `font-family` to the
+`.font-*` rules that own it. All four fonts already list `.check-item` among
+their targets, so nothing is left unstyled.
+
+**Guard added:** `scripts/check-sticky-note-fonts.py` fails if any rule sets
+`font` or `font-family` on a themed sticky-note element with specificity above
+the `.font-*` theme rules. Verified by reintroducing the bug and watching it
+fail, then restoring.
+
+This is the same failure shape as the sheet's sticky-column regression in
+SCHOLARDOCX-0203: **a generic reset silently out-ranking a specific theme
+rule.** Both are now caught by a script rather than by a reviewer noticing.
+
+### Post-release fix: the filter chips jumped left when a tag was picked
+
+The colour swatches and tag chips sat centred, then snapped to the left edge
+the moment a filter was applied — the controls moving out from under the
+cursor as a direct result of using them.
+
+Cause: I named the second toolbar row's modifier `secondary`.
+
+`.secondary` is the app's **secondary-button utility** in `styles.css`, and it
+carries `justify-content: center` along with `display: inline-flex`,
+`min-height`, padding and a border-radius. `<div className="sticky-toolbar-row
+secondary">` inherited all of it, so the row was centred. Adding the "Clear
+filters" button with `margin-left: auto` then overrode the centring for layout
+purposes and everything slid left.
+
+Renamed to `.filters`, with an explicit `justify-content: flex-start` so the
+row is pinned left in both states and nothing moves when the clear button
+appears or disappears.
+
+**Guard added:** `scripts/check-css-modifier-collisions.py` fails if any class
+used as a local modifier is also a bare single-class utility in `styles.css` or
+`visual-refresh.css` that sets layout properties. Verified by reintroducing the
+name and watching it fail.
+
+### Three regressions, one root cause
+
+The sheet's sticky column, the checklist font, and this — all the same shape:
+**a broad rule silently winning over a specific one.** A global utility picked
+up by name, a `font: inherit` shorthand out-ranking a theme rule, a `> td`
+selector out-ranking a sticky cell's background. None are visible to
+TypeScript, none show up in review, and all three present only as a rendering
+bug in a browser this environment does not have.
+
+Three scripts now encode them: `check-sticky-column.py`,
+`check-sticky-note-fonts.py`, `check-css-modifier-collisions.py`. Each was
+verified by reintroducing the original bug and confirming it fails. Run all
+three after touching sheet or sticky-note styling.
+
 ## Follow-ups
 
 - **Link notes to applications, programs and professors.** The one deferred

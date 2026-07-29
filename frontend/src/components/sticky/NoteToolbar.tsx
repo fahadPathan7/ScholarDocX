@@ -96,7 +96,11 @@ export function NoteToolbar({
         </label>
       </div>
 
-      <div className="sticky-toolbar-row secondary">
+      {/* NOT `secondary` — that is the app's secondary-button utility in
+          styles.css, and it carries `justify-content: center`, which centred
+          this row until a "Clear filters" button appeared with
+          `margin-left: auto` and knocked it back to the left. */}
+      <div className="sticky-toolbar-row filters">
         <div className="sticky-color-filter" role="group" aria-label="Filter by colour">
           {NOTE_COLORS.map((color) => {
             const on = filter.color === color.key;

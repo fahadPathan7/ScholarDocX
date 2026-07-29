@@ -149,11 +149,21 @@ test-frontend-build: ## Verify frontend TypeScript compilation and build
 guard-billing: ## Verify every provider call charges the user
 	@python3 scripts/check-provider-call-billing.py
 
+# Static guard: living AI-Context must not name code that does not exist.
+# Context is read as instructions, so a stale symbol name is a defect that
+# propagates into code an agent writes (SCHOLARDOCX-0205).
+.PHONY: guard-context
+guard-context: ## Verify AI-Context references resolve to real code
+	@python3 scripts/check-context-drift.py
+
+.PHONY: guards
+guards: guard-billing guard-context ## Run every static guard
+
 # Full regression gate: billing guard + both test suites + frontend build. This
 # is the same command the CI workflow (.github/workflows/ci.yml) runs, so a
 # green `make check` locally means CI will be green too.
 .PHONY: check
-check: guard-billing test-backend test-frontend test-frontend-build ## Regression gate: guard + both suites + build (matches CI)
+check: guards test-backend test-frontend test-frontend-build ## Regression gate: guards + both suites + build (matches CI)
 
 # Alias for `check` — documents the exact command CI runs, in case you want to
 # reproduce a CI run locally without remembering the target name.

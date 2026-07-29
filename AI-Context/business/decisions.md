@@ -274,6 +274,52 @@ Implications:
 - Pricing levels are unaffected. This decision governs *whether* a call is
   billed, not *how much* — per-call prices stay admin-configurable.
 
+## BD-012: Context Is Verified, Not Trusted (SCHOLARDOCX-0205)
+
+Status: Accepted
+
+Decision:
+
+AI-DLC context is treated as code, not documentation. Three rules follow:
+
+1. **Every rule has exactly one home.** Other files link to it and never restate
+   it. A duplicated rule is a rule that will drift, and drifted copies give no
+   way to tell which is authoritative.
+2. **Living context must resolve.** Files under `business/`, `functional/`,
+   `technical/`, `workflows/`, plus `AI-Context/README.md`, `CODE_RULES.md`,
+   `AGENTS.md`, `CLAUDE.md`, and skills, describe the present and are corrected
+   whenever code moves. `make guard-context` fails the build when any of them
+   names a path, link, or symbol that does not exist.
+3. **Point-in-time files are never "corrected".** `jira-tasks/` and `planbook/`
+   record what was true when written. Editing them to match today falsifies the
+   decision trail, so the guard deliberately does not check them.
+
+Skills follow the same single-source rule: `.agents/skills/` holds the files and
+`.claude/skills/` + `.codex/skills/` are symlinks into it.
+
+Rationale:
+
+Context is read as instructions, so a wrong sentence does not sit harmlessly —
+it propagates into code the next agent writes and into conclusions a reviewer
+draws. The SCHOLARDOCX-0205 audit found `charge_ai_tokens` named 28 times across
+AGENTS.md and AI-Context; it had never existed. Three of the four "enforcement
+locations" the context prescribed were fictional. Four skills had drifted between
+agent trees, with the `.claude` and `.codex` copies still calling the database
+SQLite years into PostgreSQL — so Claude and Codex sessions were being handed the
+wrong stack. None of this was catchable by reading, because the prose was
+confident and internally consistent.
+
+Implications:
+
+- Adding a rule means choosing its home file, not adding a paragraph wherever it
+  seems useful.
+- A "BILLING ENFORCEMENT"-style assertion in context is a requirement, not
+  evidence. Verify at the call site before believing it — SCHOLARDOCX-0204 found
+  four such claims that were false in code.
+- When removing a claim, say what replaced it and cite the task. A bare deletion
+  invites the next agent to reinvent what was removed on purpose.
+- New skills go in `.agents/skills/` and are symlinked. Never copied.
+
 ## Pending Decisions
 
 - Final desktop/local delivery model: browser app with local backend vs packaged desktop shell.

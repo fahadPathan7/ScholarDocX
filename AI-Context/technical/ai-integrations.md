@@ -49,10 +49,12 @@ enforces both.
 - Google AI Studio Gemini API for optional chat, drafting, summarization, and
   rewriting fallback. (Research Expert embeddings moved off Gemini to Jina AI —
   see the Research Expert Vector Embeddings section below.)
-- Tavily API for real-time AI-chat web research and the separate filtered
-  Scholarship Hunt web-discovery workspace.
-- OpenRouter Free for generating a Scholarship Hunt query from structured
-  filter choices before the existing user-review step.
+- Tavily API for `/ai/research` web research and for Advisor Atlas source
+  discovery. (It no longer powers Scholarship Hunt — Brave replaced it in
+  SCHOLARDOCX-0175.)
+- OpenRouter for the Scholarship Hunt query planner, the relevance filter, and
+  the extraction fallback. (The user-review step it once fed was removed with
+  the Hunt Profile in SCHOLARDOCX-0178.)
 - **Research Expert (SCHOLARDOCX-0174)**:
   - Vector embeddings via the Jina AI REST API (`jina-embeddings-v4`, `task="text-matching"`, 1024 dimensions, batches of 16). No fallback provider.
   - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`, including the keyword section-boost pass, which is ranked by the same cosine distance so every relevance score shown to the user is measured rather than assumed.
@@ -82,27 +84,39 @@ Gemini support is built around free-tier local use:
 
 ## Integration Boundary
 
-All provider calls should happen in backend integration modules.
+All provider calls happen in the backend, never the browser — no provider key
+ever reaches the client.
 
-Suggested structure:
+The actual layout, which is **not** the per-provider package tree an earlier
+version of this file proposed (`backend/app/integrations/glm/` and siblings were
+never built):
 
 ```text
-backend/app/integrations/glm/
-backend/app/integrations/gemini/
-backend/app/integrations/tavily/
-backend/app/services/ai_assistant/
+backend/app/services/ai.py                    AiService — chat/research/summarize
+                                              for GLM, Gemini, Groq, Mistral
+backend/app/services/ai_tokens.py             billing for every provider
+backend/app/services/brave_search_service.py  Brave (Scholarship Hunt)
+backend/app/services/deep_hunt_query_planner.py   OpenRouter planner + relevance
+backend/app/services/scholarship_extraction.py    OpenRouter extraction fallback
+backend/app/services/advisor_atlas/openalex.py    OpenAlex client
+backend/app/services/research_paper_service.py    Jina embeddings
 ```
+
+Provider HTTP lives in a private method of the owning service (`_chat_with_glm`,
+`_tavily_search`, …). Billing does **not** live there — it belongs one level up,
+at the entry point that has the user and the session. See
+[billing-contract.md](billing-contract.md).
 
 ## Advisor Atlas
 
 - Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.2
   (default; override via `ADVISOR_ATLAS_GLM_MODEL`) for bounded structured
   extraction, fit analysis, dossier generation, and next-action guidance.
-- **BILLING ENFORCEMENT**: Advisor Atlas runs are flat-fee operations. The `/advisor-atlas/run-discovery` and `/advisor-atlas/request-update` endpoints MUST:
-  1. Check `can_use_advisor_atlas` gate BEFORE proceeding.
-  2. Check `advisor_atlas_searches_per_month` limit (General=3, Pro=10, Max=30) BEFORE proceeding.
-  3. Charge a flat fee via `charge_flat_fee(user, fee, session, category="advisor_atlas", operation_id=run_id)` at run start.
-  4. All internal Tavily searches and GLM/vision calls during the run consume the user's token balance. The flat fee covers the "search unit" but does NOT pre-pay the provider token costs—those are charged incrementally as the run progresses.
+- **BILLING**: a run is metered per call, not by a flat run fee or a monthly run
+  count. The `POST /advisor-atlas/runs` and candidate-refresh endpoints:
+  1. Check the `can_use_advisor_atlas` gate before proceeding.
+  2. Pre-flight with `ensure_can_spend` before any provider work.
+  3. Charge each provider call the run makes, as it makes it:
      - GLM chat + vision: **IMPLEMENTED** (`AiService.chat()`, `analyze_visual_source`).
      - OpenAlex: **IMPLEMENTED** (SCHOLARDOCX-0183, flat fee per metered call).
      - Tavily: **IMPLEMENTED (L5, SCHOLARDOCX-0204)** — `_tavily_search` charges
@@ -114,7 +128,12 @@ backend/app/services/ai_assistant/
        passes + deep research across up to 80 candidates). A run that cannot pay
        now raises `OutOfTokens` and fails rather than continuing to spend —
        Discovery's per-candidate `except Exception` re-raises it deliberately.
-  5. Background Advisor Atlas runs MUST load user context via `load_user_dict(user_id, session)` and charge that user's balance. There is no system bypass.
+  4. Background runs load the user with `load_user_dict(user_id, session)` and
+     charge that user. There is no system bypass.
+
+  > The old `advisor_atlas_searches_per_month` quota (General 3 / Pro 10 / Max
+  > 30) and the per-run flat fee were **removed in Phase 5** — credits replaced
+  > both. Context described them for a year afterwards. Metering is per call.
 - Advisor Atlas text and vision analysis omit provider output-token fields,
   matching standard AI chat behavior. Schema prompts, source compaction, and
   response validation bound the work without an arbitrary feature-level token
@@ -606,12 +625,14 @@ web-search ingredient so results actually match the goal:
     `plan()`.
 - **Field-of-study dimension**: extracted end-to-end. `fields_of_study` is
   part of the extraction schema (`scholarship_extraction.py`), persisted as
-  `scholarship_opportunities.fields_of_study_json`, unpacked by
-  `_with_parsed_fields`, and surfaced as a fit-score chip
-  (`✓ computer science` / `✗ not in your field`) in `computeFitScore`
-  (`frontend/src/lib/huntProfile.ts`). Matching is synonym-aware and uses
-  word-boundary token matching so short abbreviations (`cs`, `ai`, `me`) do
-  not leak into unrelated words (`cs` is no longer matched inside `classics`).
+  `scholarship_opportunities.fields_of_study_json`, and unpacked by
+  `_with_parsed_fields`. It feeds the backend relevance filter's synonym
+  matching.
+  - The frontend fit-score chip (`✓ computer science` / `✗ not in your field`)
+    and the `computeFitScore` helper it used were **removed with the Hunt
+    Profile** in SCHOLARDOCX-0178. Field matching now happens server-side in the
+    relevance filter, not in the browser. Do not rebuild the chip without
+    reopening that decision.
 - **Ranking**: `scholarship_opportunities` for a run are returned
   `ORDER BY relevance_score DESC` (then `updated_at DESC`), so on-topic
   results surface first instead of by update time.

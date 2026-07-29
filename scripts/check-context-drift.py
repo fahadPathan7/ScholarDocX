@@ -184,21 +184,24 @@ REMOVED_MARKERS = (
 )
 
 
-def is_removal_note(line: str) -> bool:
-    return any(marker in line.lower() for marker in REMOVED_MARKERS)
+def is_removal_note(block: str) -> bool:
+    return any(marker in block.lower() for marker in REMOVED_MARKERS)
 
 
 problems = []
 for doc in living_docs():
     rel = doc.relative_to(ROOT)
     text = doc.read_text()
-    lines = text.splitlines()
+    # Paragraph, not line. A removal note is usually a bullet or a struck-out
+    # block spanning several lines ("~~old claim~~\nSUPERSEDED: ..."), so a
+    # line-scoped check would miss the marker sitting one line away and force
+    # the doc to be reworded worse. A reference is drift only if it appears in
+    # at least one block that says nothing about being gone.
+    blocks = re.split(r"\n\s*\n", text)
 
-    def line_of(fragment: str) -> str:
-        for line in lines:
-            if fragment in line:
-                return line
-        return ""
+    def is_prescriptive(fragment: str) -> bool:
+        hits = [b for b in blocks if fragment in b]
+        return any(not is_removal_note(b) for b in hits) if hits else True
 
     for target in LINK_RE.findall(text):
         if target.startswith(("http://", "https://", "mailto:")):
@@ -209,7 +212,7 @@ for doc in living_docs():
     for candidate in PATHY_RE.findall(text):
         if any(p.endswith(candidate) for p in PATHS):
             continue
-        if is_removal_note(line_of(candidate)):
+        if not is_prescriptive(candidate):
             continue
         problems.append(f"  {rel}: names a file that does not exist -> {candidate}")
 
@@ -219,7 +222,7 @@ for doc in living_docs():
             continue
         if cls in VENDOR:
             continue  # third-party surface; not ours to verify
-        if is_removal_note(line_of(f"{cls}.{member}")):
+        if not is_prescriptive(f"{cls}.{member}"):
             continue
         if cls not in SYMBOLS:
             problems.append(f"  {rel}: unknown symbol -> {cls}.{member}")
@@ -231,7 +234,7 @@ for doc in living_docs():
             continue
         if name in SYMBOLS:
             continue
-        if is_removal_note(line_of(f"{name}(")):
+        if not is_prescriptive(f"{name}("):
             continue
         problems.append(f"  {rel}: unknown function -> {name}()")
 

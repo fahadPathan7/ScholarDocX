@@ -36,6 +36,34 @@ asks in that session. See [CODE_RULES.md](../CODE_RULES.md) Testing Rules.
 
 ## Backend Testing
 
+### Test database (Docker) — run tests against an isolated DB, never production
+
+Backend tests mutate the database (they create/delete users, projects, rows).
+The suite reads `DATABASE_URL` from the repo-root `.env` via
+`tests/conftest.py`, which — left to itself — points at the production Supabase
+database. To keep test data out of production, run the suite against a
+throwaway Docker Postgres instead:
+
+```bash
+make test-db-start    # Postgres + pgvector on localhost:5433
+make test-backend      # suite uses the Docker DB automatically
+make test-db-stop      # stop the container (keeps its data volume)
+make test-db-reset     # wipe and recreate the DB from scratch
+```
+
+How it works (SCHOLARDOCX-0209): `conftest.py` loads `.env` first, then loads
+`.env.test` with `override=True` if it exists. `make test-db-start` copies
+`.env.test.example` to `.env.test` on first run, so the Docker `DATABASE_URL`
+takes precedence over the prod value. Everything downstream — `Settings()`,
+`make_settings`, the autouse cleanup fixtures, and import-time
+`initialize_database()` — picks up the Docker URL through the single
+`settings.database_target` chokepoint. The schema creates itself on first test
+import; no manual setup is needed.
+
+`.env.test` is gitignored. If it is absent, the suite falls back to `.env`'s
+`DATABASE_URL` as before, so the change is backwards-compatible. Infra detail
+lives in `docker-compose.test.yml` (do not use it for dev or prod).
+
 Test:
 
 - Startup configuration.

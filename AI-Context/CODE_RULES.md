@@ -130,6 +130,30 @@ For every new feature or feature modification:
 
 ## Testing Rules
 
+### Test database: use the Docker DB, not production (SCHOLARDOCX-0209)
+
+Backend tests **must** run against the isolated Docker Postgres, never the
+production Supabase database. The canonical setup:
+
+```bash
+make test-db-start    # Postgres + pgvector on localhost:5433 (one-time)
+make test-backend
+```
+
+`backend/tests/conftest.py` loads `.env` first, then `.env.test` with
+`override=True` if it exists, so the Docker `DATABASE_URL` wins. `.env.test` is
+local and gitignored; `make test-db-start` creates it from `.env.test.example`.
+The schema self-creates on first import via `initialize_database()` — no manual
+setup. See `technical/testing-strategy.md` ("Test database (Docker)") for the
+mechanics and `docker-compose.test.yml` for the infra.
+
+**Critical fallback:** if `.env.test` is absent, the suite silently falls back
+to `.env`'s `DATABASE_URL` (production). Before running tests or assuming
+isolation, confirm `.env.test` exists. The snapshot/restore and scoped-run
+rules below remain mandatory whenever the suite is NOT on the Docker DB, and
+remain good practice even on it (mutations still cause test-to-test
+interference on shared global rows).
+
 - Each feature should include unit tests when it introduces meaningful behavior, data transformations, validation, persistence logic, or integration boundaries.
 - If unit tests are not needed for a feature, explain why in the Jira task.
 - Add tests around business-critical behavior, storage behavior, and data transformations.
@@ -153,20 +177,32 @@ rule below for which tests to run.
 ### STRICT: Run scoped tests, not the whole suite, for a single feature change
 
 This rule only applies once the user has explicitly asked you to run tests
-(see the rule above — never run tests on your own initiative). This backend
-suite runs against a real shared database with no ephemeral per-run isolation
-(see the strict rule below) — every additional test file in a verification
-run is more real network round trips, more runtime, and more surface area for
-the shared-state races described below. When asked to verify one feature,
-run only the test file(s) that cover that feature (and any file whose
-behavior you directly changed). Do not run the entire backend or frontend
-suite "to be safe" — a full run is expensive on this database and is the
-user's call to make. Run the full suite only when the user explicitly asks
-for it (e.g. "run everything," "run the whole suite").
+(see the rule above — never run tests on your own initiative). When asked to
+verify one feature, run only the test file(s) that cover that feature (and any
+file whose behavior you directly changed). Do not run the entire backend or
+frontend suite "to be safe" — a full run is the user's call to make. Run the
+full suite only when the user explicitly asks for it (e.g. "run everything,"
+"run the whole suite"). (This rule predates the Docker test DB — it dates from
+when the suite ran on a shared remote database over the network and a full run
+was slow. On the Docker DB it is less load-bearing, but it is still good
+discipline for fast, focused verification.)
 
 ### STRICT: Never permanently mutate shared/global state for a test (SCHOLARDOCX-0178 incident)
 
-This backend test suite runs against a real, shared database (`tests/conftest.py` loads the project's own `.env`/`DATABASE_URL` — there is no separate ephemeral test database). Per-user rows are fine to create and clean up (see `cleanup_user_records`), but tables that hold **global, admin-configured, shared** state — `app_settings`, `role_limits`, `ai_models`, `ai_token_packs`, and anything else with no `user_id` scoping — are a different category entirely: a write there is not test data, it is a live change to the running application, visible to every real user, until something changes it back.
+The backend test suite runs against the Docker Postgres by default (see the
+"Test database" rule above). When `.env.test` is present, a write to a global
+table affects only the local Docker DB and never reaches production — but it
+**persists across test runs and across files** (there is no per-test
+transaction rollback), so it still causes test-to-test interference unless
+snapshot/restored. When `.env.test` is **absent** (the production fallback),
+the danger is severe: `tests/conftest.py` then loads the project's own
+`.env`/`DATABASE_URL`, so a write to a global table is a live change to the
+production database, visible to every real user until something changes it
+back. Per-user rows are fine to create and clean up (see
+`cleanup_user_records`), but tables that hold **global, admin-configured,
+shared** state — `app_settings`, `role_limits`, `ai_models`, `ai_token_packs`,
+and anything else with no `user_id` scoping — are a different category
+entirely.
 
 This is not hypothetical. It happened: a test inserted `app_settings.brave_call_cost_per_hit_usd = '0.025'` and another set `jina_call_cost_usd = '0.02'` to exercise an "admin override" code path, asserted against it, and never restored the row — both stayed corrupted in the live database indefinitely (silently overcharging real users) until caught by inspecting the Admin panel. Separately, a test zeroed out `role_limits.can_use_advisor_atlas` for **every role** (including `pro_user`, whose real default is `1`) to test a fallback message, and two more tests each zeroed a `general_admin` permission (`admin_manage_password_resets`, `admin_manage_plan_requests`) — none restored their rows, so real Pro users lost Advisor Atlas access and real general-admins lost those permissions in production until caught and fixed.
 

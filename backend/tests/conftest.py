@@ -10,10 +10,19 @@ sys.path.insert(0, str(ROOT))
 # SCHOLARDOCX-0139: load the repo-root .env so DATABASE_URL (and Supabase
 # Storage keys) are available to every test, including unit tests that build
 # Settings directly via make_settings. WARNING: most tests CREATE and DELETE
-# users/projects/rows, so they mutate whatever DATABASE_URL points at. Do not
-# point this at a production database — use a separate dev/test Supabase
-# project or a local Postgres instance for the test run.
+# users/projects/rows, so they mutate whatever DATABASE_URL points at.
+#
+# SCHOLARDOCX-0209: prefer a dedicated test database so the suite never
+# touches the production/Supabase DATABASE_URL. If .env.test exists (a local,
+# gitignored file — copy .env.test.example), it is loaded with override=True
+# so its DATABASE_URL wins over the prod value from .env. The canonical
+# throwaway DB is brought up by `make test-db-start` (docker-compose.test.yml,
+# Postgres + pgvector on port 5433). If .env.test is absent, behavior is
+# unchanged: the suite uses .env's DATABASE_URL as before.
 load_dotenv(ROOT.parent / ".env")
+TEST_ENV = ROOT.parent / ".env.test"
+if TEST_ENV.exists():
+    load_dotenv(TEST_ENV, override=True)
 
 
 @pytest.fixture(autouse=True)

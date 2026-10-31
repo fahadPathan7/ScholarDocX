@@ -36,12 +36,14 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
+/* Left-aligned to share the axis with the day numbers below (the cells pad
+   8px and start their number flush left). */
 .calendar-weekdays span {
   color: #65756d;
   font-size: 12px;
   font-weight: 700;
-  padding: 0 4px;
-  text-align: center;
+  padding: 0 8px;
+  text-align: left;
 }
 
 .calendar-day {
@@ -70,17 +72,20 @@
   border-color: #79a895;
 }
 
+/* Matches the event-count pill (.calendar-day strong) so a today cell with
+   events doesn't show two mismatched teal pills. */
 .calendar-day.today > span:first-child {
   align-items: center;
   background: #2f6d7a;
   border-radius: 999px;
   color: #ffffff;
   display: inline-flex;
+  font-size: 12px;
   font-weight: 700;
-  height: 28px;
   justify-content: center;
-  min-width: 28px;
-  padding: 0 7px;
+  line-height: 1;
+  min-width: 24px;
+  padding: 5px 7px;
 }
 
 .calendar-day.muted {
@@ -164,6 +169,7 @@
 }
 
 .calendar-event-actions {
+  align-items: center;
   display: flex;
   flex-direction: column;
   gap: 4px;

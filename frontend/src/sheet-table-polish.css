@@ -2,7 +2,9 @@
   --sheet-row-height: 34px;
   --sheet-cell-lines: 1;
   --sheet-cell-line-height: 1.3;
-  --sheet-index-width: 64px;
+  /* Single source of truth for the row-index column. The header cell used to
+     carry an inline 40px that silently beat this var under table-layout:fixed. */
+  --sheet-index-width: 40px;
 }
 
 .sheet-scroll {
@@ -301,8 +303,8 @@
 
 .sheet-cell-viewer-actions .secondary {
   gap: 7px;
-  min-height: 34px;
-  padding: 8px 12px;
+  min-height: 32px;
+  padding: 7px 12px;
 }
 
 .sheet-cell-viewer-content {
@@ -796,8 +798,18 @@
 }
 
 .selection-toolbar-actions {
+  align-items: center;
   display: flex;
   gap: 6px;
+}
+
+/* The "Fill values" menu trigger shares the bar with .sel-action-btn pills —
+   match their metrics so one control system reads across the row. */
+.selection-toolbar-actions .sheet-btn {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
 }
 
 /* Action buttons — compact pill style */

@@ -170,7 +170,7 @@ export function CsvImportModal({
                       <tr key={h}>
                         <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>{h}</td>
                         <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                          <ArrowRight size={14} />
+                          <ArrowRight size={14} style={{ display: 'block', margin: '0 auto' }} />
                         </td>
                         <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
                           <select 
@@ -197,7 +197,7 @@ export function CsvImportModal({
           )}
         </div>
         
-        <div className="modal-footer" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+        <div className="modal-footer" style={{ marginTop: '24px' }}>
           <button className="secondary" onClick={onClose} disabled={importing}>Cancel</button>
           <button 
             className="primary" 

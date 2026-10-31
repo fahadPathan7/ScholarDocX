@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import { CalendarDays, FileText, FolderOpen, X } from "lucide-react";
 import { CalendarMonthView } from "./CalendarMonthView";
 import { Section } from "./Section";
+import { Modal } from "./Modal";
 import { AddReminderModal } from "./AddReminderModal";
 import { api, deleteRecord, updateRecord, RecordMap, API_BASE } from "../lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "../lib/date";
@@ -112,7 +113,7 @@ export function DashboardView({
         </button>
 
         {isCalendarOpen ? (
-          <div className="modal-backdrop" onClick={() => setIsCalendarOpen(false)}>
+          <Modal onClose={() => setIsCalendarOpen(false)}>
             <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
               <div className="modal-header">
                 <h2>Project Calendar</h2>
@@ -140,7 +141,7 @@ export function DashboardView({
                 />
               </div>
             </div>
-          </div>
+          </Modal>
         ) : null}
       </Section>
 

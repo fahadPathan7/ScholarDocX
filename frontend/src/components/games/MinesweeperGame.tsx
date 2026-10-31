@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Flag, RotateCcw } from "lucide-react";
+import { Bomb, BookOpen, Flag, RotateCcw } from "lucide-react";
 import { GameRulesModal } from "./GameRulesModal";
 import {
   canChord,
@@ -163,10 +163,13 @@ export function MinesweeperGame() {
                   cell.flagged ? ", flagged" : cell.revealed ? `, ${cell.mine ? "mine" : cell.adjacent}` : ", hidden"
                 }`}
               >
+                {/* Lucide glyphs instead of ⚑/✳ characters — the emoji
+                    presentation ignored the flagged-cell colour and sat on a
+                    different baseline than the adjacent-count digits. */}
                 {cell.flagged && !cell.revealed
-                  ? "⚑"
+                  ? <Flag size={13} />
                   : cell.revealed
-                    ? cell.mine ? "✳" : cell.adjacent || ""
+                    ? cell.mine ? <Bomb size={13} /> : cell.adjacent || ""
                     : ""}
               </button>
             )),

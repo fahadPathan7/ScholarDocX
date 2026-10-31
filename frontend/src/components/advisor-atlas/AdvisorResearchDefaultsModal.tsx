@@ -85,7 +85,7 @@ export function AdvisorResearchDefaultsModal({
             <X size={20} />
           </button>
         </div>
-        <div className="modal-content" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="modal-content stacked">
           {error && <p className="empty" style={{ color: "#c0392b" }}>{error}</p>}
           <p className="profile-system-hint" style={{ margin: 0 }}>
             Used for every Advisor Atlas search you start — there's no
@@ -109,7 +109,9 @@ export function AdvisorResearchDefaultsModal({
             />
           </label>
           <div>
-            <span style={{ display: "block", marginBottom: "8px", fontWeight: 600, fontSize: "13px" }}>
+            {/* .field-label so this heading matches the "Degree target" /
+                "Intended intake" labels above it (same size, weight, color). */}
+            <span className="field-label">
               Research interests
             </span>
             <div className="atlas-interests-list">
@@ -144,7 +146,7 @@ export function AdvisorResearchDefaultsModal({
             </div>
           </div>
         </div>
-        <div className="modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap" }}>
+        <div className="modal-footer">
           <button className="secondary" type="button" onClick={onClose}>
             Cancel
           </button>

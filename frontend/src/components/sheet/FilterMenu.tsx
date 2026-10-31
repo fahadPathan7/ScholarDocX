@@ -67,16 +67,16 @@ export function FilterMenuContent({
 
       {col.type === 'number' ? (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <input type="number" placeholder="Min" value={numMin} onChange={e => setNumMin(e.target.value)} style={{ width: '80px', padding: '4px' }} />
+          <input type="number" placeholder="Min" value={numMin} onChange={e => setNumMin(e.target.value)} style={{ width: '80px', padding: '4px', height: '28px', boxSizing: 'border-box' }} />
           <span>-</span>
-          <input type="number" placeholder="Max" value={numMax} onChange={e => setNumMax(e.target.value)} style={{ width: '80px', padding: '4px' }} />
+          <input type="number" placeholder="Max" value={numMax} onChange={e => setNumMax(e.target.value)} style={{ width: '80px', padding: '4px', height: '28px', boxSizing: 'border-box' }} />
         </div>
       ) : col.type === 'select' || col.type === 'bool' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '150px', overflowY: 'auto' }}>
           {valueOptions.length === 0 ? (
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No values yet.</span>
           ) : valueOptions.map(opt => (
-            <label key={opt} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+            <label key={opt} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px' }}>
               <input
                 type="checkbox"
                 checked={selValues.has(opt)}
@@ -138,7 +138,7 @@ export function FilterMenuContent({
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-        <button className="text-button danger" onClick={onClear} style={{ fontSize: '12px', padding: '4px 8px' }}>Clear</button>
+        <button className="text-button danger" onClick={onClear} style={{ fontSize: '12px' }}>Clear</button>
         <button className="primary" onClick={handleApply} style={{ fontSize: '12px', padding: '0 14px', height: '28px', minHeight: '28px', borderRadius: '6px' }}>Apply</button>
       </div>
     </>

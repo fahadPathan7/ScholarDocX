@@ -422,7 +422,7 @@ export function ProfileView({
               <User size={16} className="text-indigo-500" />
               <strong>Personal Information</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
+            <p className="profile-system-hint">
               Update your name, timezone, email preferences, and profile avatar.
             </p>
             <div className="profile-actions-stack">
@@ -443,7 +443,7 @@ export function ProfileView({
               <Bell size={16} className="text-amber-500" />
               <strong>Notification Preferences</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
+            <p className="profile-system-hint">
               Control what email alerts and system notifications you receive.
             </p>
             <div className="profile-actions-stack">
@@ -459,7 +459,7 @@ export function ProfileView({
               <ShieldCheck size={16} className="text-rose-500" />
               <strong>Change Password</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "12px" }}>
+            <p className="profile-system-hint">
               Changing your password will log you out of all devices.
             </p>
             <div className="profile-actions-stack">
@@ -479,7 +479,7 @@ export function ProfileView({
                 <Sparkles size={16} className={planCardTone.iconClass} />
                 <strong>Subscription & Plans</strong>
               </div>
-              <p className={`profile-system-hint ${planCardTone.hintClass}`} style={{ marginTop: 0, marginBottom: "8px" }}>
+              <p className={`profile-system-hint ${planCardTone.hintClass}`}>
                 {planHintText}
               </p>
               {(user?.plan_started_at || user?.plan_ends_at || user?.plan_renews_at || user?.polar_subscription_id) && (
@@ -577,7 +577,7 @@ export function ProfileView({
               <Zap size={16} className="text-violet-500" />
               <strong>Usage & AI Models</strong>
             </div>
-            <p className="profile-system-hint" style={{ marginTop: 0, marginBottom: "0" }}>
+            <p className="profile-system-hint">
               Monitor workspace resource usage and explore available AI models.
             </p>
             <div className="profile-actions-stack">

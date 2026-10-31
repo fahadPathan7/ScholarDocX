@@ -144,7 +144,7 @@ export function RowPeekPanel({
               </div>
             ) : null}
             <button className="secondary compact" onClick={onEdit} title="Edit this record">
-              <Edit size={14} style={{ marginRight: '4px' }} /> Edit
+              <Edit size={14} /> Edit
             </button>
             <button className="icon-button compact" onClick={onClose} title="Close">
               <X size={18} />

@@ -59,7 +59,7 @@ export function EmailConfigModal({
             <X size={20} />
           </button>
         </div>
-        <div className="modal-content" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="modal-content stacked">
           <label className="field">
             <span>"To" Address Column</span>
             <select name="toColumn" defaultValue={initialTo} disabled={isBachelors}>
@@ -84,7 +84,7 @@ export function EmailConfigModal({
             </select>
           </label>
         </div>
-        <div className="modal-footer" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap" }}>
+        <div className="modal-footer">
           <button className="secondary" type="button" onClick={onClose}>
             Cancel
           </button>

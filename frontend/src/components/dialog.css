@@ -150,11 +150,11 @@
   box-shadow: 0 0 0 3px rgba(23, 32, 29, 0.08);
 }
 
-/* Dialog actions layout */
+/* Dialog actions layout — 12px gap to match the shared .modal-footer. */
 .custom-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   padding: 16px 24px;
   background: rgba(23, 32, 29, 0.02);
   border-top: 1px solid rgba(23, 32, 29, 0.05);

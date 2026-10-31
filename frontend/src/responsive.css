@@ -781,18 +781,15 @@ main > div {
 
 /* NOTE (SCHOLARDOCX-0171): The original block targeted `.notes-grid`, but
    StickyNotesView.tsx renders `.sticky-card-grid`. The mismatch made the
-   width/grid overrides inert. Selector corrected below. */
+   width overrides inert. Selector corrected below. The grid-template/gap
+   overrides were also dropped: the board is a CSS-columns masonry by design
+   (see sticky-notes.css), and grid properties never applied to it. */
 
 @media (max-width: 1450px) {
   .sticky-notes-view,
   .sticky-card-grid {
     min-width: 0 !important;
     width: 100% !important;
-  }
-
-  .sticky-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
-    gap: 14px !important;
   }
 }
 

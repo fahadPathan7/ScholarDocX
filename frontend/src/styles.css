@@ -129,6 +129,33 @@ nav button:hover {
   min-height: 16px;
 }
 
+/* Locked-plan nav items: dimmed entry with the lock pushed to the row's end. */
+nav button.nav-locked {
+  opacity: 0.55;
+}
+
+nav button .nav-lock-icon {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+/* Full-page tab wrappers (About / Plans / Buy credits / Admin) share one
+   canvas treatment instead of diverging per-instance inline styles. */
+.tab-page {
+  flex: 1;
+  min-height: 0;
+  background: #f8fafc;
+}
+
+.tab-page--scroll {
+  overflow-y: auto;
+}
+
+.tab-page--column {
+  display: flex;
+  flex-direction: column;
+}
+
 .notification-badge {
   background: #e74c3c;
   border-radius: 10px;
@@ -275,6 +302,22 @@ h2 {
   min-height: 32px;
   padding: 7px;
   width: 32px;
+}
+
+/* Text-button companion to .icon-button.compact so header rows can pair a
+   labelled action with an icon action at the same height. */
+.secondary.compact {
+  min-height: 32px;
+  padding: 7px 12px;
+}
+
+/* Borderless inline action used inside popover footers ("Clear", "Clear all"). */
+.text-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 8px;
 }
 
 .status-line {
@@ -905,8 +948,11 @@ h2 {
   grid-column: span 1 !important;
 }
 
+/* SCHOLARDOCX-0213: 3 columns, not 4 — the only consumer
+   (ProjectDashboard) renders exactly three tiles and the fourth track sat
+   empty. */
 .metric-grid.compact-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric-card,
@@ -1096,6 +1142,16 @@ h2 {
   color: #46534d;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* Same label treatment as .field span, for control groups that don't use the
+   .field wrapper (e.g. multi-row lists inside advisor modals). */
+.field-label {
+  color: #46534d;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .field textarea,
@@ -1881,11 +1937,13 @@ h2 {
   opacity: 0.85;
 }
 
+/* Unread accent painted with an inset shadow (same technique as the sticky
+   overdue cards) so the border width never changes between states — a 2px/4px
+   border made the text jump sideways the moment an item was marked read. */
 .notification-item:not(.read) {
   background: linear-gradient(135deg, rgba(47, 109, 122, 0.04), rgba(61, 138, 154, 0.03));
-  border: 2px solid #2f6d7a;
-  border-left: 4px solid #2f6d7a;
-  box-shadow: 0 2px 8px rgba(47, 109, 122, 0.08);
+  border-color: #2f6d7a;
+  box-shadow: inset 3px 0 0 #2f6d7a, 0 2px 8px rgba(47, 109, 122, 0.08);
 }
 
 .notification-item:not(.read):hover {
@@ -2905,13 +2963,52 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   min-height: 0;
 }
 
+/* Stacked variant for modals that hand-rolled the same flex-column layout
+   inline (Email config, research defaults, create sheet). */
+.modal-content.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .modal-footer {
   padding: 16px 24px;
   border-top: 1px solid #d8d0c4;
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
   background: #fbfaf7;
+}
+
+/* Shared callout box for modals (description strips, tips). Replaces the
+   per-modal inline borderLeft/backgroundColor boxes that drifted apart. */
+.modal-callout {
+  align-items: flex-start;
+  border-left: 3px solid var(--accent-teal, #2f6d7a);
+  background: rgba(47, 109, 122, 0.06);
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.modal-callout.is-tip {
+  border-left-color: #d99a3d;
+  background: rgba(217, 154, 61, 0.08);
+  padding: 10px 12px;
+}
+
+.modal-callout p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.modal-callout--plain p {
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
 /* ================================================================ */
@@ -2953,6 +3050,7 @@ td.collapsed-cell {
   color: #65756d;
   display: flex;
   align-items: center;
+  gap: 4px;
 }
 
 .breadcrumb-item.clickable {

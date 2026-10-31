@@ -487,7 +487,7 @@ function AuditLogsTab() {
             <tbody className="divide-y divide-slate-100/50">
               {visibleLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><Clock size={12} className="inline mr-1" />{new Date(log.created_at).toLocaleString("en-GB")}</td>
+                  <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><span className="admin-dashboard-time"><Clock size={12} />{new Date(log.created_at).toLocaleString("en-GB")}</span></td>
                   <td className="px-6 py-4 font-medium text-slate-700">{log.user_email || log.user_id}</td>
                   <td className="px-6 py-4">
                     <span className="inline-flex px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded capitalize">{log.action.replace('_', ' ')}</span>
@@ -786,8 +786,10 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
     tabs.push({ id: "info", label: "Info", icon: Info });
   }
 
+  // No fixed height: the wrapper flexes inside the tab page; a 100dvh
+  // child overflowed the work surface and the bottom padding was clipped.
   return (
-    <div id="admin-view-root" className="profile-page w-full flex-1 min-h-0 flex flex-col relative overflow-hidden" style={{ margin: 0, height: '100dvh', maxWidth: 'none', padding: '0 24px 24px' }}>
+    <div id="admin-view-root" className="profile-page w-full flex-1 min-h-0 flex flex-col relative overflow-hidden" style={{ margin: 0, height: '100%', maxWidth: 'none', padding: '0 24px 24px' }}>
 
       {/* Hero — Admin Header */}
       <div className="profile-hero-wrapper" style={{ marginTop: '24px' }}>

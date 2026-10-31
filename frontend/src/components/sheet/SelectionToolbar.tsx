@@ -117,7 +117,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                 <SheetMenuLabel>Set every selected row to</SheetMenuLabel>
                 {suggestions.length ? (
                   suggestions.map((value) => (
-                    <SheetMenuItem key={value} onClick={() => { onSetColumnValue!(target, value); close(); }}>
+                    <SheetMenuItem key={value} icon={<span />} onClick={() => { onSetColumnValue!(target, value); close(); }}>
                       {value}
                     </SheetMenuItem>
                   ))

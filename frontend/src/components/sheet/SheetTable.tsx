@@ -508,14 +508,14 @@ export function SheetTable({
               <button className="icon-button" style={{ padding: '2px' }} onClick={() => onRemoveFilter(f.column)} title={`Remove ${f.column} filter`}><X size={12}/></button>
             </div>
           ))}
-          <button className="text-button" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={onClearFilters}>Clear all</button>
+          <button className="text-button" style={{ fontSize: '12px' }} onClick={onClearFilters}>Clear all</button>
         </div>
       )}
 
       <table className="sheet-table grouped-table" style={fullScreenMode ? { fontSize: '11px' } : {}}>
         <thead>
           <tr>
-            <th className="row-index-header" style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '0' }}>
+            <th className="row-index-header" style={{ textAlign: 'center', padding: '0' }}>
               <input
                 type="checkbox"
                 className="row-checkbox"

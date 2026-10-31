@@ -528,6 +528,9 @@
 }
 
 .doc-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   grid-area: actions;
   flex-wrap: nowrap;
   justify-content: flex-end;

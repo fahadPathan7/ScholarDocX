@@ -59,7 +59,10 @@ export function SheetToolbarActions({
   bulkRowCellStyle: (rowIndices: number[], patch: CellStyle) => void;
   bulkClearRowFormatting: (rowIndices: number[]) => void;
 }) {
-  const btnStyle: React.CSSProperties = { fontSize: '11px', padding: '4px 10px' };
+  // minHeight keeps these header actions on the same 30px rail as the cell
+  // style bar; without it the base .secondary min-height (40px) wins and the
+  // tiny 11px label floats in an oversized button.
+  const btnStyle: React.CSSProperties = { fontSize: '11px', padding: '4px 10px', minHeight: '30px' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', flexShrink: 0 }}>
@@ -77,9 +80,9 @@ export function SheetToolbarActions({
             : {};
 
           return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px', maxWidth: '100%', minWidth: 0, overflowX: 'auto', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '100%', minWidth: 0, overflowX: 'auto', flexShrink: 0 }}>
               {hasSelection && (
-                <span className="format-rail-scope" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
+                <span className="format-rail-scope">
                   Applying to {targetRows.length} selected row{targetRows.length > 1 ? "s" : ""}
                 </span>
               )}

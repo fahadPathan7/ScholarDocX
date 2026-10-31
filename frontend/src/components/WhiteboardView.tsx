@@ -844,8 +844,12 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
       handleMinimapPointerDown(e);
     };
 
+    // The minimap is positioned inside .wb-canvas-dummy, which is itself
+    // already offset by the properties panel (right: 260px / 0). Only the
+    // gap to the canvas edge belongs here — adding the panel width again
+    // parked the map 280px off the panel.
     return (
-      <div className="wb-floating-minimap" style={{ right: isPanelOpen ? 280 : 20 }}>
+      <div className="wb-floating-minimap" style={{ right: 20 }}>
         <svg 
           viewBox={vBox} 
           preserveAspectRatio="none"
@@ -915,7 +919,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     if (isLoadingBoards) {
       return (
         <div className="whiteboard-view" style={{ justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ color: 'var(--wb-text-dim)' }}>Loading boards...</div>
+          <div style={{ color: 'var(--wb-text-muted)' }}>Loading boards...</div>
         </div>
       );
     }
@@ -1035,9 +1039,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
           </div>
           <div className="wb-prop-row" style={{ marginTop: 16 }}>
             <span className="wb-prop-label">Style</span>
-          </div>
-          <div>
-            <select className="wb-select" value={currentProps.style} onChange={e => updateProp("style", e.target.value)}>
+            <select className="wb-select" style={{ width: 110 }} value={currentProps.style} onChange={e => updateProp("style", e.target.value)}>
               <option value="Solid">Solid</option>
               <option value="Dashed">Dashed</option>
               <option value="Dotted">Dotted</option>
@@ -1090,7 +1092,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
                   cursor: 'pointer',
                   fontSize: 13,
                   background: b.id === activeBoardId ? 'var(--wb-input-bg)' : 'transparent',
-                  color: b.id === activeBoardId ? 'var(--wb-text-main)' : 'var(--wb-text-dim)',
+                  color: b.id === activeBoardId ? 'var(--wb-text-main)' : 'var(--wb-text-muted)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,

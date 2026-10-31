@@ -192,7 +192,10 @@
   gap: 14px 16px;
 }
 
-.auth-form.auth-form-horizontal .auth-submit {
+.auth-form.auth-form-horizontal .auth-submit,
+.auth-form.auth-form-horizontal .auth-loading-note,
+.auth-form.auth-form-horizontal .auth-divider,
+.auth-form.auth-form-horizontal .auth-google-wrapper {
   grid-column: 1 / -1;
 }
 

@@ -122,7 +122,7 @@ export function CalendarMonthView({ events, empty, focusDate, scopeLabel, onEven
                     <div className="calendar-event-actions">
                       {onEditReminder && (
                         <button
-                          className="icon-button"
+                          className="icon-button compact"
                           type="button"
                           onClick={() => onEditReminder(event)}
                           title="Edit reminder"
@@ -132,7 +132,7 @@ export function CalendarMonthView({ events, empty, focusDate, scopeLabel, onEven
                       )}
                       {onDeleteReminder && (
                         <button
-                          className="icon-button calendar-event-delete"
+                          className="icon-button compact calendar-event-delete"
                           type="button"
                           onClick={() => onDeleteReminder(event)}
                           title="Delete reminder"

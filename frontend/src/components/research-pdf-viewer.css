@@ -292,7 +292,10 @@
 }
 
 @media (max-width: 900px) {
-  .research-pdf-modal {
+  /* Compound selector on purpose — the base rule is also compound
+     (.modal-panel.research-pdf-modal), and a single-class media override
+     silently lost to it on specificity. */
+  .modal-panel.research-pdf-modal {
     width: min(100%, calc(100vw - 24px));
     height: calc(100dvh - 56px);
   }

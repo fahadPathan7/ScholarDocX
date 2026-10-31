@@ -848,7 +848,7 @@ export function ResearchExpertView({
             <div>
               <h3>Library ({papers.length} / {maxLibraryLimit})</h3>
               {papers.length >= maxLibraryLimit && (
-                <span className="text-[11px] font-semibold text-amber-600 block mt-0.5">
+                <span className="library-full-warning">
                   Full ({papers.length}/{maxLibraryLimit}) — Delete to add new
                 </span>
               )}
@@ -997,8 +997,8 @@ export function ResearchExpertView({
                 <div className="active-paper-info min-w-0">
                   <h2>{activePaper.title}</h2>
 
-                  <p className="active-paper-authors flex items-center gap-1.5">
-                    <Users size={14} className="shrink-0 text-slate-500" />
+                  <p className="active-paper-authors">
+                    <Users size={14} />
                     <span><strong>Authors:</strong> {formatAuthorsDisplay(activePaper.authors)}</span>
                   </p>
 

@@ -13,9 +13,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 12% 18%, rgba(52, 127, 120, 0.06) 0%, transparent 42%),
-    radial-gradient(circle at 88% 82%, rgba(71, 126, 165, 0.055) 0%, transparent 42%),
-    linear-gradient(180deg, #fbfdf9 0%, #eff6f3 50%, #f6f8f1 100%);
+    radial-gradient(circle at 10% 12%, rgba(52, 127, 120, 0.09) 0%, transparent 40%),
+    radial-gradient(circle at 90% 30%, rgba(99, 102, 241, 0.05) 0%, transparent 42%),
+    radial-gradient(circle at 85% 85%, rgba(71, 126, 165, 0.06) 0%, transparent 42%),
+    linear-gradient(180deg, #fbfdf9 0%, #eef5f1 45%, #f4f8f2 100%);
   color: var(--ui-ink);
   font-family: var(--font-body);
   scroll-behavior: smooth;
@@ -38,16 +39,23 @@
 
 
 /* ---------- Section titles ---------- */
+/* Gradient ink treatment shared by every section header, so Features /
+   Pricing / FAQ read as one system (SCHOLARDOCX-0215). */
 .lp-section-title {
   font-size: clamp(26px, 3.4vw, 34px);
   font-weight: 800;
   text-align: center;
   margin-bottom: 12px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--ui-ink);
+  text-wrap: balance;
 }
 
 .lp-section-title span {
+  background: linear-gradient(120deg, var(--ui-primary, #347f78) 10%, #4f9dbe 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: var(--ui-primary, #347f78);
 }
 
@@ -60,6 +68,7 @@
   margin-left: auto;
   margin-right: auto;
   line-height: 1.6;
+  text-wrap: pretty;
 }
 
 /* ---------- Scroll-reveal system ---------- */
@@ -87,6 +96,21 @@
   z-index: 0;
 }
 
+/* ---------- Fine grid texture (hero / closing banner backdrop) ---------- */
+/* Reads as a subtle "graph paper" horizon behind dark sections. */
+.lp-grid-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
+}
+
 /* ---------- Keyframes ---------- */
 @keyframes lp-float {
   0%, 100% { transform: translateY(0); }
@@ -108,6 +132,12 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Slow aurora drift for hero glow orbs — translate only (compositor-cheap). */
+@keyframes lp-aurora-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4%, -3%) scale(1.08); }
+}
+
 /* ---------- Reduced motion: disable all decorative animation ---------- */
 @media (prefers-reduced-motion: reduce) {
   .lp-container { scroll-behavior: auto; }
@@ -117,4 +147,5 @@
     transition: none !important;
   }
   .lp-float, .lp-float-slow { animation: none !important; }
+  .lp-aurora-drift { animation: none !important; }
 }

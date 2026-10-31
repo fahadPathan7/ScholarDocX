@@ -9,7 +9,8 @@ export function ClosingCta() {
   return (
     <section className="lp-closing-cta-section">
       <div className="lp-closing-cta reveal" ref={ref}>
-        <div className="lp-closing-glow" />
+        <div className="lp-grid-texture" aria-hidden="true" />
+        <div className="lp-closing-glow" aria-hidden="true" />
         <h2>Ready to organize your applications?</h2>
         <p>
           Join scholars building a focused, private, AI-assisted application

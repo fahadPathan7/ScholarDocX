@@ -13,11 +13,14 @@
   padding: 64px 32px;
   text-align: center;
   background:
-    radial-gradient(circle at 20% 20%, rgba(71, 126, 165, 0.35) 0%, transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(52, 127, 120, 0.4) 0%, transparent 55%),
-    linear-gradient(135deg, #0f2b27 0%, #143a35 100%);
+    radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
+    radial-gradient(circle at 82% 82%, rgba(47, 125, 116, 0.42) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 50% 110%, rgba(125, 216, 192, 0.14) 0%, transparent 60%),
+    linear-gradient(135deg, #051a17 0%, #0d2f28 100%);
   color: white;
-  box-shadow: 0 24px 60px rgba(15, 43, 39, 0.25);
+  box-shadow:
+    0 24px 60px rgba(6, 26, 22, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .lp-closing-glow {
@@ -27,23 +30,26 @@
   transform: translateX(-50%);
   width: 600px;
   height: 400px;
-  background: radial-gradient(circle, rgba(125, 194, 144, 0.18) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(125, 216, 192, 0.2) 0%, transparent 60%);
   pointer-events: none;
 }
 
 .lp-closing-cta h2 {
   position: relative;
+  z-index: 1;
   font-size: clamp(26px, 3.6vw, 36px);
   font-weight: 850;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   margin-bottom: 14px;
+  text-wrap: balance;
 }
 
 .lp-closing-cta p {
   position: relative;
+  z-index: 1;
   font-size: 15px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(230, 241, 236, 0.82);
   max-width: 520px;
   margin: 0 auto 30px;
 }

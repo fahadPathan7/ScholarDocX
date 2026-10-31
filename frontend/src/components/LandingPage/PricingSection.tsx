@@ -14,7 +14,12 @@ import {
   type TierKey,
   type ResolvedFeature,
 } from "./plans-data";
-import { STATIC_PLANS, STATIC_PRICING } from "./plan-defaults";
+import {
+  isPricingConfigured,
+  STATIC_PLANS,
+  STATIC_PRICING,
+  withConfiguredPricing,
+} from "./plan-defaults";
 import "./PricingSection.css";
 
 /**
@@ -31,6 +36,11 @@ import "./PricingSection.css";
  * fallback is built through the same resolvers as the live path, so it shows
  * the full 8-feature cards with accurate prices instead of the old stale
  * 4-feature hardcoded table.
+ *
+ * SCHOLARDOCX-0214: cached or live payloads from an unconfigured backend
+ * (seed prices of "0") never render as-is — see the guards below. Pre-fetch,
+ * users always see the snapshot table (Free 0 · Basic 2.49 · Pro 5.99 ·
+ * Max 11.99 USD monthly) until real admin-configured data arrives.
  */
 
 // ---- Fallback (used only when both cache and API are unavailable) ----
@@ -63,7 +73,17 @@ export function PricingSection() {
   // state. The network fetch (if needed) runs in the background and refreshes
   // the view silently once it resolves. localStorage may be unavailable (SSR /
   // private mode), so guard with try/catch via the helpers.
-  const initialCached = getCachedPlansIfFresh();
+  //
+  // SCHOLARDOCX-0214: a cached payload only counts when its prices are
+  // admin-configured (all paid tiers positive). A cache saved from an
+  // unconfigured backend carries seed "0" prices and would advertise
+  // "Basic — 0 USD" pre-fetch; those payloads are ignored so the static
+  // snapshot (the accurate default table) renders instead.
+  const initialCachedRaw = getCachedPlansIfFresh();
+  const initialCached =
+    initialCachedRaw && isPricingConfigured(initialCachedRaw.pricing)
+      ? initialCachedRaw
+      : null;
   const [state, setState] = useState<LoadState>(
     initialCached ? "success" : "fallback"
   );
@@ -77,17 +97,30 @@ export function PricingSection() {
       .then((res) => {
         if (cancelled) return;
         if (res?.plans && Object.keys(res.plans).length > 0) {
-          saveCachedPlans(res);
-          setData(res);
+          // Sanitize before render AND before caching: any seed-default
+          // ("0")/missing price falls back to the snapshot value, so a paid
+          // tier can never display $0 on this surface.
+          const sanitized: PublicPlansResponse = {
+            ...res,
+            pricing: withConfiguredPricing(res.pricing),
+          };
+          saveCachedPlans(sanitized);
+          setData(sanitized);
           setState("success");
         }
       })
       .catch(() => {
-        // Network/endpoint failure. If we have *any* cached data (even stale),
-        // prefer it over the hardcoded fallback so prices stay admin-accurate.
+        // Network/endpoint failure. If we have *any* configured cached data
+        // (even stale), prefer it over the hardcoded fallback so prices stay
+        // admin-accurate. Unconfigured (zero-priced) caches are skipped —
+        // the static snapshot is more accurate than seed defaults.
         if (cancelled) return;
         const stale = loadCachedPlans();
-        if (stale?.plans && Object.keys(stale.plans).length > 0) {
+        if (
+          stale?.plans &&
+          Object.keys(stale.plans).length > 0 &&
+          isPricingConfigured(stale.pricing)
+        ) {
           setData(stale);
           setState("success");
         } else {

@@ -166,6 +166,19 @@ New table `polar_processed_events(id, event_id UNIQUE, event_type, processed_at)
 is the webhook idempotency log.
 
 ## Known limitations / follow-ups
+- **Static pricing fallback when the backend is down (SCHOLARDOCX-0210).** Both
+  pricing surfaces — the public landing `PricingSection` and the authenticated
+  `PlanComparisonView` — fetch live plan prices and per-tier limits from the
+  backend. When the backend is unreachable, they fall back to a shared static
+  snapshot in `frontend/src/components/LandingPage/plan-defaults.ts`
+  (`STATIC_PLANS` + `STATIC_PRICING`), shaped like the `/auth/plans` response.
+  The snapshot holds the **live admin-configured values** as of 2026-08-06
+  (prices 2.49 / 5.99 / 11.99 USD monthly; NOT the backend seed 0/50/180), so
+  the offline table matches what users normally see. `PlanComparisonView` sets
+  an `offline` flag in this mode: it shows an amber banner and disables the
+  checkout / manage / request buttons (those need the live backend). **If an
+  admin changes plan prices or limits, re-snapshot `plan-defaults.ts` so the
+  offline fallback stays accurate.**
 - Webhook tests are handler-level (direct function calls with a real DB store).
   Full end-to-end (Polar → public URL → svix → DB) can only be verified against
   a deployed environment with the webhook server URL configured in Polar — it

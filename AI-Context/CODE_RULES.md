@@ -10,6 +10,15 @@ These are repository-wide coding rules for ScholarDocX.
 - Keep AI providers behind backend service boundaries. UI code should not call GLM or Tavily directly.
 - Treat external AI/search APIs as optional integrations that require user-provided API keys.
 - Do not add remote persistence, telemetry, analytics, or cloud sync without explicit context updates and user approval.
+- One-off fix/patch/migrate/probe scripts, scratch SQL, fix-summary `.md`
+  files, logs, and DB dumps are throwaway: delete them from the repo in the
+  same task once the fix is verified (SCHOLARDOCX-0212 removed 60 that had
+  accumulated at the repo root, `backend/` root, and `scripts/legacy/`).
+  Durable homes for their content: schema changes → idempotent `_add_*`
+  migrations in `backend/app/db/connection.py`; behaviour → `backend/tests/`;
+  decisions → AI-Context / the Jira task. Repeatedly-run operational scripts
+  (e.g. `backend/scripts/create_superadmin.py`) stay in `scripts/` folders.
+  `*.log` and `*.db` are gitignored and must never be committed.
 
 ## Design Principle: Capped Lists Use FIFO Eviction
 

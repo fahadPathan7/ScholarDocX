@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot, BookOpen, Library, FileText } from "lucide-react";
+import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot, BookOpen, Library, FileText, WifiOff } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
 import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
+import { STATIC_PLANS, STATIC_PRICING } from "./LandingPage/plan-defaults";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
   const root = document.getElementById('root') || document.body;
@@ -61,6 +62,10 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
   const [plans, setPlans] = useState<PlansResponse | null>(null);
   const [pricing, setPricing] = useState<PricingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // SCHOLARDOCX-0210: true when /auth/plans failed and we're rendering the
+  // static defaults (plan-defaults.ts). Action buttons are disabled in this
+  // mode because checkout/request submission needs the live backend.
+  const [offline, setOffline] = useState(false);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [activeView, setActiveView] = useState<PlanViewMode>("plans");
@@ -177,8 +182,19 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
         const response = await api.get<{ status: string; plans: PlansResponse; pricing: PricingResponse }>("/auth/plans");
         setPlans(response.plans);
         setPricing(response.pricing);
+        setOffline(false);
       } catch (err) {
-        console.error("Failed to load plans", err);
+        // SCHOLARDOCX-0210: backend unavailable — fall back to the static
+        // snapshot (plan-defaults.ts) so the user sees the full plan table
+        // read-only instead of a hard error. Action buttons are disabled
+        // via the `offline` flag since they need the live backend.
+        // Cast: STATIC_PLANS uses the shared optional-tiered PlansResponse;
+        // this view's local type marks the four tiers required, and the
+        // static snapshot does define all four.
+        console.error("Failed to load plans, using static fallback", err);
+        setPlans(STATIC_PLANS as PlansResponse);
+        setPricing(STATIC_PRICING);
+        setOffline(true);
       } finally {
         setLoading(false);
       }
@@ -292,6 +308,12 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
           <div>
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Choose Your Plan</h2>
             <p className="text-xs text-slate-500 mt-1">Unlock the full potential of your academic workspace.</p>
+            {offline && (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1">
+                <WifiOff size={12} />
+                Showing plan info. Plan actions are unavailable until the connection returns.
+              </p>
+            )}
           </div>
         </div>
 
@@ -383,8 +405,8 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   },
                   general_user: {
                     name: 'Basic',
-                    monthlyPrice: pricing?.plan_price_general_monthly || '0',
-                    quarterlyPrice: pricing?.plan_price_general_quarterly || '0',
+                    monthlyPrice: pricing?.plan_price_general_monthly || '2.49',
+                    quarterlyPrice: pricing?.plan_price_general_quarterly || '6.49',
                     description: 'Essential features to get started.',
                     colorClass: 'bg-[#f4f7ff] border border-blue-200/60 shadow-sm hover:shadow-md hover:border-blue-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f4f7ff] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -395,8 +417,8 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   },
                   pro_user: {
                     name: 'Pro',
-                    monthlyPrice: pricing?.plan_price_pro_monthly || '50',
-                    quarterlyPrice: pricing?.plan_price_pro_quarterly || '500',
+                    monthlyPrice: pricing?.plan_price_pro_monthly || '5.99',
+                    quarterlyPrice: pricing?.plan_price_pro_quarterly || '15.99',
                     description: 'For power users with latest AI.',
                     colorClass: 'bg-[#f2faf5] border border-emerald-200/60 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-500 bg-[#f2faf5] border-transparent scale-[1.02] shadow-xl shadow-emerald-500/10 transition-all duration-300',
@@ -407,8 +429,8 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                   },
                   max_user: {
                     name: 'Max',
-                    monthlyPrice: pricing?.plan_price_max_monthly || '180',
-                    quarterlyPrice: pricing?.plan_price_max_quarterly || '1500',
+                    monthlyPrice: pricing?.plan_price_max_monthly || '11.99',
+                    quarterlyPrice: pricing?.plan_price_max_quarterly || '31.99',
                     description: 'Unlimited power and maximum storage.',
                     colorClass: 'bg-slate-900 border border-slate-800/80 text-white hover:border-indigo-500/30 shadow-lg transition-all hover:-translate-y-1 duration-300',
                     activeColorClass: 'ring-2 ring-emerald-400 bg-slate-900 border-transparent scale-[1.02] text-white shadow-2xl shadow-emerald-500/20 transition-all duration-300',
@@ -486,7 +508,15 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
 
                     <div className="mt-8 relative z-10">
-                      {isOnlineSubscribed ? (
+                      {offline ? (
+                        <button
+                          disabled
+                          className="w-full py-3.5 rounded-xl font-bold bg-slate-100 text-slate-400 border border-slate-200/80 cursor-not-allowed text-sm"
+                          title="Plan actions are unavailable until the connection returns."
+                        >
+                          Unavailable
+                        </button>
+                      ) : isOnlineSubscribed ? (
                         role === "free_user" ? (
                           <button
                             disabled
@@ -573,9 +603,9 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                       <span className="text-sm font-medium text-slate-600">Total Price</span>
                       <span className="text-lg font-bold text-emerald-600">
-                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '0'} USD` : `${pricing?.plan_price_general_monthly || '0'} USD`) :
-                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '500'} USD` : `${pricing?.plan_price_pro_monthly || '50'} USD`) :
-                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '1500'} USD` : `${pricing?.plan_price_max_monthly || '180'} USD`)}
+                        {requestPlan === "general_user" ? (isQuarterly ? `${pricing?.plan_price_general_quarterly || '6.49'} USD` : `${pricing?.plan_price_general_monthly || '2.49'} USD`) :
+                          requestPlan === "pro_user" ? (isQuarterly ? `${pricing?.plan_price_pro_quarterly || '15.99'} USD` : `${pricing?.plan_price_pro_monthly || '5.99'} USD`) :
+                            (isQuarterly ? `${pricing?.plan_price_max_quarterly || '31.99'} USD` : `${pricing?.plan_price_max_monthly || '11.99'} USD`)}
                       </span>
                     </div>
                   </div>

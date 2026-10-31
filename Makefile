@@ -131,6 +131,38 @@ test-fast: ## Run backend tests except slow ones (-m "not slow")
 	@cd $(BACKEND_DIR) && $(realpath $(PYTEST)) -m "not slow" -v
 	@echo "✅ Fast tests complete."
 
+# ──────────────────────────────────────────────────────────
+# Test Database (Docker)
+#
+# SCHOLARDOCX-0209: an isolated Postgres + pgvector DB so tests never touch
+# the production Supabase database. Requires .env.test (copy .env.test.example)
+# and Docker running. The schema creates itself on first test import via
+# initialize_database(), so no manual setup is needed.
+# ──────────────────────────────────────────────────────────
+
+.PHONY: test-db-start
+test-db-start: ## Start the Docker test database (Postgres + pgvector, port 5433)
+	@echo "🐳 Starting test database (docker-compose.test.yml)..."
+	@docker compose -f docker-compose.test.yml up -d --wait
+	@echo "✅ Test database ready on localhost:5433 (scholardocx_test)."
+	@if [ ! -f .env.test ]; then \
+		echo "⚠️  .env.test not found — copying .env.test.example so tests use the Docker DB."; \
+		cp .env.test.example .env.test; \
+	fi
+
+.PHONY: test-db-stop
+test-db-stop: ## Stop the Docker test database (keeps its data volume)
+	@echo "🛑 Stopping test database..."
+	@docker compose -f docker-compose.test.yml down
+	@echo "✅ Test database stopped (volume preserved). Run 'make test-db-start' to resume."
+
+.PHONY: test-db-reset
+test-db-reset: ## Wipe and recreate the Docker test database from scratch
+	@echo "🧹 Resetting test database (removing volume)..."
+	@docker compose -f docker-compose.test.yml down -v
+	@docker compose -f docker-compose.test.yml up -d --wait
+	@echo "✅ Test database reset to a clean state."
+
 .PHONY: test-frontend-build
 test-frontend-build: ## Verify frontend TypeScript compilation and build
 	@echo "🧪 Checking frontend build..."

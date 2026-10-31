@@ -296,13 +296,18 @@ class DocumentCategories(Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    polar_product_id: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
     user_id: Mapped[Optional[str]] = mapped_column(ForeignKey('users.id'))
 
     user: Mapped[Optional['Users']] = relationship('Users', back_populates='document_categories')
+
+    # SCHOLARDOCX-0211: no polar_product_id here. It was copy-pasted onto this
+    # model in the Polar integration (b95ff60) but never used and never added
+    # to pre-existing databases by a migration — every ORM select on this table
+    # then failed with UndefinedColumn, breaking /files/upload. Only
+    # ai_token_packs carries a polar_product_id (the one Polar checkout uses).
 
 
 class Documents(Base):
@@ -1110,10 +1115,14 @@ class AiModels(Base):
     output_price_per_1m: Mapped[float] = mapped_column(Float, nullable=False, server_default=text('0'))
     is_active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
-    polar_product_id: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), server_default=text("gen_random_uuid()"))
+
+    # SCHOLARDOCX-0211: polar_product_id was copy-pasted here in b95ff60 but is
+    # unused (Polar checkout keys live in app_settings; packs use
+    # ai_token_packs.polar_product_id) and was never migrated onto pre-existing
+    # databases — any ORM select on this model would fail against them.
 
 
 class AiTokenBalances(Base):

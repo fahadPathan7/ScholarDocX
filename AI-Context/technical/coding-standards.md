@@ -26,6 +26,14 @@
 - Use typed request and response schemas.
 - Validate all file operations.
 - Mock external providers in tests.
+- Adding a column to an ORM model in `app/db/models.py` does NOT alter
+  existing databases — `Base.metadata.create_all` only creates missing
+  tables. Every new model column MUST ship with an idempotent
+  `_add_*_column` migration wired into `initialize_database`
+  (`app/db/connection.py`), or every pre-existing database 500s on the first
+  ORM select that mentions it. Guarded by
+  `tests/regression/test_orm_schema_parity.py` (SCHOLARDOCX-0211, where a
+  copy-pasted `polar_product_id` broke `/files/upload` this way).
 
 ## Documentation Standards
 

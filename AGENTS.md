@@ -45,6 +45,19 @@ Before writing or changing product code:
   full contract lives in
   [AI-Context/technical/billing-contract.md](AI-Context/technical/billing-contract.md)
   — read it before touching provider code, and do not restate it here.
+- **NO LEFTOVER ONE-OFF FIX SCRIPTS**: ad-hoc `fix_*` / `patch_*` /
+  `migrate_*` / `check_*` / `probe_*` / `rewrite_*` scripts, scratch `.sql`
+  files, fix-summary `.md` files ("FIX_…_README", "…_FIX_COMPLETE"), logs,
+  and DB dumps are throwaway tools. Once the fix is verified, DELETE them
+  from the repo in the same task — their durable parts must land as code:
+  schema changes as idempotent migrations in
+  `backend/app/db/connection.py` (`_add_*` helpers), behaviour as tests
+  under `backend/tests/`, decisions in AI-Context / the Jira task. Never
+  commit such files at the repo root or `backend/` root, and never commit
+  `*.log` or `*.db` (both gitignored). Operational scripts that will be run
+  repeatedly (e.g. `backend/scripts/create_superadmin.py`) live in
+  `scripts/` folders and are fine. (Cleanup of 60 accumulated fossils:
+  SCHOLARDOCX-0212.)
 ## Repo-Carried Agent Skills
 
 ScholarDocX keeps project-specific `SKILL.md` files natively integrated in `.agents/skills`, `.claude/skills`, and `.codex/skills`. These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
@@ -193,4 +206,5 @@ Canonical CSS and full spec:
 - Never commit secrets or real API keys.
 - Keep documentation short, structured, and easy for future agents to scan.
 - STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
+- Delete one-off fix/patch/migrate/probe scripts and scratch SQL as soon as the fix is verified (see "NO LEFTOVER ONE-OFF FIX SCRIPTS" above). Ending a task with `fix_*.py` still at the repo/backend root is a regression.
 - Add or update unit tests for each feature when meaningful behavior, data transformation, validation, persistence, or integration boundaries are introduced.

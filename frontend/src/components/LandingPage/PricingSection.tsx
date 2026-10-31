@@ -14,72 +14,43 @@ import {
   type TierKey,
   type ResolvedFeature,
 } from "./plans-data";
+import { STATIC_PLANS, STATIC_PRICING } from "./plan-defaults";
 import "./PricingSection.css";
 
 /**
  * Pricing section driven by the admin-configured source of truth.
  *
- * Renders INSTANTLY from a localStorage cache (or a hardcoded fallback on first
+ * Renders INSTANTLY from a localStorage cache (or a static fallback on first
  * visit), then silently refreshes from `GET /auth/plans/public` in the
  * background. There is no loading/skeleton state — the cards are always
  * visible, so there's no perceived "loading time" on repeat visits.
+ *
+ * SCHOLARDOCX-0210: when both the cache and the API are unavailable (e.g. the
+ * backend is down), the section falls back to STATIC_PLANS / STATIC_PRICING
+ * (plan-defaults.ts) — a snapshot of the live admin-configured values. The
+ * fallback is built through the same resolvers as the live path, so it shows
+ * the full 8-feature cards with accurate prices instead of the old stale
+ * 4-feature hardcoded table.
  */
 
-// ---- Fallback (used only when the API is unavailable) ----
+// ---- Fallback (used only when both cache and API are unavailable) ----
+//
+// Derived from STATIC_PLANS via the shared resolvers so the offline table
+// matches the live render shape exactly (same features, same formatting).
 
 type FallbackPlan = {
   tier: TierKey;
   monthly: string;
   quarterly: string;
-  features: ResolvedFeature[];
+  features: ReturnType<typeof resolveFeatureLines>;
 };
 
-const FALLBACK_PLANS: FallbackPlan[] = [
-  {
-    tier: "free_user",
-    monthly: "0 USD",
-    quarterly: "0 USD",
-    features: [
-      { key: "p", label: "Max Projects", value: "1", isBoolean: false },
-      { key: "s", label: "Storage Capacity", value: "50 MB", isBoolean: false },
-      { key: "w", label: "Active Whiteboards", value: "1", isBoolean: false },
-      { key: "a", label: "AI Agents Usage", value: false, isBoolean: true },
-    ],
-  },
-  {
-    tier: "general_user",
-    monthly: "0 USD",
-    quarterly: "0 USD",
-    features: [
-      { key: "p", label: "Max Projects", value: "3", isBoolean: false },
-      { key: "s", label: "Storage Capacity", value: "200 MB", isBoolean: false },
-      { key: "w", label: "Active Whiteboards", value: "2", isBoolean: false },
-      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
-    ],
-  },
-  {
-    tier: "pro_user",
-    monthly: "50 USD",
-    quarterly: "500 USD",
-    features: [
-      { key: "p", label: "Max Projects", value: "10", isBoolean: false },
-      { key: "s", label: "Storage Capacity", value: "1 GB", isBoolean: false },
-      { key: "w", label: "Active Whiteboards", value: "5", isBoolean: false },
-      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
-    ],
-  },
-  {
-    tier: "max_user",
-    monthly: "180 USD",
-    quarterly: "1500 USD",
-    features: [
-      { key: "p", label: "Max Projects", value: "Unlimited", isBoolean: false },
-      { key: "s", label: "Storage Capacity", value: "Unlimited", isBoolean: false },
-      { key: "w", label: "Active Whiteboards", value: "Unlimited", isBoolean: false },
-      { key: "a", label: "AI Agents Usage", value: true, isBoolean: true },
-    ],
-  },
-];
+const FALLBACK_PLANS: FallbackPlan[] = TIER_ORDER.map((tier) => ({
+  tier,
+  monthly: resolvePrice(tier, STATIC_PRICING, "monthly"),
+  quarterly: resolvePrice(tier, STATIC_PRICING, "quarterly"),
+  features: resolveFeatureLines(STATIC_PLANS[tier]!),
+}));
 
 type LoadState = "loading" | "success" | "fallback";
 

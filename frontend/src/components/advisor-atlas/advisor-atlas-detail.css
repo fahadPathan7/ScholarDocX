@@ -867,7 +867,10 @@
 }
 
 .atlas-compare-row > span { color: #71837f; font-weight: 750; }
-.atlas-compare-row.heading { position: sticky; top: 91px; background: #f2f8f5; }
+/* top matches the sticky panel header height (padding 20px × 2 + title
+   block ≈ 76px) — at 91px a ~15px band of scrolling rows showed above the
+   stuck heading. */
+.atlas-compare-row.heading { position: sticky; top: 76px; background: #f2f8f5; }
 .atlas-compare-row.heading strong { color: var(--atlas-ink); }
 
 .atlas-compare-row > span small {

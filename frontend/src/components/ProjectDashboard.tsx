@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CalendarDays, X } from "lucide-react";
 import { Section } from "./Section";
+import { Modal } from "./Modal";
 import { CalendarMonthView } from "./CalendarMonthView";
 import { AddReminderModal } from "./AddReminderModal";
 import { RecordMap } from "../lib/api";
@@ -52,8 +53,10 @@ export function ProjectDashboard({
         />
       )}
 
+      {/* SCHOLARDOCX-0213: migrated from a legacy inline backdrop div to the
+          canonical <Modal> — the inline version blurs only .section-body. */}
       {isCalendarOpen ? (
-        <div className="modal-backdrop modal-backdrop-main" onClick={() => setIsCalendarOpen(false)}>
+        <Modal onClose={() => setIsCalendarOpen(false)}>
           <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2>Project Calendar</h2>
@@ -78,7 +81,7 @@ export function ProjectDashboard({
               />
             </div>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

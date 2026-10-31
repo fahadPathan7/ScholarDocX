@@ -541,15 +541,14 @@ export function App() {
                 {currentHasUserPlan && i === accountNavStart && <div className="nav-spacer" />}
                 <button
                   aria-label={label}
-                  className={activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}
+                  className={`${activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}${isLocked ? " nav-locked" : ""}`}
                   onClick={() => handleSidebarNav(key)}
                   title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : gamesLocked ? "Brain Games has been turned off for your account" : navCollapsed ? label : undefined}
-                  style={isLocked ? { opacity: 0.55 } : undefined}
                 >
                   <Icon size={18} />
                   <span>{label}</span>
                   {isLocked && !navCollapsed && (
-                    <Lock size={14} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                    <Lock size={14} className="nav-lock-icon" />
                   )}
                 </button>
               </Fragment>
@@ -567,19 +566,19 @@ export function App() {
           <DeepSpaceBanner />
           <header className="topbar" style={{ position: 'relative', zIndex: 1001 }}>
             <div className="banner-content">
-              <p className="eyebrow" style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <p className="eyebrow">
                 Your Academic Journey Companion
                 {currentHasUserPlan && (
-                  <span className={`profile-plan-badge tier-${planTier}`} style={{ transform: 'scale(0.85)', transformOrigin: 'left center', padding: '2px 10px', marginTop: 0 }}>
-                    {planTier === "max_user" ? <Crown size={12} /> : 
-                     planTier === "pro_user" ? <Zap size={12} /> : 
-                     planTier === "general_user" ? <Star size={12} /> : 
-                     <Leaf size={12} />}
+                  <span className={`profile-plan-badge topbar-plan-badge tier-${planTier}`}>
+                    {planTier === "max_user" ? <Crown size={11} /> :
+                     planTier === "pro_user" ? <Zap size={11} /> :
+                     planTier === "general_user" ? <Star size={11} /> :
+                     <Leaf size={11} />}
                     <span>{tierLabel}</span>
                   </span>
                 )}
               </p>
-              <h1 style={{ color: '#f8fafc' }}>Built for the scholars who refuse to settle.</h1>
+              <h1>Built for the scholars who refuse to settle.</h1>
             </div>
             <div className="top-actions">
               <button
@@ -683,24 +682,24 @@ export function App() {
             <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
           </div>
 
-          <div className={`tab-container ${activeTab === "about" ? "" : "hidden-tab"}`} style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <div className={`tab-container tab-page tab-page--scroll ${activeTab === "about" ? "" : "hidden-tab"}`}>
             <AboutView />
           </div>
 
           {activeTab === "plans" && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
+            <div className="tab-page tab-page--scroll">
               <PlanComparisonView onBack={() => setActiveTab("profile")} refreshTrigger={refreshTrigger} />
             </div>
           )}
 
           {activeTab === "buy-credits" && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: "#f8fafc" }}>
+            <div className="tab-page tab-page--scroll">
               <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} refreshTrigger={refreshTrigger} />
             </div>
           )}
 
           {activeTab === "admin" && currentIsAdmin && (
-            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#f8fafc" }}>
+            <div className="tab-page tab-page--column">
               <AdminView refreshTrigger={refreshTrigger} />
             </div>
           )}
@@ -1034,7 +1033,7 @@ function DocumentView(props: {
         <span className="doc-file-path">{formatUploadedTime(file.created_at)}</span>
         {file.notes ? <p className="doc-file-notes">{file.notes}</p> : null}
       </div>
-      <div className="doc-file-actions" style={{ display: "flex", gap: "6px" }}>
+      <div className="doc-file-actions">
         <button
           type="button"
           className={`icon-button compact doc-pin-action ${file.is_pinned ? "active" : ""}`}
@@ -1092,7 +1091,7 @@ function DocumentView(props: {
           </span>
           {file.notes ? <p className="doc-file-notes">{file.notes}</p> : null}
         </div>
-        <div className="doc-file-actions" style={{ display: "flex", gap: "6px" }}>
+        <div className="doc-file-actions">
           <button
             type="button"
             className={`icon-button compact doc-pin-action ${file.is_pinned ? "active" : ""}`}

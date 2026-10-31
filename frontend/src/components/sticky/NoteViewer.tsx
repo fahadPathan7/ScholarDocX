@@ -144,14 +144,16 @@ export function NoteViewer({
             <button className="primary" type="button" onClick={() => onEdit(note)}>
               <Edit size={16} /> Edit note
             </button>
+            {/* A labelled .secondary button so all three actions in this row
+                share one height — it used to be a 32px compact icon chip
+                between two 40px text buttons. */}
             <button
-              className="icon-button compact sticky-view-delete-icon"
+              className="secondary sticky-view-delete-icon"
               type="button"
               onClick={() => onDelete(note)}
-              aria-label="Delete note"
               title="Delete note"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} /> Delete
             </button>
           </div>
         </div>

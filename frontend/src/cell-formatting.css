@@ -142,13 +142,15 @@
   flex-shrink: 0;
 }
 
+/* Resting state matches the neighbouring ghost toggles (.csb-btn) so the two
+   dropdowns don't read as permanently pressed. */
 .csb-dropdown-btn {
   font-size: 11px;
   font-weight: 500;
   gap: 4px;
   padding: 3px 8px;
-  border: 1px solid var(--ui-line, rgba(35, 58, 55, 0.12));
-  background: var(--ui-canvas, #f3f7f5);
+  border: 1px solid transparent;
+  background: transparent;
   border-radius: 6px;
   min-width: unset;
   display: inline-flex;
@@ -166,7 +168,7 @@
   background: rgba(52, 127, 120, 0.15);
   color: var(--ui-primary, #347f78);
   border-color: rgba(52, 127, 120, 0.45);
-  box-shadow: inset 0 1px 3px rgba(52, 127, 120, 0.15);
+  box-shadow: inset 0 1px 3px rgba(52, 127, 120, 0.15), 0 0 0 1px rgba(52, 127, 120, 0.1);
   font-weight: 600;
 }
 

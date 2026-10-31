@@ -187,18 +187,21 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
     return true;
   });
 
+  // Header metrics match PlanComparisonView (p-6 lg:p-10, 18px back icon,
+  // extrabold title) — the two sibling profile tabs used to sit at different
+  // indents with different back-button sizes.
   return (
-    <div className="animate-fade-in p-6 lg:p-12 h-full flex flex-col overflow-hidden">
+    <div className="animate-fade-in p-6 lg:p-10 h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-4 mb-8 shrink-0 flex-wrap">
         <div className="flex items-center gap-4">
           <button
             className="p-2.5 rounded-full bg-white shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
             onClick={onBack}
           >
-            <ArrowLeft size={20} className="text-slate-600" />
+            <ArrowLeft size={18} className="text-slate-600" />
           </button>
           <div>
-            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Buy AI Credits</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Buy AI Credits</h2>
           </div>
         </div>
 

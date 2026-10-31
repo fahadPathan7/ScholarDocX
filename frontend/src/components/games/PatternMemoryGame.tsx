@@ -51,17 +51,9 @@ export function PatternMemoryGame() {
 
   return (
     <div className="game-panel pattern-memory-game">
-      {/* Game Header Bar */}
+      {/* Game Header Bar — meta left, actions right, matching the toolbar
+          contract every other game in the folder follows. */}
       <div className="game-toolbar">
-        <div className="game-actions">
-          <button type="button" onClick={() => setShowRules(true)} title="How to play">
-            <BookOpen size={14} /> How to play
-          </button>
-          <button type="button" className="game-reset" onClick={restartGame} title="New game">
-            <RotateCcw size={14} /> New game
-          </button>
-        </div>
-
         <div className="pattern-meta">
           <span>Level {game.level}</span>
           <span>Score: {formattedScore}</span>
@@ -77,6 +69,15 @@ export function PatternMemoryGame() {
               />
             ))}
           </span>
+        </div>
+
+        <div className="game-actions">
+          <button type="button" onClick={() => setShowRules(true)} title="How to play">
+            <BookOpen size={14} /> How to play
+          </button>
+          <button type="button" className="game-reset" onClick={restartGame} title="New game">
+            <RotateCcw size={14} /> New game
+          </button>
         </div>
       </div>
 

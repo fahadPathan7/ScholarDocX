@@ -163,6 +163,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* 40px rail so the pill matches the upload button beside it in the
+     header meta row (they differed by ~8px). */
+  min-height: 40px;
   padding: 6px 14px;
   border-radius: 20px;
   background: #f1f5f9;
@@ -312,6 +315,8 @@
 
 .paper-card-icon {
   color: #4f46e5;
+  /* (20px title line-height − 16px icon) / 2 — centers the icon on the
+     first text line instead of the strut top. */
   margin-top: 2px;
   flex-shrink: 0;
 }
@@ -570,9 +575,23 @@
 }
 
 .active-paper-authors {
-  font-size: 0.88rem;
+  align-items: center;
   color: #475569;
+  display: flex;
+  font-size: 0.88rem;
+  /* 8px icon gap to match the .paper-pub-metadata-row directly below. */
+  gap: 8px;
   margin: 0 0 10px 0;
+}
+
+/* "Library full" note under the sidebar heading (was Tailwind arbitrary
+   utilities spliced into the plain-CSS sidebar). */
+.library-full-warning {
+  color: #b45309;
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 .paper-pub-metadata-row {
@@ -690,7 +709,9 @@
 
 .prompt-card-header {
   display: flex;
-  align-items: flex-start;
+  /* icon tile + single-line title: center them on one axis instead of a
+     padding-top shim on the text */
+  align-items: center;
   gap: 11px;
   margin-bottom: 10px;
 }
@@ -712,7 +733,6 @@
   font-weight: 700;
   color: #0f172a;
   line-height: 1.3;
-  padding-top: 3px;
 }
 
 .prompt-desc {

@@ -345,6 +345,28 @@ main {
   max-width: 740px;
 }
 
+/* Dark TopBar hero: text colors live here rather than inline styles, so the
+   hero survives contact with the light-theme eyebrow/h1 defaults. */
+.main-head .eyebrow {
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main-head h1 {
+  color: #f8fafc;
+}
+
+/* Compact plan badge for the TopBar hero line — real metrics instead of a
+   transform: scale shim that blurred the text. */
+.profile-plan-badge.topbar-plan-badge {
+  gap: 5px;
+  padding: 2px 10px;
+  font-size: 11px;
+  margin-top: 0;
+}
+
 .eyebrow {
   color: var(--ui-primary);
   font-size: 11px;
@@ -476,8 +498,10 @@ main {
   padding: 0 0 9px;
 }
 
+/* Keep the card content on the same 14px inset as the section head above it
+   (dashboard section padding), so titles and rows share one left edge. */
 .dashboard-grid .section-body {
-  padding: 0 8px 10px;
+  padding: 0 0 10px;
 }
 
 .dashboard-calendar .section-body,
@@ -1005,9 +1029,16 @@ main {
   border-bottom: 1px solid rgba(56, 74, 67, 0.09);
 }
 
-.assistant-dock,
-.notification-panel {
+/* The assistant dock is flush against the right screen edge (right: 0), so it
+   keeps a squared right side; the notification panel floats 28px off the edge
+   and needs the full radius. */
+.assistant-dock {
   border-radius: 20px 0 0 20px;
+  top: 92px;
+}
+
+.notification-panel {
+  border-radius: 20px;
   top: 92px;
 }
 
@@ -1930,6 +1961,9 @@ main {
 .profile-system-hint {
   color: #53635d;
   font-size: 0.8rem;
+  /* One rhythm for hint→actions spacing across all profile cards (was
+     per-card inline margins of 12px / 8px / 0px). */
+  margin: 0 0 12px;
 }
 
 .profile-actions-stack .profile-secondary-button,

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
-import { ChevronLeft, Edit, LayoutDashboard, Pin, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, Edit, LayoutDashboard, Lightbulb, Pin, Plus, Trash2, X } from "lucide-react";
 import { Field } from "./Field";
 import { Modal } from "./Modal";
 
@@ -844,7 +844,7 @@ export function ProjectWorkspace({
                 sheet.setShowRecordForm(false);
                 sheet.setShowColumnForm(false);
               }}>
-                <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
+                <ChevronLeft size={16} /> Projects
               </span>
               <span className="breadcrumb-separator">/</span>
               <span className="breadcrumb-item clickable" onClick={() => {
@@ -1223,7 +1223,7 @@ export function ProjectWorkspace({
         <div className="detail-bar">
           <div className="breadcrumb-nav">
             <span className="breadcrumb-item clickable" onClick={() => setSelectedProjectId("")}>
-              <ChevronLeft size={16} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} /> Projects
+              <ChevronLeft size={16} /> Projects
             </span>
             <span className="breadcrumb-separator">/</span>
             <span className="breadcrumb-item active">
@@ -1265,8 +1265,8 @@ export function ProjectWorkspace({
                   <X size={20} />
                 </button>
               </div>
-              <div className="modal-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'start' }}>
+              <div className="modal-content stacked">
+                <div className="form-grid">
                   <Field 
                     label="Sheet name" 
                     name="sheet_name" 
@@ -1303,30 +1303,21 @@ export function ProjectWorkspace({
                     onChange={(_, value) => setSelectedTemplateId(value)}
                   />
                 </div>
-                <div style={{ 
-                  padding: '12px 14px', 
-                  backgroundColor: 'rgba(47, 109, 122, 0.06)',
-                  borderRadius: '6px',
-                  borderLeft: '3px solid var(--accent-teal, #2f6d7a)'
-                }}>
-                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.5', margin: 0 }}>
-                    {selectedTemplateId === "default" 
+                <div className="modal-callout modal-callout--plain">
+                  <p>
+                    {selectedTemplateId === "default"
                       ? "Basic application tracker with University, Program, Status, Deadline, and Notes."
                       : (SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
                           customTemplates.find(t => t.id === selectedTemplateId)?.description)
                     }
                   </p>
                 </div>
-                <div style={{ 
-                  padding: '10px 12px', 
-                  backgroundColor: 'rgba(217, 154, 61, 0.08)',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px'
-                }}>
-                  <span style={{ fontSize: '14px', lineHeight: '1.4' }}>💡</span>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                <div className="modal-callout is-tip">
+                  {/* Lucide icon, not the 💡 emoji — it rendered in the system
+                     emoji font at a different optical size than every other
+                     icon in the app. */}
+                  <Lightbulb size={16} />
+                  <p>
                     You can add, remove, or modify columns anytime after creating the sheet.
                   </p>
                 </div>

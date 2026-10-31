@@ -281,7 +281,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
           <div className="atlas-history-title">
             {isSidebarOpen ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <div className="atlas-history-heading">
                   <History size={17} />
                   <span>Research history</span>
                   <span className={`atlas-history-count${runs.length >= MAX_HISTORY ? " full" : ""}`}>

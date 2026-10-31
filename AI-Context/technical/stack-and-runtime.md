@@ -72,6 +72,20 @@ Storage   →  Supabase Storage      (media bucket)
 - Render free tier sleeps after ~15 min idle; wakes on first request (~30s).
 - Backend health check: `GET /docs`.
 
+### Supabase Keep-Alive (SCHOLARDOCX-0216)
+
+Supabase pauses free projects after ~7 days of low user database activity.
+`.github/workflows/supabase-keepalive.yml` prevents that: a scheduled GitHub
+Actions job (twice daily + manual dispatch) opens one pooled connection and
+runs a single read-only `SELECT` — nothing is written, nothing to clean up.
+It runs on GitHub's runners because the Render free web service sleeps after
+15 min, so no Render-hosted scheduler can do the job (same constraint as
+SCHOLARDOCX-0162). Requires the repo secret `SUPABASE_DB_URL` — a Supabase
+"Connection pooler" URI, because GitHub runners are IPv4-only and the direct
+`db.<ref>.supabase.co` host is IPv6-only. Schedules run only on the default
+branch; GitHub disables them after 60 days of repo inactivity (email warning
+first). Manual equivalent: `python backend/scripts/keepalive_supabase.py`.
+
 ## File Storage Connection (SCHOLARDOCX-0139)
 
 ```text

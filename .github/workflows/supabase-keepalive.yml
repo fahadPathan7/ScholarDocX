@@ -1,0 +1,48 @@
+# SCHOLARDOCX-0216: keeps the Supabase free-tier database from being paused.
+#
+# Supabase pauses free projects after ~7 days of low user database activity
+# (https://supabase.com/docs/guides/platform/free-project-pausing). A few real
+# queries per day is enough to count as activity. This workflow opens one
+# pooled connection and runs a single trivial SELECT — it writes nothing,
+# stores nothing, and has nothing to clean up.
+#
+# It runs on GitHub's runners, not on Render: the Render free web service
+# sleeps after 15 min of no traffic, so no in-process or Render-hosted
+# scheduler can do this job (same reasoning as SCHOLARDOCX-0162).
+#
+# Notes:
+#   - Scheduled workflows run only from the default branch (main).
+#   - GitHub disables cron schedules after 60 days of no repo activity
+#     (a warning email is sent first) — re-enable from the Actions tab.
+#
+# Secret (repo Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL — Supabase "Connection pooler" URI (Session or Transaction
+#     mode) from Project → Connect. GitHub runners are IPv4-only, so the
+#     pooler host (…pooler.supabase.com) is required; the direct
+#     db.<ref>.supabase.co host is IPv6-only and will not connect from CI.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    # Twice a day, off the hour to dodge GitHub's top-of-hour cron congestion.
+    # UTC. Actual runs may lag a few minutes under load.
+    - cron: "23 5,17 * * *"
+  workflow_dispatch: {}  # allow manual runs from the Actions tab
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGCONNECT_TIMEOUT: "15"
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Secret SUPABASE_DB_URL is not configured (repo Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
+            -c 'SELECT 1 AS supabase_keepalive, now() AS server_time;'

@@ -10,9 +10,11 @@ export function HeroSection() {
 
   return (
     <section className="lp-hero-section">
-      {/* Decorative ambient orbs */}
-      <div className="lp-orb lp-hero-orb-1" />
-      <div className="lp-orb lp-hero-orb-2" />
+      {/* Deep-space canopy dressing: grid horizon + drifting aurora orbs */}
+      <div className="lp-grid-texture" aria-hidden="true" />
+      <div className="lp-orb lp-hero-orb-1" aria-hidden="true" />
+      <div className="lp-orb lp-hero-orb-2" aria-hidden="true" />
+      <div className="lp-orb lp-hero-orb-3" aria-hidden="true" />
 
       <div className="lp-hero-content reveal" ref={heroRef}>
         <div className="lp-badge-announcement">

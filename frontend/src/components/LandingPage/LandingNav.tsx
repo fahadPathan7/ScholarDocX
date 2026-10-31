@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { ScholarDocXMark } from "../ScholarDocXMark";
@@ -7,13 +7,19 @@ import "./LandingNav.css";
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
 
   // Shrink/tighten the header once the user scrolls away from the top.
+  // The landing page scrolls inside `.lp-container` (its own 100vh scroll
+  // surface), NOT the window — so the listener must attach there or the
+  // dark→light header flip would never fire (SCHOLARDOCX-0215).
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const scroller = (headerRef.current?.closest(".lp-container") as HTMLElement | null) ?? null;
+    const onScroll = () => setScrolled((scroller?.scrollTop ?? window.scrollY) > 8);
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const target: HTMLElement | Window = scroller ?? window;
+    target.addEventListener("scroll", onScroll, { passive: true });
+    return () => target.removeEventListener("scroll", onScroll);
   }, []);
 
   // Close the mobile menu whenever the viewport grows to desktop width.
@@ -36,7 +42,7 @@ export function LandingNav() {
   const closeMobile = () => setMenuOpen(false);
 
   return (
-    <header className={`lp-header${scrolled ? " is-scrolled" : ""}`}>
+    <header ref={headerRef} className={`lp-header${scrolled ? " is-scrolled" : ""}`}>
       <div className="lp-nav">
         <a href="#" className="lp-logo" onClick={closeMobile}>
           <div className="lp-logo-icon">
@@ -48,7 +54,6 @@ export function LandingNav() {
         <nav className="lp-nav-links">
           <a href="#featured-tools" className="lp-nav-link">Featured Tools</a>
           <a href="#features" className="lp-nav-link">Features</a>
-          <a href="#how" className="lp-nav-link">How It Works</a>
           <a href="#pricing" className="lp-nav-link">Pricing</a>
           <a href="#faq" className="lp-nav-link">FAQ</a>
         </nav>
@@ -77,7 +82,6 @@ export function LandingNav() {
       >
         <a href="#featured-tools" className="lp-mobile-link" onClick={closeMobile}>Featured Tools</a>
         <a href="#features" className="lp-mobile-link" onClick={closeMobile}>Features</a>
-        <a href="#how" className="lp-mobile-link" onClick={closeMobile}>How It Works</a>
         <a href="#pricing" className="lp-mobile-link" onClick={closeMobile}>Pricing</a>
         <a href="#faq" className="lp-mobile-link" onClick={closeMobile}>FAQ</a>
         <div className="lp-mobile-actions">

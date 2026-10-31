@@ -6,7 +6,6 @@ import { HeroSection } from "./HeroSection";
 import { StatsBand } from "./StatsBand";
 import { PillarsShowcase } from "./PillarsShowcase";
 import { FeaturesSection } from "./FeaturesSection";
-import { HowItWorks } from "./HowItWorks";
 import { PricingSection } from "./PricingSection";
 import { FaqSection } from "./FaqSection";
 import { ClosingCta } from "./ClosingCta";
@@ -40,7 +39,6 @@ export function LandingPage() {
         <StatsBand />
         <PillarsShowcase />
         <FeaturesSection />
-        <HowItWorks />
         <PricingSection />
         <FaqSection />
         <ClosingCta />

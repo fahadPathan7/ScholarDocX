@@ -9,6 +9,10 @@ export function LandingFooter() {
           © {new Date().getFullYear()} ScholarDocX. Made with care for scholars
           worldwide.
         </p>
+        {/* Product owner credit (SCHOLARDOCX-0215) */}
+        <p className="lp-footer-credit">
+          Designed &amp; built by <span>Fahad Pathan</span>
+        </p>
       </div>
     </footer>
   );

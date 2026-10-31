@@ -125,3 +125,45 @@ export const STATIC_PRICING: PricingResponse = {
   plan_price_max_monthly: "11.99",
   plan_price_max_quarterly: "31.99",
 };
+
+// ---- Zero-price guards (SCHOLARDOCX-0214) ------------------------------
+//
+// The backend's SEED default for every plan price is "0"
+// (`app_settings` insert in db/schema.py + `setdefault` in api/auth.py) —
+// an unconfigured backend answers "Basic: 0 USD". Browsers that loaded the
+// landing page against such a backend cached that payload
+// (`lp_plans_cache_v1`), and PricingSection renders the cache instantly, so
+// a paid tier could advertise $0 before the refresh resolved. These guards
+// make that impossible: an unconfigured payload is never rendered as-is,
+// and a live price only wins when it is a positive number.
+
+/**
+ * True when a payload carries a positive price for every paid tier — i.e. it
+ * came from an admin-configured backend rather than seed defaults. Used to
+ * decide whether a cached payload is safe to render pre-fetch.
+ */
+export function isPricingConfigured(pricing?: PricingResponse | null): boolean {
+  if (!pricing) return false;
+  return Object.keys(STATIC_PRICING).every((key) => {
+    const value = Number.parseFloat(pricing[key] ?? "");
+    return Number.isFinite(value) && value > 0;
+  });
+}
+
+/**
+ * Merge live/DB pricing over the static snapshot: a live value wins only
+ * when it parses to a positive number; anything missing, zero, or malformed
+ * falls back to the snapshot so a paid tier never renders $0.
+ */
+export function withConfiguredPricing(live?: PricingResponse | null): PricingResponse {
+  const merged: PricingResponse = { ...STATIC_PRICING };
+  if (!live) return merged;
+  for (const key of Object.keys(STATIC_PRICING)) {
+    const raw = live[key];
+    const value = Number.parseFloat(raw ?? "");
+    if (raw != null && raw !== "" && Number.isFinite(value) && value > 0) {
+      merged[key] = raw;
+    }
+  }
+  return merged;
+}

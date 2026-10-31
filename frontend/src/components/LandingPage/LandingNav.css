@@ -1,4 +1,6 @@
-/* Landing page header + navigation (sticky, blur, scroll-shrink, mobile menu). */
+/* Landing page header + navigation (sticky, blur, scroll-shrink, mobile menu).
+   SCHOLARDOCX-0215: dark glass while resting over the aurora hero, flipping
+   to the light glass once the page scrolls (`.is-scrolled`). */
 
 .lp-header {
   position: sticky;
@@ -6,8 +8,8 @@
   z-index: 100;
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  background: rgba(255, 255, 252, 0.72);
-  border-bottom: 1px solid rgba(35, 58, 55, 0.07);
+  background: rgba(5, 26, 22, 0.42);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   transition: padding 0.3s ease, background 0.3s ease, box-shadow 0.3s ease,
     border-color 0.3s ease;
 }
@@ -62,6 +64,12 @@
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  color: #f2f8f4;
+  transition: color 0.3s ease;
+}
+
+/* Light word once the header flips to the light glass */
+.lp-header.is-scrolled .lp-logo-word {
   color: var(--ui-ink);
 }
 
@@ -85,12 +93,16 @@
 
 .lp-nav-link {
   position: relative;
-  color: var(--ui-ink-soft);
+  color: rgba(226, 238, 233, 0.82);
   text-decoration: none;
   font-size: 14.5px;
   font-weight: 500;
   padding: 6px 2px;
   transition: color 0.2s ease;
+}
+
+.lp-header.is-scrolled .lp-nav-link {
+  color: var(--ui-ink-soft);
 }
 
 .lp-nav-link::after {
@@ -100,14 +112,15 @@
   bottom: 0;
   width: 100%;
   height: 2px;
-  background: var(--ui-primary);
+  background: linear-gradient(90deg, #7dd8c0, #4f9dbe);
   border-radius: 2px;
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.lp-nav-link:hover { color: var(--ui-primary); }
+.lp-nav-link:hover { color: #9fe8d2; }
+.lp-header.is-scrolled .lp-nav-link:hover { color: var(--ui-primary); }
 .lp-nav-link:hover::after { transform: scaleX(1); }
 
 /* ---------- Actions ---------- */
@@ -120,7 +133,7 @@
 }
 
 .lp-btn-login {
-  color: var(--ui-ink-soft);
+  color: rgba(226, 238, 233, 0.88);
   background: transparent;
   border: 1px solid transparent;
   padding: 9px 16px;
@@ -132,7 +145,16 @@
   transition: color 0.2s ease, background 0.2s ease;
 }
 
+.lp-header.is-scrolled .lp-btn-login {
+  color: var(--ui-ink-soft);
+}
+
 .lp-btn-login:hover {
+  color: #9fe8d2;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lp-header.is-scrolled .lp-btn-login:hover {
   color: var(--ui-primary);
   background: rgba(52, 127, 120, 0.07);
 }
@@ -168,14 +190,25 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  border: 1px solid rgba(35, 58, 55, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef6f2;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.lp-header.is-scrolled .lp-nav-burger {
+  border-color: rgba(35, 58, 55, 0.1);
   background: rgba(255, 255, 252, 0.7);
   color: var(--ui-ink);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .lp-nav-burger:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #9fe8d2;
+}
+
+.lp-header.is-scrolled .lp-nav-burger:hover {
   background: rgba(52, 127, 120, 0.07);
   color: var(--ui-primary);
 }
@@ -197,16 +230,17 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: rgba(255, 255, 252, 0.98);
+    /* Dark glass panel — matches the aurora brand wherever it opens */
+    background: rgba(6, 26, 22, 0.96);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid rgba(35, 58, 55, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 12px 24px 20px;
     transform: translateY(-8px);
     opacity: 0;
     pointer-events: none;
     transition: transform 0.25s ease, opacity 0.25s ease;
-    box-shadow: 0 16px 32px rgba(24, 37, 35, 0.08);
+    box-shadow: 0 16px 32px rgba(4, 18, 15, 0.35);
   }
 
   .lp-mobile-menu.is-open {
@@ -216,7 +250,7 @@
   }
 
   .lp-mobile-link {
-    color: var(--ui-ink);
+    color: #e4efe9;
     text-decoration: none;
     font-size: 15px;
     font-weight: 600;
@@ -226,8 +260,8 @@
   }
 
   .lp-mobile-link:hover {
-    background: rgba(52, 127, 120, 0.06);
-    color: var(--ui-primary);
+    background: rgba(125, 216, 192, 0.1);
+    color: #9fe8d2;
   }
 
   .lp-mobile-actions {
@@ -236,7 +270,19 @@
     gap: 10px;
     margin-top: 12px;
     padding-top: 16px;
-    border-top: 1px solid rgba(35, 58, 55, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Keep login legible inside the dark panel even when the header is in its
+     scrolled (light) mode — this selector ties on specificity with the
+     scrolled rule above and wins by source order. */
+  .lp-mobile-menu .lp-mobile-actions .lp-btn-login {
+    color: #e4efe9;
+  }
+
+  .lp-mobile-menu .lp-mobile-actions .lp-btn-login:hover {
+    color: #9fe8d2;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .lp-mobile-actions .lp-btn-login,

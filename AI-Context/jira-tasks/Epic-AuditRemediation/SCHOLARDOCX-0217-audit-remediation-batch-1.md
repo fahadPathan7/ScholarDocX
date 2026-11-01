@@ -201,6 +201,19 @@ Unit tests added or updated:
 - `tests/unit/test_categories_api.py` (new) — IntegrityError → duplicate 400; other failures propagate.
 - `tests/unit/test_scholarship_analyze_request.py` (new) — non-http links 400 before the permission gate; valid link reaches the gate.
 
+## Verification addendum (first full test execution)
+
+The scoped suite (all 17 test files created/extended by batches 1-6) was
+executed against the Docker test DB: **195 passed, 0 failed** (serial; see the
+test-infra commit for parallelism caveats). This surfaced and fixed one REAL
+bug from this batch: the plan-quota rejection path in `auth/limits.py`
+crashed with a TypeError (Row accessed as a mapping without `.mappings()`) —
+the regression guard test caught it. Also fixed en route: the Docker test DB
+never enabled pgvector (compose now ships an init script; the SCHOLARDOCX-0209
+gap), and several pre-existing flaky/stale tests (ledger insertion-order
+assertions, boolean-into-int-column SQL, a stale usage assertion, webhook pack
+mutations without snapshot/restore).
+
 Follow-ups:
 
 - USER-EXCLUDED: `subscription.revoked` wiping admin roles (`webhooks.py:397-403`) — deliberately not touched.

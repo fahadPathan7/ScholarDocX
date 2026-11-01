@@ -450,19 +450,36 @@ class AiService:
         # Step 2: Execution based on decision
         if needs_search and search_query and max_results > 0:
             try:
-                search_results = await self._tavily_search(search_query, max_results=max_results)
-                # Charge for the search that was actually issued
-                # (SCHOLARDOCX-0204). The route used to charge before this
-                # branch was reached, so a request whose routing agent returned
-                # needs_search=false paid for a Tavily call that never happened.
-                from app.services import ai_tokens
+                # SCHOLARDOCX-0220: 15-min per-user cache in front of Tavily.
+                # A cache hit makes no provider call, so it must not charge —
+                # the flat search fee below only runs on a real (miss) search.
+                from app.services.search_cache import cache_get, cache_put, make_key
 
-                self.charge_external_call(
-                    cost_usd=self.external_billing_cost(
-                        ai_tokens.get_tavily_call_cost_usd
-                    ),
-                    source="web_search",
+                cache_user = (
+                    self._billing_user.get("id")
+                    if isinstance(self._billing_user, dict)
+                    else None
                 )
+                tavily_key = make_key(
+                    cache_user or "anonymous", "tavily",
+                    search_query.strip().casefold(), max_results,
+                )
+                search_results = cache_get(tavily_key)
+                if search_results is None:
+                    search_results = await self._tavily_search(search_query, max_results=max_results)
+                    cache_put(tavily_key, search_results)
+                    # Charge for the search that was actually issued
+                    # (SCHOLARDOCX-0204). The route used to charge before this
+                    # branch was reached, so a request whose routing agent returned
+                    # needs_search=false paid for a Tavily call that never happened.
+                    from app.services import ai_tokens
+
+                    self.charge_external_call(
+                        cost_usd=self.external_billing_cost(
+                            ai_tokens.get_tavily_call_cost_usd
+                        ),
+                        source="web_search",
+                    )
                 search_context = self._format_search_context(search_results, max_results=max_results, max_chars=max_chars)
                 combined_context = self._combine_context(context, f"Web Search Results:\n{search_context}")
 

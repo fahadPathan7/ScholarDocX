@@ -354,6 +354,12 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   the same reason `can_use_scholarship_analyze` didn't get one: count limits
   on AI-metered actions were removed project-wide in the Phase 5 teardown
   above in favor of gate + token cost.
+- **Search-result caching (SCHOLARDOCX-0220).** `services/search_cache.py`
+  provides a 15-minute per-user TTL cache (bounded, in-process). Deep Hunt's
+  Brave passes and `/ai/research`'s Tavily call check it before the provider.
+  Rule: **a cache hit is not a provider call, so it is not charged** — the
+  per-hit fee / flat search fee only runs on a miss. Keys always include the
+  user id (never share entries across users).
 - **Worst-case pre-flight ceilings everywhere (SCHOLARDOCX-0218).** Deep
   Hunt's per-hit ceiling pattern now covers the other expensive flows:
   `/ai/research` pre-flights the Tavily flat fee + a conservative answer

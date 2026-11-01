@@ -80,6 +80,8 @@ import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
 import { ResearchExpertView } from "./components/ResearchExpertView";
 import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
+import { UsageModal } from "./components/UsageModal";
+import { onOpenUsageModal } from "./lib/usageEvents";
 import { useDialog } from "./components/DialogProvider";
 import { Modal } from "./components/Modal";
 import { useAuth } from "./contexts/AuthContext";
@@ -150,6 +152,10 @@ export function App() {
   const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // App-level usage & limits modal (SCHOLARDOCX-0220). ProfileView keeps its
+  // own button-triggered mount; this one serves cross-component requests via
+  // the usageEvents bus (e.g. the out-of-credits modal's "See usage").
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -415,6 +421,13 @@ export function App() {
     };
     window.addEventListener("scholardocx:navigate", handler as EventListener);
     return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
+  }, []);
+
+  // Cross-component "open the usage modal" requests (usageEvents bus).
+  // UsageModal reads its own data from the usage/token-economy contexts, so
+  // nothing needs to be lifted here; closing simply resets the open state.
+  useEffect(() => {
+    return onOpenUsageModal(() => setUsageModalOpen(true));
   }, []);
 
   // Where the workspace items end and the always-visible account items begin.
@@ -702,6 +715,8 @@ export function App() {
       />
 
       {toast ? <div className="toast-message" role="status" aria-live="polite">{toast}</div> : null}
+
+      {usageModalOpen && <UsageModal onClose={() => setUsageModalOpen(false)} />}
     </div>
   );
 }

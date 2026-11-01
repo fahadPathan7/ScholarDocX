@@ -176,7 +176,10 @@ def toggle_user_status(user_id: str, payload: StatusUpdatePayload, admin_service
 
 @router.post("/users/{user_id}/toggle-block")
 def toggle_user_block(user_id: str, payload: BlockUpdatePayload, admin_service: AdminService = Depends(get_admin_service), current_user: dict = Depends(get_current_user)):
-    require_feature("admin_suspend_user", current_user, admin_service.db) # Using same feature flag for now
+    # SCHOLARDOCX-0220: block has its own permission key (seeded with the same
+    # default suspend had, so existing installs keep working) instead of
+    # reusing admin_suspend_user.
+    require_feature("admin_block_user", current_user, admin_service.db)
     try:
         check_admin_modification_clearance(user_id, admin_service, current_user)
         return admin_service.toggle_user_block(current_user["id"], user_id, payload.is_blocked)

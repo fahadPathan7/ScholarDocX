@@ -30,6 +30,7 @@ from app.api import webhooks
 from app.api.webhooks import (
     handle_subscription_updated,
     handle_subscription_revoked,
+    handle_subscription_uncanceled,
     handle_order_created,
 )
 from app.db.connection import get_engine
@@ -632,3 +633,101 @@ async def test_subscription_updated_leaves_active_users_pending_marker_null(tmp_
     finally:
         store.db.close()
 
+
+
+# ---------------------------------------------------------------------------
+# SCHOLARDOCX-0220: grant notification + subscription.uncanceled
+# ---------------------------------------------------------------------------
+
+def _notifications_for(store, user_id):
+    from app.db.models import Notifications
+    store.db.expire_all()
+    rows = store.db.execute(
+        select(Notifications).where(Notifications.user_id == user_id)
+    ).scalars().all()
+    return [(r.title, r.body, r.preference_key) for r in rows]
+
+
+@pytest.mark.asyncio
+async def test_order_created_creates_billing_notification(tmp_path):
+    """A successful pack grant also notifies the buyer (billing preference)."""
+    store, connection, settings = make_store(tmp_path)
+    try:
+        _seed_polar_products(connection, store)
+        _seed_pack(connection, store, code="small", token_amount=10000)
+        _seed_user(
+            connection, USER_ID, "wh-user@example.com", '["general_user"]',
+            polar_customer_id="cus_polar_1",
+        )
+        _clear_events(store)
+
+        await handle_order_created(
+            {
+                "id": "order_notify_1",
+                "customer_id": "cus_polar_1",
+                "product_id": SMALL_PACK_PRODUCT,
+                "customer": {"email": "wh-user@example.com"},
+            },
+            store,
+            event_id="evt_order_notify_1",
+        )
+
+        rows = _notifications_for(store, USER_ID)
+        assert rows == [
+            (
+                "AI credits added",
+                "10,000 AI credits were added to your account (Pack small).",
+                "billing",
+            )
+        ]
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_subscription_uncanceled_clears_cancel_flag(tmp_path):
+    """uncanceled clears polar_cancel_at_period_end and restores renewal
+    fields; roles are untouched (the paid plan never changed)."""
+    store, connection, settings = make_store(tmp_path)
+    try:
+        roles = '["pro_user"]'
+        _seed_user(
+            connection, USER_ID, "wh-user@example.com", roles,
+            polar_customer_id="cus_polar_1", polar_subscription_id="sub_1",
+        )
+        user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        user.polar_cancel_at_period_end = 1
+        user.plan_renews_at = None
+        user.plan_ends_at = "2026-12-01T00:00:00+00:00"
+        store.db.commit()
+
+        await handle_subscription_uncanceled(
+            {"id": "sub_1", "customer_id": "cus_polar_1",
+             "current_period_end": "2026-12-31T00:00:00+00:00"},
+            store,
+            event_id="evt_uncancel_1",
+        )
+
+        store.db.expire_all()
+        user = store.db.scalar(select(Users).where(Users.id == USER_ID))
+        assert user.polar_cancel_at_period_end == 0
+        assert user.plan_renews_at == "2026-12-31T00:00:00+00:00"
+        assert user.plan_ends_at is None
+        assert user.roles == roles  # untouched
+    finally:
+        store.db.close()
+
+
+@pytest.mark.asyncio
+async def test_uncanceled_user_not_found_raises_for_retry(tmp_path):
+    store, connection, settings = make_store(tmp_path)
+    try:
+        with pytest.raises(HTTPException) as exc:
+            await handle_subscription_uncanceled(
+                {"id": "sub_unknown", "customer_id": "cus_none"},
+                store,
+                event_id="evt_uncancel_2",
+            )
+        assert exc.value.status_code == 500
+    finally:
+        store.db.close()

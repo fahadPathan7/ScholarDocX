@@ -1394,6 +1394,28 @@ h2 {
   padding: 0 4px;
 }
 
+/* SCHOLARDOCX-0220: meta row pairing each bubble's timestamp with the
+   answer-copy action. The copy button stays hidden until the message is
+   hovered (or focused / showing feedback) so the transcript stays quiet. */
+.message-meta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.icon-button.message-copy-button {
+  min-height: 22px;
+  width: 22px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.chat-message:hover .icon-button.message-copy-button,
+.icon-button.message-copy-button:focus-visible {
+  opacity: 1;
+}
+
 .typing-indicator {
   display: flex;
   gap: 4px;

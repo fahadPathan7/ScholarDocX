@@ -534,12 +534,23 @@ class ScholarshipDeepHuntService:
             for index, query in enumerate(queries):
                 if self.repository.is_cancelled(run_id):
                     return
-                pass_items = await self._brave_search(query, MAX_RESULTS_PER_PASS)
+                # SCHOLARDOCX-0220: 15-min per-user cache in front of Brave.
+                # A cache hit makes no provider call, so it must not charge —
+                # the per-hit fee below only runs on a real (miss) search.
+                from app.services.search_cache import cache_get, cache_put, make_key
+
+                cache_key = make_key(user_id, "brave", query.strip().casefold(), MAX_RESULTS_PER_PASS)
+                pass_items = cache_get(cache_key)
+                cache_hit = pass_items is not None
+                if not cache_hit:
+                    pass_items = await self._brave_search(query, MAX_RESULTS_PER_PASS)
+                    cache_put(cache_key, pass_items)
                 # Per-hit billing: charge for every raw result this pass
                 # returned, before any filtering. Brave bills us per result
-                # too, so this matches our upstream cost shape.
+                # too, so this matches our upstream cost shape. Skipped for
+                # cache hits — nothing was scanned upstream.
                 hits_this_pass = len(pass_items)
-                if hits_this_pass > 0:
+                if hits_this_pass > 0 and not cache_hit:
                     charge_flat_fee(
                         load_user_dict(user_id, billing_session),
                         billing_session,

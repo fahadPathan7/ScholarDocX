@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Cpu, FileText, Globe, History, Maximize2, Minimize2, Send, Settings2, Trash2, X } from "lucide-react";
+import { Bot, Check, Copy, Cpu, Download, FileText, Globe, History, Maximize2, Minimize2, Send, Settings2, Trash2, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, RecordMap } from "../lib/api";
@@ -129,6 +129,12 @@ const createInitialGreeting = () => ({
   timestamp: Date.now()
 });
 
+// SCHOLARDOCX-0220: compact timestamp for chat-export filenames (yyyymmdd-hhmm).
+function formatFileTimestamp(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
 export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?: () => Promise<void> }) {
   const { user } = useAuth();
   const { usageData, refreshUsage } = useUsage();
@@ -179,6 +185,9 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   });
 
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);
+  // SCHOLARDOCX-0220: transient per-message copy feedback. `ok` switches the
+  // inline note between "Copied" and the select-to-copy fallback hint.
+  const [copyFeedback, setCopyFeedback] = useState<{ index: number; ok: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasAdjustedRestrictedModelsRef = useRef(false);
@@ -191,6 +200,16 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   // routes to /ai/actions/plan. Set by Ask AI menu messages whose custom queries
   // may not match the narrow frontend action-detection regex.
   const forceActionRef = useRef(false);
+  // Copy-feedback auto-clear timer. A second copy must cancel the first
+  // feedback's pending timeout or it disappears early (same pattern as the
+  // App toast timer).
+  const copyFeedbackTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current !== null) window.clearTimeout(copyFeedbackTimerRef.current);
+    };
+  }, []);
 
   // Auto-scroll to bottom and auto-focus
   useEffect(() => {
@@ -494,6 +513,56 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const deleteSession = (sessionId: string) => {
     const updatedHistory = history.filter(s => s.id !== sessionId);
     saveHistory(updatedHistory);
+  };
+
+  // SCHOLARDOCX-0220: copy an answer's raw markdown to the clipboard. On
+  // failure (clipboard unavailable/blocked) the bubble shows a short hint to
+  // select the text and copy it manually — the message body is already
+  // user-selectable, so no further fallback is needed.
+  const showCopyFeedback = (index: number, ok: boolean) => {
+    if (copyFeedbackTimerRef.current !== null) window.clearTimeout(copyFeedbackTimerRef.current);
+    setCopyFeedback({ index, ok });
+    copyFeedbackTimerRef.current = window.setTimeout(() => setCopyFeedback(null), 1800);
+  };
+
+  const copyMessage = async (index: number) => {
+    const message = currentSession.messages[index];
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message.content);
+      showCopyFeedback(index, true);
+    } catch (e) {
+      console.error("Failed to copy message:", e);
+      showCopyFeedback(index, false);
+    }
+  };
+
+  // SCHOLARDOCX-0220: download the active session as a simple markdown
+  // transcript (heading with title/date, then You/Lumi blocks). Blob + object
+  // URL download, revoked right after the click; no dependencies.
+  const exportActiveChat = () => {
+    if (currentSession.messages.length === 0) return;
+    const lines: string[] = [
+      `# ${currentSession.title || "ScholarDocX Chat"}`,
+      "",
+      `_${new Date(currentSession.timestamp).toLocaleString()}_`,
+      "",
+    ];
+    for (const message of currentSession.messages) {
+      lines.push(message.role === "user" ? "**You:**" : "**Lumi:**");
+      lines.push("");
+      lines.push(message.content);
+      lines.push("");
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `scholardocx-chat-${formatFileTimestamp(new Date())}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Send message
@@ -1010,6 +1079,14 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
               </button>
             </div>
             <div className="chat-history-list">
+              <button
+                className="secondary compact"
+                type="button"
+                onClick={exportActiveChat}
+                title="Download the current chat as a Markdown file"
+              >
+                <Download size={14} /> Export chat
+              </button>
               {history.length === 0 ? (
                 <p className="empty">No chat history yet. Start a conversation!</p>
               ) : (
@@ -1141,9 +1218,32 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                   )}
                   {/* model name intentionally hidden */}
                 </div>
-                <span className="message-time">
-                  {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
+                <div className="message-meta-row">
+                  <span className="message-time">
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {message.role === "assistant" && (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button message-copy-button"
+                        onClick={() => copyMessage(index)}
+                        title={
+                          copyFeedback?.index === index && !copyFeedback.ok
+                            ? "Couldn't copy automatically — select the message text and copy it manually"
+                            : "Copy message"
+                        }
+                      >
+                        {copyFeedback?.index === index && copyFeedback.ok ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
+                      {copyFeedback?.index === index && (
+                        <span className="message-time">
+                          {copyFeedback.ok ? "Copied" : "Select the text to copy"}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}

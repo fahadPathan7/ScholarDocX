@@ -184,6 +184,32 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPurchasePacks, refreshTrigger]);
 
+  // SCHOLARDOCX-0220: a user who completes the external checkout and comes
+  // back to this tab should see the granted credits and their request's new
+  // status without a manual refresh. Debounced so quick tab flickers don't
+  // spam the API.
+  useEffect(() => {
+    let timer: number | undefined;
+    const refetch = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        refresh();
+        if (canPurchasePacks) fetchAll();
+      }, 500);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPurchasePacks]);
+
   const showBalance = !!balance && !balance.is_unlimited;
   const allowanceLabel = !balance ? "" : balance.monthly_allowance === -1 ? "∞" : formatTokens(balance.monthly_allowance);
 

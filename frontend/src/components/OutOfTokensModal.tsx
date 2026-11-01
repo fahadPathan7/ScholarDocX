@@ -1,6 +1,7 @@
 import { Coins, ZapOff } from "lucide-react";
 import { Modal } from "./Modal";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
+import { openUsageModal } from "../lib/usageEvents";
 
 /**
  * Derive the next monthly-allowance reset date from the balance's
@@ -72,6 +73,15 @@ export function OutOfTokensModal({ open, onClose, onBuyTokens }: Props) {
         <div className="modal-footer flex items-center justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">
             Maybe later
+          </button>
+          <button
+            onClick={() => {
+              onClose();
+              openUsageModal();
+            }}
+            className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-xl hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            See usage
           </button>
           <button
             onClick={onBuyTokens}

@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import get_store
 from app.db.models import Users, AiTokenPacks, AppSettings, PolarProcessedEvents
 from app.services.store import Store
-from app.services.ai_tokens import grant_purchased
+from app.services.ai_tokens import grant_purchased, notify_credits_granted
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -253,6 +253,11 @@ async def polar_webhook(request: Request, store: Store = Depends(get_store)):
             await handle_subscription_updated(data, store, event_id, canceled=True)
         elif event_type == "subscription.revoked":
             await handle_subscription_revoked(data, store, event_id)
+        elif event_type == "subscription.uncanceled":
+            # SCHOLARDOCX-0220: previously fell through unhandled, so a
+            # reversed cancellation left polar_cancel_at_period_end stuck at 1
+            # until the next .updated event happened to arrive.
+            await handle_subscription_uncanceled(data, store, event_id)
         elif event_type == "order.created":
             await handle_order_created(data, store, event_id)
         else:
@@ -413,6 +418,43 @@ async def handle_subscription_revoked(data: Dict[str, Any], store: Store, event_
         raise HTTPException(status_code=500, detail="User not found")
 
 
+async def handle_subscription_uncanceled(data: Dict[str, Any], store: Store, event_id: Optional[str]) -> None:
+    """Reversed cancellation (subscription.uncanceled).
+
+    The user un-scheduled a pending cancel: clear the
+    ``polar_cancel_at_period_end`` flag and restore the renewal fields from
+    the payload, mirroring the not-cancel branch of ``.updated`` (renews at
+    ``current_period_end``; ``plan_ends_at`` cleared). Roles are untouched —
+    the paid plan never changed during a scheduled cancel.
+    """
+    subscription_id = data.get("id")
+    customer_id = data.get("customer_id")
+
+    user = None
+    if subscription_id:
+        user = store.db.scalar(select(Users).where(Users.polar_subscription_id == subscription_id))
+    if not user:
+        user = _find_user(store, customer_id, data)
+
+    if not user:
+        logger.error(
+            f"Could not find user for Polar subscription uncanceled {subscription_id} "
+            f"(customer_id={customer_id}, event_id={event_id})"
+        )
+        # 500 → Polar retries, matching the other subscription handlers.
+        raise HTTPException(status_code=500, detail="User not found")
+
+    current_period_end = data.get("current_period_end")
+    user.polar_cancel_at_period_end = 0
+    user.plan_renews_at = current_period_end if current_period_end else None
+    user.plan_ends_at = None
+    store.db.commit()
+    logger.info(
+        f"Uncanceled Polar subscription {subscription_id} for user {user.id}: "
+        f"cancel-at-period-end cleared, renews at {current_period_end} (event_id={event_id})"
+    )
+
+
 async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Optional[str]) -> None:
     """Grant extra-credit pack tokens for a one-off Polar order."""
     product_id = data.get("product_id")
@@ -489,6 +531,15 @@ async def handle_order_created(data: Dict[str, Any], store: Store, event_id: Opt
     logger.info(
         f"Granted {pack_row.token_amount} extra credits to user {target_user_id} via Polar order "
         f"(pack={pack_code}, order_id={order_id}, event_id={event_id})"
+    )
+    # SCHOLARDOCX-0220: the buyer previously had to revisit the Buy page to
+    # notice a successful checkout. Best-effort; never fails the webhook.
+    notify_credits_granted(
+        target_user_id,
+        pack_row.token_amount,
+        session=store.db,
+        source="polar_order",
+        pack_label=pack_row.display_name,
     )
 
 

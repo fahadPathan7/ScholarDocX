@@ -35,6 +35,9 @@ import {
   Save,
   Bookmark,
   Clock,
+  Check,
+  Copy,
+  Download,
   X
 } from "lucide-react";
 import {
@@ -101,6 +104,18 @@ function formatAuthorsDisplay(authorsStr?: string): string {
 // Matches single or grouped section citations, e.g. "[Section #21]",
 // "[Section #2, #3, #10]", "[Sections #2 and #21]", "[Chunk #5]".
 const CITATION_RE = /\[(?:Chunks?|Sections?)\s*#?\d+(?:\s*(?:,|and|&)\s*#?\d+)*\]/i;
+
+// SCHOLARDOCX-0220: filesystem-safe slug of a paper title, used to name
+// downloaded analysis files (scholardocx-analysis-<slug>.md).
+function slugifyPaperTitle(title: string): string {
+  const slug = (title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  return slug || "paper";
+}
 
 // SCHOLARDOCX-0218: worst-case credit ceiling for one analysis of a paper,
 // carried on the paper payload. Optional so this view compiles and behaves
@@ -383,6 +398,9 @@ export function ResearchExpertView({
   const [savedModalOpen, setSavedModalOpen] = useState<boolean>(false);
   const [expandedSavedIds, setExpandedSavedIds] = useState<Set<string>>(new Set());
   const [deletingSavedId, setDeletingSavedId] = useState<string | null>(null);
+  // SCHOLARDOCX-0220: transient "Copied" state on the analysis copy action.
+  const [analysisCopied, setAnalysisCopied] = useState<boolean>(false);
+  const analysisCopiedTimerRef = useRef<number | null>(null);
 
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -647,6 +665,53 @@ export function ResearchExpertView({
       setSavingAnalysis(false);
     }
   };
+
+  // SCHOLARDOCX-0220: copy the current analysis markdown to the clipboard.
+  // Shows a brief "Copied" state; a clipboard failure surfaces as the plain
+  // banner message telling the user to select and copy manually.
+  const handleCopyAnalysis = async () => {
+    if (!analysisResult) return;
+    try {
+      await navigator.clipboard.writeText(analysisResult.answer);
+      if (analysisCopiedTimerRef.current !== null) window.clearTimeout(analysisCopiedTimerRef.current);
+      setAnalysisCopied(true);
+      analysisCopiedTimerRef.current = window.setTimeout(() => setAnalysisCopied(false), 1800);
+    } catch (err) {
+      console.error("Failed to copy analysis:", err);
+      setErrorMsg("Couldn't copy the analysis. Please select the text and copy it manually.");
+    }
+  };
+
+  // SCHOLARDOCX-0220: download the current analysis as a markdown file named
+  // after the paper (scholardocx-analysis-<slug>.md). Blob + object URL, no
+  // dependencies.
+  const handleDownloadAnalysis = () => {
+    if (!analysisResult || !activePaper) return;
+    const content = [
+      `# ${activePaper.title}`,
+      "",
+      `**Question:** ${analysisResult.prompt}`,
+      "",
+      analysisResult.answer,
+      "",
+    ].join("\n");
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `scholardocx-analysis-${slugifyPaperTitle(activePaper.title)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Clear any pending "Copied" reset when the view unmounts.
+  useEffect(() => {
+    return () => {
+      if (analysisCopiedTimerRef.current !== null) window.clearTimeout(analysisCopiedTimerRef.current);
+    };
+  }, []);
 
   const handleDeleteSavedAnalysis = async (analysisId: string) => {
     if (!activePaperId) return;

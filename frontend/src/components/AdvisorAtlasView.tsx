@@ -100,9 +100,13 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const reloadActive = async () => {
     if (!activeRun) return;
-    const data = await advisorAtlasApi.getRun(activeRun.id);
-    setActiveRun(data);
-    await loadRuns();
+    try {
+      const data = await advisorAtlasApi.getRun(activeRun.id);
+      setActiveRun(data);
+      await loadRuns();
+    } catch {
+      onToast("Could not refresh this search. Please try again.");
+    }
   };
 
   useEffect(() => {
@@ -207,7 +211,12 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const shortlist = async (candidate: AdvisorCandidate) => {
     const status = candidate.shortlist_status === "shortlisted" ? "unreviewed" : "shortlisted";
-    await advisorAtlasApi.updateCandidate(candidate.id, { shortlist_status: status });
+    try {
+      await advisorAtlasApi.updateCandidate(candidate.id, { shortlist_status: status });
+    } catch {
+      onToast("Could not update the shortlist. Please try again.");
+      return;
+    }
     await reloadActive();
     onToast(status === "shortlisted" ? "Professor shortlisted." : "Professor removed from shortlist.");
   };

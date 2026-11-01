@@ -836,6 +836,57 @@ def charge_flat_fee(
     }
 
 
+def notify_credits_granted(
+    user_id: str,
+    tokens: int,
+    *,
+    session: Session,
+    source: str,
+    pack_label: Optional[str] = None,
+) -> None:
+    """Insert a billing notification telling the user credits were added.
+
+    Best-effort: a failure here must never fail the grant/webhook/approval —
+    callers wrap nothing, this function swallows its own errors. Respects the
+    user's ``billing`` notification preference (mirrors the admin announcement
+    INSERT shape and its is_notification_enabled gate). SCHOLARDOCX-0220.
+    """
+    try:
+        from app.core.notifications import is_notification_enabled
+
+        settings_row = session.execute(
+            text("SELECT notification_settings FROM local_profiles WHERE user_id = :uid"),
+            {"uid": user_id},
+        ).mappings().fetchone()
+        if not is_notification_enabled(
+            settings_row["notification_settings"] if settings_row else None, "billing"
+        ):
+            return
+
+        label = f" ({pack_label})" if pack_label else ""
+        session.execute(
+            text(
+                "INSERT INTO notifications (user_id, title, body, notification_type, preference_key) "
+                "VALUES (:uid, :title, :body, 'general', 'billing')"
+            ),
+            {
+                "uid": user_id,
+                "title": "AI credits added",
+                "body": f"{tokens:,} AI credits were added to your account{label}.",
+            },
+        )
+        session.commit()
+        logger.info("credit-grant notification created for user %s (source=%s)", user_id, source)
+    except Exception:
+        session.rollback()
+        logger.warning(
+            "failed to create credit-grant notification for user %s (source=%s)",
+            user_id,
+            source,
+            exc_info=True,
+        )
+
+
 def grant_purchased(
     user_id: str,
     tokens: int,
@@ -1148,6 +1199,17 @@ def resolve_purchase_request(
         )
 
     session.commit()
+
+    if action == "approve":
+        # SCHOLARDOCX-0220: the requester previously had to revisit the Buy
+        # page to learn their request was approved. Called AFTER the commit so
+        # the helper's best-effort rollback can never wipe the grant itself.
+        notify_credits_granted(
+            str(row["user_id"]),
+            int(row["token_amount"] or 0),
+            session=session,
+            source="pack_purchase",
+        )
     updated = session.execute(
         text(_request_select(alias_user=True) + " WHERE r.id = :id"),
         {"id": request_id},

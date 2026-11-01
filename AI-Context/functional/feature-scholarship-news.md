@@ -205,6 +205,14 @@ Profile.
   row-coloring (FR-7 Date Color Rules) surface in a "Deadline Radar"
   summary in the Opportunity Library and fire one local notification per
   opportunity per day, deduped so reloading the tab does not re-notify.
+- FR-8.42a (SCHOLARDOCX-0219): The same radar also runs server-side, so a
+  user who never opens the Opportunity Library tab still gets the
+  notification: a daily cron (`/api/internal/deadline-notifications`, GitHub
+  Actions `deadline-notifications` workflow) plus a lazy per-user pass at
+  login scan saved opportunities with the identical semantics (tracker-linked
+  only, nearest deadline within 7 days, `scholarship_deadline_approaching`
+  preference, day-granularity dedupe via `last_deadline_notified_at` claimed
+  atomically so client and server scans can never double-notify).
 
 ## Deep Hunt Runs (FR-8.43+, Phase 5)
 

@@ -1,0 +1,39 @@
+# SCHOLARDOCX-0219: Creates deadline notifications for saved scholarship
+# opportunities whose nearest deadline enters the 7-day window.
+#
+# The client-side radar in the Opportunity Library only runs when the user
+# opens that tab; this daily scan covers everyone else. A lazy per-user pass
+# on login is the safety net if this cron is not configured.
+#
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   BACKEND_URL    — origin of the deployed API, e.g. https://api.example.com
+#   CLEANUP_SECRET — must match the backend's CLEANUP_SECRET env var
+name: Deadline notifications
+
+on:
+  schedule:
+    # Runs once every day at 07:00 UTC (morning in Europe/Asia, overnight US).
+    - cron: "0 7 * * *"
+  workflow_dispatch: {}  # allow manual runs from the Actions tab
+
+jobs:
+  deadline-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deadline notification scan
+        run: |
+          set -euo pipefail
+          resp=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "X-Cleanup-Token: $CLEANUP_SECRET" \
+            "$BACKEND_URL/api/internal/deadline-notifications")
+          code=$(echo "$resp" | tail -n1)
+          body=$(echo "$resp" | sed '$d')
+          echo "HTTP $code"
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "::error::Deadline notification endpoint returned HTTP $code"
+            exit 1
+          fi
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}

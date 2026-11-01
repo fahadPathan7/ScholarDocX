@@ -284,15 +284,29 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
         raise HTTPException(status_code=403, detail="user_suspended")
 
     # SCHOLARDOCX-0217: lazily persist THIS user's expired paid-plan downgrade
-    # (throttled by its own app_settings marker so it does not run on every
-    # login). Authorization already applies the downgrade in memory via
-    # get_current_user; this closes the window before the daily cron persists
-    # it, reusing the exact same rules (admin roles are never removed).
+    # (no marker needed — the no-op path performs no writes). Authorization
+    # already applies the downgrade in memory via get_current_user; this
+    # closes the window before the daily cron persists it, reusing the exact
+    # same rules (admin roles are never removed).
     from app.services.plan_expiry import maybe_run_lazy_user_plan_expiry
     if maybe_run_lazy_user_plan_expiry(store, user):
         user = store.legacy_connection.execute(
             "SELECT * FROM users WHERE id = ?", (user["id"],)
         ).fetchone()
+
+    # SCHOLARDOCX-0219: lazily run this user's deadline scan so the
+    # notification lands even when the daily cron is not configured and the
+    # user never opens the Opportunity Library tab (the client-side radar
+    # only runs there). Best-effort: a failure must never block login.
+    try:
+        from app.services.deadline_notifications import run_deadline_notification_scan
+        run_deadline_notification_scan(store, user_id=str(user["id"]))
+    except Exception:
+        logger.warning(
+            "lazy deadline notification scan failed for user %s",
+            user["id"],
+            exc_info=True,
+        )
 
     roles = safe_json_loads(user["roles"], default=[])
     

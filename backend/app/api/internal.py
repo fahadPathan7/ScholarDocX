@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from app.api.dependencies import get_store
 from app.services.registration_cleanup import purge_expired_pending_accounts
 from app.services.plan_expiry import downgrade_expired_user_plans
+from app.services.deadline_notifications import run_deadline_notification_scan
 from app.services.store import Store
 
 router = APIRouter(prefix="/internal", tags=["internal"])
@@ -75,3 +76,24 @@ def downgrade_expired_plans(
         raise HTTPException(status_code=401, detail="Unauthorized.")
     downgraded = downgrade_expired_user_plans(store)
     return {"status": "success", "downgraded": downgraded}
+
+
+@router.post("/deadline-notifications")
+def deadline_notifications(
+    x_cleanup_token: Optional[str] = Header(default=None, alias="X-Cleanup-Token"),
+    store: Store = Depends(get_store),
+):
+    """Create deadline notifications for saved opportunities entering their
+    7-day window (SCHOLARDOCX-0219).
+
+    Called by the GitHub Actions ``deadline-notifications`` workflow daily.
+    Covers users who never open the Opportunity Library tab (the client-side
+    radar only runs there). Gated by ``CLEANUP_SECRET``.
+    """
+    secret = _cleanup_secret()
+    if not secret:
+        raise HTTPException(status_code=503, detail="Cleanup endpoint not configured.")
+    if not x_cleanup_token or not hmac.compare_digest(x_cleanup_token, secret):
+        raise HTTPException(status_code=401, detail="Unauthorized.")
+    notified = run_deadline_notification_scan(store)
+    return {"status": "success", "notified": notified}

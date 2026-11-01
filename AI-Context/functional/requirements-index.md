@@ -126,6 +126,7 @@
 - ~~FR-8.39: One local Hunt Profile...~~ / ~~FR-8.40: Local fit score...~~ REMOVED (SCHOLARDOCX-0178): no real-world use; removed along with all fit-score UI.
 - FR-8.41: A saved query is a watchlist; re-running it diffs and badges results new since the last run.
 - FR-8.42: Deadline Radar surfaces tracked opportunities near their deadline and fires one deduped notification per day.
+- FR-8.42a (SCHOLARDOCX-0219): the radar also runs server-side (daily cron + lazy login pass) with identical semantics, covering users who never open the Library tab.
 - FR-8.51 (SCHOLARDOCX-0177): near-duplicate opportunities (same generic program, year/punctuation title variants) collapse to the single best-evidenced entry before persistence.
 - FR-8.52 (SCHOLARDOCX-0177): broad/umbrella multi-field programs (5+ unrelated fields, no goal-specific track) are scored below the relevance floor rather than treated as a field-specific match.
 - FR-8.53 (SCHOLARDOCX-0177): extraction must not attribute sponsorship to a hosting/aggregator site, or assume its own URL is the official application page, without explicit textual support.

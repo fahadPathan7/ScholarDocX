@@ -276,7 +276,7 @@ async def test_owned_candidate_refresh_gates_on_ai_tokens(monkeypatch):
 
     class FakeRepository:
         def get_candidate(self, candidate_id, user_id):
-            assert (candidate_id, user_id) == (12, 7)
+            assert (candidate_id, user_id) == (str(12), str(7))  # route stringifies ids
             return {"id": candidate_id}
 
     class FakeService:
@@ -429,7 +429,7 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
     )
 
     assert result["id"] == 50
-    assert created == [9]
+    assert created == [str(9)]  # create_run stringifies user ids (0218 ceiling path)
 
 
 @pytest.mark.asyncio

@@ -230,7 +230,7 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
             usage_now = session.execute(
                 text("SELECT current_count FROM user_usage_stats WHERE user_id = :uid AND feature = :feature"),
                 {"uid": user["id"], "feature": feature}
-            ).fetchone()
+            ).mappings().fetchone()
             logger.debug(
                 "check_and_increment_limit denied %s for user %s: current=%s inc=%s limit=%s",
                 feature,

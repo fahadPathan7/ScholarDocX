@@ -405,9 +405,16 @@ def test_grant_purchased_accumulates(tmp_path):
         assert second == 150000
         rows = ledger_rows(settings, user["id"])
         grants = [r for r in rows if r["tokens_delta"] > 0]
-        assert [g["tokens_delta"] for g in grants] == [100000, 50000]
-        assert grants[0]["balance_bucket"] == "purchased"
-        assert grants[0]["ref_id"] == 3
+        # Order-insensitive: both grants share one transaction timestamp
+        # (created_at defaults to transaction-start now()), so no stable
+        # insertion-order tiebreak exists.
+        assert sorted(g["tokens_delta"] for g in grants) == [50000, 100000]
+        # ref_id is a String column — read back as "3" regardless of the int
+        # the caller passed.
+        with_ref = [g for g in grants if str(g["ref_id"]) == "3"]
+        assert len(with_ref) == 1
+        assert with_ref[0]["tokens_delta"] == 100000
+        assert with_ref[0]["balance_bucket"] == "purchased"
     finally:
         session.close()
 
@@ -472,7 +479,11 @@ async def test_chat_charges_via_instance_billing(tmp_path, monkeypatch):
 
         result = await svc.chat("hi", model="glm:GLM-4.7")
         assert result["answer"] == "hello"
-        assert result["usage"] == {"input_tokens": 1000, "output_tokens": 500}
+        assert result["usage"]["input_tokens"] == 1000
+        assert result["usage"]["output_tokens"] == 500
+        # credits_charged has shipped in usage since the billing-audit
+        # pass (see ai.py chat()); assert it as part of the contract.
+        assert result["usage"]["credits_charged"] == 20
 
         # Billing context charged 20 tokens off the subscription bucket.
         b = get_balance(settings, user["id"])

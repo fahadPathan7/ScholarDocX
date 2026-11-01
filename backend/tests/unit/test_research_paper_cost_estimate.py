@@ -32,7 +32,7 @@ from app.db.models import ResearchPaperChunks, ResearchPapers
 from app.services import ai_tokens
 from app.services import research_paper_service as rps_module
 from app.services.research_paper_service import ResearchPaperService
-from tests.helpers import cleanup_user_records, make_settings, make_user
+from tests.helpers import cleanup_user_records, make_settings
 
 
 @pytest.fixture
@@ -55,6 +55,31 @@ def _install_exact_pricing(monkeypatch):
         ),
     )
 
+
+
+def _make_session_user(session: Session, roles: list) -> dict:
+    """Create the test user ON THE SAME ORM SESSION as the papers.
+
+    make_user() commits on its own connection; under pytest-xdist a
+    concurrently-initializing worker could... in any case one-connection
+    seeding removes the FK-visibility window entirely (SCHOLARDOCX-0222
+    test-infra hardening).
+    """
+    import uuid as _uuid
+    from app.db.models import Users
+
+    email = f"cost-estimate-{_uuid.uuid4().hex[:8]}@test.local"
+    user = Users(
+        email=email,
+        password_hash="x",
+        display_name="Cost Estimate Test",
+        roles=__import__("json").dumps(roles),
+        is_active=1,
+        is_blocked=0,
+    )
+    session.add(user)
+    session.commit()
+    return {"id": user.id, "email": email, "roles": roles}
 
 def _seed_paper(
     session: Session,
@@ -90,7 +115,7 @@ def test_paper_payloads_include_analysis_cost_estimate(db_session, monkeypatch):
     sized from each paper's own worst-case retrieved context."""
     settings, session = db_session
     _install_exact_pricing(monkeypatch)
-    user = make_user(settings, roles=["pro_user"])
+    user = _make_session_user(session, roles=["pro_user"])
 
     try:
         _seed_paper(session, user["id"], "paper-cost-a", [400, 300, 200])
@@ -122,7 +147,7 @@ async def test_analyze_pre_flight_rejects_when_balance_below_ceiling(
     embedding or analysis work runs."""
     settings, session = db_session
     _install_exact_pricing(monkeypatch)
-    user = make_user(settings, roles=["pro_user"])
+    user = _make_session_user(session, roles=["pro_user"])
 
     spend_calls: list[int] = []
 
@@ -160,7 +185,7 @@ async def test_analyze_proceeds_when_balance_covers_ceiling(db_session, monkeypa
     boundary mocked)."""
     settings, session = db_session
     _install_exact_pricing(monkeypatch)
-    user = make_user(settings, roles=["pro_user"])
+    user = _make_session_user(session, roles=["pro_user"])
 
     spend_calls: list[int] = []
 

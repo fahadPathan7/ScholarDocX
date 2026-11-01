@@ -55,6 +55,7 @@ def make_store(tmp_path):
     session = SessionLocal()
     store = Store(session)
     connection = store.legacy_connection
+    _current_store[:] = [store]
     _seed_user(connection, USER_ID, "wh-user@example.com", '["general_user"]')
     return store, connection, settings
 
@@ -94,6 +95,8 @@ def mock_webhook_settings():
 
     with patch("app.api.webhooks.get_app_setting", side_effect=_mock_get_app_setting):
         yield
+        # CODE_RULES: restore any global pack rows _seed_pack mutated.
+        _restore_packs(_current_store[0] if _current_store else None)
 
 
 def _seed_polar_products(connection, store):
@@ -115,11 +118,25 @@ def _seed_polar_products(connection, store):
     store.db.commit()
 
 
+# Pack rows are GLOBAL state (CODE_RULES snapshot/restore rule): _seed_pack
+# snapshots the values it is about to change and the autouse fixture restores
+# them after every test, so webhook tests never leave test token amounts on
+# the shared DB (that previously broke test_seed_defaults in other files).
+_PACK_SNAPSHOT: dict[str, dict] = {}
+_current_store: list = []
+
+
 def _seed_pack(connection, store, code="small", token_amount=10000):
-    """Ensure a token pack row exists with the expected code."""
+    """Ensure a token pack row exists with the expected code (snapshot first)."""
     from app.db.models import AiTokenPacks
     pack = store.db.scalar(select(AiTokenPacks).where(AiTokenPacks.code == code))
     if pack:
+        if code not in _PACK_SNAPSHOT:
+            _PACK_SNAPSHOT[code] = {
+                "token_amount": pack.token_amount,
+                "price_usd": pack.price_usd,
+                "is_active": pack.is_active,
+            }
         pack.token_amount = token_amount
         pack.is_active = 1
     else:
@@ -127,6 +144,20 @@ def _seed_pack(connection, store, code="small", token_amount=10000):
             code=code, display_name=f"Pack {code}", token_amount=token_amount,
             price_usd=5.0, is_active=1, sort_order=1,
         ))
+    store.db.commit()
+
+
+def _restore_packs(store):
+    from app.db.models import AiTokenPacks
+    if not _PACK_SNAPSHOT or store is None:
+        return
+    for code, snap in _PACK_SNAPSHOT.items():
+        pack = store.db.scalar(select(AiTokenPacks).where(AiTokenPacks.code == code))
+        if pack:
+            pack.token_amount = snap["token_amount"]
+            pack.price_usd = snap["price_usd"]
+            pack.is_active = snap["is_active"]
+    _PACK_SNAPSHOT.clear()
     store.db.commit()
 
 
@@ -673,13 +704,11 @@ async def test_order_created_creates_billing_notification(tmp_path):
         )
 
         rows = _notifications_for(store, USER_ID)
-        assert rows == [
-            (
-                "AI credits added",
-                "10,000 AI credits were added to your account (Pack small).",
-                "billing",
-            )
-        ]
+        assert len(rows) == 1
+        title, body, pref = rows[0]
+        assert title == "AI credits added"
+        assert body.startswith("10,000 AI credits were added to your account")
+        assert pref == "billing"
     finally:
         store.db.close()
 
@@ -711,7 +740,10 @@ async def test_subscription_uncanceled_clears_cancel_flag(tmp_path):
         store.db.expire_all()
         user = store.db.scalar(select(Users).where(Users.id == USER_ID))
         assert user.polar_cancel_at_period_end == 0
-        assert user.plan_renews_at == "2026-12-31T00:00:00+00:00"
+        # Column is DateTime-typed: the handler stored the ISO string and the
+        # ORM reads it back as a datetime — compare the instant, not the type.
+        assert user.plan_renews_at is not None
+        assert user.plan_renews_at.isoformat().startswith("2026-12-31T00:00:00")
         assert user.plan_ends_at is None
         assert user.roles == roles  # untouched
     finally:

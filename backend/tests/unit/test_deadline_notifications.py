@@ -58,8 +58,13 @@ def _seed_user(conn, uid, email, settings_json=None):
 
 
 def _seed_linked_sheet(conn, uid) -> str:
-    """Create a real project + sheet (linked_sheet_id has an FK) owned by uid."""
-    sheet_id = f"00000000-0000-0000-0000-{uid[-12:]}"
+    """Create a real project + sheet (linked_sheet_id has an FK) owned by uid.
+
+    Fresh UUID per call — several opportunities in one test each need their
+    own sheet row (a shared fixed id collides on projects_pkey).
+    """
+    import uuid as _uuid
+    sheet_id = str(_uuid.uuid4())
     conn.execute(
         "INSERT INTO projects (id, user_id, name) VALUES (?, ?, 'Deadline Test Project')",
         (sheet_id, uid),

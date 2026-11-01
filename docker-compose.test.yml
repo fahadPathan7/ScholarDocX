@@ -18,6 +18,11 @@ services:
       POSTGRES_DB: scholardocx_test
     ports:
       - "5433:5432"
+    # Enable pgvector on first boot (the image ships it but does not create it
+    # in POSTGRES_DB). SCHOLARDOCX-0209 could not verify this because Docker
+    # never came up; hit for real during SCHOLARDOCX-0222 test runs.
+    volumes:
+      - ./scripts/test-db-init:/docker-entrypoint-initdb.d:ro
     # pytest-xdist (-n auto in pytest.ini) spawns one worker per CPU core,
     # each holding its own SQLAlchemy engine pool (pool_size=10 + overflow=10
     # = up to 20 conns per worker). The default max_connections=100 can be

@@ -167,7 +167,7 @@ def test_load_user_dict_refuses_suspended_user(tmp_path):
     session = get_session(settings)
     try:
         session.execute(
-            text("UPDATE users SET is_active = false WHERE id = :id"),
+            text("UPDATE users SET is_active = 0 WHERE id = :id"),  # int column, not boolean
             {"id": user["id"]},
         )
         session.commit()
@@ -810,10 +810,15 @@ def test_ai_research_pre_flight_rejects_insufficient_balance(tmp_path, monkeypat
     from fastapi import HTTPException
 
     from app.api import routes as routes_api
+    from app.services.ai import AiService
 
     settings = make_settings(tmp_path)
 
     class ExplodingAiService:
+        # The route's pre-flight prices the named model via this pure static
+        # before constructing the service — delegate to the real one.
+        _parse_model_choice = staticmethod(AiService._parse_model_choice)
+
         def __init__(self, *a, **k):
             raise AssertionError("no service (so no provider call) may run when the pre-flight rejects")
 

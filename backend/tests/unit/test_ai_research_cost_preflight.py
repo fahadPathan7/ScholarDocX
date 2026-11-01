@@ -29,6 +29,10 @@ from app.services.ai import (
 class FakeAiService:
     """Stands in for routes.AiService: records construction + research()."""
 
+    # The route's pre-flight prices the named model via the service's own
+    # parser (a pure static) — delegate to the real implementation.
+    _parse_model_choice = staticmethod(AiService._parse_model_choice)
+
     instances: list["FakeAiService"] = []
 
     def __init__(self, settings, *, user=None, session=None):

@@ -228,8 +228,12 @@ no-migration variant for pre-existing tables.
 - `/email-drafts`
 - `/outreach`
 - `/reminders`
-- `/ai/chat`
-- `/ai/research`
+- `/ai/chat`, `/ai/research`, `/ai/actions/plan` — the client sends
+  `message_count` (prior messages in the session); the per-session limit check
+  prefers it over parsing the free-form `context` string, which never parsed
+  as JSON from the real frontend (SCHOLARDOCX-0217). Model→provider
+  resolution reads the `ai_models` catalog first; the legacy prefix guess is
+  only a fallback for genuinely uncatalogued ids.
 - `/news/search` makes one dedicated Tavily basic web-search request for the
   approved Scholarship Hunt query and normalizes returned pages into news cards
   without using the AI-chat research flow or manual post-search filtering

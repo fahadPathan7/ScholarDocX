@@ -180,10 +180,11 @@ add your own backdrop div.
   inside `Modal.tsx`.
 - Changing `.modal-backdrop-main` to `position: fixed` / `min-height: 100vh`.
 - Custom portals to `#sheet-work-surface` or `.section-body` for standard modals.
-- Copying modal markup from: `RecordFormModal.tsx`, `CsvImportModal.tsx`,
-  `StickyNotesView.tsx`, `RowPeekPanel.tsx`, `HuntProfileModal.tsx`,
-  `AddToTrackerModal.tsx`, `ProjectDashboard.tsx`, `AboutView.tsx` — these
-  are legacy; migrate to `<Modal>` when touched.
+- Re-adding an inline backdrop div for any new modal. Every main-content modal
+  was migrated to `<Modal>` in SCHOLARDOCX-0217 (App.tsx global modals via
+  `scope="body"`, AboutView, AddToTrackerModal were the last). The only
+  sanctioned non-`<Modal>` backdrop is `LoginPage.tsx`'s
+  `auth-modal-backdrop` (pre-login page; nothing to keep sharp).
 
 **Before shipping modal work — visual check**
 

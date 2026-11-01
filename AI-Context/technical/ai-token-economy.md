@@ -543,9 +543,12 @@ documented charge helper that never ran:
 - Failed calls with no usage are voided; usage returned before an error is
   charged.
 - Deduction is atomic per call (single transaction) to avoid balance drift.
-- Charging happens after the call (output tokens unknown beforehand); the only
-  overshoot is the final call that empties the balance, after which the next
-  call is hard-stopped.
+- Charging happens after the call (output tokens unknown beforehand). A call
+  the two buckets cannot fully cover is rejected whole — the deduction is one
+  conditional `UPDATE` (see `_atomic_deduct` in `services/ai_tokens.py`): 0
+  rows update, the balance is left untouched, and `OutOfTokens` (402) is
+  raised. Concurrent charges can never both spend the same credits, and
+  partial/clamped under-deduction no longer exists (SCHOLARDOCX-0217).
 - Deprecated count limits (`daily_ai_chats`, `monthly_ai_chats`,
   `advisor_atlas_searches_per_month`) were **removed outright** in Phase 5 (not
   left dormant): deleted from the schema seed, `DEFAULT_ROLE_LIMITS`, the

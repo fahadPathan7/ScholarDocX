@@ -33,6 +33,10 @@ type Message = {
   /** Set on failed chat/research bubbles so the last one can offer a
    *  "Try again" action that replays the exact request. */
   retryRequest?: { path: string; payload: RecordMap };
+  /** SCHOLARDOCX-0218: set when a research response actually used web
+   *  search, so the bubble can say so (and show the query that was run). */
+  search_performed?: boolean;
+  search_query?: string;
 };
 
 type ChatSession = {
@@ -678,7 +682,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         content: response.answer || "No response",
         timestamp: Date.now(),
         sources: response.sources,
-        mode: response.mode
+        mode: response.mode,
+        // SCHOLARDOCX-0218: remember whether this answer used web search (and
+        // the query), so the bubble can disclose it. Only /ai/research
+        // returns these; /ai/chat responses simply leave them unset.
+        search_performed: response.search_performed === true || undefined,
+        search_query: typeof response.search_query === "string" ? response.search_query : undefined
       };
 
       const finalMessages = [...updatedMessages, assistantMessage];
@@ -728,7 +737,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         content: response.answer || "No response",
         timestamp: Date.now(),
         sources: response.sources,
-        mode: response.mode
+        mode: response.mode,
+        // SCHOLARDOCX-0218: a retry can replay a /ai/research request, so the
+        // replaced bubble needs the same search disclosure as a fresh answer.
+        search_performed: response.search_performed === true || undefined,
+        search_query: typeof response.search_query === "string" ? response.search_query : undefined
       };
       // Replace the error bubble with the real answer (the retried bubble is
       // always the last message in the session).
@@ -1034,6 +1047,19 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
           ) : (
             currentSession.messages.map((message, index) => (
               <div key={index} className={`chat-message ${message.role}`}>
+                {message.search_performed && (
+                  <span
+                    className="message-search-note"
+                    title={message.search_query || "This answer used a live web search"}
+                  >
+                    <Globe size={11} />
+                    <span className="message-search-note-text">
+                      {message.search_query
+                        ? `Searched the web \u2014 \u201C${message.search_query}\u201D`
+                        : "Searched the web"}
+                    </span>
+                  </span>
+                )}
                 <div className="message-content">
                   {message.imageUrl && (
                     <img src={message.imageUrl} alt="Uploaded" className="message-image" />

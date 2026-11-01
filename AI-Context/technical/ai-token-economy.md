@@ -354,6 +354,21 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   the same reason `can_use_scholarship_analyze` didn't get one: count limits
   on AI-metered actions were removed project-wide in the Phase 5 teardown
   above in favor of gate + token cost.
+- **Worst-case pre-flight ceilings everywhere (SCHOLARDOCX-0218).** Deep
+  Hunt's per-hit ceiling pattern now covers the other expensive flows:
+  `/ai/research` pre-flights the Tavily flat fee + a conservative answer
+  ceiling (`RESEARCH_MAX_INPUT_TOKENS`/`RESEARCH_MAX_OUTPUT_TOKENS` in
+  `services/ai.py`, web-results component computed from the request's own
+  caps); Research Expert analyze pre-flights a per-paper ceiling
+  (`estimate_analysis_cost` in `research_paper_service.py`, embedding + the
+  paper's top-K largest sections over the model cascade) and ships it on the
+  paper payload as `analysis_cost_estimate`; Advisor Atlas create pre-flights
+  `estimate_run_cost` (`services/advisor_atlas/cost_estimate.py`, every
+  search/AI pass at the pipeline's caps × the candidate cap) and returns it
+  as `cost_estimate`. If actual usage still exceeds a ceiling (rare — the
+  constants are conservative), the flow fails 402 with honest copy; for
+  `/ai/research` that copy says the web-search fee was already deducted
+  (`RESEARCH_ANSWER_OUT_OF_CREDITS_MESSAGE`).
 
 ## Research Expert Jina embedding billing (SCHOLARDOCX-0174)
 

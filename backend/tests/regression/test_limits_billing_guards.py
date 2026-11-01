@@ -802,6 +802,133 @@ def test_deep_hunt_denied_when_plan_lacks_scholarship_hunt(tmp_path, monkeypatch
     assert exc_info.value.status_code == 403
 
 
+def test_ai_research_pre_flight_rejects_insufficient_balance(tmp_path, monkeypatch):
+    """/ai/research rejects with a plain-language 402 when the user can't
+    afford the worst case (search fee + answer ceiling), before any provider
+    work starts (SCHOLARDOCX-0218)."""
+    import asyncio
+    from fastapi import HTTPException
+
+    from app.api import routes as routes_api
+
+    settings = make_settings(tmp_path)
+
+    class ExplodingAiService:
+        def __init__(self, *a, **k):
+            raise AssertionError("no service (so no provider call) may run when the pre-flight rejects")
+
+    monkeypatch.setattr(routes_api, "AiService", ExplodingAiService)
+    monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
+    # The fake session must never be touched: model named so no catalog
+    # fallback lookup runs, and the in-function limit imports are patched.
+    from app.auth import limits as limits_module
+
+    monkeypatch.setattr(limits_module, "check_and_increment_limit", lambda *a, **k: True)
+    monkeypatch.setattr(limits_module, "get_user_limit", lambda *a, **k: -1)
+    monkeypatch.setattr(ai_tokens, "get_tavily_call_cost_usd", lambda session: 0.01)
+    monkeypatch.setattr(ai_tokens, "get_token_rate", lambda session: 10000)
+    monkeypatch.setattr(
+        ai_tokens,
+        "compute_cost",
+        lambda model_id, input_tokens, output_tokens, session, provider=None: (0.01, 100),
+    )
+
+    def fail_ensure(user, session, min_tokens=1):
+        assert min_tokens > 100, "pre-flight must gate on the worst-case ceiling, not min 1"
+        raise ai_tokens.OutOfTokens("not enough credits")
+
+    monkeypatch.setattr(ai_tokens, "ensure_can_spend", fail_ensure)
+
+    payload = routes_api.AiPayload(
+        message="current MIT deadlines", model="glm:GLM-5.2", web_search_max_results=2
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.new_event_loop().run_until_complete(
+            routes_api.ai_research(
+                payload,
+                settings=settings,
+                store=type("S", (), {"db": object()})(),  # type: ignore
+                current_user={"id": "u", "roles": ["max_user"]},
+            )
+        )
+    assert exc_info.value.status_code == 402
+    # Plain language only (AGENTS.md): no provider names, no jargon.
+    detail = str(exc_info.value.detail).casefold()
+    assert "tavily" not in detail
+    assert "token" not in detail
+    assert "credits" in detail
+
+
+def test_advisor_atlas_pre_flight_rejects_insufficient_balance(tmp_path, monkeypatch):
+    """Advisor Atlas create_run rejects with a plain-language 402 when the
+    user can't afford the run's worst case, before the run is persisted
+    (SCHOLARDOCX-0218)."""
+    import asyncio
+    from fastapi import BackgroundTasks, HTTPException
+
+    from app.api import advisor_atlas as advisor_atlas_api
+    from app.api import routes as routes_api
+    from app.services.advisor_atlas import cost_estimate as cost_estimate_module
+
+    settings = make_settings(tmp_path)
+
+    class FakeRepo:
+        def count_runs(self, *a, **k):
+            return 0
+
+        def create_run(self, *a, **k):
+            raise AssertionError("must not create the run when balance is insufficient")
+
+    class FakeService:
+        repository = FakeRepo()
+
+    class FakeStore:
+        db = object()
+
+    monkeypatch.setattr(advisor_atlas_api, "_require_advisor_atlas_access", lambda *a, **k: None)
+    monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
+    # Deterministic pricing so the fake session is never touched.
+    monkeypatch.setattr(ai_tokens, "get_tavily_call_cost_usd", lambda session: 0.01)
+    monkeypatch.setattr(ai_tokens, "get_openalex_call_cost_usd", lambda session: 0.001)
+    monkeypatch.setattr(ai_tokens, "get_token_rate", lambda session: 10000)
+    monkeypatch.setattr(
+        ai_tokens,
+        "compute_cost",
+        lambda model_id, input_tokens, output_tokens, session, provider=None: (0.01, 100),
+    )
+    monkeypatch.setattr(cost_estimate_module, "METERED_CALL_COST_RATIO", {"list": 0.1})
+
+    def fail_ensure(user, session, min_tokens=1):
+        raise ai_tokens.OutOfTokens("not enough credits")
+
+    monkeypatch.setattr(ai_tokens, "ensure_can_spend", fail_ensure)
+
+    payload = advisor_atlas_api.CreateRunRequest(
+        mode="department",
+        university_name="Example University",
+        department="Computer Science",
+        research_profile=advisor_atlas_api.ResearchProfile(interests=["machine learning"]),
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.new_event_loop().run_until_complete(
+            advisor_atlas_api.create_run(
+                payload,
+                BackgroundTasks(),
+                user={"id": "u", "roles": ["max_user"]},
+                service=FakeService(),  # type: ignore
+                store=FakeStore(),  # type: ignore
+                settings=settings,
+            )
+        )
+    assert exc_info.value.status_code == 402
+    # Plain language only (AGENTS.md): no provider names, no jargon.
+    detail = str(exc_info.value.detail).casefold()
+    assert "tavily" not in detail
+    assert "openalex" not in detail
+    assert "token" not in detail
+    assert "credits" in detail
+
+
 def _seed_brave_pricing(session) -> None:
     """Ensure the per-hit Brave pricing row exists (fresh-install seed path).
 

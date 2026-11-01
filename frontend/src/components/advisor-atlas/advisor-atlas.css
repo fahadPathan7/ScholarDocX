@@ -765,6 +765,35 @@
   line-height: 1.4;
 }
 
+/* SCHOLARDOCX-0218: worst-case credit ceiling under the search form's
+   submit button. Same convention as Deep Hunt's estimate line (small,
+   muted, tabular numbers). The wrapper owns the height so the estimate
+   stays visible below the internally scrolling form card. */
+.atlas-search-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.atlas-search-wrap .atlas-search-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.atlas-cost-estimate {
+  margin: 10px 0 0;
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: #70827f;
+  text-align: right;
+}
+
 .atlas-inline-error,
 .atlas-run-error {
   padding: 10px 12px;

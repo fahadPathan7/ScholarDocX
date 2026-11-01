@@ -102,6 +102,12 @@ function formatAuthorsDisplay(authorsStr?: string): string {
 // "[Section #2, #3, #10]", "[Sections #2 and #21]", "[Chunk #5]".
 const CITATION_RE = /\[(?:Chunks?|Sections?)\s*#?\d+(?:\s*(?:,|and|&)\s*#?\d+)*\]/i;
 
+// SCHOLARDOCX-0218: worst-case credit ceiling for one analysis of a paper,
+// carried on the paper payload. Optional so this view compiles and behaves
+// unchanged against payloads that don't include it yet.
+type AnalysisCostEstimate = { max_credits: number };
+type PaperWithCostEstimate = ResearchPaper & { analysis_cost_estimate?: AnalysisCostEstimate };
+
 function formatInlineMarkdown(text: string, onChunkClick?: (chunkIndex: number) => void): React.ReactNode {
   const parts: React.ReactNode[] = [];
   const regex = new RegExp(`(\\*\\*[^*]+\\*\\*|${CITATION_RE.source}|\\*[^*]+\\*)`, "gi");
@@ -379,6 +385,12 @@ export function ResearchExpertView({
   const [deletingSavedId, setDeletingSavedId] = useState<string | null>(null);
 
   const resultRef = useRef<HTMLDivElement>(null);
+
+  // SCHOLARDOCX-0218: worst-case credits for analyzing the active paper,
+  // shown beside the ask controls before the user spends anything. Absent on
+  // payloads that don't carry the estimate — nothing renders then.
+  const analysisCostEstimate =
+    (activePaper as PaperWithCostEstimate | null)?.analysis_cost_estimate ?? null;
 
   const renderSourceProse = (rawText: string): React.ReactNode => {
     if (!rawText) return null;
@@ -1198,6 +1210,14 @@ export function ResearchExpertView({
                 </form>
                 <p className="question-hint">
                   Enter to ask · Shift + Enter for a new line
+                  {analysisCostEstimate && (
+                    <span
+                      className="question-cost-hint"
+                      title="Worst case for one analysis of this paper — the actual charge can be lower."
+                    >
+                      {" · "}Up to {analysisCostEstimate.max_credits.toLocaleString()} credits per analysis
+                    </span>
+                  )}
                 </p>
               </div>
 

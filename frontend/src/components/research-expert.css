@@ -805,6 +805,15 @@
   font-size: 0.74rem;
 }
 
+/* SCHOLARDOCX-0218: worst-case credit ceiling beside the Ask controls.
+   Matches Deep Hunt's cost-estimate convention (small, muted, tabular
+   numbers) so both ceilings read as the same kind of promise. */
+.question-cost-hint {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+}
+
 .question-input:focus {
   outline: none;
   border-color: #4f46e5;

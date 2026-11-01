@@ -187,17 +187,38 @@ async def create_run(
             ),
         )
     # Advisor Atlas runs are metered by the central AI-token balance, not by a
-    # monthly search count. Pre-flight check here; the background task charges
-    # the actual usage per AI call.
-    ai_tokens.ensure_can_spend(user, store.db)
+    # monthly search count. SCHOLARDOCX-0218: pre-flight against the run's
+    # worst case (every search + AI pass the pipeline can make at its caps),
+    # not just a min-1 check — the background task charges actual usage per
+    # call, so a user who could not afford the worst case would burn credits
+    # until the run died mid-search.
+    from app.services.advisor_atlas.cost_estimate import estimate_run_cost
+
+    cost_estimate = estimate_run_cost(store.db, settings, payload.mode)
+    try:
+        ai_tokens.ensure_can_spend(user, store.db, min_tokens=cost_estimate["max_credits"])
+    except ai_tokens.OutOfTokens:
+        max_candidates = cost_estimate["max_candidates"]
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                "Not enough credits for this search. It researches up to "
+                f"{max_candidates} professor{'s' if max_candidates != 1 else ''} "
+                "in one run."
+            ),
+        )
 
     from app.api.routes import verify_model_permission
     verify_model_permission(settings.advisor_atlas_glm_model, user, store.db)
-    
+
     run = service.repository.create_run(
         str(user["id"]),
         payload.model_dump(),
     )
+    run["cost_estimate"] = {
+        "max_candidates": cost_estimate["max_candidates"],
+        "max_credits": cost_estimate["max_credits"],
+    }
     background_tasks.add_task(service.run, str(run["id"]), str(user["id"]))
     return run
 

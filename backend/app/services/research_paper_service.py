@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import math
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -79,6 +80,27 @@ DEFAULT_CHUNK_OVERLAP_CHARS = 150
 TOP_K_CHUNKS = 10
 # Maximum saved analysis outputs a user may keep per paper.
 MAX_SAVED_ANALYSES_PER_PAPER = 10
+
+# SCHOLARDOCX-0218: worst-case sizing for ONE analyze operation, used by the
+# pre-flight balance check in analyze_paper() and the analysis_cost_estimate
+# on the paper payloads. Values are chars/4 estimates documented from what
+# analyze_paper actually sends:
+ANALYSIS_MODEL_CASCADE = [
+    ("glm:GLM-5.2", "GLM-5.2"),
+    ("groq:groq/compound", "groq/compound"),
+]
+# The query embedding embeds the prompt alone; AnalyzePaperPayload caps
+# prompts at 1000 chars (~250 tokens).
+ANALYSIS_QUERY_EMBEDDING_MAX_TOKENS = 250
+# analyze_paper's system_instruction is ~1,900 chars (~475 tokens); 600 adds
+# headroom for the injected system time.
+ANALYSIS_SYSTEM_TOKENS = 600
+# Per-section block header + formatting around each retrieved chunk.
+ANALYSIS_PER_SECTION_OVERHEAD_TOKENS = 25
+ANALYSIS_PROMPT_TOKENS = 250  # payload cap: 1000 chars
+# The analysis answer is uncapped by the call itself; a full structured
+# markdown analysis stays well under 4,000 tokens.
+ANALYSIS_MAX_OUTPUT_TOKENS = 4_000
 
 # Tuned for readers with domain background: prompts embrace technical terminology
 # and prioritise depth. Ordered most incisive/analytical first. Kept in sync with
@@ -1244,6 +1266,95 @@ class ResearchPaperService:
         return sorted(list(set(int(p) for p in page_markers))) if page_markers else []
 
     # ------------------------------------------------------------------ Paper Analysis
+    def _top_section_token_totals(self, paper_ids: list[str], top_k: int) -> dict[str, int]:
+        """Worst-case retrieved-context size per paper: the `top_k` largest sections.
+
+        Retrieval picks `top_k` sections, so the biggest possible context for a
+        question is the paper's `top_k` largest sections by stored token_count
+        (the same count the chunks table already keeps, computed at indexing
+        time as chars/4). One window-function query for all papers at once so
+        the papers list does not become N+1.
+        """
+        if not paper_ids:
+            return {}
+        from sqlalchemy import bindparam
+
+        rows = self.db.execute(
+            text(
+                "SELECT paper_id, SUM(token_count) AS total FROM ("
+                "  SELECT paper_id, token_count, ROW_NUMBER() OVER ("
+                "    PARTITION BY paper_id ORDER BY token_count DESC, chunk_index ASC"
+                "  ) AS rn FROM research_paper_chunks WHERE paper_id IN :ids"
+                ") ranked WHERE rn <= :top_k GROUP BY paper_id"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"ids": list(paper_ids), "top_k": max(1, int(top_k))},
+        ).mappings().fetchall()
+        return {str(row["paper_id"]): int(row["total"] or 0) for row in rows}
+
+    def _estimate_analysis_costs(
+        self, paper_ids: list[str], top_k: int = TOP_K_CHUNKS
+    ) -> dict[str, dict[str, Any]]:
+        """Worst-case credit ceiling for one analyze run, per paper
+        (SCHOLARDOCX-0218).
+
+        Mirrors exactly what analyze_paper() bills: one Jina query-embedding
+        operation (base fee + a token component over the prompt — same shape
+        as `_charge_jina_embedding`) plus the analysis LLM call priced over
+        the paper's worst-case retrieved context (its `top_k` largest
+        sections by stored token_count). The analysis cascades over two
+        models, so each paper is priced against whichever is more expensive —
+        the ceiling must cover the one that actually serves the call.
+
+        Pricing reads the same admin-configurable knobs the real charges use;
+        nothing is written.
+        """
+        if not paper_ids:
+            return {}
+        section_totals = self._top_section_token_totals(paper_ids, top_k)
+        token_rate = ai_tokens.get_token_rate(self.db)
+        embedding_usd = ai_tokens.get_jina_call_cost_usd(self.db)
+        embedding_usd += ai_tokens.compute_cost(
+            EMBEDDING_MODEL,
+            ANALYSIS_QUERY_EMBEDDING_MAX_TOKENS,
+            0,
+            self.db,
+            provider="jina",
+        )[0]
+        fixed_input_tokens = (
+            ANALYSIS_SYSTEM_TOKENS
+            + ANALYSIS_PROMPT_TOKENS
+            + ANALYSIS_PER_SECTION_OVERHEAD_TOKENS * max(1, int(top_k))
+        )
+
+        estimates: dict[str, dict[str, Any]] = {}
+        for paper_id in paper_ids:
+            section_tokens = int(section_totals.get(str(paper_id), 0))
+            input_tokens = fixed_input_tokens + section_tokens
+            analysis_usd = max(
+                ai_tokens.compute_cost(
+                    model_name,
+                    input_tokens,
+                    ANALYSIS_MAX_OUTPUT_TOKENS,
+                    self.db,
+                    provider=provider,
+                )[0]
+                for provider, model_name in (
+                    (entry[0].split(":", 1)[0], entry[1])
+                    for entry in ANALYSIS_MODEL_CASCADE
+                )
+            )
+            max_credits = math.ceil((embedding_usd + analysis_usd) * token_rate)
+            estimates[str(paper_id)] = {"max_credits": max(1, max_credits)}
+        return estimates
+
+    def estimate_analysis_cost(
+        self, paper_id: str, top_k: int = TOP_K_CHUNKS
+    ) -> dict[str, Any]:
+        """`{"max_credits": <int>}` — worst-case credits to analyze this paper."""
+        return self._estimate_analysis_costs([paper_id], top_k=top_k).get(
+            str(paper_id), {"max_credits": 1}
+        )
+
     async def analyze_paper(
         self,
         paper_id: str,
@@ -1260,8 +1371,24 @@ class ResearchPaperService:
                 detail=f"Paper is currently in '{paper['status']}' state and cannot be analyzed.",
             )
 
-        # Check AI token balance
-        ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
+        # SCHOLARDOCX-0218: pre-flight against the worst case for THIS paper —
+        # the query embedding plus the analysis call priced over its top_k
+        # largest sections — instead of a min-1 check. A user with ~1 credit
+        # used to pass here, pay the embedding fee, then fail the analysis
+        # charge: money spent, no answer.
+        cost_estimate = self.estimate_analysis_cost(paper_id, top_k=top_k)
+        try:
+            ai_tokens.ensure_can_spend(
+                self.user, self.db, min_tokens=cost_estimate["max_credits"]
+            )
+        except ai_tokens.OutOfTokens:
+            # OutOfTokens (already HTTP 402) with plain copy, so the caller
+            # sees the same exception type this path always raised.
+            raise ai_tokens.OutOfTokens(
+                "Not enough credits to analyze this paper. Purchase an AI "
+                "Extra Credit pack or wait for your monthly allowance to "
+                "reset."
+            )
 
         # Retrieve relevant chunks via pgvector search
         inventory: dict[str, Any] = {}
@@ -1357,17 +1484,13 @@ class ResearchPaperService:
 
         ai_service = AiService(self.settings, user=self.user, session=self.db)
 
-        # Research Expert model cascade (strict order):
+        # Research Expert model cascade (strict order), shared with the
+        # cost estimator so the pre-flight prices the models this call runs:
         #   1. GLM-5.2 — primary model for high-quality academic analysis
         #   2. Groq compound — fallback if GLM is unavailable or errors
         #   3. 503 with a user-friendly message — never expose provider names
-        _RESEARCH_MODELS = [
-            ("glm:GLM-5.2", "GLM-5.2"),
-            ("groq:groq/compound", "groq/compound"),
-        ]
-
         response = None
-        for model_arg, _model_label in _RESEARCH_MODELS:
+        for model_arg, _model_label in ANALYSIS_MODEL_CASCADE:
             response = await ai_service.chat(
                 message=prompt,
                 context=combined_context,
@@ -1444,7 +1567,7 @@ class ResearchPaperService:
             .all()
         )
 
-        return [
+        papers = [
             {
                 "id": r.id,
                 "title": r.title,
@@ -1467,6 +1590,19 @@ class ResearchPaperService:
             }
             for r in rows
         ]
+        # SCHOLARDOCX-0218: per-paper worst-case analysis cost on the payload.
+        return self.attach_analysis_cost_estimates(papers)
+
+    def attach_analysis_cost_estimates(self, papers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Add `analysis_cost_estimate` ({max_credits}) to each paper payload
+        (SCHOLARDOCX-0218). Batched: one window query for all papers plus
+        shared pricing lookups, so the papers list stays N+1-free."""
+        estimates = self._estimate_analysis_costs([str(p["id"]) for p in papers])
+        for paper in papers:
+            paper["analysis_cost_estimate"] = estimates.get(
+                str(paper["id"]), {"max_credits": 1}
+            )
+        return papers
 
     def get_paper(self, paper_id: str) -> dict[str, Any]:
         """Fetch single paper by ID with ownership check."""
@@ -1497,6 +1633,10 @@ class ResearchPaperService:
             "created_at": paper.created_at.isoformat() if hasattr(paper.created_at, "isoformat") else str(paper.created_at),
             "updated_at": paper.updated_at.isoformat() if hasattr(paper.updated_at, "isoformat") else str(paper.updated_at),
             "static_file_id": paper.static_file_id,
+            # SCHOLARDOCX-0218: worst-case credits for one analysis of this
+            # paper, so the frontend can show the ceiling before the user
+            # spends anything.
+            "analysis_cost_estimate": self.estimate_analysis_cost(paper_id),
         }
 
     def get_paper_details(self, paper_id: str) -> dict[str, Any]:

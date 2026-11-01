@@ -653,7 +653,7 @@ export function App() {
 
           {canUseScholarshipHunt && (
             <div className={`tab-container ${activeTab === "news" ? "" : "hidden-tab"}`}>
-              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
+              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} onNavigateToPlans={() => setActiveTab("plans")} />
             </div>
           )}
 

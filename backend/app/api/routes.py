@@ -600,6 +600,28 @@ async def ai_chat(
     )
 
 
+def _most_expensive_active_chat_model(connection) -> tuple[Optional[str], Optional[str]]:
+    """The priciest active chat model in the catalog, as ``(model_id, provider)``.
+
+    SCHOLARDOCX-0218: /ai/research requests that do not name a model get one
+    resolved at runtime from whichever providers are configured — not knowable
+    pre-flight — so the worst-case ceiling is priced against the most
+    expensive active chat model in ``ai_models``. Returns ``(None, None)`` on
+    an empty catalog, in which case the caller prices the answer at $0 and
+    only the flat search fee gates.
+    """
+    row = connection.execute(
+        text(
+            "SELECT model_id, provider FROM ai_models "
+            "WHERE is_active = 1 AND provider IN ('glm', 'gemini', 'groq', 'mistral') "
+            "ORDER BY (input_price_per_1m + output_price_per_1m) DESC LIMIT 1"
+        )
+    ).fetchone()
+    if not row:
+        return None, None
+    return row[0], row[1]
+
+
 @router.post("/ai/research")
 async def ai_research(
     payload: AiPayload,
@@ -628,9 +650,63 @@ async def ai_research(
     # made.
     if payload.web_search_max_results > 0:
         check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
-        from app.services.ai_tokens import ensure_can_spend
-        # Pre-check they can cover the flat fee before we start any work.
-        ensure_can_spend(current_user, store.db)
+        # SCHOLARDOCX-0218: pre-flight against the worst case for this request
+        # — the Tavily flat fee plus a conservative ceiling on the answer
+        # call — not just a min-1 check. A user with ~1 credit used to pass
+        # here, pay the search fee, then fail the answer charge: money spent,
+        # no answer. If the answer call still exceeds the ceiling later,
+        # research() re-raises with copy that says the search fee is gone.
+        import math
+        from app.services import ai_tokens
+        from app.services.ai import (
+            RESEARCH_MAX_INPUT_TOKENS,
+            RESEARCH_MAX_OUTPUT_TOKENS,
+        )
+        from app.services.ai_tokens import (
+            compute_cost,
+            get_tavily_call_cost_usd,
+            get_token_rate,
+        )
+
+        # The web results the request asks for are the only exactly knowable
+        # part of the answer payload (each result capped at max_chars); the
+        # rest of the prompt is covered by RESEARCH_MAX_INPUT_TOKENS.
+        web_result_tokens = (payload.web_search_max_results * payload.web_search_max_chars) // 4
+        answer_input_tokens = RESEARCH_MAX_INPUT_TOKENS + web_result_tokens
+
+        model_choice = (payload.model or "").strip()
+        answer_usd = 0.0
+        if model_choice:
+            # Price the model the request actually names, parsed with the
+            # service's own rules so provider fallback pricing matches.
+            provider, model_name = AiService._parse_model_choice(model_choice)
+            answer_usd, _ = compute_cost(
+                model_name,
+                answer_input_tokens,
+                RESEARCH_MAX_OUTPUT_TOKENS,
+                store.db,
+                provider=provider,
+            )
+        else:
+            fallback_model, fallback_provider = _most_expensive_active_chat_model(store.db)
+            if fallback_model:
+                answer_usd, _ = compute_cost(
+                    fallback_model,
+                    answer_input_tokens,
+                    RESEARCH_MAX_OUTPUT_TOKENS,
+                    store.db,
+                    provider=fallback_provider,
+                )
+
+        search_fee_usd = get_tavily_call_cost_usd(store.db)
+        ceiling = math.ceil((search_fee_usd + answer_usd) * get_token_rate(store.db))
+        try:
+            ai_tokens.ensure_can_spend(current_user, store.db, min_tokens=max(1, ceiling))
+        except ai_tokens.OutOfTokens:
+            raise HTTPException(
+                status_code=402,
+                detail="Not enough credits for this search. It reads the web and writes a full answer.",
+            )
     return await AiService(settings, user=current_user, session=store.db).research(
         payload.message,
         payload.context,

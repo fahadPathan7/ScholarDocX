@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Clock, Loader2, Lock, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, Lock, RefreshCw, Sparkles, Trash2, X, Zap } from "lucide-react";
 import {
   DeepHuntRun,
   DeepHuntResult,
@@ -17,6 +17,10 @@ const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 interface DeepHuntViewProps {
   onToast: (msg: string) => void;
   canUseDeepHunt: boolean;
+  /** SCHOLARDOCX-0218: opens the plans view from the locked-state upgrade
+   *  card. Optional so the parent can adopt it without a breaking change;
+   *  no-ops until the parent passes it. */
+  onUpgrade?: () => void;
 }
 
 function stageLabel(stage: string): string {
@@ -33,7 +37,7 @@ function stageLabel(stage: string): string {
   return labels[stage] || stage;
 }
 
-export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
+export function DeepHuntView({ onToast, canUseDeepHunt, onUpgrade }: DeepHuntViewProps) {
   const [runs, setRuns] = useState<DeepHuntRun[]>([]);
   const [activeRun, setActiveRun] = useState<DeepHuntRun | null>(null);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
@@ -61,6 +65,18 @@ export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
       onToast("Failed to load Deep Hunt runs.");
     } finally {
       setIsLoadingRuns(false);
+    }
+  };
+
+  // Silent list refresh (no spinner, no toast) used by polling and by the
+  // history modal opening; loadRuns' loading state is only for the initial
+  // mount, where it gates the launcher's "Previous Searches" button.
+  const refreshRuns = async () => {
+    try {
+      const data = await scholarshipDeepHuntApi.listRuns();
+      setRuns(data);
+    } catch (error) {
+      // transient; the next poll tick retries
     }
   };
 
@@ -95,6 +111,28 @@ export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRun?.id, activeRun?.status]);
+
+  // SCHOLARDOCX-0218: the poll above keys on activeRun, so it used to stop
+  // the moment the detail panel's X cleared it — an in-flight run then froze
+  // in the history list forever (or until reload). Poll the list while ANY
+  // run is in flight so runs keep updating with the panel closed; the open
+  // run is still covered by the per-run poll above.
+  const anyRunInFlight = runs.some((r) => IN_FLIGHT_STATUSES.includes(r.status));
+  useEffect(() => {
+    if (!anyRunInFlight) return;
+    const id = window.setInterval(() => {
+      void refreshRuns();
+    }, POLL_INTERVAL_MS);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyRunInFlight]);
+
+  // Fresh history on modal open — loadRuns otherwise only runs on mount, so
+  // the list could be stale after runs finished elsewhere in the view.
+  useEffect(() => {
+    if (historyModalOpen) void refreshRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyModalOpen]);
 
   const openRun = async (run: DeepHuntRun) => {
     try {
@@ -199,18 +237,39 @@ export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
 
   return (
     <div className="deep-hunt-view">
+      {/* SCHOLARDOCX-0218: locked state is an upgrade card (mirroring the
+          Research Expert one) instead of "ask an admin" — the gate is a
+          plan difference, so the card says what unlocking buys and where to
+          go. onUpgrade no-ops until the parent threads navigation in. */}
       {!canUseDeepHunt && (
-        <div className="deep-hunt-locked">
-          <Lock size={18} />
-          <div>
-            <strong>Your account doesn&rsquo;t have access to Scholarship Hunt.</strong>
-            <p>
-              Scholarship Hunt runs multi-pass research that searches, vets, and extracts several
-              evidence-backed opportunities for one funding goal. Access is controlled by your
-              workspace&rsquo;s role limits &mdash; ask an admin to enable it, or check your options in
-              Profile &rarr; Plans.
-            </p>
+        <div className="deep-hunt-upgrade-card">
+          <div className="upgrade-icon-badge">
+            <Sparkles size={36} />
+            <Lock size={18} className="lock-sub-icon" />
           </div>
+          <h2>Scholarship Hunt</h2>
+          <p className="upgrade-description">
+            Describe one funding goal and get a vetted, evidence-backed shortlist of opportunities.
+            Scholarship Hunt is available on higher plans.
+          </p>
+          <div className="upgrade-features-list">
+            <div className="feature-item">
+              <CheckCircle2 size={18} className="feature-icon" />
+              <span>Multi-pass search that vets every source before showing it</span>
+            </div>
+            <div className="feature-item">
+              <CheckCircle2 size={18} className="feature-icon" />
+              <span>Structured results with deadlines, funding coverage, and eligibility</span>
+            </div>
+            <div className="feature-item">
+              <CheckCircle2 size={18} className="feature-icon" />
+              <span>Save the opportunities you like to your Library</span>
+            </div>
+          </div>
+          <button className="upgrade-btn-primary" onClick={onUpgrade}>
+            <Zap size={18} />
+            <span>Upgrade to Unlock Scholarship Hunt</span>
+          </button>
         </div>
       )}
 
@@ -307,6 +366,15 @@ export function DeepHuntView({ onToast, canUseDeepHunt }: DeepHuntViewProps) {
                   <div className="deep-hunt-run-row-main">
                     <span className="deep-hunt-run-goal" data-tooltip={run.goal}>{run.goal}</span>
                     <div className="deep-hunt-run-row-actions">
+                      {/* SCHOLARDOCX-0218: live chip so in-flight rows visibly
+                          keep moving while the list polls — reuses the stage
+                          label vocabulary from the detail panel. */}
+                      {IN_FLIGHT_STATUSES.includes(run.status) && (
+                        <span className="deep-hunt-live-chip">
+                          <Loader2 className="icon-spin" size={11} />
+                          {stageLabel(run.current_stage)}
+                        </span>
+                      )}
                       <span className={`deep-hunt-status-badge status-${run.status}`}>{run.status}</span>
                       <button
                         type="button"

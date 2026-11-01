@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Cpu, FileText, Globe, History, Maximize2, Minimize2, Send, Settings2, Trash2, X } from "lucide-react";
+import { Bot, Check, Copy, Cpu, Download, FileText, Globe, History, Maximize2, Minimize2, Send, Settings2, Trash2, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, RecordMap } from "../lib/api";
 import { useUsage } from "../contexts/UsageContext";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { useAuth } from "../contexts/AuthContext";
 import { emitUiError } from "../lib/uiError";
 import {
@@ -29,6 +30,13 @@ type Message = {
   attachments?: { name: string; type: string }[];
   actionPlan?: ActionPlan;
   actionState?: "pending" | "running" | "done" | "cancelled" | "error";
+  /** Set on failed chat/research bubbles so the last one can offer a
+   *  "Try again" action that replays the exact request. */
+  retryRequest?: { path: string; payload: RecordMap };
+  /** SCHOLARDOCX-0218: set when a research response actually used web
+   *  search, so the bubble can say so (and show the query that was run). */
+  search_performed?: boolean;
+  search_query?: string;
 };
 
 type ChatSession = {
@@ -121,9 +129,18 @@ const createInitialGreeting = () => ({
   timestamp: Date.now()
 });
 
+// SCHOLARDOCX-0220: compact timestamp for chat-export filenames (yyyymmdd-hhmm).
+function formatFileTimestamp(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
 export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?: () => Promise<void> }) {
   const { user } = useAuth();
   const { usageData, refreshUsage } = useUsage();
+  // Metered AI actions spend credits; refresh the balance after each one so
+  // the navbar credit widget stays accurate (SCHOLARDOCX-0217).
+  const { refresh: refreshTokenEconomy } = useTokenEconomy();
   const userId = user?.id;
   const storageKey = useMemo(() => getChatStorageKey(userId), [userId]);
 
@@ -139,6 +156,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const [history, setHistory] = useState<ChatSession[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // SCHOLARDOCX-0222: instead of locking the composer while an answer is
+  // pending, hold the next message here and send it when the current reply
+  // lands. (Deliberately a queue-not-abort design: aborting would discard an
+  // answer the user is already being charged for.)
+  const [queuedInput, setQueuedInput] = useState<string | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(() => {
     return localStorage.getItem("scholarDocX_webSearchEnabled") === "true";
   });
@@ -168,6 +190,9 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   });
 
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);
+  // SCHOLARDOCX-0220: transient per-message copy feedback. `ok` switches the
+  // inline note between "Copied" and the select-to-copy fallback hint.
+  const [copyFeedback, setCopyFeedback] = useState<{ index: number; ok: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasAdjustedRestrictedModelsRef = useRef(false);
@@ -180,6 +205,16 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   // routes to /ai/actions/plan. Set by Ask AI menu messages whose custom queries
   // may not match the narrow frontend action-detection regex.
   const forceActionRef = useRef(false);
+  // Copy-feedback auto-clear timer. A second copy must cancel the first
+  // feedback's pending timeout or it disappears early (same pattern as the
+  // App toast timer).
+  const copyFeedbackTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current !== null) window.clearTimeout(copyFeedbackTimerRef.current);
+    };
+  }, []);
 
   // Auto-scroll to bottom and auto-focus
   useEffect(() => {
@@ -271,6 +306,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   }, [open, loading, currentSession.id]);
 
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
+  // Per-role session message limit for the chat-limit wall and footer counter.
+  // Falls back to 30 while usage data loads or when the role is unlimited
+  // (matching the previous hardcoded wall).
+  const rawSessionLimit = usageData?.limits?.["ai_messages_per_session"];
+  const sessionMessageLimit =
+    typeof rawSessionLimit === "number" && rawSessionLimit > 0 ? rawSessionLimit : 30;
   const allowedProviders = new Set(
     (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
       (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) === 1
@@ -479,7 +520,68 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     saveHistory(updatedHistory);
   };
 
+  // SCHOLARDOCX-0220: copy an answer's raw markdown to the clipboard. On
+  // failure (clipboard unavailable/blocked) the bubble shows a short hint to
+  // select the text and copy it manually — the message body is already
+  // user-selectable, so no further fallback is needed.
+  const showCopyFeedback = (index: number, ok: boolean) => {
+    if (copyFeedbackTimerRef.current !== null) window.clearTimeout(copyFeedbackTimerRef.current);
+    setCopyFeedback({ index, ok });
+    copyFeedbackTimerRef.current = window.setTimeout(() => setCopyFeedback(null), 1800);
+  };
+
+  const copyMessage = async (index: number) => {
+    const message = currentSession.messages[index];
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message.content);
+      showCopyFeedback(index, true);
+    } catch (e) {
+      console.error("Failed to copy message:", e);
+      showCopyFeedback(index, false);
+    }
+  };
+
+  // SCHOLARDOCX-0220: download the active session as a simple markdown
+  // transcript (heading with title/date, then You/Lumi blocks). Blob + object
+  // URL download, revoked right after the click; no dependencies.
+  const exportActiveChat = () => {
+    if (currentSession.messages.length === 0) return;
+    const lines: string[] = [
+      `# ${currentSession.title || "ScholarDocX Chat"}`,
+      "",
+      `_${new Date(currentSession.timestamp).toLocaleString()}_`,
+      "",
+    ];
+    for (const message of currentSession.messages) {
+      lines.push(message.role === "user" ? "**You:**" : "**Lumi:**");
+      lines.push("");
+      lines.push(message.content);
+      lines.push("");
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `scholardocx-chat-${formatFileTimestamp(new Date())}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // Send message
+  // SCHOLARDOCX-0222: send the queued message once the in-flight reply
+  // finishes (fresh closure: `loading` is false here, so sendMessage's guard
+  // passes instead of re-queueing).
+  useEffect(() => {
+    if (!loading && queuedInput !== null) {
+      const next = queuedInput;
+      setQueuedInput(null);
+      void sendMessageRef.current(next);
+    }
+  }, [loading, queuedInput]);
+
   const sendMessage = async (overrideText?: unknown, forceAction?: boolean) => {
     // SCHOLARDOCX-0150: overrideText lets callers (e.g. the sheet Ask AI
     // menu) send immediately without waiting for the async setInput state
@@ -490,10 +592,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     const override =
       typeof overrideText === "string" ? overrideText : undefined;
     const text = (override ?? input).trim();
-    if (!text || loading) return;
+    if (!text) return;
+    if (loading) {
+      // SCHOLARDOCX-0222: a send while a reply is pending queues the message
+      // rather than blocking the composer. The drain effect below sends it
+      // as soon as `loading` flips back to false.
+      setQueuedInput(text);
+      setInput("");
+      return;
+    }
 
     const userMessageCount = currentSession.messages.filter(m => m.role === "user").length;
-    if (userMessageCount >= 30) {
+    if (userMessageCount >= sessionMessageLimit) {
       const lastMsg = currentSession.messages[currentSession.messages.length - 1];
       if (lastMsg?.role === "assistant" && lastMsg.content.includes("Chat Limit Reached")) {
         setInput(""); // Clear input if they try again
@@ -502,7 +612,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
       const limitMessage: Message = {
         role: "assistant",
-        content: "⚠️ **Chat Limit Reached**\n\nYou have reached the maximum limit of 30 messages per session. Please click the **New Chat** icon (🤖) in the header to start a fresh session.",
+        content: `⚠️ **Chat Limit Reached**\n\nYou have reached the maximum limit of ${sessionMessageLimit} messages per session. Please click the **New Chat** icon (🤖) in the header to start a fresh session.`,
         timestamp: Date.now()
       };
       setCurrentSession(prev => ({ ...prev, messages: [...prev.messages, limitMessage] }));
@@ -546,6 +656,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     setLoading(true);
 
     const memoryContext = buildMemoryContext(currentSession, useSummaryContext, useExactContext, exactChatCount);
+
+    // Remember the exact chat/research request so a failed bubble can offer
+    // a "Try again" action (one retry per failed send).
+    let chatRequest: { path: string; payload: RecordMap } | null = null;
 
     try {
       let response: RecordMap;
@@ -624,23 +738,36 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         }
       }
 
+      // Prior messages already in this session, sent along so the backend can
+      // enforce the role's per-session message limit accurately.
+      const messageCount = currentSession.messages.length;
+
       if (webSearchEnabled && webSearchCount > 0) {
         // Hint to backend that web search is preferred — it still decides based on query
-        response = await api.post<RecordMap>("/ai/research", {
-          message: userMessage.content,
-          context: memoryContext,
-          model: selectedModel || undefined,
-          background_model: backgroundModel || undefined,
-          web_search_max_results: webSearchCount,
-          web_search_max_chars: webSearchMaxChars
-        });
-      } else {
-        const chatPayload: RecordMap = {
-          message: userMessage.content,
-          context: memoryContext,
-          model: selectedModel || undefined
+        chatRequest = {
+          path: "/ai/research",
+          payload: {
+            message: userMessage.content,
+            context: memoryContext,
+            model: selectedModel || undefined,
+            background_model: backgroundModel || undefined,
+            web_search_max_results: webSearchCount,
+            web_search_max_chars: webSearchMaxChars,
+            message_count: messageCount
+          }
         };
-        response = await api.post<RecordMap>("/ai/chat", chatPayload);
+        response = await api.post<RecordMap>("/ai/research", chatRequest.payload);
+      } else {
+        chatRequest = {
+          path: "/ai/chat",
+          payload: {
+            message: userMessage.content,
+            context: memoryContext,
+            model: selectedModel || undefined,
+            message_count: messageCount
+          }
+        };
+        response = await api.post<RecordMap>("/ai/chat", chatRequest.payload);
       }
 
       const assistantMessage: Message = {
@@ -648,7 +775,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         content: response.answer || "No response",
         timestamp: Date.now(),
         sources: response.sources,
-        mode: response.mode
+        mode: response.mode,
+        // SCHOLARDOCX-0218: remember whether this answer used web search (and
+        // the query), so the bubble can disclose it. Only /ai/research
+        // returns these; /ai/chat responses simply leave them unset.
+        search_performed: response.search_performed === true || undefined,
+        search_query: typeof response.search_query === "string" ? response.search_query : undefined
       };
 
       const finalMessages = [...updatedMessages, assistantMessage];
@@ -662,6 +794,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         title: title || "New Chat"
       }));
       refreshUsage();
+      refreshTokenEconomy();
 
       if (finalMessages.length >= SUMMARY_MIN_MESSAGES && !FAILED_SUMMARY_MODES.has(String(assistantMessage.mode))) {
         triggerBackgroundSummary(currentSession.summary, userMessage.content, assistantMessage.content);
@@ -671,11 +804,54 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       const errorMessage: Message = {
         role: "assistant",
         content: error instanceof Error ? error.message : "AI request failed.",
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        retryRequest: chatRequest ?? undefined
       };
       setCurrentSession(prev => ({
         ...prev,
         messages: [...updatedMessages, errorMessage]
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Replay a failed chat/research send from its error bubble (offered on the
+  // last message only, one retry per failed send).
+  const retryLastSend = async (messageIndex: number) => {
+    const failed = currentSession.messages[messageIndex];
+    if (!failed?.retryRequest || loading) return;
+    const { path, payload } = failed.retryRequest;
+    setLoading(true);
+    try {
+      const response = await api.post<RecordMap>(path, payload);
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: response.answer || "No response",
+        timestamp: Date.now(),
+        sources: response.sources,
+        mode: response.mode,
+        // SCHOLARDOCX-0218: a retry can replay a /ai/research request, so the
+        // replaced bubble needs the same search disclosure as a fresh answer.
+        search_performed: response.search_performed === true || undefined,
+        search_query: typeof response.search_query === "string" ? response.search_query : undefined
+      };
+      // Replace the error bubble with the real answer (the retried bubble is
+      // always the last message in the session).
+      setCurrentSession(prev => ({
+        ...prev,
+        messages: [...prev.messages.slice(0, messageIndex), assistantMessage]
+      }));
+      refreshUsage();
+      refreshTokenEconomy();
+    } catch {
+      // Retry failed too — drop the retry action from the bubble (one retry
+      // per failed send) and keep the original error text.
+      setCurrentSession(prev => ({
+        ...prev,
+        messages: prev.messages.map((m, i) =>
+          i === messageIndex ? { ...m, retryRequest: undefined } : m
+        )
       }));
     } finally {
       setLoading(false);
@@ -708,6 +884,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       ))
     }));
   };
+
+  // SCHOLARDOCX-0222: the queue-drain effect calls whatever sendMessage is
+  // current, without re-subscribing on every render.
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
 
   const confirmActionPlan = async (messageIndex: number, actionPlan: ActionPlan) => {
     if (executingActionIndex !== null) return;
@@ -927,6 +1108,14 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
               </button>
             </div>
             <div className="chat-history-list">
+              <button
+                className="secondary compact"
+                type="button"
+                onClick={exportActiveChat}
+                title="Download the current chat as a Markdown file"
+              >
+                <Download size={14} /> Export chat
+              </button>
               {history.length === 0 ? (
                 <p className="empty">No chat history yet. Start a conversation!</p>
               ) : (
@@ -964,6 +1153,19 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
           ) : (
             currentSession.messages.map((message, index) => (
               <div key={index} className={`chat-message ${message.role}`}>
+                {message.search_performed && (
+                  <span
+                    className="message-search-note"
+                    title={message.search_query || "This answer used a live web search"}
+                  >
+                    <Globe size={11} />
+                    <span className="message-search-note-text">
+                      {message.search_query
+                        ? `Searched the web \u2014 \u201C${message.search_query}\u201D`
+                        : "Searched the web"}
+                    </span>
+                  </span>
+                )}
                 <div className="message-content">
                   {message.imageUrl && (
                     <img src={message.imageUrl} alt="Uploaded" className="message-image" />
@@ -982,6 +1184,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                       {message.content}
                     </ReactMarkdown>
                   </div>
+                  {message.retryRequest && index === currentSession.messages.length - 1 && (
+                    <div style={{ display: "flex", marginTop: "8px" }}>
+                      <button
+                        className="secondary"
+                        type="button"
+                        disabled={loading}
+                        onClick={() => retryLastSend(index)}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="message-sources">
                       <small>Sources:</small>
@@ -1033,9 +1247,32 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                   )}
                   {/* model name intentionally hidden */}
                 </div>
-                <span className="message-time">
-                  {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
+                <div className="message-meta-row">
+                  <span className="message-time">
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {message.role === "assistant" && (
+                    <>
+                      <button
+                        type="button"
+                        className="icon-button message-copy-button"
+                        onClick={() => copyMessage(index)}
+                        title={
+                          copyFeedback?.index === index && !copyFeedback.ok
+                            ? "Couldn't copy automatically — select the message text and copy it manually"
+                            : "Copy message"
+                        }
+                      >
+                        {copyFeedback?.index === index && copyFeedback.ok ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
+                      {copyFeedback?.index === index && (
+                        <span className="message-time">
+                          {copyFeedback.ok ? "Copied" : "Select the text to copy"}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -1092,14 +1329,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                   sendMessage();
                 }
               }}
-              placeholder="Ask Lumi anything..."
+              placeholder={loading ? "Lumi is replying — you can queue your next message…" : "Ask Lumi anything..."}
               rows={1}
-              disabled={loading}
             />
+            {queuedInput !== null && (
+              <div className="message-search-note" style={{ padding: "2px 12px 6px" }}>
+                Queued: “{queuedInput.length > 60 ? queuedInput.slice(0, 60) + "…" : queuedInput}” — sends when the current reply finishes.
+              </div>
+            )}
             <button
               className="chat-send-button"
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={!input.trim()}
               title="Send message"
             >
               <Send size={16} style={{ marginLeft: "2px" }} />

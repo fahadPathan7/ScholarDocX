@@ -20,6 +20,11 @@ export function InvitesTab() {
   const [loadingUsages, setLoadingUsages] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [copiedOnCreate, setCopiedOnCreate] = useState(false);
 
   const visibleInvites = useMemo<any[]>(() => {
     if (!searchQuery) return invites;
@@ -28,21 +33,68 @@ export function InvitesTab() {
   }, [invites, searchQuery]);
 
   const fetchInvites = () => {
-    api.get<any[]>("/admin/invites").then(setInvites).catch(console.error);
+    setLoadError(false);
+    api.get<any[]>("/admin/invites")
+      .then(setInvites)
+      .catch((error) => {
+        console.error(error);
+        setLoadError(true);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
     fetchInvites();
   }, []);
 
+  // Clipboard write with the execCommand fallback for non-secure contexts,
+  // shared by the per-row copy button and the auto-copy after creation.
+  const copyCodeToClipboard = async (code: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = code;
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+        document.body.prepend(textArea);
+        textArea.select();
+        try {
+          document.execCommand("copy");
+        } catch (error) {
+          console.error(error);
+        } finally {
+          textArea.remove();
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to copy", err);
+      return false;
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreating) return; // guard against double submission
+    setIsCreating(true);
+    setCreatedCode(null);
+    setCopiedOnCreate(false);
     try {
-      await api.post("/admin/invites", { max_uses: maxUses, expiration_hours: expirationHours });
+      const created = await api.post<any>("/admin/invites", { max_uses: maxUses, expiration_hours: expirationHours });
       fetchInvites();
+      // Surface the new code immediately and copy it so the admin doesn't
+      // have to hunt for the fresh row in the table.
+      if (created?.code) {
+        setCreatedCode(String(created.code));
+        setCopiedOnCreate(await copyCodeToClipboard(String(created.code)));
+      }
     } catch (err: any) {
       const message = err?.message && typeof err.message === "string" ? err.message.trim() : "Failed to create invite.";
       emitUiError({ title: "Action failed", message, kind: "general" });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -104,10 +156,19 @@ export function InvitesTab() {
               min="0"
             />
           </div>
-          <button type="submit" className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap">
-            Generate Code
+          <button
+            type="submit"
+            disabled={isCreating}
+            className="w-full sm:w-auto px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCreating ? "Generating..." : "Generate Code"}
           </button>
         </form>
+        {createdCode && (
+          <p className="text-sm text-emerald-700 mt-3" role="status">
+            Invite code <span className="font-mono font-bold tracking-widest">{createdCode}</span> created{copiedOnCreate ? " and copied to your clipboard" : ""}.
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -139,34 +200,41 @@ export function InvitesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {visibleInvites.map((inv) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">Loading invite codes...</td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-3">
+                      <span>Could not load invite codes.</span>
+                      <button
+                        type="button"
+                        onClick={fetchInvites}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : visibleInvites.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                    {searchQuery ? "No invite codes match your search." : "No invite codes yet."}
+                  </td>
+                </tr>
+              ) : (
+              visibleInvites.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 flex items-center gap-2">
                     <span className="font-mono text-indigo-700 font-bold tracking-widest bg-indigo-50 px-3 py-1 rounded border border-indigo-100">{inv.code}</span>
                     <button
                       onClick={async () => {
-                        try {
-                          if (navigator.clipboard && window.isSecureContext) {
-                            await navigator.clipboard.writeText(inv.code);
-                          } else {
-                            const textArea = document.createElement("textarea");
-                            textArea.value = inv.code;
-                            textArea.style.position = "absolute";
-                            textArea.style.left = "-999999px";
-                            document.body.prepend(textArea);
-                            textArea.select();
-                            try {
-                              document.execCommand('copy');
-                            } catch (error) {
-                              console.error(error);
-                            } finally {
-                              textArea.remove();
-                            }
-                          }
+                        if (await copyCodeToClipboard(inv.code)) {
                           setCopiedCode(inv.code);
                           setTimeout(() => setCopiedCode(null), 2000);
-                        } catch (err) {
-                          console.error("Failed to copy", err);
                         }
                       }}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -200,7 +268,8 @@ export function InvitesTab() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

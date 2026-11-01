@@ -85,15 +85,43 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: any; title: stri
   );
 }
 
-function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+function DashboardTab({ onNavigate, refreshTrigger }: { onNavigate?: (tab: string) => void; refreshTrigger?: number }) {
   const [stats, setStats] = useState<any>(null);
+  const [loadError, setLoadError] = useState(false);
   const [isRegistrationsOpen, setIsRegistrationsOpen] = useState(true);
   const [isLoginsOpen, setIsLoginsOpen] = useState(true);
   const [dashboardView, setDashboardView] = useState<"all" | "overview" | "ai" | "activity">("overview");
 
+  const fetchStats = () => {
+    setLoadError(false);
+    api.get<any>("/admin/dashboard")
+      .then((data) => setStats(data))
+      .catch((error) => {
+        console.error(error);
+        setStats(null);
+        setLoadError(true);
+      });
+  };
+
   useEffect(() => {
-    api.get<any>("/admin/dashboard").then(setStats).catch(console.error);
-  }, []);
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
+
+  if (loadError) {
+    return (
+      <div className="admin-dashboard-loading flex-col gap-3">
+        <span>Could not load the dashboard.</span>
+        <button
+          type="button"
+          onClick={fetchStats}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (!stats) return <div className="admin-dashboard-loading">Loading dashboard...</div>;
 
@@ -443,6 +471,8 @@ function DashboardTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
 function AuditLogsTab() {
   const [logs, setLogs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const visibleLogs = useMemo<any[]>(() => {
     if (!searchQuery) return logs;
@@ -454,9 +484,45 @@ function AuditLogsTab() {
     );
   }, [logs, searchQuery]);
 
+  const fetchLogs = () => {
+    setLoadError(false);
+    api.get<any[]>("/admin/audit-logs")
+      .then(setLogs)
+      .catch((error) => {
+        console.error(error);
+        setLoadError(true);
+      })
+      .finally(() => setIsLoading(false));
+  };
+
   useEffect(() => {
-    api.get<any[]>("/admin/audit-logs").then(setLogs).catch(console.error);
+    fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Render guard (not pagination): mirror UsersTab's cap so a large audit
+  // table cannot put thousands of heavy rows in the DOM at once.
+  const RENDER_CAP = 200;
+  const cappedRender = visibleLogs.length > RENDER_CAP;
+
+  if (isLoading) {
+    return <div className="admin-dashboard-loading">Loading audit logs...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="admin-dashboard-loading flex-col gap-3">
+        <span>Could not load the audit logs.</span>
+        <button
+          type="button"
+          onClick={fetchLogs}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col animate-in fade-in duration-300">
@@ -485,7 +551,14 @@ function AuditLogsTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/50">
-              {visibleLogs.map((log) => (
+              {visibleLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    {searchQuery ? "No log entries match your search." : "No audit log entries yet."}
+                  </td>
+                </tr>
+              ) : (
+                visibleLogs.slice(0, RENDER_CAP).map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap"><span className="admin-dashboard-time"><Clock size={12} />{new Date(log.created_at).toLocaleString("en-GB")}</span></td>
                   <td className="px-6 py-4 font-medium text-slate-700">{log.user_email || log.user_id}</td>
@@ -501,9 +574,15 @@ function AuditLogsTab() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
+          {cappedRender && (
+            <div className="px-6 py-3 text-xs text-slate-500 bg-slate-50/50 border-t border-slate-200/50">
+              Showing the first {RENDER_CAP} of {visibleLogs.length} entries. Use the search above to narrow the list.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -562,7 +641,7 @@ function NotificationTextsTab() {
 }
 
 export function SuspensionAppealsTab() {
-  const { showAlert } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const [appeals, setAppeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -596,6 +675,15 @@ export function SuspensionAppealsTab() {
   }, []);
 
   const handleResolve = async (appealId: string, action: 'Resolve' | 'Dismiss') => {
+    // Dismissing closes the appeal for good without any action taken, so it
+    // asks first; Resolve is the safe/expected path and stays one click.
+    if (action === 'Dismiss') {
+      const confirmed = await showConfirm(
+        "Dismiss this appeal? The request will be closed without any action.",
+        "Dismiss Appeal"
+      );
+      if (!confirmed) return;
+    }
     try {
       await api.post(`/admin/suspension-appeals/${appealId}/resolve`, { action });
       fetchAppeals();
@@ -640,10 +728,10 @@ export function SuspensionAppealsTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {appeals.length === 0 ? (
+            {visibleAppeals.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
-                  No suspension appeals found.
+                  {searchQuery ? "No appeals match your search." : "No suspension appeals found."}
                 </td>
               </tr>
             ) : (
@@ -833,6 +921,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
       <div className="flex-1 min-h-0 flex flex-col pb-8">
         {activeTab === "dashboard" && (
           <DashboardTab
+            refreshTrigger={refreshTrigger}
             onNavigate={(target) => {
               if (
                 ["plan_requests", "invite_requests", "token_purchase_requests", "password_reset_requests"].includes(

@@ -15,7 +15,10 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.db.connection import get_engine
-from app.services.plan_expiry import downgrade_expired_user_plans
+from app.services.plan_expiry import (
+    downgrade_expired_user_plans,
+    maybe_run_lazy_user_plan_expiry,
+)
 from app.services.store import Store
 
 from tests.helpers import cleanup_user_records, make_settings
@@ -131,3 +134,112 @@ def test_admin_cleanup_expired_plans_endpoint():
     res_unauth = client.post("/api/admin/cleanup/expired-plans")
     assert res_unauth.status_code in (401, 403)
 
+
+
+# ── lazy per-user sweep at login (SCHOLARDOCX-0217) ──────────────────────────
+
+LAZY_EXPIRED_USER_ID = "00000000-0000-0000-0000-000000000094"
+LAZY_EXPIRED_EMAIL = "lazy-expired@test.local"
+LAZY_ADMIN_EXPIRED_USER_ID = "00000000-0000-0000-0000-000000000095"
+LAZY_ADMIN_EXPIRED_EMAIL = "lazy-admin-expired@test.local"
+
+
+def _cleanup_lazy_users(conn):
+    conn.db.rollback()
+    for uid, email in [
+        (LAZY_EXPIRED_USER_ID, LAZY_EXPIRED_EMAIL),
+        (LAZY_ADMIN_EXPIRED_USER_ID, LAZY_ADMIN_EXPIRED_EMAIL),
+    ]:
+        cleanup_user_records(conn, user_id=uid, email=email)
+
+
+def _insert_user(conn, uid, email, roles_json, plan_ends_iso):
+    conn.execute(
+        "INSERT INTO users (id, email, password_hash, display_name, roles, is_active, is_blocked, plan_ends_at) "
+        "VALUES (?, ?, 'hash', 'Lazy User', ?, 1, 0, ?)",
+        (uid, email, roles_json, plan_ends_iso),
+    )
+
+
+def test_lazy_user_sweep_downgrades_expired_user_and_is_idempotent(tmp_path):
+    """The login-path sweep persists the downgrade for the one logging-in
+    user, reusing the same rules as the daily cron (paid tier → free_user,
+    admin roles preserved), and is a no-op the second time."""
+    store, conn = make_store(tmp_path)
+    _cleanup_lazy_users(conn)
+
+    yesterday_iso = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    try:
+        _insert_user(conn, LAZY_EXPIRED_USER_ID, LAZY_EXPIRED_EMAIL,
+                     json.dumps(["pro_user"]), yesterday_iso)
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (LAZY_EXPIRED_USER_ID,)
+        ).fetchone()
+        assert maybe_run_lazy_user_plan_expiry(store, row) == 1
+
+        persisted = conn.execute(
+            "SELECT roles FROM users WHERE id = ?", (LAZY_EXPIRED_USER_ID,)
+        ).fetchone()
+        roles = json.loads(persisted["roles"])
+        assert "free_user" in roles
+        assert "pro_user" not in roles
+
+        # Already persisted — the sweep must not rewrite (or charge) again.
+        row_after = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (LAZY_EXPIRED_USER_ID,)
+        ).fetchone()
+        assert maybe_run_lazy_user_plan_expiry(store, row_after) == 0
+    finally:
+        _cleanup_lazy_users(conn)
+
+
+def test_lazy_user_sweep_preserves_admin_roles(tmp_path):
+    store, conn = make_store(tmp_path)
+    _cleanup_lazy_users(conn)
+
+    yesterday_iso = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    try:
+        _insert_user(conn, LAZY_ADMIN_EXPIRED_USER_ID, LAZY_ADMIN_EXPIRED_EMAIL,
+                     json.dumps(["super_admin", "pro_user"]), yesterday_iso)
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (LAZY_ADMIN_EXPIRED_USER_ID,)
+        ).fetchone()
+        assert maybe_run_lazy_user_plan_expiry(store, row) == 1
+
+        persisted = conn.execute(
+            "SELECT roles FROM users WHERE id = ?", (LAZY_ADMIN_EXPIRED_USER_ID,)
+        ).fetchone()
+        roles = json.loads(persisted["roles"])
+        assert "super_admin" in roles
+        assert "free_user" in roles
+        assert "pro_user" not in roles
+    finally:
+        _cleanup_lazy_users(conn)
+
+
+def test_lazy_user_sweep_leaves_unexpired_user_alone(tmp_path):
+    """A paid user whose plan has not ended is untouched (no rewrite)."""
+    store, conn = make_store(tmp_path)
+    _cleanup_lazy_users(conn)
+
+    tomorrow_iso = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    try:
+        _insert_user(conn, LAZY_EXPIRED_USER_ID, LAZY_EXPIRED_EMAIL,
+                     json.dumps(["pro_user"]), tomorrow_iso)
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (LAZY_EXPIRED_USER_ID,)
+        ).fetchone()
+        assert maybe_run_lazy_user_plan_expiry(store, row) == 0
+
+        persisted = conn.execute(
+            "SELECT roles FROM users WHERE id = ?", (LAZY_EXPIRED_USER_ID,)
+        ).fetchone()
+        assert json.loads(persisted["roles"]) == ["pro_user"]
+    finally:
+        _cleanup_lazy_users(conn)

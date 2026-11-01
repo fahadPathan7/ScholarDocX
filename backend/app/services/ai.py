@@ -46,6 +46,28 @@ PROVIDER_ENV_VARS = {
 MAX_SUMMARY_TOKENS = 200
 WEB_SEARCH_MAX_CHARS_PER_RESULT = 400  # Each search result limited to 400 chars
 
+# SCHOLARDOCX-0218: worst-case sizing for the /ai/research answer call, used
+# by the route's pre-flight balance check. The web-results component is
+# computed exactly from the request's own caps (max_results x max_chars / 4);
+# these constants cover everything else the final answer prompt can contain:
+# the system prompt + system time (~320 tokens), the user's question, the
+# conversation summary (capped at MAX_SUMMARY_TOKENS = 200), and recent
+# conversation history — 6,000 leaves several times the headroom a real
+# request uses. Output is uncapped by the call itself, so the ceiling is a
+# conservative bound for a full structured answer ("keep responses short" per
+# the system prompt; a thorough researched answer stays well under 4,000).
+RESEARCH_MAX_INPUT_TOKENS = 6_000
+RESEARCH_MAX_OUTPUT_TOKENS = 4_000
+
+# SCHOLARDOCX-0218: raised when the answer charge runs out of credits AFTER
+# the Tavily search fee for the same request was already deducted. The user
+# must be told the fee is gone — the generic out-of-credits copy would read
+# as "nothing was spent".
+RESEARCH_ANSWER_OUT_OF_CREDITS_MESSAGE = (
+    "You ran out of credits while writing the answer. "
+    "The web-search fee was already deducted."
+)
+
 SCHOLARDOCX_SYSTEM_PROMPT = (
     "You are Lumi, the AI assistant for ScholarDocX, a higher education application "
     "management portal. You help applicants manage universities, programs, professors, and deadlines.\n\n"
@@ -428,23 +450,51 @@ class AiService:
         # Step 2: Execution based on decision
         if needs_search and search_query and max_results > 0:
             try:
-                search_results = await self._tavily_search(search_query, max_results=max_results)
-                # Charge for the search that was actually issued
-                # (SCHOLARDOCX-0204). The route used to charge before this
-                # branch was reached, so a request whose routing agent returned
-                # needs_search=false paid for a Tavily call that never happened.
-                from app.services import ai_tokens
+                # SCHOLARDOCX-0220: 15-min per-user cache in front of Tavily.
+                # A cache hit makes no provider call, so it must not charge —
+                # the flat search fee below only runs on a real (miss) search.
+                from app.services.search_cache import cache_get, cache_put, make_key
 
-                self.charge_external_call(
-                    cost_usd=self.external_billing_cost(
-                        ai_tokens.get_tavily_call_cost_usd
-                    ),
-                    source="web_search",
+                cache_user = (
+                    self._billing_user.get("id")
+                    if isinstance(self._billing_user, dict)
+                    else None
                 )
+                tavily_key = make_key(
+                    cache_user or "anonymous", "tavily",
+                    search_query.strip().casefold(), max_results,
+                )
+                search_results = cache_get(tavily_key)
+                if search_results is None:
+                    search_results = await self._tavily_search(search_query, max_results=max_results)
+                    cache_put(tavily_key, search_results)
+                    # Charge for the search that was actually issued
+                    # (SCHOLARDOCX-0204). The route used to charge before this
+                    # branch was reached, so a request whose routing agent returned
+                    # needs_search=false paid for a Tavily call that never happened.
+                    from app.services import ai_tokens
+
+                    self.charge_external_call(
+                        cost_usd=self.external_billing_cost(
+                            ai_tokens.get_tavily_call_cost_usd
+                        ),
+                        source="web_search",
+                    )
                 search_context = self._format_search_context(search_results, max_results=max_results, max_chars=max_chars)
                 combined_context = self._combine_context(context, f"Web Search Results:\n{search_context}")
 
-                final_answer = await self.chat(query, combined_context, model, web_search_max_results=max_results, web_search_max_chars=max_chars)
+                # SCHOLARDOCX-0218: the search fee above was already deducted,
+                # so an OutOfTokens raised while writing the answer (the
+                # balance can no longer cover the answer call — the route's
+                # worst-case pre-flight makes this rare but actual usage can
+                # still exceed the ceiling) must say so honestly. Only this
+                # answer-side path is wrapped: the routing call above runs
+                # before any fee is charged, and the no-search branch below
+                # never charges one, so the generic copy stays truthful there.
+                try:
+                    final_answer = await self.chat(query, combined_context, model, web_search_max_results=max_results, web_search_max_chars=max_chars)
+                except ai_tokens.OutOfTokens:
+                    raise ai_tokens.OutOfTokens(RESEARCH_ANSWER_OUT_OF_CREDITS_MESSAGE)
                 if final_answer.get("mode") not in PROVIDER_FAILURE_MODES:
                     final_answer["mode"] = "tavily+glm"
                 final_answer["sources"] = [
@@ -590,7 +640,11 @@ class AiService:
             return f"glm:{GLM_FAST_MODEL}"
         return ""
 
-    def _parse_model_choice(self, model: str) -> tuple[str, str]:
+    # SCHOLARDOCX-0218: static so the /ai/research route can parse a model
+    # choice with the exact same rules the service will use at runtime
+    # (pre-flight pricing must not guess a different provider).
+    @staticmethod
+    def _parse_model_choice(model: str) -> tuple[str, str]:
         if ":" in model:
             provider, model_name = model.split(":", 1)
             provider = provider.strip().lower()

@@ -1,7 +1,6 @@
-import { FormEvent, MouseEvent, ReactNode, useEffect, useState, Fragment } from "react";
+import { FormEvent, MouseEvent, ReactNode, useEffect, useRef, useState, Fragment } from "react";
 import {
   Bell,
-  CheckCircle2,
   Crown,
   FileText,
   FolderOpen,
@@ -14,7 +13,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
-  Sparkles,
   Star,
   StickyNote,
   User,
@@ -80,16 +78,17 @@ import { BrainGamesView } from "./components/games/BrainGamesView";
 import { ScholarshipNewsView } from "./components/ScholarshipNewsView";
 import { AdvisorAtlasView } from "./components/AdvisorAtlasView";
 import { ResearchExpertView } from "./components/ResearchExpertView";
-import { Field } from "./components/Field";
 import { Section } from "./components/Section";
 import { SplashScreen } from "./components/SplashScreen";
+import { UsageModal } from "./components/UsageModal";
+import { onOpenUsageModal } from "./lib/usageEvents";
 import { useDialog } from "./components/DialogProvider";
+import { Modal } from "./components/Modal";
 import { useAuth } from "./contexts/AuthContext";
 import { useUsage } from "./contexts/UsageContext";
 import { useIsMobile } from "./hooks/useMediaQuery";
-import { applicationStatuses, degreeTypes, mediaCategories } from "./data/options";
-import { api, createRecord, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
-import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "./lib/date";
+import { mediaCategories } from "./data/options";
+import { api, listRecords, deleteRecord, RecordMap, fileDownloadUrl } from "./lib/api";
 import { getToken, decodeToken } from "./lib/auth";
 import "./components/splash-screen.css";
 
@@ -130,31 +129,80 @@ const emptyDashboard: Dashboard = {
 
 
 
+// SCHOLARDOCX-0222: tab <-> URL path mapping (client-side routes; render.yaml
+// ships an SPA fallback so reload/deep links resolve to index.html).
+const TAB_PATHS: Record<string, string> = {
+  dashboard: "/",
+  projects: "/projects",
+  documents: "/documents",
+  sticky: "/sticky-notes",
+  whiteboard: "/whiteboard",
+  games: "/games",
+  atlas: "/advisor-atlas",
+  news: "/scholarship-hunt",
+  research: "/research-expert",
+  profile: "/profile",
+  about: "/about",
+  plans: "/plans",
+  "buy-credits": "/buy-credits",
+  admin: "/admin",
+};
+
+function pathToTab(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  const entry = Object.entries(TAB_PATHS).find(([, p]) => p === normalized);
+  return entry ? entry[0] : null;
+}
+
 export function App() {
   const { showAlert, showConfirm } = useDialog();
   const { user } = useAuth();
   const { usageData } = useUsage();
   const [dashboard, setDashboard] = useState<Dashboard>(emptyDashboard);
   const [workspace, setWorkspace] = useState<RecordMap | null>(null);
-  const [degreeWorkspaces, setDegreeWorkspaces] = useState<RecordMap[]>([]);
-  const [universities, setUniversities] = useState<RecordMap[]>([]);
-  const [programs, setPrograms] = useState<RecordMap[]>([]);
-  const [professors, setProfessors] = useState<RecordMap[]>([]);
-  const [applications, setApplications] = useState<RecordMap[]>([]);
   const [files, setFiles] = useState<RecordMap[]>([]);
   const [documentCategories, setDocumentCategories] = useState<RecordMap[]>([]);
   const [notifications, setNotifications] = useState<RecordMap[]>([]);
   const [message, setMessage] = useState("Loading ScholarDocX...");
   const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  // SCHOLARDOCX-0222: tab state lives in the URL (deep links, working Back,
+  // reload persistence). setActiveTab pushes a history entry; popstate maps
+  // the path back to a tab. Unknown paths fall back to the pre-URL default.
+  const [activeTab, setActiveTabState] = useState(() => pathToTab(window.location.pathname) || defaultTab);
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    const path = TAB_PATHS[tab];
+    if (path && window.location.pathname !== path) {
+      window.history.pushState({ tab }, "", path);
+    }
+  };
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isMobile = useIsMobile();
   const [toast, setToast] = useState("");
+  // Ref for the auto-dismiss timer: a second toast must clear the first
+  // toast's pending timeout, or it gets killed early by the old countdown.
+  const toastTimerRef = useRef<number | null>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // App-level usage & limits modal (SCHOLARDOCX-0220). ProfileView keeps its
+  // own button-triggered mount; this one serves cross-component requests via
+  // the usageEvents bus (e.g. the out-of-credits modal's "See usage").
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+
+  // SCHOLARDOCX-0222: open a stored file with a short-lived download token
+  // instead of embedding the session token in the URL.
+  const openFileLink = async (fileId: string) => {
+    try {
+      const url = await fileDownloadUrl(fileId);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Failed to open file", error);
+      showToast("Could not open this file. Please try again.");
+    }
+  };
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -162,33 +210,18 @@ export function App() {
       const [
         workspaceStatus,
         summary,
-        degreeRows,
-        universityRows,
-        programRows,
-        professorRows,
-        applicationRows,
         fileRows,
         categoryRows,
         notificationRows
       ] = await Promise.all([
         api.get<RecordMap>("/workspace/status"),
         api.get<Dashboard>("/dashboard/summary"),
-        listRecords<RecordMap>("degree_workspaces"),
-        listRecords<RecordMap>("universities"),
-        listRecords<RecordMap>("programs"),
-        listRecords<RecordMap>("professors"),
-        listRecords<RecordMap>("applications"),
         listRecords<RecordMap>("static_files"),
         api.get<RecordMap[]>("/document_categories"),
         listRecords<RecordMap>("notifications")
       ]);
       setWorkspace(workspaceStatus);
       setDashboard(summary);
-      setDegreeWorkspaces(degreeRows);
-      setUniversities(universityRows);
-      setPrograms(programRows);
-      setProfessors(professorRows);
-      setApplications(applicationRows);
       setFiles(fileRows);
       setDocumentCategories(categoryRows);
       setNotifications(notificationRows);
@@ -437,6 +470,23 @@ export function App() {
     return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
   }, []);
 
+  // Cross-component "open the usage modal" requests (usageEvents bus).
+  // UsageModal reads its own data from the usage/token-economy contexts, so
+  // nothing needs to be lifted here; closing simply resets the open state.
+  useEffect(() => {
+    return onOpenUsageModal(() => setUsageModalOpen(true));
+  }, []);
+
+  // SCHOLARDOCX-0222: browser Back/Forward navigate between tabs.
+  useEffect(() => {
+    const onPopState = () => {
+      const tab = pathToTab(window.location.pathname);
+      if (tab) setActiveTabState(tab);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   // Where the workspace items end and the always-visible account items begin.
   // Derived rather than hardcoded: this was `slice(0, 8)` / `slice(8)`, so
   // inserting any nav item above Profile silently pushed the last workspace
@@ -461,9 +511,10 @@ export function App() {
       return;
     }
     if (key === "news" && !canUseScholarshipHunt) {
-      const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan"; // Scholarship Hunt is also typically on pro/max
+      // No feature-specific phrase in the usage payload; the neutral wording
+      // stays correct whatever plan gates Scholarship Hunt.
       setActiveTab("plans");
-      showToast(`Scholarship Hunt is available on ${phrase}.`);
+      showToast("Scholarship Hunt is available on a higher plan.");
       setMobileNavOpen(false);
       return;
     }
@@ -476,9 +527,9 @@ export function App() {
       return;
     }
     if (key === "research" && !canUseResearchExpert) {
-      const phrase = usageData?.advisor_atlas_plan_phrase || "a higher plan";
+      // Same as Scholarship Hunt: no feature-specific phrase exists upstream.
       setActiveTab("plans");
-      showToast(`Research Expert is available on ${phrase}.`);
+      showToast("Research Expert is available on a higher plan.");
       setMobileNavOpen(false);
       return;
     }
@@ -508,7 +559,8 @@ export function App() {
 
   const showToast = (text: string) => {
     setToast(text);
-    window.setTimeout(() => setToast(""), 2600);
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(""), 2600);
   };
 
   // Show splash screen while loading
@@ -543,7 +595,7 @@ export function App() {
                   aria-label={label}
                   className={`${activeTab === key || (key === "profile" && (activeTab === "plans" || activeTab === "buy-credits")) ? "active" : ""}${isLocked ? " nav-locked" : ""}`}
                   onClick={() => handleSidebarNav(key)}
-                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? `Scholarship Hunt — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : researchLocked ? `Research Expert — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : gamesLocked ? "Brain Games has been turned off for your account" : navCollapsed ? label : undefined}
+                  title={atlasLocked ? `Advisor Atlas — available on ${usageData?.advisor_atlas_plan_phrase || "a higher plan"}` : newsLocked ? "Scholarship Hunt — available on a higher plan" : researchLocked ? "Research Expert — available on a higher plan" : gamesLocked ? "Brain Games has been turned off for your account" : navCollapsed ? label : undefined}
                 >
                   <Icon size={18} />
                   <span>{label}</span>
@@ -624,6 +676,7 @@ export function App() {
               onCalendarEventClick={navigateToCalendarEvent}
               onProjectClick={navigateToProject}
               onRefreshDashboard={reloadDashboard}
+              onToast={showToast}
             />
           </div>
 
@@ -644,6 +697,7 @@ export function App() {
               categories={documentCategories}
               files={files}
               onChanged={refresh}
+              onOpenFile={openFileLink}
               onToast={showToast}
               showAlert={showAlert}
               showConfirm={showConfirm}
@@ -670,7 +724,7 @@ export function App() {
 
           {canUseScholarshipHunt && (
             <div className={`tab-container ${activeTab === "news" ? "" : "hidden-tab"}`}>
-              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} />
+              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} onNavigateToPlans={() => setActiveTab("plans")} />
             </div>
           )}
 
@@ -718,89 +772,9 @@ export function App() {
         onToast={showToast}
       />
 
-      {toast ? <div className="toast-message">{toast}</div> : null}
-    </div>
-  );
-}
+      {toast ? <div className="toast-message" role="status" aria-live="polite">{toast}</div> : null}
 
-function HierarchyView(props: {
-  degreeWorkspaces: RecordMap[];
-  universities: RecordMap[];
-  programs: RecordMap[];
-  professors: RecordMap[];
-  onChanged: () => Promise<void>;
-}) {
-  const [university, setUniversity] = useForm({ name: "", country: "", region: "", website_url: "", notes: "" });
-  const [program, setProgram] = useForm({ university_id: "", name: "", degree_type: "", department: "", application_url: "", funding_url: "", notes: "" });
-  const [professor, setProfessor] = useForm({ university_id: "", program_id: "", name: "", title: "", email: "", profile_url: "", research_interests: "", notes: "" });
-  const [application, setApplication] = useForm({ degree_workspace_id: "", university_id: "", program_id: "", professor_id: "", status: "Researching", intake_term: "", application_url: "", priority: "Medium", notes: "" });
-  const [deadline, setDeadline] = useForm({ application_id: "", deadline_type: "Application", title: "", due_at: "", notes: "" });
-
-  const universityOptions = props.universities.map((item) => ({ value: String(item.id), label: item.name }));
-  const programOptions = props.programs.map((item) => ({ value: String(item.id), label: item.name }));
-  const professorOptions = props.professors.map((item) => ({ value: String(item.id), label: item.name }));
-  const degreeOptions = props.degreeWorkspaces.map((item) => ({ value: String(item.id), label: item.display_name }));
-
-  return (
-    <div className="page-grid">
-      <Section title="University" eyebrow="Institution">
-        <DataForm fields={[
-          ["name", "Name", true],
-          ["country", "Country", true],
-          ["region", "State / Region"],
-          ["website_url", "Website"],
-          ["notes", "Notes", false, 3]
-        ]} form={university} setForm={setUniversity} onSubmit={() => submit("universities", university, setUniversity, props.onChanged)} />
-      </Section>
-
-      <Section title="Program" eyebrow="Academic target">
-        <DataForm fields={[
-          ["university_id", "University", true, 0, universityOptions],
-          ["name", "Program name", true],
-          ["degree_type", "Degree type", false, 0, degreeTypes],
-          ["department", "Department"],
-          ["application_url", "Application URL"],
-          ["funding_url", "Funding URL"],
-          ["notes", "Notes", false, 3]
-        ]} form={program} setForm={setProgram} onSubmit={() => submit("programs", program, setProgram, props.onChanged)} />
-      </Section>
-
-      <Section title="Professor" eyebrow="Advisor research">
-        <DataForm fields={[
-          ["university_id", "University", false, 0, universityOptions],
-          ["program_id", "Program", false, 0, programOptions],
-          ["name", "Name", true],
-          ["title", "Title"],
-          ["email", "Email"],
-          ["profile_url", "Profile URL"],
-          ["research_interests", "Research interests", false, 3],
-          ["notes", "Notes", false, 3]
-        ]} form={professor} setForm={setProfessor} onSubmit={() => submit("professors", professor, setProfessor, props.onChanged)} />
-      </Section>
-
-      <Section title="Application" eyebrow="Pipeline item">
-        <DataForm fields={[
-          ["degree_workspace_id", "Degree", false, 0, degreeOptions],
-          ["university_id", "University", false, 0, universityOptions],
-          ["program_id", "Program", false, 0, programOptions],
-          ["professor_id", "Professor", false, 0, professorOptions],
-          ["status", "Status", true, 0, applicationStatuses],
-          ["intake_term", "Intake term"],
-          ["application_url", "Application URL"],
-          ["priority", "Priority", false, 0, ["Low", "Medium", "High"]],
-          ["notes", "Notes", false, 3]
-        ]} form={application} setForm={setApplication} onSubmit={() => submit("applications", application, setApplication, props.onChanged)} />
-      </Section>
-
-      <Section title="Deadline" eyebrow="Timeline">
-        <DataForm fields={[
-          ["application_id", "Application id", false],
-          ["deadline_type", "Type", true, 0, ["Application", "Scholarship", "Test", "Interview"]],
-          ["title", "Title", true],
-          ["due_at", "Due date", true],
-          ["notes", "Notes", false, 3]
-        ]} form={deadline} setForm={setDeadline} onSubmit={() => submit("deadlines", deadline, setDeadline, props.onChanged)} />
-      </Section>
+      {usageModalOpen && <UsageModal onClose={() => setUsageModalOpen(false)} />}
     </div>
   );
 }
@@ -816,6 +790,7 @@ function DocumentView(props: {
   categories: RecordMap[];
   files: RecordMap[];
   onChanged: () => Promise<void>;
+  onOpenFile: (fileId: string) => void;
   onToast: (msg: string) => void;
   showAlert: (msg: string, title?: string) => Promise<void>;
   showConfirm: (msg: string, title?: string) => Promise<boolean>;
@@ -831,6 +806,7 @@ function DocumentView(props: {
   const [editFileForm, setEditFileForm] = useState({ display_name: "", file_type: "", notes: "" });
   const [pinningFileKey, setPinningFileKey] = useState<string | null>(null);
   const [showAllDocsModal, setShowAllDocsModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const openUploadModalForCategory = (categorySlug: string) => {
     setDefaultCategorySlug(categorySlug);
@@ -845,12 +821,13 @@ function DocumentView(props: {
 
   const uploadFile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isUploading) return; // guard against double submission
     const formEl = event.currentTarget;
     const form = new FormData(formEl);
     if (!form.get("file_type") || form.get("file_type") === "") {
       form.set("file_type", form.get("category") as string);
     }
-    
+
     // Client-side validation: enforce 10MB maximum document size
     const file = form.get("file") as File | null;
     const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -858,12 +835,20 @@ function DocumentView(props: {
       props.onToast(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds the maximum allowed size of 10 MB.`);
       return;
     }
-    
-    await api.upload<RecordMap>("/files/upload", form);
-    formEl.reset();
-    closeUploadModal();
-    await props.onChanged();
-    props.onToast("Document uploaded.");
+
+    setIsUploading(true);
+    try {
+      await api.upload<RecordMap>("/files/upload", form);
+      formEl.reset();
+      closeUploadModal();
+      await props.onChanged();
+      props.onToast("Document uploaded.");
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      props.onToast("Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const deleteDocument = async (fileId: string) => {
@@ -1023,9 +1008,11 @@ function DocumentView(props: {
       <FileText size={15} className="doc-file-icon" />
       <div className="doc-file-info">
         <a
-          href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
-          target="_blank"
-          rel="noreferrer"
+          href="#"
+          onClick={(event) => {
+            event.preventDefault();
+            props.onOpenFile(file.id as string);
+          }}
           className="doc-file-name"
         >
           {file.display_name}
@@ -1079,9 +1066,11 @@ function DocumentView(props: {
         <FileText size={15} className="doc-file-icon" />
         <div className="doc-file-info">
           <a
-            href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
-            target="_blank"
-            rel="noreferrer"
+            href="#"
+            onClick={(event) => {
+              event.preventDefault();
+              props.onOpenFile(file.id as string);
+            }}
             className="doc-file-name"
           >
             {file.display_name}
@@ -1134,7 +1123,7 @@ function DocumentView(props: {
   return (
     <div className="page-grid doc-grid">
       {isUploadOpen ? (
-        <div className="modal-backdrop" onClick={closeUploadModal}>
+        <Modal scope="body" onClose={() => { if (!isUploading) closeUploadModal(); }}>
           <form className="modal-panel small-modal-panel doc-upload-panel" onClick={(event) => event.stopPropagation()} onSubmit={uploadFile}>
             <div className="modal-header">
               <div className="doc-upload-title">
@@ -1146,7 +1135,7 @@ function DocumentView(props: {
                   <h2>Upload Document</h2>
                 </div>
               </div>
-              <button className="icon-button" type="button" onClick={closeUploadModal} title="Close form">
+              <button className="icon-button" type="button" onClick={closeUploadModal} disabled={isUploading} title="Close form">
                 <X size={20} />
               </button>
             </div>
@@ -1186,13 +1175,13 @@ function DocumentView(props: {
               </label>
             </div>
             <div className="modal-footer doc-upload-footer">
-              <button className="secondary" type="button" onClick={closeUploadModal}>Cancel</button>
-              <button className="primary full" type="submit">
-                <Upload size={16} /> Upload file
+              <button className="secondary" type="button" onClick={closeUploadModal} disabled={isUploading}>Cancel</button>
+              <button className="primary full" type="submit" disabled={isUploading}>
+                <Upload size={16} /> {isUploading ? "Uploading…" : "Upload file"}
               </button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       <div className="doc-list-sections">
@@ -1308,7 +1297,7 @@ function DocumentView(props: {
       </div>
 
       {selectedDocCategory ? (
-        <div className="modal-backdrop" onClick={() => setSelectedDocCategory(null)}>
+        <Modal scope="body" onClose={() => setSelectedDocCategory(null)}>
           <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
@@ -1326,11 +1315,11 @@ function DocumentView(props: {
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       ) : null}
 
       {categoryEditor ? (
-        <div className="modal-backdrop" onClick={() => setCategoryEditor(null)}>
+        <Modal scope="body" onClose={() => setCategoryEditor(null)}>
           <form className="modal-panel small-modal-panel doc-category-editor" onClick={(event) => event.stopPropagation()} onSubmit={saveCategory}>
             <div className="modal-header">
               <h2>{categoryEditor.mode === "rename" ? "Rename Category" : "Create Category"}</h2>
@@ -1355,11 +1344,11 @@ function DocumentView(props: {
               <button className="primary" type="submit">{categoryEditor.mode === "rename" ? "Save category" : "Create category"}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       {editingFile ? (
-        <div className="modal-backdrop" onClick={() => setEditingFile(null)}>
+        <Modal scope="body" onClose={() => setEditingFile(null)}>
           <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveFileEdit}>
             <div className="modal-header">
               <h2>Edit Document</h2>
@@ -1402,11 +1391,11 @@ function DocumentView(props: {
               <button className="primary" type="submit">Save changes</button>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       {showAllDocsModal ? (
-        <div className="modal-backdrop" onClick={() => setShowAllDocsModal(false)}>
+        <Modal scope="body" onClose={() => setShowAllDocsModal(false)}>
           <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
@@ -1437,78 +1426,8 @@ function DocumentView(props: {
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );
-}
-
-type SelectOption = string | { value: string; label: string };
-type FieldConfig = [string, string, boolean?, number?, SelectOption[]?];
-
-function DataForm({
-  fields,
-  form,
-  setForm,
-  onSubmit
-}: {
-  fields: FieldConfig[];
-  form: Record<string, string>;
-  setForm: (name: string, value: string) => void;
-  onSubmit: () => Promise<void>;
-}) {
-  const submitForm = async (event: FormEvent) => {
-    event.preventDefault();
-    await onSubmit();
-  };
-  return (
-    <form className="form-grid" onSubmit={submitForm}>
-      {fields.map(([name, label, required, rows, options]) => (
-        <Field
-          key={name}
-          label={label}
-          name={name}
-          value={form[name] ?? ""}
-          required={required}
-          rows={rows || undefined}
-          options={options}
-          onChange={setForm}
-        />
-      ))}
-      <button className="primary full" type="submit">
-        Save
-      </button>
-    </form>
-  );
-}
-
-function useForm(initial: Record<string, string>): [Record<string, string>, (name: string, value: string) => void] {
-  const [form, setForm] = useState(initial);
-  const update = (name: string, value: string) => setForm((current) => ({ ...current, [name]: value }));
-  return [form, update];
-}
-
-async function submit(
-  table: string,
-  form: Record<string, string>,
-  setForm: (name: string, value: string) => void,
-  onChanged: () => Promise<void>
-) {
-  await createRecord(table, cleanData(form));
-  await onChanged();
-}
-
-function cleanData(data: Record<string, string>) {
-  return Object.fromEntries(
-    Object.entries(data)
-      .filter(([, value]) => value !== "")
-      .map(([key, value]) => {
-        const numericKeys = new Set(["id", "university_id", "program_id", "professor_id", "degree_workspace_id", "application_id", "template_id", "document_id", "email_draft_id", "owner_id"]);
-        return [key, numericKeys.has(key) ? Number(value) : value];
-      })
-  );
-}
-
-function findName(rows: RecordMap[], id: string | null | undefined) {
-  return rows.find((item) => String(item.id) === String(id))?.name ?? "";
 }

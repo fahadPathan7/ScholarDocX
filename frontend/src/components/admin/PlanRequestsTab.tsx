@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle, RefreshCcw, Search, ShieldAlert } from "lucide-react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
+import { useDialog } from "../DialogProvider";
 
 type PlanRequestType = "upgrade" | "extension";
 
@@ -36,11 +37,13 @@ function formatRequestType(type: PlanRequestType) {
 }
 
 export function PlanRequestsTab({ requestType = "all", title, description, emptyMessage }: Props) {
+  const { showConfirm } = useDialog();
   const [requests, setRequests] = useState<PlanRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<"all" | "upgrade" | "extension">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected" | "Cancelled">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const fetchRequests = async () => {
     try {
@@ -73,12 +76,26 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
     return base;
   }, [requests, requestType, filterType, filterStatus, searchQuery]);
 
-  const handleReview = async (id: string, action: "Approve" | "Reject") => {
+  // One click grants a paid plan or kills a request, so both paths confirm
+  // first and the row's buttons lock while the review is in flight.
+  const handleReview = async (request: PlanRequestRecord, action: "Approve" | "Reject") => {
+    if (reviewingId) return;
+    const confirmed = await showConfirm(
+      action === "Approve"
+        ? `Approve the ${formatPlanLabel(request.requested_plan)} plan request from ${request.user_email}?`
+        : `Reject the plan request from ${request.user_email}?`,
+      action === "Approve" ? "Approve Request" : "Reject Request"
+    );
+    if (!confirmed) return;
+    setReviewingId(request.id);
     try {
-      await api.post(`/admin/plan-requests/${id}/review`, { action });
+      await api.post(`/admin/plan-requests/${request.id}/review`, { action });
       fetchRequests();
-    } catch (error: any) {
-      emitUiError({ title: "Review failed", message: error.message || "Failed to process request." });
+    } catch (error) {
+      console.error(error);
+      emitUiError({ title: "Review failed", message: "Something went wrong. Please try again." });
+    } finally {
+      setReviewingId(null);
     }
   };
 
@@ -238,16 +255,18 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
                       {request.status === "Pending" && (
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleReview(request.id, "Approve")}
-                            className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded text-xs font-semibold transition-colors"
+                            onClick={() => handleReview(request, "Approve")}
+                            disabled={reviewingId === request.id}
+                            className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Approve
+                            {reviewingId === request.id ? "Working…" : "Approve"}
                           </button>
                           <button
-                            onClick={() => handleReview(request.id, "Reject")}
-                            className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded text-xs font-semibold transition-colors"
+                            onClick={() => handleReview(request, "Reject")}
+                            disabled={reviewingId === request.id}
+                            className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Reject
+                            {reviewingId === request.id ? "Working…" : "Reject"}
                           </button>
                         </div>
                       )}

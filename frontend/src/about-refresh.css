@@ -960,27 +960,6 @@ tr.rank-lowest td {
   box-shadow: 0 4px 12px rgba(78, 151, 134, 0.15);
 }
 
-/* AI Models Modal Premium UI */
-.models-modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(15, 25, 20, 0.55);
-  z-index: 999;
-  animation: modalFadeIn 0.2s ease-out;
-}
-
-@keyframes modalFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .models-modal-panel {

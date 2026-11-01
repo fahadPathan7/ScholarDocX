@@ -123,8 +123,9 @@ interactive, and polished without becoming decorative marketing UI.
     → blur scoped to `.section-body` only (breadcrumbs stay sharp). **Wrong.**
   - “Simplify” modal CSS by making `.modal-backdrop-main` fixed like `.modal-backdrop`
     → blur bleeds over sidebar and TopBar. **Wrong.**
-  - Follow “use existing patterns” and copy `RecordFormModal`, `CsvImportModal`,
-    `StickyNotesView`, etc. → all legacy inline backdrops. **Wrong pattern.**
+  - Re-add an inline backdrop div “for one special case” instead of using
+    `<Modal>` → **Wrong.** Every main-content modal uses `<Modal>` now
+    (SCHOLARDOCX-0217 finished the last inline ones).
 
   **Only approved implementation**
 
@@ -141,6 +142,14 @@ interactive, and polished without becoming decorative marketing UI.
   ```
 
   Canonical reference: Create Project modal in `ProjectWorkspace.tsx`.
+
+  `<Modal>` also owns the accessibility layer (added SCHOLARDOCX-0217): Escape
+  closes the topmost open modal, focus is trapped inside and restored on
+  close, the backdrop carries `role="dialog" aria-modal="true"` (pass `label`
+  for an accessible name), and stacked modals (`zIndex >= 1060`) get
+  `data-modal-depth="nested"`, which CSS uses to lighten the backdrop blur —
+  never write `[style*="zIndex…"]` attribute selectors (they cannot match
+  React's hyphenated style serialization).
 
   **Forbidden markup**
 
@@ -169,13 +178,13 @@ interactive, and polished without becoming decorative marketing UI.
   }
   ```
 
-  **Legacy inline backdrops to migrate (do not copy from these)**
-
-  - `RecordFormModal.tsx`, `CsvImportModal.tsx`, `RowPeekPanel.tsx`
-  - `StickyNotesView.tsx`, `HuntProfileModal.tsx`, `AddToTrackerModal.tsx`
-  - `ProjectDashboard.tsx`, `AboutView.tsx`
-
-  When editing any of the above, convert to `<Modal>` in the same change.
+  **Migration status:** every main-content modal now uses `<Modal>`
+  (SCHOLARDOCX-0217 migrated the last inline backdrops — the App.tsx global
+  modals via `scope="body"`, `AboutView` models dialog, and
+  `AddToTrackerModal`). The only remaining non-`<Modal>` backdrop is
+  `LoginPage.tsx`'s `auth-modal-backdrop` — a pre-login, full-viewport dialog
+  where there is no sidebar/TopBar to keep sharp; leave it unless the auth
+  pages are redesigned.
 
   **Already migrated to `<Modal>`:** Email Configuration, Edit columns, Add column,
   Create Project, Create Sheet (via `ProjectWorkspace.tsx`).

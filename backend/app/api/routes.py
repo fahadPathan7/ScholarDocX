@@ -3,9 +3,10 @@ from __future__ import annotations
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.categories import normalize_media_category
@@ -14,7 +15,7 @@ from app.core.workspace import ensure_workspace, save_upload, workspace_status
 from app.services.ai import AiService
 from app.services.ai_actions import AiActionService
 from app.services.store import Store
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_optional_current_user
 from app.api.dependencies import ensure_db_initialized, get_store
 from app.auth.dependencies import get_user_store
 
@@ -35,6 +36,27 @@ def _default_provider(settings: Settings) -> Optional[str]:
     return None
 
 
+def _provider_from_model_prefixes(model: str) -> str:
+    """Legacy string-prefix guess of a model's provider.
+
+    Only used when the model is genuinely absent from the ``ai_models``
+    catalog — the catalog row is the canonical answer and the prefix guess
+    defaults unknown ids to "glm", which would enforce the wrong provider's
+    role limits.
+    """
+    model_lower = model.lower()
+    provider = "glm"
+    if ":" in model_lower:
+        provider = model_lower.split(":")[0]
+    elif model_lower.startswith("gemini-"):
+        provider = "gemini"
+    elif model_lower.startswith("mistral") or model_lower.startswith("devstral") or model_lower.startswith("pixtral") or model_lower.startswith("ministral"):
+        provider = "mistral"
+    elif model_lower.startswith("llama") or model_lower.startswith("qwen") or model_lower.startswith("mixtral") or model_lower.startswith("openai/") or model_lower.startswith("meta-llama/") or model_lower.startswith("groq/"):
+        provider = "groq"
+    return provider
+
+
 def verify_model_permission(model: Optional[str], current_user: dict, connection, settings: Optional[Settings] = None):
     from app.auth.limits import check_and_increment_limit
     if not model:
@@ -47,27 +69,25 @@ def verify_model_permission(model: Optional[str], current_user: dict, connection
                 check_and_increment_limit(current_user, f"can_use_{provider}", 0, connection)
         return
 
-    provider = "glm"
-    model_lower = model.lower()
-    if ":" in model_lower:
-        provider = model_lower.split(":")[0]
-    elif model_lower.startswith("gemini-"):
-        provider = "gemini"
-    elif model_lower.startswith("mistral") or model_lower.startswith("devstral") or model_lower.startswith("pixtral") or model_lower.startswith("ministral"):
-        provider = "mistral"
-    elif model_lower.startswith("llama") or model_lower.startswith("qwen") or model_lower.startswith("mixtral") or model_lower.startswith("openai/") or model_lower.startswith("meta-llama/") or model_lower.startswith("groq/"):
-        provider = "groq"
-        
-    feature_name = f"can_use_{provider}"
-    check_and_increment_limit(current_user, feature_name, 0, connection)
-    
-    from app.auth.limits import UsageLimitExceeded
-    from sqlalchemy import text
+    # Resolve the canonical provider from the ai_models catalog (same lookup
+    # shape as GET /ai/models). Only fall back to the legacy prefix guess when
+    # the model is genuinely not catalogued, so role limits are enforced
+    # against the provider that actually serves the model.
     row = connection.execute(
-        text("SELECT is_active FROM ai_models WHERE (provider || ':' || model_id) = :m OR model_id = :m"),
+        text(
+            "SELECT provider, is_active FROM ai_models "
+            "WHERE (provider || ':' || model_id) = :m OR model_id = :m "
+            "ORDER BY sort_order LIMIT 1"
+        ),
         {"m": model}
     ).fetchone()
-    if row and not row[0]:
+
+    provider = (row[0] if row else None) or _provider_from_model_prefixes(model)
+    feature_name = f"can_use_{provider}"
+    check_and_increment_limit(current_user, feature_name, 0, connection)
+
+    from app.auth.limits import UsageLimitExceeded
+    if row and not row[1]:
         raise UsageLimitExceeded("Admin has restricted this model use try another model.")
 
 
@@ -91,6 +111,11 @@ class AiPayload(BaseModel):
     background_model: Optional[str] = None
     web_search_max_results: int = 2
     web_search_max_chars: int = 300
+    # Number of prior messages in the session, reported by the client. When
+    # present it is preferred over parsing `context` (a JSON list where each
+    # exchanged message contributes a user + an assistant entry — hence the
+    # halving below).
+    message_count: Optional[int] = Field(default=None, ge=0)
 
 
 class SummarizePayload(BaseModel):
@@ -102,6 +127,24 @@ class AiActionPlanPayload(BaseModel):
     message: str
     context: str = ""
     model: Optional[str] = None
+    message_count: Optional[int] = Field(default=None, ge=0)
+
+
+def _session_message_count(payload) -> int:
+    """Prior messages in the session for the ai_messages_per_session check.
+
+    Prefers the client-reported ``message_count`` (number of prior messages);
+    falls back to halving the parsed ``context`` list length, where each
+    exchanged message contributes one user and one assistant entry.
+    """
+    reported = getattr(payload, "message_count", None)
+    if reported is not None:
+        return reported // 2
+    try:
+        context_list = safe_json_loads(payload.context, default=[])
+        return len(context_list) // 2
+    except Exception:
+        return 0
 
 
 class AiActionExecutePayload(BaseModel):
@@ -218,7 +261,10 @@ def create_document_category(payload: CategoryPayload, store: Store = Depends(ge
         return store.create_document_category(payload.name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
+    except IntegrityError as exc:
+        # Only a uniqueness violation is a duplicate category; anything else
+        # must propagate to the generic 500 path rather than masquerading as
+        # a user error.
         raise HTTPException(status_code=400, detail="Category already exists") from exc
 
 
@@ -230,7 +276,10 @@ def rename_document_category(category_id: str, payload: CategoryPayload, store: 
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
+    except IntegrityError as exc:
+        # Only a uniqueness violation is a duplicate category; anything else
+        # must propagate to the generic 500 path rather than masquerading as
+        # a user error.
         raise HTTPException(status_code=400, detail="Category already exists") from exc
 
 
@@ -473,19 +522,79 @@ def upload_file(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/files/{file_id}/download-link")
+def create_file_download_link(file_id: str, store: Store = Depends(get_user_store)) -> dict:
+    """Exchange for a short-lived, file-scoped download token (SCHOLARDOCX-0222).
+
+    The frontend opens files with the returned token appended to the content
+    URL, so the 30-day session token never appears in a URL the browser
+    navigates to. Ownership is enforced here (user-scoped lookup), AND again
+    on the content route (token is file-scoped, lookup user-scoped).
+    """
+    from app.auth.dependencies import get_jwt_secret
+    from app.auth.jwt import create_download_token
+
+    try:
+        store.get_record("static_files", file_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="File not found") from exc
+    token = create_download_token(
+        str(store.current_user_id), get_jwt_secret(store.legacy_connection), file_id
+    )
+    return {"download_token": token, "expires_in": 300}
+
+
 @router.get("/files/{file_id}/content")
 def view_file_content(
     file_id: str,
+    download_token: Optional[str] = Query(None),
     settings: Settings = Depends(get_settings),
-    store: Store = Depends(get_user_store),
+    store: Store = Depends(get_store),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
 ):
+    from fastapi.responses import Response
+    from app.core.storage import download_bytes
+
+    # SCHOLARDOCX-0222: two accepted credentials. Either a normal session
+    # (Authorization header, or the legacy ?token= query fallback), or a
+    # short-lived download token issued by /download-link — the latter is
+    # file-scoped and expires in minutes. Both paths converge on a
+    # user-scoped single-row lookup below, so ownership is always enforced.
+    if download_token:
+        from app.auth.dependencies import get_jwt_secret
+        from app.auth.jwt import decode_download_token
+
+        try:
+            payload = decode_download_token(download_token, get_jwt_secret(store.legacy_connection))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        if str(payload.get("file_id")) != str(file_id):
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        store.current_user_id = payload["user_id"]
+    elif current_user:
+        store.current_user_id = current_user["id"]
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        from fastapi.responses import Response
-        from app.core.storage import download_bytes
-        records = store.list_records("static_files")
-        file_record = next((r for r in records if r["id"] == file_id), None)
-        if not file_record:
-            raise HTTPException(status_code=404, detail="File not found")
+        # Single-row lookup (user-scoped, research papers excluded) instead of
+        # loading every file record and filtering in Python.
+        try:
+            file_record = store.get_record("static_files", file_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail="File not found") from exc
 
         # SCHOLARDOCX-0139: files live in Supabase Storage, not local disk.
         content, content_type = download_bytes(file_record["relative_path"])
@@ -532,15 +641,11 @@ async def ai_chat(
     rate_limiter.check_and_record("ai_chat", user_identity(current_user))
     from app.auth.limits import check_and_increment_limit, get_user_limit, UsageLimitExceeded
     verify_model_permission(payload.model, current_user, store.db, settings)
-    
+
     # Enforce per-session limit without persisting a global counter
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
-        try:
-            context_list = safe_json_loads(payload.context, default=[])
-            msg_count = len(context_list) // 2
-        except Exception:
-            msg_count = 0
+        msg_count = _session_message_count(payload)
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
         
@@ -551,6 +656,28 @@ async def ai_chat(
         payload.context, 
         payload.model
     )
+
+
+def _most_expensive_active_chat_model(connection) -> tuple[Optional[str], Optional[str]]:
+    """The priciest active chat model in the catalog, as ``(model_id, provider)``.
+
+    SCHOLARDOCX-0218: /ai/research requests that do not name a model get one
+    resolved at runtime from whichever providers are configured — not knowable
+    pre-flight — so the worst-case ceiling is priced against the most
+    expensive active chat model in ``ai_models``. Returns ``(None, None)`` on
+    an empty catalog, in which case the caller prices the answer at $0 and
+    only the flat search fee gates.
+    """
+    row = connection.execute(
+        text(
+            "SELECT model_id, provider FROM ai_models "
+            "WHERE is_active = 1 AND provider IN ('glm', 'gemini', 'groq', 'mistral') "
+            "ORDER BY (input_price_per_1m + output_price_per_1m) DESC LIMIT 1"
+        )
+    ).fetchone()
+    if not row:
+        return None, None
+    return row[0], row[1]
 
 
 @router.post("/ai/research")
@@ -568,14 +695,10 @@ async def ai_research(
         
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
-        try:
-            context_list = safe_json_loads(payload.context, default=[])
-            msg_count = len(context_list) // 2
-        except Exception:
-            msg_count = 0
+        msg_count = _session_message_count(payload)
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
-        
+
     # External web searches (Tavily) are metered by the central AI-token balance
     # via a flat USD fee per call. The gate and the affordability pre-check
     # belong here; the charge itself does not (SCHOLARDOCX-0204) — it now
@@ -585,9 +708,63 @@ async def ai_research(
     # made.
     if payload.web_search_max_results > 0:
         check_and_increment_limit(current_user, "can_use_web_search", 0, store.db)
-        from app.services.ai_tokens import ensure_can_spend
-        # Pre-check they can cover the flat fee before we start any work.
-        ensure_can_spend(current_user, store.db)
+        # SCHOLARDOCX-0218: pre-flight against the worst case for this request
+        # — the Tavily flat fee plus a conservative ceiling on the answer
+        # call — not just a min-1 check. A user with ~1 credit used to pass
+        # here, pay the search fee, then fail the answer charge: money spent,
+        # no answer. If the answer call still exceeds the ceiling later,
+        # research() re-raises with copy that says the search fee is gone.
+        import math
+        from app.services import ai_tokens
+        from app.services.ai import (
+            RESEARCH_MAX_INPUT_TOKENS,
+            RESEARCH_MAX_OUTPUT_TOKENS,
+        )
+        from app.services.ai_tokens import (
+            compute_cost,
+            get_tavily_call_cost_usd,
+            get_token_rate,
+        )
+
+        # The web results the request asks for are the only exactly knowable
+        # part of the answer payload (each result capped at max_chars); the
+        # rest of the prompt is covered by RESEARCH_MAX_INPUT_TOKENS.
+        web_result_tokens = (payload.web_search_max_results * payload.web_search_max_chars) // 4
+        answer_input_tokens = RESEARCH_MAX_INPUT_TOKENS + web_result_tokens
+
+        model_choice = (payload.model or "").strip()
+        answer_usd = 0.0
+        if model_choice:
+            # Price the model the request actually names, parsed with the
+            # service's own rules so provider fallback pricing matches.
+            provider, model_name = AiService._parse_model_choice(model_choice)
+            answer_usd, _ = compute_cost(
+                model_name,
+                answer_input_tokens,
+                RESEARCH_MAX_OUTPUT_TOKENS,
+                store.db,
+                provider=provider,
+            )
+        else:
+            fallback_model, fallback_provider = _most_expensive_active_chat_model(store.db)
+            if fallback_model:
+                answer_usd, _ = compute_cost(
+                    fallback_model,
+                    answer_input_tokens,
+                    RESEARCH_MAX_OUTPUT_TOKENS,
+                    store.db,
+                    provider=fallback_provider,
+                )
+
+        search_fee_usd = get_tavily_call_cost_usd(store.db)
+        ceiling = math.ceil((search_fee_usd + answer_usd) * get_token_rate(store.db))
+        try:
+            ai_tokens.ensure_can_spend(current_user, store.db, min_tokens=max(1, ceiling))
+        except ai_tokens.OutOfTokens:
+            raise HTTPException(
+                status_code=402,
+                detail="Not enough credits for this search. It reads the web and writes a full answer.",
+            )
     return await AiService(settings, user=current_user, session=store.db).research(
         payload.message,
         payload.context,
@@ -624,14 +801,10 @@ async def ai_action_plan(
     
     session_limit = get_user_limit(current_user, "ai_messages_per_session", store.db)
     if session_limit != -1:
-        try:
-            context_list = safe_json_loads(payload.context, default=[])
-            msg_count = len(context_list) // 2
-        except Exception:
-            msg_count = 0
+        msg_count = _session_message_count(payload)
         if msg_count >= session_limit:
             raise UsageLimitExceeded(f"Session limit exceeded. You can send up to {session_limit} messages per session.")
-        
+
     return await AiActionService(settings, store).plan(
         payload.message, payload.context, payload.model,
         user=current_user, session=store.db,

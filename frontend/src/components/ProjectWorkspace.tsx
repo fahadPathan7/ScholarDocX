@@ -55,7 +55,7 @@ export function ProjectWorkspace({
   fullScreenMode?: boolean;
   refreshTrigger?: number;
 }) {
-  const { showAlert, showConfirm } = useDialog();
+  const { showAlert, showConfirm, showPrompt } = useDialog();
   const { usageData } = useUsage();
 
   // Per-project sheet limit and per-sheet row limit from the user's role limits
@@ -97,6 +97,9 @@ export function ProjectWorkspace({
     : pages.find((item) => String(item.id) === selectedPageId);
   // Full page data — fetched on demand for the open sheet only.
   const [selectedPageData, setSelectedPageData] = useState<SheetPage | null>(null);
+  // True only when the last load of the open sheet failed; distinct from the
+  // null-because-loading state so the sheet can offer a Retry button.
+  const [pageLoadFailed, setPageLoadFailed] = useState(false);
   const selectedPage = selectedPageData ?? undefined;
 
   /* CSV Import State */
@@ -204,12 +207,14 @@ export function ProjectWorkspace({
   // guard inside useSheetPage, so this resync only applies to real changes.
   const getSelectedPageData = async (pageId: string): Promise<void> => {
     if (!pageId) { setSelectedPageData(null); return; }
+    setPageLoadFailed(false);
     try {
       const page = await api.get<SheetPage>(`/project_pages/${pageId}`);
       setSelectedPageData(page);
     } catch (err) {
       console.error("Failed to load sheet page:", err);
       setSelectedPageData(null);
+      setPageLoadFailed(true);
     }
   };
 
@@ -225,8 +230,7 @@ export function ProjectWorkspace({
     recordsPerSheetLimit,
   });
 
-    const timer = window.setInterval(() => setSheetNow(new Date()), 60_000);
-    /* Command palette entries (SCHOLARDOCX-0203).
+  /* Command palette entries (SCHOLARDOCX-0203).
 
      Built from the sheet's own state so the list is never stale: a column
      added a second ago is jumpable to immediately. Order is fixed rather
@@ -370,6 +374,7 @@ export function ProjectWorkspace({
       getSelectedPageData(selectedPageId);
     } else {
       setSelectedPageData(null);
+      setPageLoadFailed(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPageId, selectedStubUpdatedAt]);
@@ -926,8 +931,8 @@ export function ProjectWorkspace({
               ruleCount={sheet.formatRules.filter((r) => r.enabled).length}
               onExportCsv={sheet.handleExportCsv}
               onImportCsv={() => fileInputRef.current?.click()}
-              onSaveTemplate={() => {
-                const name = window.prompt("Enter a name for this custom template:");
+              onSaveTemplate={async () => {
+                const name = await showPrompt("Enter a name for this custom template:");
                 if (name) {
                   saveCustomTemplate(name, "Saved from " + selectedPage?.name, sheet.columns);
                   setCustomTemplates(getCustomTemplates());
@@ -1169,6 +1174,17 @@ export function ProjectWorkspace({
                 }}
               />
             )}
+          </Section>
+        ) : pageLoadFailed && selectedPageId ? (
+          <Section title="Sheet" eyebrow="Error">
+            <p className="empty">This sheet could not be loaded.</p>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => getSelectedPageData(selectedPageId)}
+            >
+              Retry
+            </button>
           </Section>
         ) : (
           <Section title="Sheet" eyebrow="Loading">

@@ -26,6 +26,8 @@ type Pack = {
   display_name: string;
   token_amount: number;
   price_usd: number;
+  /** This pack's own checkout product id from the backend. */
+  polar_product_id?: string;
 };
 
 type MyRequest = {
@@ -101,6 +103,9 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
   const [requests, setRequests] = useState<MyRequest[]>([]);
   const [pricing, setPricing] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  // Load failure is distinct from "no packs": the packs view renders an error
+  // card with a Retry button instead of a misleading empty state.
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [justRequested, setJustRequested] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>("packs");
@@ -109,6 +114,7 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
 
   const fetchAll = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [p, r, planRes] = await Promise.all([
         api.get<Pack[]>("/ai-tokens/packs"),
@@ -119,7 +125,8 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
       setRequests(r);
       setPricing(planRes.pricing || {});
     } catch (error: any) {
-      emitUiError({ title: "Couldn't load packs", message: error?.message || "Try again later." });
+      console.error("Failed to load credit packs:", error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -176,6 +183,32 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
     if (canPurchasePacks) fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPurchasePacks, refreshTrigger]);
+
+  // SCHOLARDOCX-0220: a user who completes the external checkout and comes
+  // back to this tab should see the granted credits and their request's new
+  // status without a manual refresh. Debounced so quick tab flickers don't
+  // spam the API.
+  useEffect(() => {
+    let timer: number | undefined;
+    const refetch = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        refresh();
+        if (canPurchasePacks) fetchAll();
+      }, 500);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canPurchasePacks]);
 
   const showBalance = !!balance && !balance.is_unlimited;
   const allowanceLabel = !balance ? "" : balance.monthly_allowance === -1 ? "∞" : formatTokens(balance.monthly_allowance);
@@ -403,6 +436,26 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
           <div className="flex items-center justify-center min-h-[40vh]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
           </div>
+        ) : loadError ? (
+          <div className="flex items-center justify-center min-h-[40vh]">
+            <div className="max-w-md w-full rounded-3xl border border-rose-100 bg-gradient-to-b from-rose-50/70 to-white p-8 text-center shadow-lg">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <XCircle size={26} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Couldn't load credit packs</h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Something went wrong while fetching the available packs. Please try again.
+              </p>
+              <button
+                onClick={fetchAll}
+                disabled={loading}
+                className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                <RefreshCcw size={15} />
+                Retry
+              </button>
+            </div>
+          </div>
         ) : packs.length === 0 ? (
           <div className="flex items-center justify-center min-h-[40vh]">
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
@@ -478,7 +531,12 @@ export function BuyTokensView({ onBack, onToast, refreshTrigger }: Props) {
                     </div>
 
                     {(() => {
-                      const polarId = pricing[`polar_extra_credits_id_${idx + 1}`];
+                      // Each pack carries its own checkout product id from the
+                      // backend; the positional pricing key is only a fallback
+                      // for older payloads without it (list position breaks
+                      // the moment packs are reordered).
+                      const polarId =
+                        pack.polar_product_id || pricing[`polar_extra_credits_id_${idx + 1}`];
                       if (polarId) {
                         return (
                           <div className="space-y-3">

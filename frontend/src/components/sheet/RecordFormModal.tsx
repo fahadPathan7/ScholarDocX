@@ -60,6 +60,9 @@ export function RecordFormModal({
           ))}
         </div>
         <div className="modal-actions" style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+          <button className="secondary" type="button" onClick={onCancel} disabled={isSaving}>
+            Cancel
+          </button>
           <button className="primary full" type="submit" disabled={isSaving}>
             <Plus size={16} /> {isSaving ? "Saving..." : editingRowIndex !== null ? "Save changes" : "Add to sheet"}
           </button>

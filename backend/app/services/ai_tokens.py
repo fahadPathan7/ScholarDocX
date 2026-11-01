@@ -66,6 +66,14 @@ class OutOfTokens(HTTPException):
         super().__init__(status_code=402, detail=detail)
 
 
+# Shared by the pre-flight (ensure_can_spend) and the hard-stop inside the
+# atomic deduction so both report identical copy.
+OUT_OF_CREDITS_MESSAGE = (
+    "You're out of AI credits for this period. Purchase an AI Extra "
+    "Credit pack or wait for your monthly allowance to reset."
+)
+
+
 def _has_role(user: dict, role: str) -> bool:
     return role in (user.get("roles") or [])
 
@@ -383,10 +391,7 @@ def ensure_can_spend(user: dict, session: Session, min_tokens: int = 1) -> bool:
         available += int(balance["purchased_remaining"])
 
     if available < min_tokens:
-        raise OutOfTokens(
-            "You're out of AI credits for this period. Purchase an AI Extra "
-            "Credit pack or wait for your monthly allowance to reset."
-        )
+        raise OutOfTokens(OUT_OF_CREDITS_MESSAGE)
     return True
 
 
@@ -533,6 +538,75 @@ def _ledger(
     )
 
 
+def _atomic_deduct(
+    session: Session,
+    *,
+    user_id: str,
+    tokens: int,
+    cost_usd: float,
+    purch_allowed: bool,
+) -> Optional[tuple]:
+    """Deduct ``tokens`` from the two-bucket balance in ONE atomic UPDATE.
+
+    The subscription-first / purchased-second split is computed inside the
+    statement from the OLD row values (Postgres evaluates SET expressions
+    against the pre-update row), and the WHERE guard makes the whole charge
+    conditional on the balance covering ``tokens``. Two concurrent charges can
+    therefore never both spend the same credits: each UPDATE re-checks the
+    guard against the row's current (locked) values, and the loser matches 0
+    rows.
+
+    ``purch_allowed`` mirrors ``can_use_purchased_tokens_feature``: when False,
+    the purchased bucket is invisible to both the split and the guard, so a
+    plan without ``can_use_purchased_tokens`` cannot spend locked credits.
+
+    Returns ``(sub_old, purch_old, sub_new, purch_new)`` via RETURNING, or
+    None when the guard rejected the charge (0 rows updated — the balance row
+    is left untouched). The old values come from the FROM-side snapshot
+    subquery (RETURNING only sees the target table's NEW values) and are used
+    solely to label the ledger row's balance bucket.
+    """
+    row = session.execute(
+        text(
+            """
+            UPDATE ai_token_balances AS b
+            SET subscription_remaining =
+                  b.subscription_remaining - LEAST(b.subscription_remaining, :tokens),
+                purchased_remaining =
+                  b.purchased_remaining - CASE WHEN :purch_allowed
+                        THEN LEAST(b.purchased_remaining,
+                                   GREATEST(:tokens - b.subscription_remaining, 0))
+                        ELSE 0 END,
+                total_spent_tokens = b.total_spent_tokens + :tokens,
+                total_spent_usd = b.total_spent_usd + :cost
+            FROM (SELECT subscription_remaining AS sub_old,
+                         purchased_remaining AS purch_old
+                  FROM ai_token_balances WHERE user_id = :uid) AS o
+            WHERE b.user_id = :uid
+              AND b.subscription_remaining
+                  + CASE WHEN :purch_allowed THEN b.purchased_remaining ELSE 0 END
+                  >= :tokens
+            RETURNING o.sub_old, o.purch_old,
+                      b.subscription_remaining, b.purchased_remaining
+            """
+        ),
+        {
+            "tokens": tokens,
+            "purch_allowed": bool(purch_allowed),
+            "cost": cost_usd,
+            "uid": user_id,
+        },
+    ).mappings().fetchone()
+    if row is None:
+        return None
+    return (
+        int(row["sub_old"]),
+        int(row["purch_old"]),
+        int(row["subscription_remaining"]),
+        int(row["purchased_remaining"]),
+    )
+
+
 def charge(
     user: dict,
     *,
@@ -546,15 +620,18 @@ def charge(
 ) -> dict:
     """Charge a model call to the user's balance. Atomic per call.
 
-    Subscription bucket is consumed first, then purchased. The final call that
-    empties the balance may overshoot; the next call is hard-stopped by
-    ensure_can_spend. Unlimited users log usage but deduct 0.
+    Subscription bucket is consumed first, then purchased. The deduction is a
+    single conditional UPDATE (see ``_atomic_deduct``): when the two buckets
+    together cannot cover the call's token cost, no rows update, the balance
+    is left untouched, and OutOfTokens (HTTP 402) is raised — so concurrent
+    calls cannot under-deduct by reading the same balance. Unlimited users
+    log usage but deduct 0.
     """
     uid = user["id"]
     cost_usd, tokens = compute_cost(
         model_id, input_tokens, output_tokens, session, provider=provider
     )
-    balance = refresh_balance(user, session)
+    refresh_balance(user, session)
 
     if is_unlimited(user):
         _ledger(
@@ -588,12 +665,28 @@ def charge(
             "unlimited": True,
         }
 
-    sub_remaining = int(balance["subscription_remaining"])
-    purch_remaining = int(balance["purchased_remaining"]) if can_use_purchased_tokens_feature(user, session) else 0
+    purch_allowed = can_use_purchased_tokens_feature(user, session)
 
-    sub_used = min(tokens, sub_remaining)
-    purch_used = min(tokens - sub_used, purch_remaining)
-    charged = sub_used + purch_used
+    deducted = _atomic_deduct(
+        session,
+        user_id=uid,
+        tokens=tokens,
+        cost_usd=cost_usd,
+        purch_allowed=purch_allowed,
+    )
+    if deducted is None:
+        # Guard rejected the charge: nothing was written by this call, so the
+        # balance is exactly as it was. The pre-flight (ensure_can_spend)
+        # normally stops callers before the provider call; this is the
+        # race-window backstop.
+        raise OutOfTokens(OUT_OF_CREDITS_MESSAGE)
+
+    sub_old, purch_old, sub_new, purch_new = deducted
+    # The guard guarantees sub+purch covers tokens, so the charge is always
+    # settled in full: charged == tokens.
+    charged = tokens
+    sub_used = min(tokens, sub_old)
+    purch_used = (tokens - sub_used) if purch_allowed else 0
 
     if sub_used and purch_used:
         bucket = "mixed"
@@ -617,31 +710,16 @@ def charge(
         balance_bucket=bucket,
         ref_id=ref_id,
     )
-    session.execute(
-        text(
-            "UPDATE ai_token_balances SET "
-            "subscription_remaining = GREATEST(0, subscription_remaining - :sub), "
-            "purchased_remaining = GREATEST(0, purchased_remaining - :purch), "
-            "total_spent_tokens = total_spent_tokens + :t, "
-            "total_spent_usd = total_spent_usd + :c "
-            "WHERE user_id = :uid"
-        ),
-        {
-            "sub": sub_used,
-            "purch": purch_used,
-            "t": charged,
-            "c": cost_usd,
-            "uid": uid,
-        },
-    )
     session.commit()
 
     return {
         "cost_usd": cost_usd,
         "tokens": tokens,
         "charged": charged,
-        "remaining_subscription": max(0, sub_remaining - sub_used),
-        "remaining_purchased": max(0, purch_remaining - purch_used),
+        "remaining_subscription": sub_new,
+        # Mirror the pre-atomic behaviour: a plan that cannot use purchased
+        # tokens reports 0, not the locked balance.
+        "remaining_purchased": purch_new if purch_allowed else 0,
         "unlimited": False,
     }
 
@@ -756,6 +834,57 @@ def charge_flat_fee(
         "remaining_purchased": max(0, purch_remaining - purch_used),
         "unlimited": False,
     }
+
+
+def notify_credits_granted(
+    user_id: str,
+    tokens: int,
+    *,
+    session: Session,
+    source: str,
+    pack_label: Optional[str] = None,
+) -> None:
+    """Insert a billing notification telling the user credits were added.
+
+    Best-effort: a failure here must never fail the grant/webhook/approval —
+    callers wrap nothing, this function swallows its own errors. Respects the
+    user's ``billing`` notification preference (mirrors the admin announcement
+    INSERT shape and its is_notification_enabled gate). SCHOLARDOCX-0220.
+    """
+    try:
+        from app.core.notifications import is_notification_enabled
+
+        settings_row = session.execute(
+            text("SELECT notification_settings FROM local_profiles WHERE user_id = :uid"),
+            {"uid": user_id},
+        ).mappings().fetchone()
+        if not is_notification_enabled(
+            settings_row["notification_settings"] if settings_row else None, "billing"
+        ):
+            return
+
+        label = f" ({pack_label})" if pack_label else ""
+        session.execute(
+            text(
+                "INSERT INTO notifications (user_id, title, body, notification_type, preference_key) "
+                "VALUES (:uid, :title, :body, 'general', 'billing')"
+            ),
+            {
+                "uid": user_id,
+                "title": "AI credits added",
+                "body": f"{tokens:,} AI credits were added to your account{label}.",
+            },
+        )
+        session.commit()
+        logger.info("credit-grant notification created for user %s (source=%s)", user_id, source)
+    except Exception:
+        session.rollback()
+        logger.warning(
+            "failed to create credit-grant notification for user %s (source=%s)",
+            user_id,
+            source,
+            exc_info=True,
+        )
 
 
 def grant_purchased(
@@ -1070,6 +1199,17 @@ def resolve_purchase_request(
         )
 
     session.commit()
+
+    if action == "approve":
+        # SCHOLARDOCX-0220: the requester previously had to revisit the Buy
+        # page to learn their request was approved. Called AFTER the commit so
+        # the helper's best-effort rollback can never wipe the grant itself.
+        notify_credits_granted(
+            str(row["user_id"]),
+            int(row["token_amount"] or 0),
+            session=session,
+            source="pack_purchase",
+        )
     updated = session.execute(
         text(_request_select(alias_user=True) + " WHERE r.id = :id"),
         {"id": request_id},

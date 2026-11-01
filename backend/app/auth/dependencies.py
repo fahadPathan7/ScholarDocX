@@ -121,6 +121,23 @@ def require_super_admin(current_user: dict = Depends(get_current_user)):
         detail="Super administrator access required."
     )
 
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    token: str = Query(None),
+    store: Store = Depends(get_store)
+):
+    """get_current_user, but anonymous/invalid instead of 401 (SCHOLARDOCX-0222).
+
+    For endpoints that ALSO accept an alternative credential (e.g. the
+    file-content route's short-lived download token). Callers must still
+    reject the request themselves when this returns None.
+    """
+    try:
+        return get_current_user(credentials=credentials, token=token, store=store)
+    except HTTPException:
+        return None
+
+
 def get_user_store(
     store: Store = Depends(get_store),
     current_user: dict = Depends(get_current_user)

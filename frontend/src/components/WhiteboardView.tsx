@@ -66,6 +66,14 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
   const [isLoadingBoards, setIsLoadingBoards] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  // Load-failure state: after repeated failed attempts we stop the invisible
+  // retry loop and offer an explicit Retry button instead.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadAttemptsRef = useRef(0);
+  // Save-failure state: the toolbar Save button turns into a persistent
+  // "Save failed — retry" indicator until a save succeeds again.
+  const [saveFailed, setSaveFailed] = useState(false);
+  const saveFailedToastShownRef = useRef(false);
 
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [history, setHistory] = useState<Shape[][]>([]);
@@ -113,7 +121,7 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
     setHistoryIndex(newHistory.length - 1);
   };
 
-  const saveBoard = async (id: string, s: Shape[], c: any) => {
+  const saveBoard = async (id: string, s: Shape[], c: any): Promise<boolean> => {
     try {
       await updateRecord("whiteboards", id, {
         shapes_json: JSON.stringify(s),
@@ -125,15 +133,30 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
         shapes_json: JSON.stringify(s),
         camera_json: JSON.stringify(c)
       } : b));
+      setSaveFailed(false);
+      saveFailedToastShownRef.current = false;
+      return true;
     } catch (e) {
       console.error("Failed to save board", e);
+      // Keep the failure visible (amber Save button) until a save succeeds;
+      // toast only the first consecutive failure so a persistently down
+      // backend doesn't spam one toast per debounced autosave.
+      setSaveFailed(true);
+      if (!saveFailedToastShownRef.current) {
+        saveFailedToastShownRef.current = true;
+        onToast?.("Could not save this board. Your changes are still on screen — try saving again.");
+      }
+      return false;
     }
   };
 
   // Fetch initial boards
   const loadBoards = async () => {
+    setIsLoadingBoards(true);
     try {
       let b = await listRecords<WhiteboardRecord>("whiteboards");
+      loadAttemptsRef.current = 0;
+      setLoadFailed(false);
       if (b.length > 0) {
         b.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
         setBoards(b);
@@ -141,12 +164,18 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
       } else {
         setBoards([]);
       }
+      setIsLoadingBoards(false);
     } catch (e) {
       console.error("Failed to load boards", e);
-      // Fallback for when backend might not be ready
-      setTimeout(loadBoards, 2000);
-    } finally {
-      setIsLoadingBoards(false);
+      // Backend might not be ready yet — retry a couple of times, then stop
+      // the invisible loop and surface an explicit Retry button.
+      loadAttemptsRef.current += 1;
+      if (loadAttemptsRef.current < 3) {
+        setTimeout(loadBoards, 2000);
+      } else {
+        setLoadFailed(true);
+        setIsLoadingBoards(false);
+      }
     }
   };
 
@@ -194,7 +223,13 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
   };
 
   const createNewBoard = async () => {
-    if (boards.length >= 10) return;
+    if (boards.length >= 10) {
+      await showAlert(
+        "Board limit reached (10). Delete a board you no longer need to create a new one.",
+        "Board Limit Reached"
+      );
+      return;
+    }
     const name = await showPrompt("Enter new board name:", `Board ${boards.length + 1}`, "Create Board");
     if (!name) return;
     try {
@@ -879,11 +914,12 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     );
   };
 
-  const handleSave = () => {
-    if (activeBoardId) {
-      saveBoard(activeBoardId, shapes, camera);
-      if (onToast) onToast("Board saved");
-    }
+  const handleSave = async () => {
+    if (!activeBoardId) return;
+    // Only announce success after the save actually landed; a failure toasts
+    // from saveBoard's catch (first consecutive failure) instead.
+    const saved = await saveBoard(activeBoardId, shapes, camera);
+    if (saved) onToast?.("Board saved");
   };
 
   const handleClearBoard = async () => {
@@ -923,6 +959,24 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
         </div>
       );
     }
+    if (loadFailed) {
+      const retryLoadBoards = () => {
+        loadAttemptsRef.current = 0;
+        setLoadFailed(false);
+        loadBoards();
+      };
+      return (
+        <div className="whiteboard-view wb-empty-state">
+          <div className="wb-empty-card">
+            <h2 className="wb-empty-title">Could not load your whiteboards</h2>
+            <p className="wb-empty-subtitle">Something went wrong while loading. Your boards are safe — check your connection and try again.</p>
+            <button className="wb-btn-primary" onClick={retryLoadBoards}>
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="whiteboard-view wb-empty-state">
         <div className="wb-empty-card">
@@ -946,7 +1000,12 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
     }}>
       {/* Top Toolbar */}
       <div className="wb-toolbar">
-        <button className="wb-tool-btn" onClick={handleSave} title="Save">
+        <button
+          className="wb-tool-btn"
+          onClick={handleSave}
+          title={saveFailed ? "Save failed — click to retry" : "Save"}
+          style={saveFailed ? { color: "#d99a3d" } : undefined}
+        >
           <Save size={18} />
         </button>
         <div className="wb-tool-divider" />

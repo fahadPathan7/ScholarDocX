@@ -628,7 +628,7 @@ export function useSheetPage({
   };
 
   const deleteRow = async (rowIndex: number) => {
-    const confirmed = await showConfirm("Are you sure you want to delete this record? This cannot be undone.", "Delete Record");
+    const confirmed = await showConfirm("Are you sure you want to delete this record? You can undo this with Ctrl+Z.", "Delete Record");
     if (!confirmed) return;
     const nextRows = rows.filter((_, index) => index !== rowIndex);
     await notify("record_delete", { project_id: String(selectedProjectId) });

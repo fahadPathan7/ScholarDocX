@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.jwt import create_token
 from app.auth.password import hash_password, validate_password_with_reason, verify_password
@@ -95,39 +96,63 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
     invite = store.legacy_connection.execute(
         "SELECT * FROM invite_codes WHERE code = ?", (payload.invite_code,)
     ).fetchone()
-    
+
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid invite code.")
-        
+
     expires_dt = safe_parse_datetime(invite["expires_at"])
     if expires_dt and expires_dt < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invite code has expired.")
-    if invite["max_uses"] != 0 and invite["used_count"] >= invite["max_uses"]:
-        raise HTTPException(status_code=400, detail="Invite code usage limit reached.")
 
-    # Check if email already exists
+    # Check if email already exists (friendly fast path; the IntegrityError
+    # handler on the insert below covers the concurrent-registration race).
     existing_user = store.legacy_connection.execute(
         "SELECT id FROM users WHERE email = ?", (payload.email,)
     ).fetchone()
-    
+
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
+
+    # Atomically reserve an invite slot BEFORE creating the account. The
+    # conditional UPDATE is the single arbiter under concurrency: two
+    # simultaneous registrations competing for the last remaining slot cannot
+    # both take it (one matches 0 rows and is rejected here).
+    reserved = store.legacy_connection.execute(
+        "UPDATE invite_codes SET used_count = used_count + 1 "
+        "WHERE code = ? AND (max_uses = 0 OR used_count < max_uses)",
+        (payload.invite_code,),
+    )
+    if not reserved.rowcount:
+        raise HTTPException(status_code=400, detail="Invite code usage limit reached.")
 
     # Hash password and create user
     hashed_password = hash_password(payload.password)
     default_roles = json.dumps(["free_user"])
-    
+
     plan_started_at = datetime.now(timezone.utc).isoformat()
     plan_ends_at = None
-    
-    cursor = store.legacy_connection.execute(
-        """
-        INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id, signup_method)
-        VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?, 'invite')
-        """,
-        (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at, invite["id"])
-    )
-    user_id = cursor.lastrowid
+
+    try:
+        cursor = store.legacy_connection.execute(
+            """
+            INSERT INTO users (email, password_hash, display_name, roles, is_active, is_blocked, plan_started_at, plan_ends_at, registered_with_invite_id, signup_method)
+            VALUES (?, ?, ?, ?, 1, 0, ?, ?, ?, 'invite')
+            """,
+            (payload.email, hashed_password, payload.display_name, default_roles, plan_started_at, plan_ends_at, invite["id"])
+        )
+        user_id = cursor.lastrowid
+    except IntegrityError:
+        # A concurrent registration won the email race between the check
+        # above and this insert. Roll back, give the reserved invite slot
+        # back, and answer with the friendly duplicate-email message instead
+        # of an internal error.
+        store.legacy_connection.rollback()
+        store.legacy_connection.execute(
+            "UPDATE invite_codes SET used_count = GREATEST(0, used_count - 1) WHERE code = ?",
+            (payload.invite_code,),
+        )
+        store.legacy_connection.commit()
+        raise HTTPException(status_code=400, detail="Email already registered.")
     
     # Initialize local_profile
     store.legacy_connection.execute(
@@ -157,12 +182,10 @@ def register(payload: RegisterPayload, request: Request, store: Store = Depends(
             (slug, label, index, user_id)
         )
 
-    # Increment invite code usage
-    store.legacy_connection.execute(
-        "UPDATE invite_codes SET used_count = used_count + 1 WHERE id = ?", (invite["id"],)
-    )
+    # Invite usage was already incremented atomically when the slot was
+    # reserved, before the account was created.
     store.legacy_connection.commit()
-    
+
     return {"status": "success", "message": "User registered successfully."}
 
 
@@ -259,6 +282,31 @@ def login(payload: LoginPayload, request: Request, store: Store = Depends(get_st
                        "wait a moment and try again.",
             )
         raise HTTPException(status_code=403, detail="user_suspended")
+
+    # SCHOLARDOCX-0217: lazily persist THIS user's expired paid-plan downgrade
+    # (no marker needed — the no-op path performs no writes). Authorization
+    # already applies the downgrade in memory via get_current_user; this
+    # closes the window before the daily cron persists it, reusing the exact
+    # same rules (admin roles are never removed).
+    from app.services.plan_expiry import maybe_run_lazy_user_plan_expiry
+    if maybe_run_lazy_user_plan_expiry(store, user):
+        user = store.legacy_connection.execute(
+            "SELECT * FROM users WHERE id = ?", (user["id"],)
+        ).fetchone()
+
+    # SCHOLARDOCX-0219: lazily run this user's deadline scan so the
+    # notification lands even when the daily cron is not configured and the
+    # user never opens the Opportunity Library tab (the client-side radar
+    # only runs there). Best-effort: a failure must never block login.
+    try:
+        from app.services.deadline_notifications import run_deadline_notification_scan
+        run_deadline_notification_scan(store, user_id=str(user["id"]))
+    except Exception:
+        logger.warning(
+            "lazy deadline notification scan failed for user %s",
+            user["id"],
+            exc_info=True,
+        )
 
     roles = safe_json_loads(user["roles"], default=[])
     

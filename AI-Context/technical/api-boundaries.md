@@ -223,13 +223,21 @@ no-migration variant for pre-existing tables.
   made on save — it is a pure persistence of an already-generated answer.
 - `/document_categories`
 - `/files`
+- `POST /files/{id}/download-link` (SCHOLARDOCX-0222) exchanges a stored file
+  for a 5-minute, file-scoped download token; `GET /files/{id}/content`
+  accepts it as an alternative credential (see security-privacy.md — the
+  session token must not appear in file URLs)
 - `/sticky_notes`
 - `/email-templates`
 - `/email-drafts`
 - `/outreach`
 - `/reminders`
-- `/ai/chat`
-- `/ai/research`
+- `/ai/chat`, `/ai/research`, `/ai/actions/plan` — the client sends
+  `message_count` (prior messages in the session); the per-session limit check
+  prefers it over parsing the free-form `context` string, which never parsed
+  as JSON from the real frontend (SCHOLARDOCX-0217). Model→provider
+  resolution reads the `ai_models` catalog first; the legacy prefix guess is
+  only a fallback for genuinely uncatalogued ids.
 - `/news/search` makes one dedicated Tavily basic web-search request for the
   approved Scholarship Hunt query and normalizes returned pages into news cards
   without using the AI-chat research flow or manual post-search filtering
@@ -363,6 +371,15 @@ no-migration variant for pre-existing tables.
   `CLEANUP_SECRET` env var (same shared-secret pattern as `POLAR_WEBHOOK_SECRET`
   — no admin login required, safe for external schedulers). Returns
   `{status, deleted}`. Intended for the GitHub Actions 2h cron.
+- `/api/internal/deadline-notifications` (POST, anonymous, SCHOLARDOCX-0219)
+  runs the server-side deadline radar scan (see FR-8.42a): one notification
+  per tracker-linked opportunity whose nearest deadline is within 7 days,
+  deduped day-granularity via an atomic `last_deadline_notified_at` claim so
+  it cannot double-fire with the client-side scan. Same `X-Cleanup-Token` /
+  `CLEANUP_SECRET` gate; returns `{status, notified}`. Intended for the
+  GitHub Actions daily `deadline-notifications` cron; a lazy per-user pass on
+  `/auth/login` is the no-cron safety net (`run_deadline_notification_scan`
+  in `services/deadline_notifications.py`).
 - `/admin/cleanup/pending-accounts` (POST, `require_super_admin`,
   SCHOLARDOCX-0162) is a manual trigger of the pending account purge for admins; surfaced
   as a button in the admin Settings tab.

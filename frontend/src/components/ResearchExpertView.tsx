@@ -35,6 +35,9 @@ import {
   Save,
   Bookmark,
   Clock,
+  Check,
+  Copy,
+  Download,
   X
 } from "lucide-react";
 import {
@@ -54,6 +57,7 @@ import {
 import { PREDEFINED_RESEARCH_PROMPTS } from "../lib/researchPrompts";
 import { Modal } from "./Modal";
 import { useUsage } from "../contexts/UsageContext";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import "./research-expert.css";
 
 // Lazy-loaded so the heavy PDF.js bundle is only fetched when the user actually
@@ -100,6 +104,24 @@ function formatAuthorsDisplay(authorsStr?: string): string {
 // Matches single or grouped section citations, e.g. "[Section #21]",
 // "[Section #2, #3, #10]", "[Sections #2 and #21]", "[Chunk #5]".
 const CITATION_RE = /\[(?:Chunks?|Sections?)\s*#?\d+(?:\s*(?:,|and|&)\s*#?\d+)*\]/i;
+
+// SCHOLARDOCX-0220: filesystem-safe slug of a paper title, used to name
+// downloaded analysis files (scholardocx-analysis-<slug>.md).
+function slugifyPaperTitle(title: string): string {
+  const slug = (title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  return slug || "paper";
+}
+
+// SCHOLARDOCX-0218: worst-case credit ceiling for one analysis of a paper,
+// carried on the paper payload. Optional so this view compiles and behaves
+// unchanged against payloads that don't include it yet.
+type AnalysisCostEstimate = { max_credits: number };
+type PaperWithCostEstimate = ResearchPaper & { analysis_cost_estimate?: AnalysisCostEstimate };
 
 function formatInlineMarkdown(text: string, onChunkClick?: (chunkIndex: number) => void): React.ReactNode {
   const parts: React.ReactNode[] = [];
@@ -330,6 +352,9 @@ export function ResearchExpertView({
   onNavigateToPlans?: () => void;
 }) {
   const { usageData, refreshUsage } = useUsage();
+  // Analyze and re-read actions spend credits; refresh the balance after each
+  // success so the navbar credit widget stays accurate (SCHOLARDOCX-0217).
+  const { refresh: refreshTokenEconomy } = useTokenEconomy();
 
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   const [maxLibraryLimit, setMaxLibraryLimit] = useState<number>(20);
@@ -344,6 +369,15 @@ export function ResearchExpertView({
 
   const [customPrompt, setCustomPrompt] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Last failed analysis, so the error banner can offer "Try again". `msg`
+  // must match the active errorMsg — once a different error replaces the
+  // banner text, the retry action no longer applies.
+  const [analyzeRetry, setAnalyzeRetry] = useState<{
+    paperId: string;
+    prompt: string;
+    promptId: string | null;
+    msg: string;
+  } | null>(null);
   const [paperToDelete, setPaperToDelete] = useState<ResearchPaper | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [retrying, setRetrying] = useState<boolean>(false);
@@ -364,8 +398,17 @@ export function ResearchExpertView({
   const [savedModalOpen, setSavedModalOpen] = useState<boolean>(false);
   const [expandedSavedIds, setExpandedSavedIds] = useState<Set<string>>(new Set());
   const [deletingSavedId, setDeletingSavedId] = useState<string | null>(null);
+  // SCHOLARDOCX-0220: transient "Copied" state on the analysis copy action.
+  const [analysisCopied, setAnalysisCopied] = useState<boolean>(false);
+  const analysisCopiedTimerRef = useRef<number | null>(null);
 
   const resultRef = useRef<HTMLDivElement>(null);
+
+  // SCHOLARDOCX-0218: worst-case credits for analyzing the active paper,
+  // shown beside the ask controls before the user spends anything. Absent on
+  // payloads that don't carry the estimate — nothing renders then.
+  const analysisCostEstimate =
+    (activePaper as PaperWithCostEstimate | null)?.analysis_cost_estimate ?? null;
 
   const renderSourceProse = (rawText: string): React.ReactNode => {
     if (!rawText) return null;
@@ -564,6 +607,7 @@ export function ResearchExpertView({
     setAnalyzing(true);
     setActivePromptId(promptId || null);
     setErrorMsg(null);
+    setAnalyzeRetry(null);
     setExpandedSources(new Set()); // Reset expanded sources for new analysis
     setPromptsCollapsed(true); // Collapse the tall prompt grid so the output shows near the top
 
@@ -571,9 +615,17 @@ export function ResearchExpertView({
       const result = await analyzeResearchPaper(activePaperId, promptText.trim());
       setAnalysisResult(result);
       refreshUsage();
+      refreshTokenEconomy();
     } catch (err: any) {
       console.error("Analysis failed:", err);
-      setErrorMsg(err.message || "Failed to analyze paper.");
+      const msg = err.message || "Failed to analyze paper.";
+      setErrorMsg(msg);
+      setAnalyzeRetry({
+        paperId: activePaperId,
+        prompt: promptText.trim(),
+        promptId: promptId || null,
+        msg,
+      });
     } finally {
       setAnalyzing(false);
     }
@@ -613,6 +665,53 @@ export function ResearchExpertView({
       setSavingAnalysis(false);
     }
   };
+
+  // SCHOLARDOCX-0220: copy the current analysis markdown to the clipboard.
+  // Shows a brief "Copied" state; a clipboard failure surfaces as the plain
+  // banner message telling the user to select and copy manually.
+  const handleCopyAnalysis = async () => {
+    if (!analysisResult) return;
+    try {
+      await navigator.clipboard.writeText(analysisResult.answer);
+      if (analysisCopiedTimerRef.current !== null) window.clearTimeout(analysisCopiedTimerRef.current);
+      setAnalysisCopied(true);
+      analysisCopiedTimerRef.current = window.setTimeout(() => setAnalysisCopied(false), 1800);
+    } catch (err) {
+      console.error("Failed to copy analysis:", err);
+      setErrorMsg("Couldn't copy the analysis. Please select the text and copy it manually.");
+    }
+  };
+
+  // SCHOLARDOCX-0220: download the current analysis as a markdown file named
+  // after the paper (scholardocx-analysis-<slug>.md). Blob + object URL, no
+  // dependencies.
+  const handleDownloadAnalysis = () => {
+    if (!analysisResult || !activePaper) return;
+    const content = [
+      `# ${activePaper.title}`,
+      "",
+      `**Question:** ${analysisResult.prompt}`,
+      "",
+      analysisResult.answer,
+      "",
+    ].join("\n");
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `scholardocx-analysis-${slugifyPaperTitle(activePaper.title)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Clear any pending "Copied" reset when the view unmounts.
+  useEffect(() => {
+    return () => {
+      if (analysisCopiedTimerRef.current !== null) window.clearTimeout(analysisCopiedTimerRef.current);
+    };
+  }, []);
 
   const handleDeleteSavedAnalysis = async (analysisId: string) => {
     if (!activePaperId) return;
@@ -708,6 +807,7 @@ export function ResearchExpertView({
         setActivePaper(updated);
       }
       refreshUsage();
+      refreshTokenEconomy();
     } catch (err: any) {
       console.error("Failed to retry paper processing:", err);
       setErrorMsg(err.message || "Failed to retry paper processing.");
@@ -815,7 +915,28 @@ export function ResearchExpertView({
         <div className="expert-error-banner">
           <AlertTriangle size={18} />
           <span>{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="error-close-btn">&times;</button>
+          {analyzeRetry &&
+            analyzeRetry.msg === errorMsg &&
+            analyzeRetry.paperId === activePaperId && (
+              <button
+                type="button"
+                className="dm-btn dm-btn-secondary"
+                style={{ marginLeft: "auto", whiteSpace: "nowrap" }}
+                disabled={analyzing || activePaper?.status !== "ready"}
+                onClick={() => handleAnalyze(analyzeRetry.prompt, analyzeRetry.promptId ?? undefined)}
+              >
+                Try again
+              </button>
+            )}
+          <button
+            onClick={() => {
+              setErrorMsg(null);
+              setAnalyzeRetry(null);
+            }}
+            className="error-close-btn"
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -1154,6 +1275,14 @@ export function ResearchExpertView({
                 </form>
                 <p className="question-hint">
                   Enter to ask · Shift + Enter for a new line
+                  {analysisCostEstimate && (
+                    <span
+                      className="question-cost-hint"
+                      title="Worst case for one analysis of this paper — the actual charge can be lower."
+                    >
+                      {" · "}Up to {analysisCostEstimate.max_credits.toLocaleString()} credits per analysis
+                    </span>
+                  )}
                 </p>
               </div>
 

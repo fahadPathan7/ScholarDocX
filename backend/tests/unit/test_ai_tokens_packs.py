@@ -930,3 +930,42 @@ def test_admin_model_endpoints_gated_to_settings_admin(tmp_path):
         store.db.close()
         _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)
         _restore_ai_models(settings, models_snapshot)
+
+
+def test_update_pack_sets_polar_product_id(tmp_path):
+    """SCHOLARDOCX-0217: update_pack persists the checkout product id.
+
+    The router accepts polar_product_id in PackUpdatePayload; this is the
+    service-side persistence that call depends on (previously the payload
+    field was accepted but silently dropped, so admins could never wire a
+    pack to its checkout product through the API).
+    """
+    settings, packs_snapshot, settings_snapshot = make_settings(tmp_path)
+    session = next(get_db(settings.database_target))
+    # The shared packs snapshot/restore helpers do not cover polar_product_id;
+    # snapshot it explicitly per CODE_RULES (global table, restore exact value).
+    with connect(settings.database_target) as db:
+        row = db.execute(
+            "SELECT polar_product_id FROM ai_token_packs WHERE code = 'medium'"
+        ).fetchone()
+        prior_polar = row["polar_product_id"] if row else None
+    try:
+        updated = ai_tokens.update_pack(
+            "medium", session=session, polar_product_id="0192f5a1-2b3c-7d8e-9f0a-1b2c3d4e5f67"
+        )
+        assert updated is not None
+        assert updated["polar_product_id"] == "0192f5a1-2b3c-7d8e-9f0a-1b2c3d4e5f67"
+        with connect(settings.database_target) as db:
+            persisted = db.execute(
+                "SELECT polar_product_id FROM ai_token_packs WHERE code = 'medium'"
+            ).fetchone()
+            assert persisted["polar_product_id"] == "0192f5a1-2b3c-7d8e-9f0a-1b2c3d4e5f67"
+    finally:
+        with connect(settings.database_target) as db:
+            db.execute(
+                "UPDATE ai_token_packs SET polar_product_id=? WHERE code='medium'",
+                (prior_polar,),
+            )
+            db.commit()
+        session.close()
+        _restore_ai_token_packs(settings, packs_snapshot, settings_snapshot)

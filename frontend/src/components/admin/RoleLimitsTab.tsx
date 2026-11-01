@@ -279,6 +279,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
         { key: "admin_assign_user_roles", label: "Can Assign User Roles", description: "Allows changing a user's role to user-level roles (Free User, Basic User, Pro User, Max User)." },
         { key: "admin_assign_admin_roles", label: "Can Assign Admin Roles", description: "Allows changing a user's role to admin-level roles (Basic Admin, Super Admin)." },
         { key: "admin_suspend_user", label: "Can Suspend Users", description: "Allows suspending or activating user accounts to control their access." },
+        { key: "admin_block_user", label: "Can Block Users", description: "Allows blocking or unblocking accounts. Blocking is a harder lock than suspension and is managed separately." },
         { key: "admin_revoke_user", label: "Can Revoke User Tokens", description: "Allows revoking all active sessions for a user, forcing them to log in again." },
         { key: "admin_send_notifications", label: "Can Send Notifications To Users", description: "Allows sending categorized notifications to all users, filtered groups, or specific users." }
       ]

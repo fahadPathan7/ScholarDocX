@@ -19,6 +19,8 @@ Approving/rejecting purchase requests requires admin_manage_token_requests permi
 """
 from typing import Optional
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -28,6 +30,8 @@ from app.auth.dependencies import get_current_user
 from app.auth.limits import UsageLimitExceeded, check_and_increment_limit
 from app.services import ai_tokens
 from app.services.store import Store
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/ai-tokens",
@@ -144,7 +148,10 @@ def cancel_my_purchase_request(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Never echo the raw exception to the client — log it server-side and
+        # answer with plain copy.
+        logger.error("Cancel purchase request failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
 # ── admin-facing ──────────────────────────────────────────────────────────────
 
 @router.get("/admin/packs")
@@ -217,7 +224,8 @@ def admin_update_pack(
     current_user: dict = Depends(get_current_user),
     store: Store = Depends(get_store),
 ):
-    """Update a pack's price, token grant amount, name, or active flag.
+    """Update a pack's price, token grant amount, name, active flag, or
+    checkout product id.
 
     Requires admin_manage_settings permission — pack pricing/config is restricted to settings admins.
     """
@@ -230,6 +238,7 @@ def admin_update_pack(
             token_amount=payload.token_amount,
             price_usd=payload.price_usd,
             is_active=payload.is_active,
+            polar_product_id=payload.polar_product_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

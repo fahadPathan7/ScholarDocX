@@ -2204,3 +2204,128 @@
   flex-wrap: wrap;
 }
 
+
+/* ============================================================
+   SCHOLARDOCX-0218: Deep Hunt locked-state upgrade card + live
+   history chip. Lives here rather than deep-hunt.css (which is
+   at its size cap); news.css is loaded by ScholarshipNewsView,
+   which always wraps DeepHuntView. The card mirrors the Research
+   Expert upgrade card and every selector is scoped under the
+   wrapper so it stays correct even alongside research-expert.css's
+   global upgrade classes.
+   ============================================================ */
+.deep-hunt-upgrade-card {
+  max-width: 560px;
+  width: 100%;
+  margin: 24px auto 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(23, 32, 29, 0.08);
+}
+
+.deep-hunt-upgrade-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.deep-hunt-upgrade-card .upgrade-icon-badge {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+}
+
+.deep-hunt-upgrade-card .lock-sub-icon {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #ffffff;
+  color: #e11d48;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.deep-hunt-upgrade-card .upgrade-description {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.deep-hunt-upgrade-card .upgrade-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.deep-hunt-upgrade-card .feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.deep-hunt-upgrade-card .feature-icon {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.deep-hunt-upgrade-card .upgrade-btn-primary {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.deep-hunt-upgrade-card .upgrade-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+}
+
+/* Live chip on in-flight rows in the history list — same conventions as the
+   status badges (pill, uppercase, tiny) plus a spinner, so rows visibly keep
+   moving while the list polls. */
+.deep-hunt-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(56, 163, 127, 0.14);
+  color: #1e6657;
+  flex-shrink: 0;
+}
+
+.deep-hunt-live-chip svg {
+  flex-shrink: 0;
+}

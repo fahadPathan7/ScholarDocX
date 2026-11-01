@@ -19,9 +19,11 @@ type ScholarshipHuntSubTab = "search" | "catalog" | "library";
 interface ScholarshipNewsViewProps {
   onToast: (msg: string) => void;
   refreshTrigger?: number;
+  /** Opens the plans view — used by the Deep Hunt locked-state upgrade card. */
+  onNavigateToPlans?: () => void;
 }
 
-export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNewsViewProps) {
+export function ScholarshipNewsView({ onToast, refreshTrigger, onNavigateToPlans }: ScholarshipNewsViewProps) {
   const { refreshUsage, usageData } = useUsage();
   // The single deep search shares the Scholarship Hunt plan permission.
   const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_hunt ?? 0) === 1;
@@ -101,7 +103,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger }: ScholarshipNews
       </div>
 
       {subTab === "search" && (
-        <DeepHuntView onToast={onToast} canUseDeepHunt={canUseDeepHunt} />
+        <DeepHuntView onToast={onToast} canUseDeepHunt={canUseDeepHunt} onUpgrade={onNavigateToPlans} />
       )}
 
       {subTab === "catalog" && (

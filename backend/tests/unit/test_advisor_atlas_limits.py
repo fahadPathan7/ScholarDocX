@@ -143,12 +143,42 @@ def test_advisor_atlas_plan_phrase_reflects_role_limits(tmp_path):
         session.close()
 
 
+def _install_create_run_pricing(monkeypatch):
+    """Deterministic pricing for the create-run worst-case pre-flight
+    (SCHOLARDOCX-0218). Monkeypatched getters only — no app_settings /
+    ai_models rows are written (CODE_RULES).
+
+    With these fakes the professor-mode ceiling is exactly 11397 credits:
+      deep candidate = 8x1.0 Tavily + 0.5 + 0.125 OpenAlex + 3x40 vision
+                       + 4x180 specialists + 290 synthesis = 1138.625 USD
+      professor run  = 1.0 (identity search) + 1138.625 = 1139.625 USD
+      credits        = ceil(1139.625 * 10) = 11397
+    """
+    monkeypatch.setattr(ai_tokens, "get_tavily_call_cost_usd", lambda session: 1.0)
+    monkeypatch.setattr(ai_tokens, "get_openalex_call_cost_usd", lambda session: 0.5)
+    monkeypatch.setattr(ai_tokens, "get_token_rate", lambda session: 10)
+    monkeypatch.setattr(
+        ai_tokens,
+        "compute_cost",
+        lambda model_id, input_tokens, output_tokens, session, provider=None: (
+            (input_tokens + output_tokens) / 100,
+            0,
+        ),
+    )
+    from app.services.advisor_atlas import cost_estimate as cost_estimate_module
+
+    monkeypatch.setattr(cost_estimate_module, "METERED_CALL_COST_RATIO", {"list": 0.25})
+
+
 @pytest.mark.asyncio
 async def test_create_run_gates_on_ai_tokens(monkeypatch):
     spend_calls = []
     created = []
 
     class FakeRepository:
+        def count_runs(self, user_id):
+            return 0
+
         def create_run(self, user_id, payload):
             created.append((user_id, payload))
             return {"id": 44, "status": "queued"}
@@ -167,6 +197,7 @@ async def test_create_run_gates_on_ai_tokens(monkeypatch):
         return True
 
     monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
+    _install_create_run_pricing(monkeypatch)
     # Plan and model gates are tested separately; neutralize them here to
     # isolate token gating.
     monkeypatch.setattr(advisor_atlas_api, "_require_advisor_atlas_access", lambda *a, **k: None)
@@ -185,8 +216,9 @@ async def test_create_run_gates_on_ai_tokens(monkeypatch):
     assert result["id"] == 44
     assert len(created) == 1
     # Advisor Atlas no longer consumes a monthly search count; it gates on the
-    # AI-token balance instead.
-    assert spend_calls == [(7, 1)]
+    # AI-token balance against the run's worst-case ceiling (SCHOLARDOCX-0218)
+    # instead of a min-1 check.
+    assert spend_calls == [(7, 11397)]
 
 
 @pytest.mark.asyncio
@@ -194,6 +226,9 @@ async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatc
     created = []
 
     class FakeRepository:
+        def count_runs(self, user_id):
+            return 0
+
         def create_run(self, user_id, payload):
             created.append((user_id, payload))
             return {"id": 44, "status": "queued"}
@@ -208,9 +243,10 @@ async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatc
         raise ai_tokens.OutOfTokens("out of tokens")
 
     monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", reject_ensure)
+    _install_create_run_pricing(monkeypatch)
     monkeypatch.setattr(advisor_atlas_api, "_require_advisor_atlas_access", lambda *a, **k: None)
 
-    with pytest.raises(ai_tokens.OutOfTokens):
+    with pytest.raises(advisor_atlas_api.HTTPException) as error:
         await advisor_atlas_api.create_run(
             professor_request(),
             BackgroundTasks(),
@@ -220,6 +256,10 @@ async def test_create_run_stops_before_persistence_when_out_of_tokens(monkeypatc
             settings=Settings(),
         )
 
+    # SCHOLARDOCX-0218: an unaffordable ceiling is a plain-language 402 before
+    # the run is persisted or any background work enqueued.
+    assert error.value.status_code == 402
+    assert error.value.detail.startswith("Not enough credits for this search.")
     assert created == []
 
 
@@ -236,7 +276,7 @@ async def test_owned_candidate_refresh_gates_on_ai_tokens(monkeypatch):
 
     class FakeRepository:
         def get_candidate(self, candidate_id, user_id):
-            assert (candidate_id, user_id) == (12, 7)
+            assert (candidate_id, user_id) == (str(12), str(7))  # route stringifies ids
             return {"id": candidate_id}
 
     class FakeService:
@@ -351,6 +391,9 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
     created = []
 
     class FakeRepository:
+        def count_runs(self, user_id):
+            return 0
+
         def create_run(self, user_id, payload):
             created.append(user_id)
             return {"id": 50}
@@ -372,6 +415,7 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
 
     monkeypatch.setattr(advisor_atlas_api, "check_and_increment_limit", allow)
     monkeypatch.setattr(advisor_atlas_api.ai_tokens, "ensure_can_spend", fake_ensure)
+    _install_create_run_pricing(monkeypatch)
     import app.api.routes as routes_api
     monkeypatch.setattr(routes_api, "verify_model_permission", lambda *a, **k: None)
 
@@ -385,7 +429,7 @@ async def test_create_run_allowed_for_pro_plan(monkeypatch):
     )
 
     assert result["id"] == 50
-    assert created == [9]
+    assert created == [str(9)]  # create_run stringifies user ids (0218 ceiling path)
 
 
 @pytest.mark.asyncio

@@ -354,6 +354,27 @@ count-limit UI left by the backend teardown so nothing shows stale data:
   the same reason `can_use_scholarship_analyze` didn't get one: count limits
   on AI-metered actions were removed project-wide in the Phase 5 teardown
   above in favor of gate + token cost.
+- **Search-result caching (SCHOLARDOCX-0220).** `services/search_cache.py`
+  provides a 15-minute per-user TTL cache (bounded, in-process). Deep Hunt's
+  Brave passes and `/ai/research`'s Tavily call check it before the provider.
+  Rule: **a cache hit is not a provider call, so it is not charged** — the
+  per-hit fee / flat search fee only runs on a miss. Keys always include the
+  user id (never share entries across users).
+- **Worst-case pre-flight ceilings everywhere (SCHOLARDOCX-0218).** Deep
+  Hunt's per-hit ceiling pattern now covers the other expensive flows:
+  `/ai/research` pre-flights the Tavily flat fee + a conservative answer
+  ceiling (`RESEARCH_MAX_INPUT_TOKENS`/`RESEARCH_MAX_OUTPUT_TOKENS` in
+  `services/ai.py`, web-results component computed from the request's own
+  caps); Research Expert analyze pre-flights a per-paper ceiling
+  (`estimate_analysis_cost` in `research_paper_service.py`, embedding + the
+  paper's top-K largest sections over the model cascade) and ships it on the
+  paper payload as `analysis_cost_estimate`; Advisor Atlas create pre-flights
+  `estimate_run_cost` (`services/advisor_atlas/cost_estimate.py`, every
+  search/AI pass at the pipeline's caps × the candidate cap) and returns it
+  as `cost_estimate`. If actual usage still exceeds a ceiling (rare — the
+  constants are conservative), the flow fails 402 with honest copy; for
+  `/ai/research` that copy says the web-search fee was already deducted
+  (`RESEARCH_ANSWER_OUT_OF_CREDITS_MESSAGE`).
 
 ## Research Expert Jina embedding billing (SCHOLARDOCX-0174)
 
@@ -543,9 +564,12 @@ documented charge helper that never ran:
 - Failed calls with no usage are voided; usage returned before an error is
   charged.
 - Deduction is atomic per call (single transaction) to avoid balance drift.
-- Charging happens after the call (output tokens unknown beforehand); the only
-  overshoot is the final call that empties the balance, after which the next
-  call is hard-stopped.
+- Charging happens after the call (output tokens unknown beforehand). A call
+  the two buckets cannot fully cover is rejected whole — the deduction is one
+  conditional `UPDATE` (see `_atomic_deduct` in `services/ai_tokens.py`): 0
+  rows update, the balance is left untouched, and `OutOfTokens` (402) is
+  raised. Concurrent charges can never both spend the same credits, and
+  partial/clamped under-deduction no longer exists (SCHOLARDOCX-0217).
 - Deprecated count limits (`daily_ai_chats`, `monthly_ai_chats`,
   `advisor_atlas_searches_per_month`) were **removed outright** in Phase 5 (not
   left dormant): deleted from the schema seed, `DEFAULT_ROLE_LIMITS`, the

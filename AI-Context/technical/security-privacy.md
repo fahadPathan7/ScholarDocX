@@ -136,6 +136,16 @@ Full design in `billing-and-payments.md`. Security-relevant points:
   budget is consumed before the email lookup so the limit cannot be used as a
   timing/enumeration oracle.
 - Do not require remote signin for local-only MVP workflows.
+- **File downloads use short-lived, file-scoped tokens (SCHOLARDOCX-0222).** The
+  frontend must open file content via `POST /files/{id}/download-link`
+  (5-minute JWT with `purpose=file_download` + `file_id`, helpers
+  `create_download_token`/`decode_download_token` in `auth/jwt.py`), never by
+  appending the 30-day session token to a URL — long-lived tokens in URLs leak
+  into browser history, server logs, and shared links. `view_file_content`
+  accepts the download token OR a normal session; ownership is enforced on
+  both paths. The legacy `?token=` session fallback remains accepted for old
+  links but must not be used by new code; purpose isolation means a session
+  token never validates as a download token and vice versa.
 
 ## Rate Limiting (SCHOLARDOCX-0137)
 

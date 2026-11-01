@@ -494,7 +494,11 @@ async def test_analyze_paper_charges_jina_query_embedding_exactly_once(db_sessio
         rows = ledger_rows(settings, user["id"])
         query_rows = [r for r in rows if r["source"] == "jina_embedding_query"]
         assert len(query_rows) == 1, "query embedding must be charged exactly once"
-        assert query_rows[0]["cost_usd"] == pytest.approx(0.002)
+        # Two-part charge since SCHOLARDOCX-0204 (L8): the 0.002 base fee
+        # plus a token component priced from the jina ai_models row. The
+        # token part is tiny by design — tolerate it, but not a real
+        # regression (e.g. a doubled base or a missing base).
+        assert query_rows[0]["cost_usd"] == pytest.approx(0.002, abs=1e-6)
 
         # The generic upload-side label must NOT also appear: that duplicate row
         # is precisely the double-charge this test exists to prevent.

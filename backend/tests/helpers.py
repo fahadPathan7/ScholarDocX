@@ -166,5 +166,5 @@ def get_balance(settings: Settings, uid: str) -> dict[str, Any]:
 def ledger_rows(settings: Settings, uid: str) -> list[dict[str, Any]]:
     with connect(settings.database_target) as db:
         return [dict(r) for r in db.execute(
-            "SELECT * FROM ai_token_ledger WHERE user_id = ? ORDER BY id", (uid,)
+            "SELECT * FROM ai_token_ledger WHERE user_id = ? ORDER BY created_at ASC, id ASC", (uid,)
         ).fetchall()]

@@ -39,6 +39,12 @@ type Props = {
 // admin Info tab already uses for the other fixed per-user caps.
 const MAX_HISTORY = 100;
 
+// SCHOLARDOCX-0218: worst-case ceiling returned when a run is created (and
+// carried on run payloads where the API includes it). Optional so this view
+// compiles and behaves unchanged against payloads that don't carry it yet.
+type AdvisorRunCostEstimate = { max_candidates: number; max_credits: number };
+type AdvisorRunWithCostEstimate = AdvisorRun & { cost_estimate?: AdvisorRunCostEstimate };
+
 export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   const { showConfirm } = useDialog();
   const { refreshUsage } = useUsage();
@@ -60,6 +66,10 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
   // Bumped when a dossier is saved, so the saved list re-fetches on the way in
   // rather than showing a stale set.
   const [savedRefresh, setSavedRefresh] = useState(0);
+  // SCHOLARDOCX-0218: last known worst-case ceiling for a search, captured
+  // when a create response (or a selected run's payload) carries it. Shown
+  // under the search form so the cost is visible before the next run.
+  const [costEstimate, setCostEstimate] = useState<AdvisorRunCostEstimate | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const loadRuns = async (selectLatest = false) => {
@@ -81,6 +91,8 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
       const data = await advisorAtlasApi.getRun(runId);
       setActiveRun(data);
       setShowNewSearch(false);
+      const estimate = (data as AdvisorRunWithCostEstimate).cost_estimate;
+      if (estimate) setCostEstimate(estimate);
     } catch {
       onToast("Could not load that Advisor Atlas run.");
     }
@@ -88,9 +100,13 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const reloadActive = async () => {
     if (!activeRun) return;
-    const data = await advisorAtlasApi.getRun(activeRun.id);
-    setActiveRun(data);
-    await loadRuns();
+    try {
+      const data = await advisorAtlasApi.getRun(activeRun.id);
+      setActiveRun(data);
+      await loadRuns();
+    } catch {
+      onToast("Could not refresh this search. Please try again.");
+    }
   };
 
   useEffect(() => {
@@ -136,6 +152,8 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
       const run = await advisorAtlasApi.createRun(payload);
       setActiveRun(run);
       setShowNewSearch(false);
+      const estimate = (run as AdvisorRunWithCostEstimate).cost_estimate;
+      if (estimate) setCostEstimate(estimate);
       await loadRuns();
       await refreshUsage();
       onToast("Advisor Atlas started.");
@@ -193,7 +211,12 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
   const shortlist = async (candidate: AdvisorCandidate) => {
     const status = candidate.shortlist_status === "shortlisted" ? "unreviewed" : "shortlisted";
-    await advisorAtlasApi.updateCandidate(candidate.id, { shortlist_status: status });
+    try {
+      await advisorAtlasApi.updateCandidate(candidate.id, { shortlist_status: status });
+    } catch {
+      onToast("Could not update the shortlist. Please try again.");
+      return;
+    }
     await reloadActive();
     onToast(status === "shortlisted" ? "Professor shortlisted." : "Professor removed from shortlist.");
   };
@@ -356,10 +379,20 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
         <div className="atlas-main">
           {showNewSearch || !activeRun ? (
-            <AdvisorAtlasSearchForm
-              submitting={submitting}
-              onSubmit={createRun}
-            />
+            <div className="atlas-search-wrap">
+              <AdvisorAtlasSearchForm
+                submitting={submitting}
+                onSubmit={createRun}
+              />
+              {/* SCHOLARDOCX-0218: worst-case ceiling under the submit
+                  button, once a create response or selected run has carried
+                  it — the cost is visible before the next search starts. */}
+              {costEstimate && (
+                <p className="atlas-cost-estimate">
+                  Up to {costEstimate.max_credits.toLocaleString()} credits · up to {costEstimate.max_candidates} professors per search
+                </p>
+              )}
+            </div>
           ) : (
             <AdvisorRunWorkspace
               run={activeRun}

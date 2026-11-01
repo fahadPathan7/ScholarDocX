@@ -20,6 +20,48 @@
   --ui-shadow-soft: 0 9px 24px rgba(24, 37, 35, 0.075);
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Aptos", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
   --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "Aptos", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+
+  /* ================================================================
+   * LEGACY VARIABLE COMPATIBILITY BLOCK (SCHOLARDOCX-0217)
+   * ================================================================
+   * Older components and stylesheets reference the variable names below,
+   * which were never defined anywhere — every var(--…) fell back to
+   * nothing (broken focus rings, bool pills, quota colors, chart fills).
+   * Each is now aliased to the closest live --ui-* token above so the
+   * existing usages render correctly. Do NOT use these names in new code;
+   * use the --ui-* tokens directly.
+   *
+   * --success / --warning have no live --ui-* equivalent, so they carry
+   * the app's established status colors (emerald from research-expert
+   * .status-ready, amber from the visual-refresh amber family) to stay
+   * readable as both text and fills.
+   * ================================================================ */
+  /* Borders & surfaces */
+  --border: var(--ui-line);            /* generic border color */
+  --bg: var(--ui-canvas);              /* page background */
+  --bg-hover: var(--ui-mint);          /* brand-tinted hover surface */
+  --bg-primary: var(--ui-canvas);
+  --bg-secondary: var(--ui-canvas-2);
+  --surface-hover: var(--ui-mint);
+  /* Brand & status */
+  --primary: var(--ui-primary);        /* primary teal #347f78 */
+  --primary-rgb: 52, 127, 120;         /* #347f78 as an rgba() triplet */
+  --danger: var(--ui-danger);          /* #b05a56 */
+  --danger-rgb: 176, 90, 86;           /* #b05a56 as an rgba() triplet */
+  --success: #047857;                  /* app status green (no --ui green token) */
+  --warning: #b45309;                  /* app status amber (no --ui amber token) */
+  /* Text */
+  --text: var(--ui-ink);
+  --text-color: var(--ui-ink);
+  --text-primary: var(--ui-ink);
+  --text-secondary: var(--ui-ink-soft);
+  --text-tertiary: var(--ui-muted);
+  /* Pseudo --ui-* names used by charts/admin/landing code but never defined */
+  --ui-bg-panel: var(--ui-paper-strong);
+  --ui-border: var(--ui-line);
+  --ui-brand: var(--ui-primary);
+  --ui-text: var(--ui-ink);
+  --ui-text-dim: var(--ui-muted);
 }
 
 html {
@@ -996,17 +1038,13 @@ main {
   padding-top: 48px;
 }
 
-/* Nested modal - lighter blur to show depth */
-.modal-backdrop[style*="zIndex: 1010"],
-.modal-backdrop[style*="zIndex: 1060"] {
+/* Nested modal - lighter blur to show depth.
+ * Modal.tsx sets data-modal-depth="nested" on stacked dialogs (zIndex >= 1060).
+ * The old [style*="zIndex: ..."] selectors never matched (React serializes
+ * inline style as "z-index: ..."). */
+.modal-backdrop[data-modal-depth="nested"] {
   backdrop-filter: blur(6px);
   background: rgba(30, 41, 37, 0.15);
-}
-
-/* Third level modal - even lighter */
-.modal-backdrop[style*="zIndex: 1020"] {
-  backdrop-filter: blur(4px);
-  background: rgba(30, 41, 37, 0.1);
 }
 
 .modal-panel,

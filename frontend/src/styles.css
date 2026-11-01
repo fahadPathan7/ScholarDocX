@@ -1360,10 +1360,60 @@ h2 {
   text-decoration: underline;
 }
 
+/* SCHOLARDOCX-0218: subtle note above answers that used a live web search,
+   shown before the answer bubble. Same meta styling as .message-time /
+   .message-sources small (11px, muted, slight weight). */
+.message-search-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #65756d;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-search-note svg {
+  flex-shrink: 0;
+  color: #2f6d7a;
+}
+
+.message-search-note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .message-time {
   font-size: 11px;
   color: #65756d;
   padding: 0 4px;
+}
+
+/* SCHOLARDOCX-0220: meta row pairing each bubble's timestamp with the
+   answer-copy action. The copy button stays hidden until the message is
+   hovered (or focused / showing feedback) so the transcript stays quiet. */
+.message-meta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.icon-button.message-copy-button {
+  min-height: 22px;
+  width: 22px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.chat-message:hover .icon-button.message-copy-button,
+.icon-button.message-copy-button:focus-visible {
+  opacity: 1;
 }
 
 .typing-indicator {
@@ -2887,17 +2937,16 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   overflow: hidden;
 }
 
-/* Nested modal backdrop - higher z-index, less blur to show layering */
-.modal-backdrop[style*="zIndex: 1010"] {
+/* Nested modal backdrop - lighter overlay to show layering.
+ * Modal.tsx sets data-modal-depth="nested" on stacked dialogs (zIndex >= 1060).
+ * The old [style*="zIndex: 1010"] selectors never matched (React serializes
+ * inline style as "z-index: 1010"). */
+.modal-backdrop[data-modal-depth="nested"] {
   background: rgba(0, 0, 0, 0.3);
-  z-index: 1010;
 }
 
-/* Third level modal if needed */
-.modal-backdrop[style*="zIndex: 1020"] {
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 1020;
-}
+/* Third-level styling (old 1020 rule) folded away: the depth API is binary
+ * (root | nested), so the nested rule above covers every stacked modal. */
 
 /* Blur the modal panel when another modal opens on top */
 .modal-panel.blurred {
@@ -3888,5 +3937,25 @@ td.collapsed-cell {
 
   .profile-form-actions {
     flex-direction: column;
+  }
+}
+
+/* ================================================================
+ * REDUCED MOTION GLOBAL GUARD (SCHOLARDOCX-0217)
+ * ================================================================
+ * Several animated components ship no prefers-reduced-motion handling of
+ * their own. This single global guard honors the OS-level setting by
+ * collapsing every animation/transition to a near-zero duration (0.01ms,
+ * not 0, so animation end-states still apply and JS animation events
+ * still fire) and disabling smooth scrolling app-wide.
+ * ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

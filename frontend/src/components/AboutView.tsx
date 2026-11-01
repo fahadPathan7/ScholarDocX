@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, RecordMap } from "../lib/api";
+import { Modal } from "./Modal";
 import { 
   notificationCategories, 
   defaultNotificationSettings, 
@@ -323,8 +324,16 @@ export function AboutView() {
       </p>
 
       {showModelsModal && (
-        <div className="modal-backdrop modal-backdrop-main models-modal-backdrop" onClick={() => setShowModelsModal(false)}>
-          <div className="modal-panel models-modal-panel" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setShowModelsModal(false)}>
+          {/* marginLeft:0 neutralizes the legacy 150px sidebar offset baked
+              into .models-modal-panel (about-refresh.css) for the old
+              fixed-position backdrop; the canonical <Modal> already portals
+              into .main-content, next to the sidebar. */}
+          <div
+            className="modal-panel models-modal-panel"
+            style={{ marginLeft: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header models-modal-header">
               <div>
                 <p className="eyebrow">AI Assistant</p>
@@ -371,7 +380,7 @@ export function AboutView() {
               </table>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   </>

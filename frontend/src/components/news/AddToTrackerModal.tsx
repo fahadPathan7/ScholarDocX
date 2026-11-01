@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { api, listRecords, RecordMap } from "../../lib/api";
 import { SHEET_TEMPLATES } from "../sheet/sheetModel";
 import { ScholarshipOpportunity, updateScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
+import { Modal } from "../Modal";
 
 const TRACKER_SHEET_NAME = "Scholarship Tracker";
 const TRACKER_TEMPLATE = SHEET_TEMPLATES.find((t) => t.id === "scholarship_tracker")!;
@@ -90,16 +91,17 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
       onDone(updatedOpportunity);
     } catch (error: any) {
       // 403/limit errors already surface the standard styled alert via the
-      // global api client (FR-7.21); this toast is a fallback for anything else.
-      const message = error?.message && typeof error.message === "string" ? error.message.trim() : "Could not add this opportunity to the tracker.";
-      onToast(message);
+      // global api client (FR-7.21); this toast is a friendly fallback for
+      // anything else — never raw error text.
+      console.error("Failed to add opportunity to tracker:", error);
+      onToast("Couldn't add this opportunity to the tracker. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
+    <Modal onClose={onClose}>
       <div className="modal-panel small-modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Add to tracker</h2>
@@ -143,6 +145,6 @@ export function AddToTrackerModal({ opportunity, onClose, onDone, onToast }: Add
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

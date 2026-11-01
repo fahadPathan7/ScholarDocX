@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, RecordMap } from "../lib/api";
 import { useUsage } from "../contexts/UsageContext";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { useAuth } from "../contexts/AuthContext";
 import { emitUiError } from "../lib/uiError";
 import {
@@ -29,6 +30,9 @@ type Message = {
   attachments?: { name: string; type: string }[];
   actionPlan?: ActionPlan;
   actionState?: "pending" | "running" | "done" | "cancelled" | "error";
+  /** Set on failed chat/research bubbles so the last one can offer a
+   *  "Try again" action that replays the exact request. */
+  retryRequest?: { path: string; payload: RecordMap };
 };
 
 type ChatSession = {
@@ -124,6 +128,9 @@ const createInitialGreeting = () => ({
 export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?: () => Promise<void> }) {
   const { user } = useAuth();
   const { usageData, refreshUsage } = useUsage();
+  // Metered AI actions spend credits; refresh the balance after each one so
+  // the navbar credit widget stays accurate (SCHOLARDOCX-0217).
+  const { refresh: refreshTokenEconomy } = useTokenEconomy();
   const userId = user?.id;
   const storageKey = useMemo(() => getChatStorageKey(userId), [userId]);
 
@@ -271,6 +278,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   }, [open, loading, currentSession.id]);
 
   const canUseWebSearch = (usageData?.limits?.can_use_web_search ?? 0) === 1;
+  // Per-role session message limit for the chat-limit wall and footer counter.
+  // Falls back to 30 while usage data loads or when the role is unlimited
+  // (matching the previous hardcoded wall).
+  const rawSessionLimit = usageData?.limits?.["ai_messages_per_session"];
+  const sessionMessageLimit =
+    typeof rawSessionLimit === "number" && rawSessionLimit > 0 ? rawSessionLimit : 30;
   const allowedProviders = new Set(
     (Object.keys(MODEL_PROVIDER_FEATURES) as Array<keyof typeof MODEL_PROVIDER_FEATURES>).filter(
       (provider) => (usageData?.limits?.[MODEL_PROVIDER_FEATURES[provider]] ?? 0) === 1
@@ -493,7 +506,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     if (!text || loading) return;
 
     const userMessageCount = currentSession.messages.filter(m => m.role === "user").length;
-    if (userMessageCount >= 30) {
+    if (userMessageCount >= sessionMessageLimit) {
       const lastMsg = currentSession.messages[currentSession.messages.length - 1];
       if (lastMsg?.role === "assistant" && lastMsg.content.includes("Chat Limit Reached")) {
         setInput(""); // Clear input if they try again
@@ -502,7 +515,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
       const limitMessage: Message = {
         role: "assistant",
-        content: "⚠️ **Chat Limit Reached**\n\nYou have reached the maximum limit of 30 messages per session. Please click the **New Chat** icon (🤖) in the header to start a fresh session.",
+        content: `⚠️ **Chat Limit Reached**\n\nYou have reached the maximum limit of ${sessionMessageLimit} messages per session. Please click the **New Chat** icon (🤖) in the header to start a fresh session.`,
         timestamp: Date.now()
       };
       setCurrentSession(prev => ({ ...prev, messages: [...prev.messages, limitMessage] }));
@@ -546,6 +559,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     setLoading(true);
 
     const memoryContext = buildMemoryContext(currentSession, useSummaryContext, useExactContext, exactChatCount);
+
+    // Remember the exact chat/research request so a failed bubble can offer
+    // a "Try again" action (one retry per failed send).
+    let chatRequest: { path: string; payload: RecordMap } | null = null;
 
     try {
       let response: RecordMap;
@@ -624,23 +641,36 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         }
       }
 
+      // Prior messages already in this session, sent along so the backend can
+      // enforce the role's per-session message limit accurately.
+      const messageCount = currentSession.messages.length;
+
       if (webSearchEnabled && webSearchCount > 0) {
         // Hint to backend that web search is preferred — it still decides based on query
-        response = await api.post<RecordMap>("/ai/research", {
-          message: userMessage.content,
-          context: memoryContext,
-          model: selectedModel || undefined,
-          background_model: backgroundModel || undefined,
-          web_search_max_results: webSearchCount,
-          web_search_max_chars: webSearchMaxChars
-        });
-      } else {
-        const chatPayload: RecordMap = {
-          message: userMessage.content,
-          context: memoryContext,
-          model: selectedModel || undefined
+        chatRequest = {
+          path: "/ai/research",
+          payload: {
+            message: userMessage.content,
+            context: memoryContext,
+            model: selectedModel || undefined,
+            background_model: backgroundModel || undefined,
+            web_search_max_results: webSearchCount,
+            web_search_max_chars: webSearchMaxChars,
+            message_count: messageCount
+          }
         };
-        response = await api.post<RecordMap>("/ai/chat", chatPayload);
+        response = await api.post<RecordMap>("/ai/research", chatRequest.payload);
+      } else {
+        chatRequest = {
+          path: "/ai/chat",
+          payload: {
+            message: userMessage.content,
+            context: memoryContext,
+            model: selectedModel || undefined,
+            message_count: messageCount
+          }
+        };
+        response = await api.post<RecordMap>("/ai/chat", chatRequest.payload);
       }
 
       const assistantMessage: Message = {
@@ -662,6 +692,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
         title: title || "New Chat"
       }));
       refreshUsage();
+      refreshTokenEconomy();
 
       if (finalMessages.length >= SUMMARY_MIN_MESSAGES && !FAILED_SUMMARY_MODES.has(String(assistantMessage.mode))) {
         triggerBackgroundSummary(currentSession.summary, userMessage.content, assistantMessage.content);
@@ -671,11 +702,50 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       const errorMessage: Message = {
         role: "assistant",
         content: error instanceof Error ? error.message : "AI request failed.",
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        retryRequest: chatRequest ?? undefined
       };
       setCurrentSession(prev => ({
         ...prev,
         messages: [...updatedMessages, errorMessage]
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Replay a failed chat/research send from its error bubble (offered on the
+  // last message only, one retry per failed send).
+  const retryLastSend = async (messageIndex: number) => {
+    const failed = currentSession.messages[messageIndex];
+    if (!failed?.retryRequest || loading) return;
+    const { path, payload } = failed.retryRequest;
+    setLoading(true);
+    try {
+      const response = await api.post<RecordMap>(path, payload);
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: response.answer || "No response",
+        timestamp: Date.now(),
+        sources: response.sources,
+        mode: response.mode
+      };
+      // Replace the error bubble with the real answer (the retried bubble is
+      // always the last message in the session).
+      setCurrentSession(prev => ({
+        ...prev,
+        messages: [...prev.messages.slice(0, messageIndex), assistantMessage]
+      }));
+      refreshUsage();
+      refreshTokenEconomy();
+    } catch {
+      // Retry failed too — drop the retry action from the bubble (one retry
+      // per failed send) and keep the original error text.
+      setCurrentSession(prev => ({
+        ...prev,
+        messages: prev.messages.map((m, i) =>
+          i === messageIndex ? { ...m, retryRequest: undefined } : m
+        )
       }));
     } finally {
       setLoading(false);
@@ -982,6 +1052,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                       {message.content}
                     </ReactMarkdown>
                   </div>
+                  {message.retryRequest && index === currentSession.messages.length - 1 && (
+                    <div style={{ display: "flex", marginTop: "8px" }}>
+                      <button
+                        className="secondary"
+                        type="button"
+                        disabled={loading}
+                        onClick={() => retryLastSend(index)}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="message-sources">
                       <small>Sources:</small>

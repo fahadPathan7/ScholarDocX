@@ -39,7 +39,7 @@ const PILLARS: Pillar[] = [
     title: "Research Expert",
     tagline: "Deep AI-assisted paper analysis & proposal refinement",
     description:
-      "Upload academic papers or research drafts for deep AI analysis. Get instant summaries, methodology breakdowns, key contribution extraction, and critique prompts to sharpen your statement of purpose.",
+      "Upload academic papers or research drafts for deep AI analysis. Get instant summaries, methodology breakdowns, key contribution summaries, and critique prompts to sharpen your statement of purpose.",
     icon: Microscope,
     accentClass: "accent-cyan",
     features: [
@@ -245,7 +245,7 @@ function ResearchExpertPreview() {
 
           {selectedPrompt === "methodology" && (
             <p className="lp-analysis-text">
-              "The authors propose a dual-qubit message-passing mechanism that scales quadratically faster than standard MPNNs. Section 4 introduces Hamiltonian embedding layers suitable for ligand binding tasks."
+              "The authors propose a dual-qubit message-passing mechanism that scales quadratically faster than standard MPNNs. Section 4 introduces Hamiltonian feature layers suitable for ligand binding tasks."
             </p>
           )}
 

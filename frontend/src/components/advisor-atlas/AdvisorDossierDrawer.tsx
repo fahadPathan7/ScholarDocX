@@ -618,7 +618,7 @@ export function AdvisorDossierDrawer({
                 <small>
                   {candidate.intelligence?.matching_method === "not_requested"
                     ? "Add your research interests to compare alignment."
-                    : "Similarity between your interests and verified professor research."}
+                    : "How closely your interests match the professor's verified research."}
                 </small>
               </div>
               <div>

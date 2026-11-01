@@ -28,6 +28,28 @@ import { emitUiError } from "./uiError";
 import { buildAccessErrorDetail } from "./accessErrors";
 import { emitOutOfTokens } from "./tokenEvents";
 
+/**
+ * Backend error payloads arrive as {detail} (FastAPI) or {message}. `detail`
+ * can be a plain string, or a list/dict of validation errors — raw objects
+ * would render as "[object Object]" in the UI. Normalize to a friendly
+ * string: keep plain strings, join validation `msg` entries, and fall back
+ * to the generic message for any other shape.
+ */
+function toFriendlyMessage(raw: unknown): string | null {
+  if (typeof raw === "string" && raw.trim() !== "") return raw;
+  if (Array.isArray(raw)) {
+    const msgs = raw
+      .map((item) =>
+        item && typeof item === "object" && typeof (item as RecordMap).msg === "string"
+          ? (item as RecordMap).msg as string
+          : null
+      )
+      .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+    if (msgs.length > 0) return msgs.join("; ");
+  }
+  return null;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {};
@@ -50,13 +72,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   
   if (!response.ok) {
     const text = await response.text();
-    let message = text;
+    let message: unknown = text;
     try {
       const parsed = JSON.parse(text);
       if (parsed.detail) message = parsed.detail;
       else if (parsed.message) message = parsed.message;
     } catch (e) {}
-    
+
+    // Normalize: detail may be a FastAPI validation list/dict. Plain strings
+    // (including non-JSON bodies) pass through; objects never reach the UI
+    // as "[object Object]".
+    const friendly =
+      toFriendlyMessage(message) ?? "Something went wrong. Please try again.";
+
     if (response.status === 401) {
       // SCHOLARDOCX-0169: Only /auth/me is authoritative for auth state.
       // A 401 from other endpoints during a Render cold-start race can be
@@ -72,17 +100,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     if (response.status === 402) {
       // Out of AI tokens — surface the buy-packs flow instead of a plain toast.
-      emitOutOfTokens(message);
-      throw new Error(message || "Out of AI tokens");
+      emitOutOfTokens(friendly);
+      throw new Error(friendly || "Out of AI tokens");
     }
-    const uiError = buildAccessErrorDetail(response.status, message);
+    const uiError = buildAccessErrorDetail(response.status, friendly);
     if (uiError) {
       emitUiError(uiError);
     }
     // Keep the raw status out of the user-facing message (no "Request failed: 403").
     // It stays in the console for debugging.
     console.warn(`[api] ${path} failed with status ${response.status}`);
-    throw new Error(message || "Something went wrong. Please try again.");
+    throw new Error(friendly || "Something went wrong. Please try again.");
   }
   if (response.status === 204 || response.headers.get("content-length") === "0") {
     return null as T;
@@ -111,7 +139,10 @@ export const api = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const response = await fetch(`${API_BASE}${path}`, { headers });
     if (!response.ok) {
-      throw new Error(`Failed to download: ${response.status}`);
+      // Keep the raw status out of the user-facing message (same policy as
+      // request()); it stays in the console for debugging.
+      console.error(`[api] download of ${path} failed with status ${response.status}`);
+      throw new Error("Something went wrong. Please try again.");
     }
     return response.blob();
   },

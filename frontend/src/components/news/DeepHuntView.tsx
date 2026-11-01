@@ -25,7 +25,7 @@ function stageLabel(stage: string): string {
     planning: "Planning search passes",
     searching: "Searching",
     crawling: "Inspecting pages",
-    extracting: "Extracting structured details",
+    extracting: "Reading and organizing details",
     completed: "Completed",
     failed: "Failed",
     cancelled: "Cancelled",

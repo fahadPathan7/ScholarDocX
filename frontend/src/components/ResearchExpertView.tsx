@@ -54,6 +54,7 @@ import {
 import { PREDEFINED_RESEARCH_PROMPTS } from "../lib/researchPrompts";
 import { Modal } from "./Modal";
 import { useUsage } from "../contexts/UsageContext";
+import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import "./research-expert.css";
 
 // Lazy-loaded so the heavy PDF.js bundle is only fetched when the user actually
@@ -330,6 +331,9 @@ export function ResearchExpertView({
   onNavigateToPlans?: () => void;
 }) {
   const { usageData, refreshUsage } = useUsage();
+  // Analyze and re-read actions spend credits; refresh the balance after each
+  // success so the navbar credit widget stays accurate (SCHOLARDOCX-0217).
+  const { refresh: refreshTokenEconomy } = useTokenEconomy();
 
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   const [maxLibraryLimit, setMaxLibraryLimit] = useState<number>(20);
@@ -344,6 +348,15 @@ export function ResearchExpertView({
 
   const [customPrompt, setCustomPrompt] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Last failed analysis, so the error banner can offer "Try again". `msg`
+  // must match the active errorMsg — once a different error replaces the
+  // banner text, the retry action no longer applies.
+  const [analyzeRetry, setAnalyzeRetry] = useState<{
+    paperId: string;
+    prompt: string;
+    promptId: string | null;
+    msg: string;
+  } | null>(null);
   const [paperToDelete, setPaperToDelete] = useState<ResearchPaper | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [retrying, setRetrying] = useState<boolean>(false);
@@ -564,6 +577,7 @@ export function ResearchExpertView({
     setAnalyzing(true);
     setActivePromptId(promptId || null);
     setErrorMsg(null);
+    setAnalyzeRetry(null);
     setExpandedSources(new Set()); // Reset expanded sources for new analysis
     setPromptsCollapsed(true); // Collapse the tall prompt grid so the output shows near the top
 
@@ -571,9 +585,17 @@ export function ResearchExpertView({
       const result = await analyzeResearchPaper(activePaperId, promptText.trim());
       setAnalysisResult(result);
       refreshUsage();
+      refreshTokenEconomy();
     } catch (err: any) {
       console.error("Analysis failed:", err);
-      setErrorMsg(err.message || "Failed to analyze paper.");
+      const msg = err.message || "Failed to analyze paper.";
+      setErrorMsg(msg);
+      setAnalyzeRetry({
+        paperId: activePaperId,
+        prompt: promptText.trim(),
+        promptId: promptId || null,
+        msg,
+      });
     } finally {
       setAnalyzing(false);
     }
@@ -708,6 +730,7 @@ export function ResearchExpertView({
         setActivePaper(updated);
       }
       refreshUsage();
+      refreshTokenEconomy();
     } catch (err: any) {
       console.error("Failed to retry paper processing:", err);
       setErrorMsg(err.message || "Failed to retry paper processing.");
@@ -815,7 +838,28 @@ export function ResearchExpertView({
         <div className="expert-error-banner">
           <AlertTriangle size={18} />
           <span>{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="error-close-btn">&times;</button>
+          {analyzeRetry &&
+            analyzeRetry.msg === errorMsg &&
+            analyzeRetry.paperId === activePaperId && (
+              <button
+                type="button"
+                className="dm-btn dm-btn-secondary"
+                style={{ marginLeft: "auto", whiteSpace: "nowrap" }}
+                disabled={analyzing || activePaper?.status !== "ready"}
+                onClick={() => handleAnalyze(analyzeRetry.prompt, analyzeRetry.promptId ?? undefined)}
+              >
+                Try again
+              </button>
+            )}
+          <button
+            onClick={() => {
+              setErrorMsg(null);
+              setAnalyzeRetry(null);
+            }}
+            className="error-close-btn"
+          >
+            &times;
+          </button>
         </div>
       )}
 

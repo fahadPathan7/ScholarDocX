@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, RadioTower, Trash2 } from "lucide-react";
+import { useDialog } from "../DialogProvider";
 import {
   ScholarshipOpportunity,
   deleteScholarshipOpportunity,
@@ -48,6 +49,7 @@ function isWithinRadarThreshold(dateStr: string): boolean {
 const notifiedThisSession = new Set<string>();
 
 export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger }: OpportunityLibraryProps) {
+  const { showConfirm } = useDialog();
   const [opportunities, setOpportunities] = useState<ScholarshipOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -123,6 +125,13 @@ export function OpportunityLibrary({ onToast, onAddToTracker, refreshTrigger }: 
   };
 
   const handleDelete = async (opportunity: ScholarshipOpportunity) => {
+    // These are opportunities the user deliberately saved from Scholarship
+    // Hunt — removing one is permanent, so confirm before deleting.
+    const confirmed = await showConfirm(
+      `Remove "${opportunity.canonical_name}" from your library? This opportunity was saved from Scholarship Hunt and this cannot be undone.`,
+      "Remove from Library"
+    );
+    if (!confirmed) return;
     try {
       await deleteScholarshipOpportunity(opportunity.id);
       setOpportunities((prev) => prev.filter((o) => o.id !== opportunity.id));

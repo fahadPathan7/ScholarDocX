@@ -194,6 +194,7 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
   const [creatingUser, setCreatingUser] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
@@ -214,8 +215,18 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
   // cache-buster query param — admin data is authed and short-lived enough
   // that the default fetch behavior is fine; the `?t=` suffix only defeated
   // caching between mounts.
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
   const fetchUsers = () => {
-    api.get<UserRecord[]>(`/admin/users`).then(setUsers).catch(console.error);
+    setLoadError(false);
+    api.get<UserRecord[]>(`/admin/users`)
+      .then(setUsers)
+      .catch((error) => {
+        console.error(error);
+        setLoadError(true);
+      })
+      .finally(() => setIsLoading(false));
   };
 
   // Patch a single user in the local list after a mutation, instead of
@@ -508,6 +519,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreatingUser) return; // guard against double submission
+    setIsCreatingUser(true);
     try {
       const hasPaidUserRole = createRoles.some((role) => ["general_user", "pro_user", "max_user"].includes(role));
       const payload: any = {
@@ -562,6 +575,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
         : "";
       const message = backendDetail || "Failed to create user";
       emitUiError({ title: "Action failed", message, kind: "general" });
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -759,7 +774,31 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUsers.slice(0, RENDER_CAP).map((user) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400">Loading users...</td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-3">
+                      <span>Could not load users.</span>
+                      <button
+                        type="button"
+                        onClick={fetchUsers}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400">No users match your filters.</td>
+                </tr>
+              ) : (
+              filteredUsers.slice(0, RENDER_CAP).map((user) => {
                 const planStatus = getPlanStatus(user);
                 return (
                   <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
@@ -975,7 +1014,8 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                     </td>
                   </tr>
                 );
-              })}
+              })
+              )}
             </tbody>
           </table>
           {cappedRender && (
@@ -1356,11 +1396,12 @@ export function UsersTab({ adminPermissions, refreshTrigger }: { adminPermission
                   type="button"
                   onClick={() => { setCreatingUser(false); setPlanDuration("1_month"); setCreateCustomStart(""); setCreateCustomEnd(""); }}
                   className="secondary"
+                  disabled={isCreatingUser}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary">
-                  Create User
+                <button type="submit" className="primary" disabled={isCreatingUser}>
+                  {isCreatingUser ? "Creating..." : "Create User"}
                 </button>
               </div>
             </form>

@@ -1,6 +1,7 @@
 import { Bell, CheckCheck, ExternalLink, Trash2, X } from "lucide-react";
 import { api, deleteRecord, RecordMap } from "../lib/api";
 import { getNotificationSettingLabel } from "../config/notificationLabels";
+import { useDialog } from "./DialogProvider";
 
 export function FloatingNotifications({
   calendarItems,
@@ -23,6 +24,8 @@ export function FloatingNotifications({
   onNavigateToProject: (projectId: string) => void;
   onToast: (message: string) => void;
 }) {
+  const { showConfirm } = useDialog();
+
   if (!isOpen) return null;
 
   const unread = notifications.filter((item) => !item.read_at);
@@ -44,6 +47,12 @@ export function FloatingNotifications({
   };
 
   const deleteAllRead = async () => {
+    // Bulk delete of every read notification at once — confirm first.
+    const confirmed = await showConfirm(
+      `Delete all ${read.length} read notification${read.length === 1 ? "" : "s"}? This cannot be undone.`,
+      "Delete Read Notifications"
+    );
+    if (!confirmed) return;
     await Promise.all(read.map((item) => deleteRecord("notifications", item.id)));
     await onChanged();
   };

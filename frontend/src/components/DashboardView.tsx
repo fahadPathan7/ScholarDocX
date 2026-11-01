@@ -4,6 +4,7 @@ import { CalendarMonthView } from "./CalendarMonthView";
 import { Section } from "./Section";
 import { Modal } from "./Modal";
 import { AddReminderModal } from "./AddReminderModal";
+import { useDialog } from "./DialogProvider";
 import { api, deleteRecord, updateRecord, RecordMap, API_BASE } from "../lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "../lib/date";
 import { getToken } from "../lib/auth";
@@ -14,14 +15,17 @@ export function DashboardView({
   notificationCount,
   onCalendarEventClick,
   onProjectClick,
-  onRefreshDashboard
+  onRefreshDashboard,
+  onToast
 }: {
   dashboard: Dashboard;
   notificationCount: number;
   onCalendarEventClick: (event: RecordMap) => void;
   onProjectClick?: (projectId: string) => void;
   onRefreshDashboard: () => void | Promise<void>;
+  onToast?: (message: string) => void;
 }) {
+  const { showConfirm } = useDialog();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isAddReminderOpen, setIsAddReminderOpen] = useState(false);
   const [reminderDate, setReminderDate] = useState<string | null>(null);
@@ -62,14 +66,25 @@ export function DashboardView({
           is_done: done
         });
       }
+    } catch (error) {
+      console.error("Failed to toggle done state:", error);
+      onToast?.("Could not update this item. Please try again.");
     } finally {
       await onRefreshDashboard();
     }
   };
 
   const handleDeleteReminder = async (event: RecordMap) => {
+    const confirmed = await showConfirm(
+      `Delete the reminder "${event.title || "Untitled reminder"}"?`,
+      "Delete Reminder"
+    );
+    if (!confirmed) return;
     try {
       await deleteRecord("calendar_reminders", String(event.id));
+    } catch (error) {
+      console.error("Failed to delete reminder:", error);
+      onToast?.("Could not delete this reminder. Please try again.");
     } finally {
       await onRefreshDashboard();
     }

@@ -102,6 +102,8 @@ export function ProfileView({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -209,7 +211,9 @@ export function ProfileView({
         data: { notification_settings: JSON.stringify(newSettings) }
       });
     } catch (e) {
+      console.error("Failed to save notification settings:", e);
       setNotificationSettings(notificationSettings);
+      onToast?.("Could not save notification settings. Please try again.");
     }
   };
 
@@ -244,37 +248,55 @@ export function ProfileView({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const identity = {
-      display_name: draft.display_name,
-      preferred_email_provider: draft.preferred_email_provider,
-      timezone: draft.timezone,
-      notes: draft.notes,
-    };
-    if (!profileId) {
-      const res = await api.post<RecordMap>("/local_profiles", { data: { ...identity, email: user?.email || "" } });
-      setProfileId(String(res.id));
-    } else {
-      await api.patch(`/local_profiles/${profileId}`, { data: identity });
+    if (isSavingProfile) return; // guard against double submission
+    setIsSavingProfile(true);
+    try {
+      const identity = {
+        display_name: draft.display_name,
+        preferred_email_provider: draft.preferred_email_provider,
+        timezone: draft.timezone,
+        notes: draft.notes,
+      };
+      if (!profileId) {
+        const res = await api.post<RecordMap>("/local_profiles", { data: { ...identity, email: user?.email || "" } });
+        setProfileId(String(res.id));
+      } else {
+        await api.patch(`/local_profiles/${profileId}`, { data: identity });
+      }
+      setSaved((current) => ({ ...current, ...identity }));
+      onToast?.("Profile saved.");
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+      setShowIdentityModal(false);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      onToast?.("Could not save your profile. Please try again.");
+    } finally {
+      setIsSavingProfile(false);
     }
-    setSaved((current) => ({ ...current, ...identity }));
-    onToast?.("Profile saved.");
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
-    setShowIdentityModal(false);
   };
 
   const saveAvatar = async () => {
-    if (!profileId) {
-      const res = await api.post<RecordMap>("/local_profiles", { data: { avatar: draft.avatar, email: user?.email || "" } });
-      setProfileId(String(res.id));
-    } else {
-      await api.patch(`/local_profiles/${profileId}`, { data: { avatar: draft.avatar } });
+    if (isSavingAvatar) return; // guard against double submission
+    setIsSavingAvatar(true);
+    try {
+      if (!profileId) {
+        const res = await api.post<RecordMap>("/local_profiles", { data: { avatar: draft.avatar, email: user?.email || "" } });
+        setProfileId(String(res.id));
+      } else {
+        await api.patch(`/local_profiles/${profileId}`, { data: { avatar: draft.avatar } });
+      }
+      setSaved((current) => ({ ...current, avatar: draft.avatar }));
+      onToast?.("Avatar saved.");
+      setAvatarJustSaved(true);
+      setTimeout(() => setAvatarJustSaved(false), 2000);
+      setShowAvatarModal(false);
+    } catch (error) {
+      console.error("Error saving avatar:", error);
+      onToast?.("Could not save your avatar. Please try again.");
+    } finally {
+      setIsSavingAvatar(false);
     }
-    setSaved((current) => ({ ...current, avatar: draft.avatar }));
-    onToast?.("Avatar saved.");
-    setAvatarJustSaved(true);
-    setTimeout(() => setAvatarJustSaved(false), 2000);
-    setShowAvatarModal(false);
   };
 
   const handleLogout = async () => {
@@ -780,11 +802,11 @@ export function ProfileView({
                 </label>
 
                 <div className="profile-form-actions mt-4" style={{ display: 'flex', gap: '10px' }}>
-                  <button type="button" onClick={() => setShowIdentityModal(false)} className="profile-secondary-button" style={{ width: 'auto' }}>
+                  <button type="button" onClick={() => setShowIdentityModal(false)} className="profile-secondary-button" style={{ width: 'auto' }} disabled={isSavingProfile}>
                     Cancel
                   </button>
-                  <button className={justSaved ? "profile-save-button saved" : "profile-save-button"} type="submit" style={{ flex: 1, marginTop: 0 }}>
-                    {justSaved ? <><CheckCircle2 size={16} /> Saved</> : <><Save size={16} /> Save profile</>}
+                  <button className={justSaved ? "profile-save-button saved" : "profile-save-button"} type="submit" style={{ flex: 1, marginTop: 0 }} disabled={isSavingProfile}>
+                    {isSavingProfile ? <><Save size={16} /> Saving…</> : justSaved ? <><CheckCircle2 size={16} /> Saved</> : <><Save size={16} /> Save profile</>}
                   </button>
                 </div>
               </form>
@@ -845,7 +867,7 @@ export function ProfileView({
               </div>
 
               <div className="profile-form-actions" style={{ display: 'flex', gap: '10px' }}>
-                <button type="button" onClick={() => setShowAvatarModal(false)} className="profile-secondary-button" style={{ width: 'auto' }}>
+                <button type="button" onClick={() => setShowAvatarModal(false)} className="profile-secondary-button" style={{ width: 'auto' }} disabled={isSavingAvatar}>
                   Cancel
                 </button>
                 <button
@@ -853,8 +875,9 @@ export function ProfileView({
                   type="button"
                   onClick={saveAvatar}
                   style={{ flex: 1, marginTop: 0 }}
+                  disabled={isSavingAvatar}
                 >
-                  {avatarJustSaved ? <><CheckCircle2 size={16} /> Saved</> : <><Save size={16} /> Save avatar</>}
+                  {isSavingAvatar ? <><Save size={16} /> Saving…</> : avatarJustSaved ? <><CheckCircle2 size={16} /> Saved</> : <><Save size={16} /> Save avatar</>}
                 </button>
               </div>
             </div>

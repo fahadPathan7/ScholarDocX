@@ -156,6 +156,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   const [history, setHistory] = useState<ChatSession[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // SCHOLARDOCX-0222: instead of locking the composer while an answer is
+  // pending, hold the next message here and send it when the current reply
+  // lands. (Deliberately a queue-not-abort design: aborting would discard an
+  // answer the user is already being charged for.)
+  const [queuedInput, setQueuedInput] = useState<string | null>(null);
   const [webSearchEnabled, setWebSearchEnabled] = useState(() => {
     return localStorage.getItem("scholarDocX_webSearchEnabled") === "true";
   });
@@ -566,6 +571,17 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
   };
 
   // Send message
+  // SCHOLARDOCX-0222: send the queued message once the in-flight reply
+  // finishes (fresh closure: `loading` is false here, so sendMessage's guard
+  // passes instead of re-queueing).
+  useEffect(() => {
+    if (!loading && queuedInput !== null) {
+      const next = queuedInput;
+      setQueuedInput(null);
+      void sendMessageRef.current(next);
+    }
+  }, [loading, queuedInput]);
+
   const sendMessage = async (overrideText?: unknown, forceAction?: boolean) => {
     // SCHOLARDOCX-0150: overrideText lets callers (e.g. the sheet Ask AI
     // menu) send immediately without waiting for the async setInput state
@@ -576,7 +592,15 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     const override =
       typeof overrideText === "string" ? overrideText : undefined;
     const text = (override ?? input).trim();
-    if (!text || loading) return;
+    if (!text) return;
+    if (loading) {
+      // SCHOLARDOCX-0222: a send while a reply is pending queues the message
+      // rather than blocking the composer. The drain effect below sends it
+      // as soon as `loading` flips back to false.
+      setQueuedInput(text);
+      setInput("");
+      return;
+    }
 
     const userMessageCount = currentSession.messages.filter(m => m.role === "user").length;
     if (userMessageCount >= sessionMessageLimit) {
@@ -860,6 +884,11 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       ))
     }));
   };
+
+  // SCHOLARDOCX-0222: the queue-drain effect calls whatever sendMessage is
+  // current, without re-subscribing on every render.
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
 
   const confirmActionPlan = async (messageIndex: number, actionPlan: ActionPlan) => {
     if (executingActionIndex !== null) return;
@@ -1300,14 +1329,18 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                   sendMessage();
                 }
               }}
-              placeholder="Ask Lumi anything..."
+              placeholder={loading ? "Lumi is replying — you can queue your next message…" : "Ask Lumi anything..."}
               rows={1}
-              disabled={loading}
             />
+            {queuedInput !== null && (
+              <div className="message-search-note" style={{ padding: "2px 12px 6px" }}>
+                Queued: “{queuedInput.length > 60 ? queuedInput.slice(0, 60) + "…" : queuedInput}” — sends when the current reply finishes.
+              </div>
+            )}
             <button
               className="chat-send-button"
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={!input.trim()}
               title="Send message"
             >
               <Send size={16} style={{ marginLeft: "2px" }} />

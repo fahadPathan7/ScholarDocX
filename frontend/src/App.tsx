@@ -88,7 +88,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { useUsage } from "./contexts/UsageContext";
 import { useIsMobile } from "./hooks/useMediaQuery";
 import { mediaCategories } from "./data/options";
-import { api, listRecords, deleteRecord, RecordMap, API_BASE } from "./lib/api";
+import { api, listRecords, deleteRecord, RecordMap, fileDownloadUrl } from "./lib/api";
 import { getToken, decodeToken } from "./lib/auth";
 import "./components/splash-screen.css";
 
@@ -129,6 +129,31 @@ const emptyDashboard: Dashboard = {
 
 
 
+// SCHOLARDOCX-0222: tab <-> URL path mapping (client-side routes; render.yaml
+// ships an SPA fallback so reload/deep links resolve to index.html).
+const TAB_PATHS: Record<string, string> = {
+  dashboard: "/",
+  projects: "/projects",
+  documents: "/documents",
+  sticky: "/sticky-notes",
+  whiteboard: "/whiteboard",
+  games: "/games",
+  atlas: "/advisor-atlas",
+  news: "/scholarship-hunt",
+  research: "/research-expert",
+  profile: "/profile",
+  about: "/about",
+  plans: "/plans",
+  "buy-credits": "/buy-credits",
+  admin: "/admin",
+};
+
+function pathToTab(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  const entry = Object.entries(TAB_PATHS).find(([, p]) => p === normalized);
+  return entry ? entry[0] : null;
+}
+
 export function App() {
   const { showAlert, showConfirm } = useDialog();
   const { user } = useAuth();
@@ -140,7 +165,17 @@ export function App() {
   const [notifications, setNotifications] = useState<RecordMap[]>([]);
   const [message, setMessage] = useState("Loading ScholarDocX...");
   const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  // SCHOLARDOCX-0222: tab state lives in the URL (deep links, working Back,
+  // reload persistence). setActiveTab pushes a history entry; popstate maps
+  // the path back to a tab. Unknown paths fall back to the pre-URL default.
+  const [activeTab, setActiveTabState] = useState(() => pathToTab(window.location.pathname) || defaultTab);
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    const path = TAB_PATHS[tab];
+    if (path && window.location.pathname !== path) {
+      window.history.pushState({ tab }, "", path);
+    }
+  };
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -156,6 +191,18 @@ export function App() {
   // own button-triggered mount; this one serves cross-component requests via
   // the usageEvents bus (e.g. the out-of-credits modal's "See usage").
   const [usageModalOpen, setUsageModalOpen] = useState(false);
+
+  // SCHOLARDOCX-0222: open a stored file with a short-lived download token
+  // instead of embedding the session token in the URL.
+  const openFileLink = async (fileId: string) => {
+    try {
+      const url = await fileDownloadUrl(fileId);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Failed to open file", error);
+      showToast("Could not open this file. Please try again.");
+    }
+  };
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -430,6 +477,16 @@ export function App() {
     return onOpenUsageModal(() => setUsageModalOpen(true));
   }, []);
 
+  // SCHOLARDOCX-0222: browser Back/Forward navigate between tabs.
+  useEffect(() => {
+    const onPopState = () => {
+      const tab = pathToTab(window.location.pathname);
+      if (tab) setActiveTabState(tab);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   // Where the workspace items end and the always-visible account items begin.
   // Derived rather than hardcoded: this was `slice(0, 8)` / `slice(8)`, so
   // inserting any nav item above Profile silently pushed the last workspace
@@ -640,6 +697,7 @@ export function App() {
               categories={documentCategories}
               files={files}
               onChanged={refresh}
+              onOpenFile={openFileLink}
               onToast={showToast}
               showAlert={showAlert}
               showConfirm={showConfirm}
@@ -732,6 +790,7 @@ function DocumentView(props: {
   categories: RecordMap[];
   files: RecordMap[];
   onChanged: () => Promise<void>;
+  onOpenFile: (fileId: string) => void;
   onToast: (msg: string) => void;
   showAlert: (msg: string, title?: string) => Promise<void>;
   showConfirm: (msg: string, title?: string) => Promise<boolean>;
@@ -949,9 +1008,11 @@ function DocumentView(props: {
       <FileText size={15} className="doc-file-icon" />
       <div className="doc-file-info">
         <a
-          href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
-          target="_blank"
-          rel="noreferrer"
+          href="#"
+          onClick={(event) => {
+            event.preventDefault();
+            props.onOpenFile(file.id as string);
+          }}
           className="doc-file-name"
         >
           {file.display_name}
@@ -1005,9 +1066,11 @@ function DocumentView(props: {
         <FileText size={15} className="doc-file-icon" />
         <div className="doc-file-info">
           <a
-            href={`${API_BASE}/files/${file.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
-            target="_blank"
-            rel="noreferrer"
+            href="#"
+            onClick={(event) => {
+              event.preventDefault();
+              props.onOpenFile(file.id as string);
+            }}
             className="doc-file-name"
           >
             {file.display_name}

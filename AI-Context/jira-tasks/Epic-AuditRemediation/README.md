@@ -41,3 +41,4 @@ Out of scope:
 - [ ] SCHOLARDOCX-0219: Deadline notifications for saved opportunities (batch 3)
 - [ ] SCHOLARDOCX-0220: Polish + feedback bundle (batch 4)
 - [ ] SCHOLARDOCX-0221: File-size splits for over-cap modules (batch 5)
+- [ ] SCHOLARDOCX-0222: Navigation & session safety (batch 6)

@@ -5,9 +5,8 @@ import { Section } from "./Section";
 import { Modal } from "./Modal";
 import { AddReminderModal } from "./AddReminderModal";
 import { useDialog } from "./DialogProvider";
-import { api, deleteRecord, updateRecord, RecordMap, API_BASE } from "../lib/api";
+import { api, deleteRecord, updateRecord, RecordMap, fileDownloadUrl } from "../lib/api";
 import { formatLongDate, formatShortDate, parseLocalDate, startOfLocalDay } from "../lib/date";
-import { getToken } from "../lib/auth";
 import type { Dashboard } from "../App";
 
 export function DashboardView({
@@ -233,10 +232,14 @@ export function DashboardView({
         <List
           items={pinnedDocs}
           empty="Pin docs to dashboard."
-          onClick={(item) => {
-            const token = getToken();
-            const url = `${API_BASE}/files/${item.id}/content${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-            window.open(url, "_blank", "noopener,noreferrer");
+          onClick={async (item) => {
+            try {
+              const url = await fileDownloadUrl(item.id as string);
+              window.open(url, "_blank", "noopener,noreferrer");
+            } catch (error) {
+              console.error("Failed to open file", error);
+              onToast?.("Could not open this file. Please try again.");
+            }
           }}
           render={(item) => (
             <>

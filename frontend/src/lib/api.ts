@@ -337,3 +337,16 @@ export async function deleteSavedAnalysis(
   );
 }
 
+
+/**
+ * SCHOLARDOCX-0222: exchange for a short-lived, file-scoped download token
+ * and return the ready-to-open content URL. Keeps the long-lived session
+ * token out of URLs the browser navigates to (history, logs, shares).
+ */
+export async function fileDownloadUrl(fileId: string): Promise<string> {
+  const res = await api.post<{ download_token: string; expires_in: number }>(
+    `/files/${fileId}/download-link`,
+    {}
+  );
+  return `${API_BASE}/files/${fileId}/content?download_token=${encodeURIComponent(res.download_token)}`;
+}

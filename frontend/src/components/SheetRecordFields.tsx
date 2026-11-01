@@ -3,8 +3,7 @@ import { createPortal } from "react-dom";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Clipboard, Save, X } from "lucide-react";
 import { FilePickerField } from "./FilePickerField";
-import { API_BASE, RecordMap } from "../lib/api";
-import { getToken } from "../lib/auth";
+import { RecordMap, fileDownloadUrl } from "../lib/api";
 import type { ColumnDef, DateColorConfig, CellStyle } from "./sheet/sheetModel";
 import { textStyleToCss, cellBoxToCss } from "./sheet/sheetModel";
 import { CellStyleBar } from "./sheet/CellStyleBar";
@@ -493,10 +492,18 @@ export function CellRenderer({
                   <span key={part}>
                     {fileRecord ? (
                       <a
-                        href={`${API_BASE}/files/${fileRecord.id}/content${getToken() ? `?token=${encodeURIComponent(getToken()!)}` : ""}`}
-                        target="_blank"
+                        href="#"
                         rel="noreferrer"
-                        onClick={(event) => event.stopPropagation()}
+                        onClick={async (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          try {
+                            const url = await fileDownloadUrl(fileRecord.id as string);
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          } catch (error) {
+                            console.error("Failed to open file", error);
+                          }
+                        }}
                       >
                         {fileName}
                       </a>

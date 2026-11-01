@@ -223,6 +223,10 @@ no-migration variant for pre-existing tables.
   made on save — it is a pure persistence of an already-generated answer.
 - `/document_categories`
 - `/files`
+- `POST /files/{id}/download-link` (SCHOLARDOCX-0222) exchanges a stored file
+  for a 5-minute, file-scoped download token; `GET /files/{id}/content`
+  accepts it as an alternative credential (see security-privacy.md — the
+  session token must not appear in file URLs)
 - `/sticky_notes`
 - `/email-templates`
 - `/email-drafts`

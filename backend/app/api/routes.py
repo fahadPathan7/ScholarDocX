@@ -3,7 +3,7 @@ from __future__ import annotations
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +15,7 @@ from app.core.workspace import ensure_workspace, save_upload, workspace_status
 from app.services.ai import AiService
 from app.services.ai_actions import AiActionService
 from app.services.store import Store
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_optional_current_user
 from app.api.dependencies import ensure_db_initialized, get_store
 from app.auth.dependencies import get_user_store
 
@@ -522,15 +522,73 @@ def upload_file(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/files/{file_id}/download-link")
+def create_file_download_link(file_id: str, store: Store = Depends(get_user_store)) -> dict:
+    """Exchange for a short-lived, file-scoped download token (SCHOLARDOCX-0222).
+
+    The frontend opens files with the returned token appended to the content
+    URL, so the 30-day session token never appears in a URL the browser
+    navigates to. Ownership is enforced here (user-scoped lookup), AND again
+    on the content route (token is file-scoped, lookup user-scoped).
+    """
+    from app.auth.dependencies import get_jwt_secret
+    from app.auth.jwt import create_download_token
+
+    try:
+        store.get_record("static_files", file_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="File not found") from exc
+    token = create_download_token(
+        str(store.current_user_id), get_jwt_secret(store.legacy_connection), file_id
+    )
+    return {"download_token": token, "expires_in": 300}
+
+
 @router.get("/files/{file_id}/content")
 def view_file_content(
     file_id: str,
+    download_token: Optional[str] = Query(None),
     settings: Settings = Depends(get_settings),
-    store: Store = Depends(get_user_store),
+    store: Store = Depends(get_store),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
 ):
+    from fastapi.responses import Response
+    from app.core.storage import download_bytes
+
+    # SCHOLARDOCX-0222: two accepted credentials. Either a normal session
+    # (Authorization header, or the legacy ?token= query fallback), or a
+    # short-lived download token issued by /download-link — the latter is
+    # file-scoped and expires in minutes. Both paths converge on a
+    # user-scoped single-row lookup below, so ownership is always enforced.
+    if download_token:
+        from app.auth.dependencies import get_jwt_secret
+        from app.auth.jwt import decode_download_token
+
+        try:
+            payload = decode_download_token(download_token, get_jwt_secret(store.legacy_connection))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        if str(payload.get("file_id")) != str(file_id):
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        store.current_user_id = payload["user_id"]
+    elif current_user:
+        store.current_user_id = current_user["id"]
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
-        from fastapi.responses import Response
-        from app.core.storage import download_bytes
         # Single-row lookup (user-scoped, research papers excluded) instead of
         # loading every file record and filtering in Python.
         try:

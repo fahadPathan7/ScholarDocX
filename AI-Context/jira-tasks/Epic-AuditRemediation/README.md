@@ -39,3 +39,5 @@ Out of scope:
 - [ ] SCHOLARDOCX-0217: Audit remediation batch 1 — trust, error handling, modal a11y, CSS tokens
 - [ ] SCHOLARDOCX-0218: AI cost transparency + pre-flight ceilings (batch 2)
 - [ ] SCHOLARDOCX-0219: Deadline notifications for saved opportunities (batch 3)
+- [ ] SCHOLARDOCX-0220: Polish + feedback bundle (batch 4)
+- [ ] SCHOLARDOCX-0221: File-size splits for over-cap modules (batch 5)

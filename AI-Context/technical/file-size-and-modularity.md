@@ -29,6 +29,32 @@ The current codebase has inherited large files above the target. Treat these as 
 
 When a task touches one of these files, prefer extracting focused CSS, components, hooks, services, or helpers in the same area. Do not start a broad unrelated refactor just because the file is already large; keep cleanup scoped to the active Jira task.
 
+## Completed Splits (reference pattern)
+
+- `backend/app/services/research_paper_service.py` (SCHOLARDOCX-0221): 1840 →
+  842 lines via mechanical mixin extraction — `research_paper_constants.py`
+  (shared constants, single source), `research_paper_text.py`
+  (`PaperTextMixin`: PDF/text utilities), `research_paper_processing.py`
+  (`PaperProcessingMixin`: upload/retry/embedding), `research_paper_estimates.py`
+  (`CostEstimateMixin`: 0218 ceilings), `research_paper_analyses.py`
+  (`SavedAnalysesMixin`). Method bodies were moved byte-identical; the composed
+  class keeps the original name and every method, so no importer changed.
+  NOTE for future splits: keep methods that tests patch via module globals
+  (e.g. `patch("...research_paper_service.AiService")`) in the main module, or
+  update the patch paths in the same change.
+
+## Still Over The Grace Cap (as of SCHOLARDOCX-0221)
+
+- `backend/app/services/research_paper_service.py` is now 842 (fixed), but
+  these remain and must be split before the next feature that grows them:
+  `backend/app/db/models.py` (~1295), `frontend/src/components/
+  ResearchExpertView.tsx` (~1640), `frontend/src/components/FloatingAssistant.tsx`
+  (~1240), `frontend/src/components/ProjectWorkspace.tsx` (~1430),
+  `frontend/src/components/sheet/useSheetPage.ts` (~1221),
+  `backend/app/services/store.py` (~1186), `backend/app/services/ai_tokens.py`
+  (~1254), `backend/app/services/advisor_atlas/service.py` (~1221),
+  `frontend/src/components/admin/UsersTab.tsx` (~1372).
+
 ## Split Strategies
 
 Frontend:

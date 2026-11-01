@@ -236,13 +236,18 @@ def test_ensure_can_spend_hard_stops_at_zero(tmp_path):
         session.close()
 
 
-def test_charge_at_zero_charges_nothing(tmp_path):
+def test_charge_at_zero_charges_nothing(tmp_path, monkeypatch):
+    """A call that costs more than the total balance is rejected whole.
+
+    The atomic deduction's WHERE guard requires the two buckets together to
+    cover the call: 0 rows update, the balance is left untouched, and
+    OutOfTokens (402) is raised. (Previously the charge was clamped to
+    whatever was left, which under-deducted under concurrency.)
+    """
     settings = make_settings(tmp_path)
-    set_model_price(settings, "GLM-4.7", input_price=1.0, output_price=2.0)
     user = make_user(settings, ["pro_user"])
     session = next(get_db(settings.database_target))
     try:
-        # Never grant sub/purchased beyond a tiny amount.
         ai_tokens.refresh_balance(user, session)
         with connect(settings.database_target) as db:
             db.execute(
@@ -251,15 +256,134 @@ def test_charge_at_zero_charges_nothing(tmp_path):
                 (user["id"],),
             )
             db.commit()
-        # Call costs 20 tokens but only 5 available -> charged clamped to 5.
+        # Call costs 20 tokens but only 5 available -> hard stop.
+        monkeypatch.setattr(ai_tokens, "compute_cost", lambda *a, **k: (0.002, 20))
+        with pytest.raises(ai_tokens.OutOfTokens) as exc:
+            ai_tokens.charge(
+                user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
+                output_tokens=500, source="chat", session=session,
+            )
+        assert exc.value.status_code == 402
+        b = get_balance(settings, user["id"])
+        assert b["subscription_remaining"] == 0
+        assert b["purchased_remaining"] == 5
+    finally:
+        session.close()
+
+
+# ── atomic deduction (SCHOLARDOCX-0217 audit remediation) ────────────────────
+
+def _set_balance(settings, uid, sub, purch):
+    with connect(settings.database_target) as db:
+        db.execute(
+            "UPDATE ai_token_balances SET subscription_remaining = ?, "
+            "purchased_remaining = ? WHERE user_id = ?",
+            (sub, purch, uid),
+        )
+        db.commit()
+
+
+def _fixed_cost(monkeypatch, cost_usd, tokens):
+    """Pin compute_cost so the tests need no ai_models writes (CODE_RULES:
+    prefer monkeypatch over mutating shared/global tables)."""
+    monkeypatch.setattr(ai_tokens, "compute_cost", lambda *a, **k: (cost_usd, tokens))
+
+
+def test_charge_sequential_split_totals_add_up(tmp_path, monkeypatch):
+    """Two charges where the first partially consumes the subscription:
+    the second spills into purchased, and the sum charged equals the starting
+    total balance."""
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = next(get_db(settings.database_target))
+    try:
+        ai_tokens.refresh_balance(user, session)
+        _set_balance(settings, user["id"], sub=30, purch=10)
+        _fixed_cost(monkeypatch, 0.002, 20)
+
+        res1 = ai_tokens.charge(
+            user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
+            output_tokens=500, source="chat", session=session,
+        )
+        assert res1["charged"] == 20
+        assert res1["remaining_subscription"] == 10
+        assert res1["remaining_purchased"] == 10
+
+        # Second charge: subscription covers 10, purchased covers the last 10.
+        res2 = ai_tokens.charge(
+            user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
+            output_tokens=500, source="chat", session=session,
+        )
+        assert res2["charged"] == 20
+        assert res2["remaining_subscription"] == 0
+        assert res2["remaining_purchased"] == 0
+
+        b = get_balance(settings, user["id"])
+        assert b["subscription_remaining"] == 0
+        assert b["purchased_remaining"] == 0
+
+        # Totals add up: everything that was granted got charged.
+        assert res1["charged"] + res2["charged"] == 30 + 10
+        rows = ledger_rows(settings, user["id"])
+        consumptions = [r for r in rows if r["tokens_delta"] < 0]
+        assert [r["balance_bucket"] for r in consumptions] == ["subscription", "mixed"]
+        assert b["total_spent_tokens"] == 40
+
+        # A third charge now finds an empty balance and hard-stops.
+        with pytest.raises(ai_tokens.OutOfTokens):
+            ai_tokens.charge(
+                user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
+                output_tokens=500, source="chat", session=session,
+            )
+    finally:
+        session.close()
+
+
+def test_charge_over_total_balance_raises_and_leaves_balance_untouched(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = next(get_db(settings.database_target))
+    try:
+        ai_tokens.refresh_balance(user, session)
+        _set_balance(settings, user["id"], sub=5, purch=5)
+        _fixed_cost(monkeypatch, 0.002, 20)
+
+        with pytest.raises(ai_tokens.OutOfTokens) as exc:
+            ai_tokens.charge(
+                user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
+                output_tokens=500, source="chat", session=session,
+            )
+        assert exc.value.status_code == 402
+
+        # Balance is exactly as it was, and no usage ledger row was written
+        # for the rejected charge.
+        b = get_balance(settings, user["id"])
+        assert b["subscription_remaining"] == 5
+        assert b["purchased_remaining"] == 5
+        assert b["total_spent_tokens"] == 0
+        assert ledger_rows(settings, user["id"]) == []
+    finally:
+        session.close()
+
+
+def test_charge_exactly_equal_to_total_succeeds_with_zero_balance(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path)
+    user = make_user(settings, ["pro_user"])
+    session = next(get_db(settings.database_target))
+    try:
+        ai_tokens.refresh_balance(user, session)
+        _set_balance(settings, user["id"], sub=15, purch=5)
+        _fixed_cost(monkeypatch, 0.002, 20)
+
         res = ai_tokens.charge(
             user, model_id="GLM-4.7", provider="glm", input_tokens=1000,
             output_tokens=500, source="chat", session=session,
         )
-        assert res["charged"] == 5
+        assert res["charged"] == 20
         b = get_balance(settings, user["id"])
         assert b["subscription_remaining"] == 0
         assert b["purchased_remaining"] == 0
+        assert b["total_spent_tokens"] == 20
     finally:
         session.close()
 

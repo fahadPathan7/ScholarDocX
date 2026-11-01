@@ -385,7 +385,10 @@ class ResearchPaperService:
         except Exception as exc:
             logger.error("Failed processing paper %s: %s", paper_id, exc, exc_info=True)
             self._mark_paper_error(paper_id)
-            raise HTTPException(status_code=500, detail=f"Failed to process research paper: {str(exc)}") from exc
+            raise HTTPException(
+                status_code=500,
+                detail="We couldn't process this paper. Please try again.",
+            ) from exc
 
     def _mark_paper_error(self, paper_id: str) -> None:
         """Flag a paper as failed, surviving a poisoned session.
@@ -502,7 +505,10 @@ class ResearchPaperService:
         except Exception as exc:
             logger.error("Failed retry processing paper %s: %s", paper_id, exc, exc_info=True)
             self._mark_paper_error(paper_id)
-            raise HTTPException(status_code=500, detail=f"Failed to retry research paper: {str(exc)}") from exc
+            raise HTTPException(
+                status_code=500,
+                detail="We couldn't process this paper. Please try again.",
+            ) from exc
 
     def _read_stored_file_bytes(self, relative_path: str) -> Optional[bytes]:
         """Read stored PDF file bytes from local disk or Supabase Storage."""

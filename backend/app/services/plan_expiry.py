@@ -16,6 +16,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
+from app.auth.plan_state import apply_plan_expiry
 from app.services.store import Store
 
 logger = logging.getLogger(__name__)
@@ -77,3 +78,52 @@ def downgrade_expired_user_plans(store: Store) -> int:
         logger.info(f"downgrade_expired_user_plans: downgraded {downgraded_count} user(s) to free_user")
 
     return downgraded_count
+
+
+def downgrade_user_if_expired(store: Store, user_row) -> bool:
+    """Persist the plan-expiry downgrade for ONE user row.
+
+    Reuses ``apply_plan_expiry`` from ``app.auth.plan_state`` — the same
+    helper the auth path applies in memory — so the persisted roles can never
+    drift from the effective roles (paid tier → ``free_user``; admin roles
+    are never removed). Returns True when the users row was rewritten, False
+    when nothing was due (idempotent for already-downgraded users).
+    """
+    roles_raw = user_row["roles"]
+    try:
+        roles_list = json.loads(roles_raw) if isinstance(roles_raw, str) else (roles_raw or [])
+    except (json.JSONDecodeError, TypeError):
+        roles_list = []
+
+    new_roles = apply_plan_expiry(roles_list, user_row["plan_ends_at"])
+    if new_roles == roles_list:
+        return False
+
+    conn = store.legacy_connection
+    conn.execute(
+        "UPDATE users SET roles = ? WHERE id = ?",
+        (json.dumps(new_roles), user_row["id"]),
+    )
+    conn.commit()
+    logger.info(
+        f"downgrade_user_if_expired: downgraded user {user_row['id']} to free_user"
+    )
+    return True
+
+
+def maybe_run_lazy_user_plan_expiry(store: Store, user_row) -> int:
+    """Lazily persist THIS user's expired paid plan at login.
+
+    Login-path companion to the daily cron: the in-memory downgrade in
+    ``get_current_user`` already enforces expiry for authorization, so the
+    database write only needs to happen eventually. Returns 1 when the user's
+    roles were rewritten, 0 otherwise.
+
+    Deliberately NOT throttled by a marker, unlike ``maybe_run_lazy_cleanup``
+    in registration_cleanup: that marker gates a whole-table purge, while this
+    check is per-user and its no-op path performs no database writes at all
+    (parse the already-loaded roles, compare, return). A shared global marker
+    would wrongly skip every other user's due downgrade for the TTL window
+    after any one user logged in.
+    """
+    return 1 if downgrade_user_if_expired(store, user_row) else 0

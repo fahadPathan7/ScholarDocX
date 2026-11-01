@@ -39,6 +39,21 @@ class AnalyzeRequest(BaseModel):
     source_snippet: str = ""
 
 
+def _is_http_url(value: str) -> bool:
+    """True when ``value`` parses as an absolute http/https URL.
+
+    The URL is forwarded to an external analysis call and persisted, so it is
+    validated at the API boundary instead of trusting a free-form string.
+    """
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(value)
+    except (ValueError, AttributeError):
+        return False
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
+
 def _require_scholarship_analyze(user: dict, store: Store) -> None:
     try:
         check_and_increment_limit(
@@ -151,6 +166,14 @@ async def analyze_scholarship_opportunity(
     store: Store = Depends(get_user_store),
 ) -> Dict[str, Any]:
     rate_limiter.check_and_record("scholarship_analyze", user_identity(user))
+    if not _is_http_url(payload.source_url):
+        # Reject before any permission gate or external call — the value is
+        # forwarded to the analysis call and persisted, so it must be a real
+        # web link.
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a valid link starting with http:// or https://.",
+        )
     _require_scholarship_analyze(user, store)
     settings = get_settings()
     verify_model_permission(None, user, store.db, settings)

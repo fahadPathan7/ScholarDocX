@@ -6,6 +6,7 @@ search surface at /scholarship-deep-hunt/runs. This router retains only
 the bookmark and saved-query endpoints that the Opportunity Library and
 watchlist features depend on.
 """
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 from app.auth.dependencies import get_current_user, get_user_store
 from app.services.store import Store
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -60,7 +62,10 @@ async def add_bookmark(
     try:
         return store.create_record("bookmarked_news", bookmark.model_dump())
     except Exception as e:
-        raise HTTPException(status_code=400, detail=e)
+        # Never pass the exception object (or its text) to the client — log
+        # the real cause server-side and answer with plain copy.
+        logger.error("Failed to create bookmark: %s", e, exc_info=True)
+        raise HTTPException(status_code=400, detail="Something went wrong. Please try again.")
 
 
 @router.delete("/news/bookmarks/{article_id}")
@@ -97,7 +102,10 @@ async def add_saved_query(
     try:
         return store.create_record("saved_scholarship_queries", saved_query.model_dump())
     except Exception as e:
-        raise HTTPException(status_code=400, detail=e)
+        # Never pass the exception object (or its text) to the client — log
+        # the real cause server-side and answer with plain copy.
+        logger.error("Failed to save query: %s", e, exc_info=True)
+        raise HTTPException(status_code=400, detail="Something went wrong. Please try again.")
 
 
 @router.patch("/news/saved-queries/{query_id}")

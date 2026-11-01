@@ -232,3 +232,62 @@ def test_plans_requires_authentication():
     """The role-limit matrix must not leak to anonymous callers."""
     response = client.get("/api/auth/plans")
     assert response.status_code in (401, 403)
+
+
+# ── SCHOLARDOCX-0217: invite slot reservation + duplicate email ──────────────
+
+@pytest.mark.regression
+def test_register_invite_usage_limit_reached():
+    """An exhausted invite is rejected by the atomic reservation, not by a
+    pre-check that two concurrent registrations could both pass."""
+    conn = connect(settings.database_target)
+    try:
+        # Exhaust the single-use invite before registering.
+        conn.execute("UPDATE invite_codes SET used_count = 1 WHERE code = 'TEST_INVITE'")
+        conn.commit()
+    finally:
+        conn.close()
+
+    try:
+        response = client.post(
+            "/api/auth/register",
+            json={
+                "email": "invite-exhausted@example.com",
+                "password": "StrongPassword123!",
+                "invite_code": "TEST_INVITE",
+                "display_name": "Test User"
+            }
+        )
+        assert response.status_code == 400
+        assert "usage limit reached" in response.json()["detail"].lower()
+    finally:
+        # Restore the invite's slot (the autouse fixture also re-seeds it, but
+        # restore here so failure diagnostics don't cascade into other tests).
+        conn = connect(settings.database_target)
+        conn.execute("UPDATE invite_codes SET used_count = 0 WHERE code = 'TEST_INVITE'")
+        conn.commit()
+        conn.close()
+
+
+@pytest.mark.regression
+def test_register_duplicate_email_friendly_400():
+    """A duplicate email answers with the friendly 400 both on the fast path
+    and after the invite slot was already consumed by the first registration
+    (the email check runs before the invite reservation)."""
+    payload = {
+        "email": "dup-user@example.com",
+        "password": "StrongPassword123!",
+        "invite_code": "TEST_INVITE",
+        "display_name": "Test User"
+    }
+    try:
+        first = client.post("/api/auth/register", json=payload)
+        assert first.status_code == 200
+
+        second = client.post("/api/auth/register", json=payload)
+        assert second.status_code == 400
+        assert "already registered" in second.json()["detail"].lower()
+    finally:
+        conn = connect(settings.database_target)
+        _delete_user_safely(conn, "dup-user@example.com")
+        conn.close()

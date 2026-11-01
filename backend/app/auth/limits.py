@@ -186,34 +186,61 @@ def check_and_increment_limit(user: dict, feature: str, increment: int = 1, sess
             VALUES (:uid, :feature, 0, CURRENT_TIMESTAMP)
             """), {"uid": user["id"], "feature": feature}
         )
-        current_count = 0
         last_reset_at = datetime.now(timezone.utc).isoformat()
     else:
-        current_count = usage_record["current_count"]
         last_reset_at = usage_record["last_reset_at"]
         
     # Check for reset
     if should_reset(last_reset_at, limit_record["reset_period"]):
-        current_count = 0
         session.execute(
             text("UPDATE user_usage_stats SET current_count = 0, last_reset_at = CURRENT_TIMESTAMP WHERE user_id = :uid AND feature = :feature"),
             {"uid": user["id"], "feature": feature}
         )
-        
-    # Check limit
+
+    # Permission gate for hard-disabled features (limit_count == 0). This does
+    # not depend on the counter, so it stays a plain Python check.
     limit_count = limit_record["limit_count"]
-    if limit_count != -1:
-        if limit_count == 0 and increment >= 0:
-            raise UsageLimitExceeded(f"Permission denied. Your user role does not have access to {feature.replace('can_use_', '').upper()} models.")
-        elif (current_count + increment) > limit_count:
-            raise UsageLimitExceeded(f"Limit exceeded for {feature}. Your plan allows {limit_count}.")
-        
-    # Increment usage
+    if limit_count != -1 and limit_count == 0 and increment >= 0:
+        raise UsageLimitExceeded(f"Permission denied. Your user role does not have access to {feature.replace('can_use_', '').upper()} models.")
+
+    # Atomic guarded increment: the limit check and the counter write are a
+    # single conditional UPDATE, so two concurrent calls can never both read
+    # the same current_count and push past the limit. -1 means unlimited (the
+    # :unlimited flag bypasses the guard). Negative increments (quota giveback
+    # paths) follow the same rule the old Python check had: they only fail
+    # when the resulting count would still exceed the limit.
     if increment != 0:
-        session.execute(
-            text("UPDATE user_usage_stats SET current_count = GREATEST(0, current_count + :inc) WHERE user_id = :uid AND feature = :feature"),
-            {"inc": increment, "uid": user["id"], "feature": feature}
+        result = session.execute(
+            text(
+                "UPDATE user_usage_stats SET current_count = GREATEST(0, current_count + :inc) "
+                "WHERE user_id = :uid AND feature = :feature "
+                "AND (:unlimited OR current_count + :inc <= :lim)"
+            ),
+            {
+                "inc": increment,
+                "uid": user["id"],
+                "feature": feature,
+                "unlimited": limit_count == -1,
+                "lim": limit_count,
+            },
         )
+        if result.rowcount == 0:
+            # Guard rejected the increment: no row was written. Re-read for
+            # diagnosability, then deny with the existing message.
+            usage_now = session.execute(
+                text("SELECT current_count FROM user_usage_stats WHERE user_id = :uid AND feature = :feature"),
+                {"uid": user["id"], "feature": feature}
+            ).fetchone()
+            logger.debug(
+                "check_and_increment_limit denied %s for user %s: current=%s inc=%s limit=%s",
+                feature,
+                user["id"],
+                usage_now["current_count"] if usage_now else None,
+                increment,
+                limit_count,
+            )
+            raise UsageLimitExceeded(f"Limit exceeded for {feature}. Your plan allows {limit_count}.")
+
     # Always commit, even for a permission-only check (increment=0): the
     # usage-row bootstrap INSERT and the reset UPDATE above are real writes
     # that must not stay open on the caller's session for the rest of the

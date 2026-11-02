@@ -105,7 +105,7 @@ Changed files:
 - `backend/app/services/deadline_notifications.py` (new) — `run_deadline_notification_scan(store, user_id=None)`: mirrors the client radar exactly (tracker-linked only, nearest deadline within 7 days = `DEADLINE_RADAR_THRESHOLD_DAYS` kept in sync with `OpportunityCard.tsx`, `scholarship_deadline_approaching` preference checked BEFORE claiming so a re-enabled pref can still notify, day-granularity dedupe). The claim is a conditional UPDATE (`last_deadline_notified_at IS NULL OR < start-of-today-UTC`), so client scan, login pass, and cron can never double-notify. Free-text deadlines are skipped conservatively. Notification copy: "Deadline approaching: {name}" / "Due {date} (in N days). Check the Opportunity Library for details."
 - `backend/app/api/internal.py` — `POST /internal/deadline-notifications`, same `X-Cleanup-Token`/`CLEANUP_SECRET` gate as the other internal crons; returns `{status, notified}`.
 - `backend/app/api/auth.py` — lazy per-user scan at login (best-effort try/except; never blocks login). Also corrected the now-stale comment on the 0217 plan-expiry lazy hook (marker was removed).
-- `.github/workflows/deadline-notifications.yml` (new) — daily 07:00 UTC cron + workflow_dispatch; requires `BACKEND_URL` and `CLEANUP_SECRET` repo secrets (same as the other cron workflows; note the downgrade workflow currently ships with its schedule disabled — this one is enabled because the feature is pointless unscheduled).
+- ~~`.github/workflows/deadline-notifications.yml`~~ — REMOVED in revision: repo convention is that internal-cron workflows ship unscheduled (the `BACKEND_URL`/`CLEANUP_SECRET` secrets are not configured, so a scheduled run would just fail daily). The lazy login pass is the shipped mechanism; the secret-gated endpoint remains for any future scheduler.
 - `backend/tests/unit/test_deadline_notifications.py` (new) — 8 tests.
 - Context: `functional/feature-scholarship-news.md` + `functional/requirements-index.md` (FR-8.42a), `technical/api-boundaries.md` (endpoint).
 
@@ -124,4 +124,4 @@ Follow-ups:
 - Sticky-note `due_at` reminders and Calendar-tab reminders remain out of scope (SCHOLARDOCX-0201's deferred piece).
 - Recurring deadlines / lead-time customization not modeled (single 7-day window, matching the client radar).
 - Residual tiny race: the client radar claims AFTER its day-check, so a login/cron scan firing in the same instant a user opens the Library tab could theoretically double-notify — the server claim makes this a one-in-a-race window; acceptable.
-- Owner action: ensure `BACKEND_URL` + `CLEANUP_SECRET` secrets exist (also needed by the existing cron workflows) or the workflow fails visibly.
+- Revision: the scheduled workflow was removed per owner decision — no GitHub Actions cron except the Supabase keepalive. Deadline notifications run via the login lazy pass only.

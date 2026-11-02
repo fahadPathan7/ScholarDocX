@@ -376,10 +376,13 @@ no-migration variant for pre-existing tables.
   per tracker-linked opportunity whose nearest deadline is within 7 days,
   deduped day-granularity via an atomic `last_deadline_notified_at` claim so
   it cannot double-fire with the client-side scan. Same `X-Cleanup-Token` /
-  `CLEANUP_SECRET` gate; returns `{status, notified}`. Intended for the
-  GitHub Actions daily `deadline-notifications` cron; a lazy per-user pass on
-  `/auth/login` is the no-cron safety net (`run_deadline_notification_scan`
-  in `services/deadline_notifications.py`).
+  `CLEANUP_SECRET` gate; returns `{status, notified}`. Available for any
+  future external scheduler — but NO GitHub Actions cron ships for it
+  (SCHOLARDOCX-0219 revision: the workflow was removed; repo convention keeps
+  internal-cron workflows unscheduled because the required secrets are not
+  configured). The shipped mechanism is the lazy per-user pass on
+  `/auth/login` (`run_deadline_notification_scan` in
+  `services/deadline_notifications.py`).
 - `/admin/cleanup/pending-accounts` (POST, `require_super_admin`,
   SCHOLARDOCX-0162) is a manual trigger of the pending account purge for admins; surfaced
   as a button in the admin Settings tab.

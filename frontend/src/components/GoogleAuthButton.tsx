@@ -1,3 +1,4 @@
+import { SlowStartToast } from "./SlowStartToast";
 import { useState } from "react";
 import { API_BASE } from "../lib/api";
 
@@ -91,11 +92,7 @@ export function GoogleAuthButton({ label }: { label: string }) {
           </>
         )}
       </button>
-      {status === "connecting" && (
-        <p className="auth-loading-note">
-          The first load after a period of inactivity may take up to a minute while the server wakes up.
-        </p>
-      )}
+      <SlowStartToast show={status === "connecting"} />
     </div>
   );
 }

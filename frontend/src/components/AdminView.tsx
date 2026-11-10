@@ -48,7 +48,6 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { notificationCategories } from "../config/notificationLabels";
 import { PlanRequestsTab as PlanRequestsReviewTab } from "./admin/PlanRequestsTab";
-import { AdminPortal } from "./admin/AdminPortal";
 import { UsersTab } from "./admin/UsersTab";
 import { RoleLimitsTab } from "./admin/RoleLimitsTab";
 import { InvitesTab } from "./admin/InvitesTab";
@@ -918,7 +917,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
         })}
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col pb-8">
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col pb-8">
         {activeTab === "dashboard" && (
           <DashboardTab
             refreshTrigger={refreshTrigger}

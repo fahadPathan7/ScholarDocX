@@ -28,19 +28,21 @@ For any task, load context in this order:
 
 ## Current Product Direction
 
-ScholarDocX is a locally hosted application portal for higher education applicants. It combines:
+ScholarDocX is a cloud-deployed (Render + Supabase free tier, SCHOLARDOCX-0139) application portal for higher education applicants. It combines:
 
 - Hierarchical application tracking by degree, geography, institution, program, and professor.
 - Unified dashboard for deadlines, progress, outreach, and reminders.
 - Rich document drafting for SOPs, research proposals, LOR drafts, and variations.
-- Local storage for PDFs, CVs, transcripts, certificates, and linked files.
+- Per-user isolated cloud storage for PDFs, CVs, transcripts, certificates, and linked files.
 - Email template and follow-up management.
-- GLM AI plus Tavily search for research, drafting, and academic strategy support.
+- Optional Google sign-in alongside email/password and invite-code registration.
+- AI providers (GLM, Gemini, Groq, Mistral, OpenRouter) plus Tavily search for research, drafting, and academic strategy support, behind backend services.
 
 ## Guardrails
 
-- Do not build a remote SaaS backend.
-- Do not store private application data outside the local machine.
+- Keep the zero-infrastructure-cost footprint (Render free + Supabase free); no new paid services by default.
+- Keep each user's data isolated and never expose it to third parties; no analytics or telemetry without approval.
+- Layout/scroll restrictions are withdrawn (see AGENTS.md "Layout freedom").
 - Do not exceed the file-size policy in [CODE_RULES.md](AI-Context/CODE_RULES.md).
 - Do not add features that require paid infrastructure by default.
 - Do not code before context is updated for new or changed features.

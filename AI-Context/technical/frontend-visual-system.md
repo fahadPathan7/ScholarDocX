@@ -23,9 +23,12 @@ interactive, and polished without becoming decorative marketing UI.
 - Prefer low-saturation, eye-soothing canvas and surface colors for planning
   screens. Avoid bright warm accents, heavy gradients, and visible background
   patterns that compete with work content.
-- The app shell, left navigation, header, and floating side panels should remain
-  fixed within the viewport. Scroll should be delegated to content sections,
-  section bodies, sheet tables, chat/message bodies, and notification lists.
+- **Layout freedom (owner decision, 2026-11-10)**: there is no mandated scroll
+  model. Pages and panels may scroll vertically or horizontally, wrap, or fit
+  the viewport — choose whatever gives the best UI for the screen. The earlier
+  "shell stays fixed, only inner regions scroll" rule is withdrawn. Existing
+  fixed-shell behavior may stay where it works, but it is not a requirement
+  and may be changed when a redesign calls for it.
 - Sheet tables should behave like spreadsheet work areas: the row-number/index
   column stays frozen on the left during horizontal scroll, and grouped column
   headers must keep high text contrast against their background. There is no repetitive
@@ -78,8 +81,8 @@ interactive, and polished without becoming decorative marketing UI.
   restrained blue and warm accent states so the interface does not read as a
   single green wash.
 - Dropdown menus (such as Columns and Categorize list selectors) use a compact row spacing layout (0.125px gap, 0.2px 8px padding, 0px margin inputs, 1.2 line height) to maintain dense and clean scannability.
-- System-wide responsive design is enforced across six key viewports: 320px, 375px, 430px (phones), 768px (tablets), 1024px, and 1440px (desktops). Playwright visual audit sweeps inspect all in-app tabs and public routes to ensure 0 horizontal page-level overflow offenders (`r.width > mainW`). On smaller viewports (≤768px and ≤430px), static non-functional decorative header copy, ambient canvas banners, and heavy marketing subtitles are hidden to declutter the workspace and maximize scrollable functional area (`overflow-y: auto`).
-- **Responsive Single-Row Flex Parity Rules**: Section headers (`.section-head`), action toolbars (`SheetToolbarActions`), cell formatting ribbons (`CellStyleBar`), and sheet toolbars (`.sheet-toolbar`) MUST maintain a single-row horizontal flex layout (`flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important`). Never use un-scoped `.section-head div` selectors which force action buttons into vertical columns. Title containers (`.section-head > div:first-child`) MUST have `flex-shrink: 0 !important; min-width: max-content !important; white-space: nowrap !important` so section titles (`Edit rows and columns` / `ttt`) are never crushed into a 10px vertical line of single letters. Full spec: [responsive-design-system.md](responsive-design-system.md).
+- System-wide responsive design is enforced across six key viewports: 320px, 375px, 430px (phones), 768px (tablets), 1024px, and 1440px (desktops). Playwright visual audit sweeps can inspect in-app tabs and public routes; overflow findings are advisory, not a pass/fail gate. On smaller viewports (≤768px and ≤430px), static non-functional decorative header copy, ambient canvas banners, and heavy marketing subtitles are hidden to declutter the workspace and maximize scrollable functional area (`overflow-y: auto`).
+- **Responsive Single-Row Flex Parity Rules — WITHDRAWN (owner decision, 2026-11-10)**: toolbars, section headers and ribbons are no longer required to stay single-row / `nowrap` / `overflow-x: auto`. They may wrap, stack, or scroll as the design needs. Historical rationale: [responsive-design-system.md](responsive-design-system.md).
 
 - Dashboard typography should be compact: headings and metric numbers should
   support scanning without visually shouting.

@@ -2,7 +2,9 @@
 
 ## Current Recommendation
 
-ScholarDocX should not require signup or signin for the secure personal workspace MVP.
+> Updated: the product is cloud-deployed with accounts (SCHOLARDOCX-0139). Email/password plus invite-code registration and optional Google sign-in (SCHOLARDOCX-0169) are live. The notes below are the original MVP-era reasoning; Google remains optional.
+
+Original MVP stance: ScholarDocX should not require signup or signin for the secure personal workspace MVP.
 
 Reason:
 
@@ -38,9 +40,9 @@ If added:
 
 ## Business Decision
 
-Status: Proposed
+Status: Accepted and implemented (SCHOLARDOCX-0169)
 
 Decision:
 
-Google OAuth may be added later as an optional identity layer, but it is not required for the secure personal workspace MVP.
+Google OAuth is an optional identity layer alongside email/password and invite-code registration. It is never the only way in.
 

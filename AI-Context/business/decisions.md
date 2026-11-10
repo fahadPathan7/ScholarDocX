@@ -94,7 +94,7 @@ Implications:
 
 ## BD-006: Authentication Is Optional For MVP
 
-Status: Proposed
+Status: Superseded — accounts exist (SCHOLARDOCX-0139); Google sign-in shipped as an optional method (SCHOLARDOCX-0169)
 
 Decision:
 

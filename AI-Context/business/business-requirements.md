@@ -96,7 +96,7 @@ This requires:
 
 Remote signup or signin must not be required for core local workflows unless a later explicit business decision changes the product direction.
 
-Google OAuth can be supported as an optional identity provider when it creates clear value, such as Google Calendar, Gmail, or Drive integration.
+Google OAuth sign-in is implemented as an optional identity provider (SCHOLARDOCX-0169). Further Google integrations (Calendar, Gmail, Drive) still need a clear-value case.
 
 ## BR-010: Tiered Advisor Intelligence Usage
 

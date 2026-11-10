@@ -1,6 +1,6 @@
 # Responsive Design System & Mobile/Tablet Architecture
 
-This document defines the non-negotiable responsive design rules and architecture for **ScholarDocX**. Every AI agent working on frontend code or layout MUST adhere strictly to these principles.
+This document describes the responsive architecture of **ScholarDocX** (breakpoints, drawer threshold, device tiers). Per the owner's 2026-11-10 decision, **layout restrictions are withdrawn**: no rule here forces a scroll model, single-row toolbars, `nowrap`, or a zero-overflow gate. Treat the content as description and sensible defaults, and deviate whenever a better UI needs it.
 
 ---
 
@@ -42,9 +42,9 @@ touched.)
 
 ## 2. Full-Screen Parity Horizontal Action Toolbar (`.section-head`, `.sheet-toolbar` & `SheetToolbarActions`)
 
-> **Rule 2: Never allow `.sheet-toolbar`, `.toolbar-left`, `.toolbar-right`, or `.section-head > div:last-child` to wrap buttons into stacked lines — enforce single-row horizontal flex layout with `overflow-x: auto` globally across ALL screen sizes**
+> **Rule 2 — WITHDRAWN (2026-11-10).** Toolbars may wrap, stack, or scroll horizontally. The notes below describe the *current* implementation only.
 
-- **Title `flex-shrink: 0` & `white-space: nowrap` Protection**: Section header title containers (`.section-head > div:first-child`), eyebrows, and `<h2>` elements MUST declare `flex-shrink: 0 !important; min-width: max-content !important; white-space: nowrap !important;`.
+- **Title `flex-shrink: 0` & `white-space: nowrap` Protection**: Section header title containers (`.section-head > div:first-child`), eyebrows, and `<h2>` elements currently declare `flex-shrink: 0; min-width: max-content; white-space: nowrap;` (not required).
 - **Single-Row Sheet Toolbar (`.sheet-toolbar`, `.toolbar-left`, `.toolbar-right`)**: Styled with `display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;`.
 - **Global Horizontal Action Alignment (`display: flex; flex-direction: row; flex-wrap: nowrap`)**: `.section-head > div:last-child` (the `SheetToolbarActions` container) is styled with `display: flex !important; flex-direction: row !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important; flex-wrap: nowrap !important;`.
 
@@ -57,7 +57,7 @@ touched.)
 
 ### Modal Mobile Responsiveness (≤768px)
 
-> **Rule 3: Sheet modals (Edit Columns, Add/Edit Record, Add Column) MUST convert from grid layouts to vertical flex layouts on mobile screens**
+> **Rule 3 — now a default, not a mandate:** sheet modals (Edit Columns, Add/Edit Record, Add Column) currently convert from grid to vertical flex on mobile; change this freely if a better layout exists.
 
 **Edit Columns Modal** (`EditColumnsModal`, `.edit-column-item`):
 - Desktop uses 6-column grid: `grid-template-columns: 60px 1fr 130px 150px 75px 36px`
@@ -141,6 +141,8 @@ canonical rules below are the **single source of truth** — do not reintroduce
 ---
 
 ## 5. Verification Checklist for AI Agents
+
+_Advisory only — none of these items blocks a change._
 
 - [ ] Test viewports at `320`, `374`, `375`, `479`, `480`, `767`, `768`, `1023`, `1024`, `1450`, `1600` (covers every canonical tier boundary plus the 1450px drawer threshold).
 - [ ] Confirm sidebar converts to drawer mode at ≤ 1450px (`useIsMobile()` in `useMediaQuery.ts`).

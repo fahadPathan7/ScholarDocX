@@ -86,6 +86,7 @@ import { useDialog } from "./components/DialogProvider";
 import { Modal } from "./components/Modal";
 import { useAuth } from "./contexts/AuthContext";
 import { useUsage } from "./contexts/UsageContext";
+import { useTokenEconomy } from "./contexts/TokenEconomyContext";
 import { useIsMobile } from "./hooks/useMediaQuery";
 import { mediaCategories } from "./data/options";
 import { api, listRecords, deleteRecord, RecordMap, fileDownloadUrl } from "./lib/api";
@@ -156,8 +157,9 @@ function pathToTab(pathname: string): string | null {
 
 export function App() {
   const { showAlert, showConfirm } = useDialog();
-  const { user } = useAuth();
-  const { usageData } = useUsage();
+  const { user, refreshUser } = useAuth();
+  const { usageData, refreshUsage } = useUsage();
+  const { refresh: refreshCredits } = useTokenEconomy();
   const [dashboard, setDashboard] = useState<Dashboard>(emptyDashboard);
   const [workspace, setWorkspace] = useState<RecordMap | null>(null);
   const [files, setFiles] = useState<RecordMap[]>([]);
@@ -189,7 +191,18 @@ export function App() {
   const toastTimerRef = useRef<number | null>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [projectNavigationTarget, setProjectNavigationTarget] = useState<ProjectNavigationTarget | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // One counter per tab group, so the header Refresh only wakes the views of the
+  // group you are on (every tab stays mounted, so a single shared counter would
+  // reload all of them). Plans and Buy credits belong to the Profile group.
+  const [refreshTriggers, setRefreshTriggers] = useState<Record<string, number>>({});
+  const triggerFor = (group: string) => refreshTriggers[group] ?? 0;
+  const groupOfTab = (tab: string) => (tab === "plans" || tab === "buy-credits" ? "profile" : tab);
+  const bumpRefresh = (...groups: string[]) =>
+    setRefreshTriggers((prev) => {
+      const next = { ...prev };
+      groups.forEach((group) => { next[group] = (next[group] ?? 0) + 1; });
+      return next;
+    });
   const [isRefreshing, setIsRefreshing] = useState(false);
   // App-level usage & limits modal (SCHOLARDOCX-0220). ProfileView keeps its
   // own button-triggered mount; this one serves cross-component requests via
@@ -229,7 +242,7 @@ export function App() {
   };
 
   // SCHOLARDOCX-0185: re-fetch just the dashboard summary (calendar items,
-  // reminders, counts) without touching activeTab/refreshTrigger — used
+  // reminders, counts) without touching activeTab/refreshTriggers — used
   // after adding/toggling/deleting a manual reminder or checkbox from
   // DashboardView, regardless of which tab happens to be active.
   const reloadDashboard = async () => {
@@ -237,55 +250,38 @@ export function App() {
     setDashboard(summary);
   };
 
-  // Context-aware refresh - only refreshes the active tab
+  // Header "Refresh data": refreshes the WHOLE group of the tab you are on, in
+  // place (same page, same open sheet/paper/sub-tab), not just the visible page.
+  // 1. Bumping the group's counter makes every view in the group reload its own data
+  //    (projects: list, sheet counts, open project and sheet; Scholarship Hunt: runs
+  //    and library; Advisor Atlas: runs, saved professors, open dossier; Admin: every
+  //    admin tab; ...). Views must keep their selection and unsaved local state.
+  // 2. The app-level data every group depends on is refetched here: the notification
+  //    bell, dashboard counts, the plan, usage and credit balance, and (for tabs that
+  //    list files) documents and categories.
+  // Allsettled: one failing request must not abort the others or leave the spinner on.
   const refreshActiveTab = async () => {
     setIsRefreshing(true);
     const startTime = Date.now();
     try {
-      setRefreshTrigger((v) => v + 1);
-      switch (activeTab) {
-        case "dashboard":
-          // Refresh dashboard data
-          const [summary, notificationRows] = await Promise.all([
-            api.get<Dashboard>("/dashboard/summary"),
-            listRecords<RecordMap>("notifications")
-          ]);
+      bumpRefresh(groupOfTab(activeTab));
+      const tasks: Promise<unknown>[] = [
+        listRecords<RecordMap>("notifications").then(setNotifications),
+        api.get<Dashboard>("/dashboard/summary").then((summary) => {
           setDashboard(summary);
-          setNotifications(notificationRows);
-          break;
-
-        case "projects":
-          break;
-
-        case "research":
-          // Research Expert manages its own paper list; the refreshTrigger
-          // bump above signals ResearchExpertView to reload.
-          break;
-
-        case "documents":
-          // Refresh documents data
-          const [fileRows, categoryRows] = await Promise.all([
-            listRecords<RecordMap>("static_files"),
-            api.get<RecordMap[]>("/document_categories")
-          ]);
-          setFiles(fileRows);
-          setDocumentCategories(categoryRows);
-          break;
-
-        case "sticky":
-          break;
-
-        case "whiteboard":
-          break;
-
-        case "profile":
-          // Profile doesn't need refresh (form-based)
-          break;
-
-        case "about":
-          // About is static, no refresh needed
-          break;
+          setDashboardReady(true);
+        }),
+        refreshUser(),
+        refreshUsage(),
+        refreshCredits()
+      ];
+      if (activeTab === "documents" || activeTab === "projects") {
+        tasks.push(
+          listRecords<RecordMap>("static_files").then(setFiles),
+          api.get<RecordMap[]>("/document_categories").then(setDocumentCategories)
+        );
       }
+      await Promise.allSettled(tasks);
       setMessage("Ready.");
     } finally {
       const elapsed = Date.now() - startTime;
@@ -528,7 +524,7 @@ export function App() {
     }
     if (key === "projects") {
       setProjectNavigationTarget(null);
-      setRefreshTrigger((value) => value + 1);
+      bumpRefresh("projects");
     }
     setActiveTab(key);
     setMobileNavOpen(false);
@@ -652,7 +648,8 @@ export function App() {
               <FloatingAssistant
                 onWorkspaceChanged={async () => {
                   await refresh();
-                  setRefreshTrigger((value) => value + 1);
+                  // Lumi can change projects, sheets, notes, boards and documents.
+                  bumpRefresh("projects", "sticky", "whiteboard", "documents");
                   showToast("Workspace updated by Lumi.");
                 }}
               />
@@ -676,7 +673,7 @@ export function App() {
 
           <div className={`tab-container ${activeTab === "projects" ? "" : "hidden-tab"}`}>
             <ProjectWorkspace
-              refreshTrigger={refreshTrigger}
+              refreshTrigger={triggerFor("projects")}
               files={files}
               onChanged={refresh}
               onFilesChanged={refresh}
@@ -687,7 +684,7 @@ export function App() {
 
           <div className={`tab-container ${activeTab === "documents" ? "" : "hidden-tab"}`}>
             <DocumentView
-              refreshTrigger={refreshTrigger}
+              refreshTrigger={triggerFor("documents")}
               categories={documentCategories}
               files={files}
               onChanged={refresh}
@@ -699,11 +696,11 @@ export function App() {
           </div>
 
           <div className={`tab-container ${activeTab === "sticky" ? "" : "hidden-tab"}`}>
-            <StickyNotesView refreshTrigger={refreshTrigger} onToast={showToast} />
+            <StickyNotesView refreshTrigger={triggerFor("sticky")} onToast={showToast} />
           </div>
 
           <div className={`tab-container ${activeTab === "whiteboard" ? "" : "hidden-tab"}`}>
-            <WhiteboardView refreshTrigger={refreshTrigger} onToast={showToast} />
+            <WhiteboardView refreshTrigger={triggerFor("whiteboard")} onToast={showToast} />
           </div>
 
           <div className={`tab-container ${activeTab === "games" ? "" : "hidden-tab"}`}>
@@ -712,22 +709,22 @@ export function App() {
 
           {canUseAdvisorAtlas && (
             <div className={`tab-container ${activeTab === "atlas" ? "" : "hidden-tab"}`}>
-              <AdvisorAtlasView refreshTrigger={refreshTrigger} onToast={showToast} />
+              <AdvisorAtlasView refreshTrigger={triggerFor("atlas")} onToast={showToast} />
             </div>
           )}
 
           {canUseScholarshipHunt && (
             <div className={`tab-container ${activeTab === "news" ? "" : "hidden-tab"}`}>
-              <ScholarshipNewsView refreshTrigger={refreshTrigger} onToast={showToast} onNavigateToPlans={() => setActiveTab("plans")} />
+              <ScholarshipNewsView refreshTrigger={triggerFor("news")} onToast={showToast} onNavigateToPlans={() => setActiveTab("plans")} />
             </div>
           )}
 
           <div className={`tab-container ${activeTab === "research" ? "" : "hidden-tab"}`}>
-            <ResearchExpertView refreshTrigger={refreshTrigger} onNavigateToPlans={() => setActiveTab("plans")} />
+            <ResearchExpertView refreshTrigger={triggerFor("research")} onNavigateToPlans={() => setActiveTab("plans")} />
           </div>
 
           <div className={`tab-container ${activeTab === "profile" ? "" : "hidden-tab"}`}>
-            <ProfileView workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
+            <ProfileView refreshTrigger={triggerFor("profile")} workspace={workspace} onToast={showToast} onViewPlans={() => setActiveTab("plans")} onBuyCredits={() => setActiveTab("buy-credits")} onViewAdmin={() => setActiveTab("admin")} />
           </div>
 
           <div className={`tab-container tab-page tab-page--scroll ${activeTab === "about" ? "" : "hidden-tab"}`}>
@@ -736,19 +733,19 @@ export function App() {
 
           {activeTab === "plans" && (
             <div className="tab-page tab-page--scroll">
-              <PlanComparisonView onBack={() => setActiveTab("profile")} refreshTrigger={refreshTrigger} />
+              <PlanComparisonView onBack={() => setActiveTab("profile")} refreshTrigger={triggerFor("profile")} />
             </div>
           )}
 
           {activeTab === "buy-credits" && (
             <div className="tab-page tab-page--scroll">
-              <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} refreshTrigger={refreshTrigger} />
+              <BuyTokensView onBack={() => setActiveTab("profile")} onToast={showToast} refreshTrigger={triggerFor("profile")} />
             </div>
           )}
 
           {activeTab === "admin" && currentIsAdmin && (
             <div className="tab-page tab-page--column">
-              <AdminView refreshTrigger={refreshTrigger} />
+              <AdminView refreshTrigger={triggerFor("admin")} />
             </div>
           )}
         </div>

@@ -100,7 +100,7 @@ function TableSkeleton() {
   );
 }
 
-export function PlanPricingTable() {
+export function PlanPricingTable ({ refreshTrigger }: { refreshTrigger?: number }) {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -127,8 +127,9 @@ export function PlanPricingTable() {
   };
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    // A header Refresh re-fetches quietly (no full-page spinner); the first load shows it.
+    fetchSettings(refreshTrigger ? { silent: true } : undefined);
+  }, [refreshTrigger]);
 
   const updateDraft = (tier: string, patch: Partial<Draft>) => {
     setDrafts((prev) => ({ ...prev, [tier]: { ...prev[tier], ...patch } }));

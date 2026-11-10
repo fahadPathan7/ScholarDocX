@@ -9,7 +9,7 @@ import {
   ShieldAlert, Clock, Trash2, Check, X, Shield, Activity
 , KeyRound, Search, Eye} from "lucide-react";
 
-export function InvitesTab() {
+export function InvitesTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const { showConfirm } = useDialog();
   const [invites, setInvites] = useState<any[]>([]);
   const [maxUses, setMaxUses] = useState(1);
@@ -44,7 +44,7 @@ export function InvitesTab() {
 
   useEffect(() => {
     fetchInvites();
-  }, []);
+  }, [refreshTrigger]);
 
   // Clipboard write with the execCommand fallback for non-secure contexts,
   // shared by the per-row copy button and the auto-copy after creation.

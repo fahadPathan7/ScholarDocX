@@ -31,7 +31,7 @@ const METHOD_BADGE: Record<string, string> = {
  * registry in `backend/app/auth/rate_limit.py`. There is nothing to edit
  * here — values are backend constants; this surface exists for visibility.
  */
-export function InfoTab() {
+export function InfoTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const [rules, setRules] = useState<RateLimitRule[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +53,7 @@ export function InfoTab() {
 
   useEffect(() => {
     fetchRules();
-  }, []);
+  }, [refreshTrigger]);
 
   return (
     <div className="h-full overflow-y-auto pr-1 flex flex-col space-y-6 animate-in fade-in duration-300 pb-6">

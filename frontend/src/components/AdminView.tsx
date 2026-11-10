@@ -467,7 +467,7 @@ function DashboardTab({ onNavigate, refreshTrigger }: { onNavigate?: (tab: strin
   );
 }
 
-function AuditLogsTab() {
+function AuditLogsTab({ refreshTrigger }: { refreshTrigger?: number }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -497,7 +497,7 @@ function AuditLogsTab() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshTrigger]);
 
   // Render guard (not pagination): mirror UsersTab's cap so a large audit
   // table cannot put thousands of heavy rows in the DOM at once.
@@ -639,7 +639,7 @@ function NotificationTextsTab() {
   );
 }
 
-export function SuspensionAppealsTab() {
+export function SuspensionAppealsTab({ refreshTrigger }: { refreshTrigger?: number } = {}) {
   const { showAlert, showConfirm } = useDialog();
   const [appeals, setAppeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -671,7 +671,7 @@ export function SuspensionAppealsTab() {
 
   useEffect(() => {
     fetchAppeals();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleResolve = async (appealId: string, action: 'Resolve' | 'Dismiss') => {
     // Dismissing closes the appeal for good without any action taken, so it
@@ -936,7 +936,7 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
           />
         )}
         {activeTab === "users" && <UsersTab adminPermissions={adminPermissions} refreshTrigger={refreshTrigger} />}
-        {activeTab === "limits" && <RoleLimitsTab onLimitsUpdated={fetchAdminPermissions} />}
+        {activeTab === "limits" && <RoleLimitsTab onLimitsUpdated={fetchAdminPermissions} refreshTrigger={refreshTrigger} />}
         {activeTab === "notification_texts" && adminPermissions["admin_manage_notification_texts"] && <NotificationTextsTab />}
         {activeTab === "requests" && hasAnyRequestPermission && (
           <div className="flex flex-col h-full w-full animate-in fade-in duration-300">
@@ -981,19 +981,20 @@ export function AdminView({ refreshTrigger }: { refreshTrigger?: number }) {
                   title="Plan Upgrade & Renewal Requests"
                   description="Review and manage user plan upgrades and extensions."
                   emptyMessage="No plan requests found."
+                  refreshTrigger={refreshTrigger}
                 />
               )}
-              {activeRequestSubtab === "token_purchase_requests" && adminPermissions["admin_manage_token_requests"] && <TokenPurchaseRequestsTab />}
+              {activeRequestSubtab === "token_purchase_requests" && adminPermissions["admin_manage_token_requests"] && <TokenPurchaseRequestsTab refreshTrigger={refreshTrigger} />}
               {activeRequestSubtab === "password_reset_requests" && adminPermissions["admin_manage_password_resets"] && <PasswordResetRequestsTab refreshTrigger={refreshTrigger} />}
-              {activeRequestSubtab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab />}
+              {activeRequestSubtab === "invite_requests" && adminPermissions["admin_manage_invite_requests"] && <InviteRequestsTab refreshTrigger={refreshTrigger} />}
             </div>
           </div>
         )}
-        {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab />}
-        {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab />}
-        {activeTab === "audit" && adminPermissions["admin_view_audit_logs"] && <AuditLogsTab />}
-        {activeTab === "info" && adminPermissions["admin_view_info"] && <InfoTab />}
-        {activeTab === "settings" && adminPermissions["admin_manage_settings"] && <SettingsTab />}
+        {activeTab === "suspension_appeals" && adminPermissions["admin_manage_suspension_appeals"] && <SuspensionAppealsTab refreshTrigger={refreshTrigger} />}
+        {activeTab === "invites" && adminPermissions["admin_manage_invites"] && <InvitesTab refreshTrigger={refreshTrigger} />}
+        {activeTab === "audit" && adminPermissions["admin_view_audit_logs"] && <AuditLogsTab refreshTrigger={refreshTrigger} />}
+        {activeTab === "info" && adminPermissions["admin_view_info"] && <InfoTab refreshTrigger={refreshTrigger} />}
+        {activeTab === "settings" && adminPermissions["admin_manage_settings"] && <SettingsTab refreshTrigger={refreshTrigger} />}
       </div>
     </div>
   );

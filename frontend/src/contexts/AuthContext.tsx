@@ -37,14 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Load initial user from token payload and unblock the UI immediately.
           // The token already carries id/email/display_name/roles, so the
           // SplashScreen / ProtectedRoute gate does not need to wait on /auth/me.
-          setUser({
-            id: payload.user_id,
-            email: payload.email,
-            display_name: payload.display_name,
-            roles: payload.roles || [],
-          });
-          setIsAuthenticated(true);
-          if (!isRefresh) setIsLoading(false);
+          // A refresh keeps the current user until /auth/me answers: the token's
+          // roles can be stale after a plan change and would flash a downgrade.
+          if (!isRefresh) {
+            setUser({
+              id: payload.user_id,
+              email: payload.email,
+              display_name: payload.display_name,
+              roles: payload.roles || [],
+            });
+            setIsAuthenticated(true);
+            setIsLoading(false);
+          }
           // Background refresh to pick up latest plan/role details from server.
           // Non-blocking: failures are logged but do not gate the dashboard.
           try {

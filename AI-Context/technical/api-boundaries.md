@@ -27,10 +27,7 @@ page host on port 8000 (production uses the same origin), which avoids `localhos
   `project_id`/`sheet_id` on every workspace action and allow chaining read-then-write actions.
 - Aggregate-per-entity endpoints must return an entry for every entity, including zero-child
   ones (SCHOLARDOCX-0151: `/projects/sheet_counts` uses a LEFT JOIN so empty projects are listed).
-- The top-bar Refresh must reload everything visible: project list, sheet-count badges, the open
-  project's meta, and the open sheet's rows (SCHOLARDOCX-0152). Keep the `useSheetPage`
-  content-signature guard that skips applying an identical payload; it stops our own save echo
-  from clobbering local edits.
+- The top-bar Refresh refreshes the whole tab group you are on, in place (SCHOLARDOCX-0237); the model and rules are in [state-management.md](state-management.md). Keep the `useSheetPage` content-signature guard that skips an identical payload; it stops our own save echo from clobbering local edits.
 
 ## Backend responsibilities
 

@@ -11,6 +11,7 @@ import "./sheet-table-polish.css";
 import "./cell-formatting.css";
 import "./responsive.css";
 import "./app-brand.css";
+import "./tools-polish.css";
 import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";

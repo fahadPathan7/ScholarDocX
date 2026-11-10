@@ -1,0 +1,291 @@
+/* Advisor Atlas, Research Expert, Scholarship Hunt — surface polish (SCHOLARDOCX-0239).
+   These three read pale and flat: white cards on ivory with faint cool-grey borders,
+   washed-out buttons and low-contrast helper text. This layer gives them one warmer,
+   firmer language (paper cards with real edges and depth, solid teal actions, readable
+   text) without touching their markup. Selectors are prefixed with `.main-content` so
+   they win over the per-view stylesheets regardless of load order. */
+
+.main-content {
+  --tp-ink: #14262a;
+  --tp-ink-soft: #2c4244;
+  --tp-muted: #4f6466;
+  --tp-paper: #fffdf8;
+  --tp-paper-2: #faf5e9;
+  --tp-line: rgba(88, 68, 32, 0.2);
+  --tp-line-strong: rgba(88, 68, 32, 0.32);
+  --tp-teal: #2f7d74;
+  --tp-teal-deep: #1f5f58;
+  --tp-teal-wash: #e3f2ed;
+  --tp-gold: #c58a1b;
+  --tp-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(60, 44, 14, 0.08), 0 16px 30px -18px rgba(60, 44, 14, 0.35);
+  --tp-shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 2px 4px rgba(60, 44, 14, 0.1), 0 22px 36px -18px rgba(31, 95, 88, 0.4);
+}
+
+/* ===== Shared: cards ===================================================== */
+.main-content .expert-header-bar,
+.main-content .expert-sidebar,
+.main-content .expert-main-panel,
+.main-content .active-paper-header-card,
+.main-content .paper-card-item,
+.main-content .prompt-card-btn,
+.main-content .custom-question-box,
+.main-content .analysis-result-panel,
+.main-content .source-citation-card,
+.main-content .atlas-search-card,
+.main-content .atlas-history-panel,
+.main-content .deep-hunt-launcher,
+.main-content .deep-hunt-run-row,
+.main-content .scholarship-catalog-card,
+.main-content .opportunity-library-row {
+  background: var(--tp-paper);
+  border: 1px solid var(--tp-line);
+  border-radius: 16px;
+  box-shadow: var(--tp-shadow);
+}
+
+.main-content .prompt-card-btn,
+.main-content .paper-card-item,
+.main-content .scholarship-catalog-card,
+.main-content .opportunity-library-row,
+.main-content .deep-hunt-run-row {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.main-content .prompt-card-btn:hover,
+.main-content .paper-card-item:hover,
+.main-content .scholarship-catalog-card:hover,
+.main-content .opportunity-library-row:hover,
+.main-content .deep-hunt-run-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--tp-teal);
+  box-shadow: var(--tp-shadow-hover);
+}
+
+/* Page headers get a teal edge so the page has an anchor */
+.main-content .expert-header-bar,
+.main-content .atlas-hero {
+  border-top: 3px solid var(--tp-teal);
+  background: linear-gradient(180deg, #fffdf8, #f7f0df);
+}
+.main-content .atlas-hero { border-top-width: 0; border-bottom: 1px solid var(--tp-line); box-shadow: 0 8px 20px -16px rgba(60, 44, 14, 0.4); }
+
+/* Titles and text: darker and heavier so nothing reads pale */
+.main-content .expert-header-title h1,
+.main-content .atlas-hero-titles h1,
+.main-content .atlas-hero-titles h2,
+.main-content .scholarship-news-view .news-toolbar h1,
+.main-content .active-paper-header-card h2,
+.main-content .atlas-search-heading h1,
+.main-content .atlas-search-heading h2,
+.main-content .deep-hunt-launcher-title {
+  color: var(--tp-ink);
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.main-content .expert-header-title p,
+.main-content .atlas-hero-titles p,
+.main-content .paper-card-sub,
+.main-content .prompt-desc,
+.main-content .question-hint,
+.main-content .question-cost-hint,
+.main-content .atlas-field-help,
+.main-content .atlas-privacy-note,
+.main-content .scholarship-catalog-description,
+.main-content .scholarship-catalog-hint,
+.main-content .news-empty-subtext {
+  color: var(--tp-muted);
+}
+
+/* ===== Shared: primary actions ========================================== */
+.main-content .upload-paper-btn,
+.main-content .ask-btn,
+.main-content .atlas-primary-button,
+.main-content .atlas-new-search,
+.main-content .upgrade-btn-primary,
+.main-content .deep-hunt-launcher .button-primary,
+.main-content .deep-hunt-launcher button[type="submit"] {
+  background: linear-gradient(135deg, var(--tp-teal) 0%, var(--tp-teal-deep) 100%);
+  color: #fff;
+  border: 1px solid var(--tp-teal-deep);
+  border-radius: 12px;
+  font-weight: 650;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 10px 20px -10px rgba(31, 95, 88, 0.7);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+.main-content .upload-paper-btn:hover:not(:disabled),
+.main-content .ask-btn:hover:not(:disabled),
+.main-content .atlas-primary-button:hover:not(:disabled),
+.main-content .atlas-new-search:hover:not(:disabled),
+.main-content .upgrade-btn-primary:hover:not(:disabled),
+.main-content .deep-hunt-launcher .button-primary:hover:not(:disabled),
+.main-content .deep-hunt-launcher button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 14px 24px -10px rgba(31, 95, 88, 0.75);
+}
+/* Disabled stays legible: dimmed, not washed to near-white */
+.main-content .upload-paper-btn:disabled,
+.main-content .ask-btn:disabled,
+.main-content .atlas-primary-button:disabled,
+.main-content .deep-hunt-launcher .button-primary:disabled,
+.main-content .deep-hunt-launcher button[type="submit"]:disabled {
+  opacity: 0.55;
+  background: linear-gradient(135deg, var(--tp-teal) 0%, var(--tp-teal-deep) 100%);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Secondary buttons */
+.main-content .button-secondary,
+.main-content .catalog-btn-outline,
+.main-content .upload-dropzone-btn,
+.main-content .source-pdf-btn,
+.main-content .save-output-btn {
+  background: var(--tp-paper);
+  color: var(--tp-teal-deep);
+  border: 1.5px solid var(--tp-line-strong);
+  border-radius: 10px;
+  font-weight: 600;
+}
+.main-content .button-secondary:hover:not(:disabled),
+.main-content .catalog-btn-outline:hover:not(:disabled),
+.main-content .upload-dropzone-btn:hover:not(:disabled),
+.main-content .source-pdf-btn:hover:not(:disabled),
+.main-content .save-output-btn:hover:not(:disabled) {
+  background: var(--tp-teal-wash);
+  border-color: var(--tp-teal);
+}
+
+/* ===== Shared: form controls ============================================ */
+.main-content .atlas-search-card input,
+.main-content .atlas-search-card select,
+.main-content .atlas-search-card textarea,
+.main-content .deep-hunt-view input,
+.main-content .deep-hunt-view textarea,
+.main-content .deep-hunt-view select,
+.main-content .question-input,
+.main-content .opportunity-library-controls input,
+.main-content .opportunity-library-controls select {
+  background: #fff;
+  color: var(--tp-ink);
+  border: 1.5px solid var(--tp-line-strong);
+  border-radius: 10px;
+}
+.main-content .atlas-search-card input::placeholder,
+.main-content .deep-hunt-view input::placeholder,
+.main-content .deep-hunt-view textarea::placeholder,
+.main-content .question-input::placeholder {
+  color: #7d8c8c;
+}
+.main-content .atlas-search-card input:focus,
+.main-content .atlas-search-card select:focus,
+.main-content .atlas-search-card textarea:focus,
+.main-content .deep-hunt-view input:focus,
+.main-content .deep-hunt-view textarea:focus,
+.main-content .deep-hunt-view select:focus,
+.main-content .question-input:focus {
+  outline: none;
+  border-color: var(--tp-teal);
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.22);
+}
+.main-content .atlas-search-card label,
+.main-content .deep-hunt-view label {
+  color: var(--tp-ink-soft);
+  font-weight: 650;
+}
+
+/* ===== Research Expert ================================================== */
+.main-content .expert-sidebar { background: linear-gradient(180deg, #fffdf8, #f9f3e4); }
+.main-content .sidebar-section-header { color: var(--tp-ink); border-bottom-color: var(--tp-line); }
+.main-content .paper-card-item.active,
+.main-content .paper-card-item.selected,
+.main-content .paper-card-item.is-active {
+  background: linear-gradient(135deg, #e3f2ed, #d4ebe3);
+  border-color: var(--tp-teal);
+  box-shadow: inset 4px 0 0 var(--tp-teal), var(--tp-shadow);
+}
+.main-content .paper-card-title { color: var(--tp-ink); font-weight: 650; }
+.main-content .status-ready { background: #d3eddf; color: #14633a; }
+.main-content .status-processing { background: #f7e3b3; color: #7a4c06; }
+.main-content .status-error { background: #f6d4cf; color: #8e2a1f; }
+.main-content .prompt-icon { background: var(--tp-teal-wash); color: var(--tp-teal-deep); border-radius: 12px; }
+.main-content .prompt-title { color: var(--tp-ink); font-weight: 700; }
+.main-content .prompt-action-link { color: var(--tp-teal-deep); font-weight: 700; }
+.main-content .no-active-paper-placeholder { color: var(--tp-ink-soft); }
+.main-content .placeholder-icon { color: var(--tp-teal); }
+.main-content .quota-pill {
+  background: var(--tp-teal-wash);
+  color: var(--tp-teal-deep);
+  border: 1px solid rgba(47, 125, 116, 0.35);
+  font-weight: 650;
+}
+.main-content .pub-meta-chip { background: var(--tp-paper-2); border: 1px solid var(--tp-line); color: var(--tp-ink-soft); }
+.main-content .result-body-markdown { color: var(--tp-ink); }
+
+/* ===== Advisor Atlas ==================================================== */
+.main-content .advisor-atlas-view {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(47, 125, 116, 0.18), transparent 30%),
+    radial-gradient(circle at 92% 4%, rgba(197, 138, 27, 0.16), transparent 26%),
+    #f4efe0;
+}
+.main-content .atlas-history-panel { border-radius: 0; box-shadow: 6px 0 18px -14px rgba(60, 44, 14, 0.4); background: #f9f3e4; }
+.main-content .atlas-search-card { padding: 30px 32px; }
+.main-content .atlas-search-heading p,
+.main-content .atlas-search-heading .atlas-eyebrow { font-family: inherit; font-weight: inherit; }
+.main-content .atlas-eyebrow { color: var(--tp-teal-deep); font-weight: 750; letter-spacing: 0.16em; }
+.main-content .atlas-badge { background: #f6e3b0; color: #6e4604; border: 1px solid rgba(197, 138, 27, 0.5); font-weight: 750; }
+.main-content .atlas-mode-toggle { background: var(--tp-paper-2); border: 1px solid var(--tp-line-strong); border-radius: 12px; }
+.main-content .atlas-mode-toggle button.active,
+.main-content .atlas-mode-toggle .active {
+  background: var(--tp-teal-deep);
+  color: #fff;
+  box-shadow: 0 6px 12px -6px rgba(31, 95, 88, 0.8);
+}
+.main-content .atlas-run-avatar { background: var(--tp-teal-wash); color: var(--tp-teal-deep); font-weight: 750; }
+.main-content .atlas-search-footer { border-top-color: var(--tp-line); }
+
+/* ===== Scholarship Hunt ================================================= */
+.main-content .scholarship-news-view {
+  background:
+    radial-gradient(circle at 6% 0%, rgba(47, 125, 116, 0.14), transparent 30%),
+    transparent;
+}
+.main-content .scholarship-news-view .news-toolbar { background: linear-gradient(180deg, #fffdf8, #f7f0df); border-bottom: 1px solid var(--tp-line); }
+.main-content .news-subnav { background: var(--tp-paper-2); border-bottom: 1px solid var(--tp-line); }
+.main-content .news-subnav-tab { color: var(--tp-ink-soft); font-weight: 650; }
+.main-content .news-subnav-tab:hover { color: var(--tp-teal-deep); background: rgba(47, 125, 116, 0.08); }
+.main-content .news-subnav-tab.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--tp-teal), var(--tp-teal-deep));
+  border-radius: 10px;
+  box-shadow: 0 8px 16px -8px rgba(31, 95, 88, 0.7);
+}
+.main-content .news-subnav-tab.active svg { color: #fff; }
+.main-content .deep-hunt-launcher { padding: 22px 24px; }
+.main-content .deep-hunt-launcher-title { font-size: 1.1rem; }
+.main-content .scholarship-catalog-card { padding: 18px; }
+.main-content .scholarship-catalog-level-chip,
+.main-content .scholarship-catalog-card-tag {
+  background: var(--tp-teal-wash);
+  color: var(--tp-teal-deep);
+  border: 1px solid rgba(47, 125, 116, 0.3);
+  font-weight: 650;
+}
+.main-content .opportunity-in-library-badge,
+.main-content .opportunity-linked-badge { background: #d3eddf; color: #14633a; border: 1px solid rgba(20, 99, 58, 0.3); }
+.main-content .news-empty-state { color: var(--tp-ink-soft); }
+
+/* Scholarship Hunt sub-tabs: the active pill must float inside the bar, not sit on its bottom border. */
+.main-content .news-subnav {
+  align-items: center;
+  padding: 12px 28px;
+  margin-bottom: 18px;
+}
+.main-content .news-subnav-tabs { gap: 8px; }
+.main-content .news-subnav-tab {
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.main-content .news-subnav-tab.active { border-color: var(--tp-teal-deep); }
+.main-content .news-subnav-info { padding-bottom: 0; }

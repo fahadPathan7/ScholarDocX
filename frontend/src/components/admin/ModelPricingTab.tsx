@@ -72,7 +72,7 @@ function TableSkeleton({ rows = 6 }: { rows?: number }) {
   );
 }
 
-export function ModelPricingTab() {
+export function ModelPricingTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const [models, setModels] = useState<AiModel[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -95,8 +95,9 @@ export function ModelPricingTab() {
   };
 
   useEffect(() => {
-    fetchModels();
-  }, []);
+    // A header Refresh re-fetches quietly (no full-page spinner); the first load shows it.
+    fetchModels(refreshTrigger ? { silent: true } : undefined);
+  }, [refreshTrigger]);
 
   const updateDraft = (id: string, patch: Partial<Draft>) => {
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));

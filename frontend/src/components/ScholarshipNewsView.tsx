@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Compass, Info, Layers, Search } from "lucide-react";
 import { ScholarshipCatalog } from "./news/ScholarshipCatalog";
 import { OpportunityLibrary } from "./news/OpportunityLibrary";
@@ -27,6 +27,12 @@ export function ScholarshipNewsView({ onToast, refreshTrigger, onNavigateToPlans
   const { refreshUsage, usageData } = useUsage();
   // The single deep search shares the Scholarship Hunt plan permission.
   const canUseDeepHunt = (usageData?.limits?.can_use_scholarship_hunt ?? 0) === 1;
+
+  // Header Refresh also re-reads the plan gate (usage limits) for this group.
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) void refreshUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   const [subTab, setSubTab] = useState<ScholarshipHuntSubTab>("search");
   const [trackerModalOpportunity, setTrackerModalOpportunity] = useState<ScholarshipOpportunity | null>(null);
@@ -103,7 +109,7 @@ export function ScholarshipNewsView({ onToast, refreshTrigger, onNavigateToPlans
       </div>
 
       {subTab === "search" && (
-        <DeepHuntView onToast={onToast} canUseDeepHunt={canUseDeepHunt} onUpgrade={onNavigateToPlans} />
+        <DeepHuntView onToast={onToast} canUseDeepHunt={canUseDeepHunt} onUpgrade={onNavigateToPlans} refreshTrigger={refreshTrigger} />
       )}
 
       {subTab === "catalog" && (

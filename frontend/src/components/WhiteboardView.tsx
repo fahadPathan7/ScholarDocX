@@ -183,9 +183,31 @@ export function WhiteboardView({ onToast, refreshTrigger }: { onToast?: (msg: st
     loadBoards();
   }, []);
 
+  // Header Refresh: stay on the board that is open. The old behaviour re-ran
+  // loadBoards(), which jumped to the most recently used board and replaced the
+  // canvas with the server copy, dropping any strokes still waiting for the
+  // debounced autosave. Save what is on screen first, then refresh only the list.
+  const refreshBoards = async () => {
+    const current = activeBoardIdRef.current;
+    try {
+      if (isLoadedRef.current && current) {
+        await saveBoard(current, shapesRef.current, cameraRef.current);
+      }
+      const latest = await listRecords<WhiteboardRecord>("whiteboards");
+      latest.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
+      setBoards(latest);
+      // Only if the open board was deleted elsewhere do we have to move.
+      if (current && !latest.some((board) => board.id === current) && latest.length > 0) {
+        switchBoard(latest[0], false);
+      }
+    } catch (e) {
+      console.error("Failed to refresh boards", e);
+    }
+  };
+
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      loadBoards();
+      void refreshBoards();
     }
   }, [refreshTrigger]);
 
@@ -999,7 +1021,7 @@ const distToSegment = (px: number, py: number, x1: number, y1: number, x2: numbe
       backgroundSize: `${24 * camera.zoom}px ${24 * camera.zoom}px`
     }}>
       {/* Top Toolbar */}
-      <div className="wb-toolbar">
+      <div className={`wb-toolbar${isPanelOpen ? " panel-open" : ""}`}>
         <button
           className="wb-tool-btn"
           onClick={handleSave}

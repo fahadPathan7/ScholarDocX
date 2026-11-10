@@ -15,7 +15,7 @@ function formatTokenCount(n: number) {
   return n.toString();
 }
 
-export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => void }) {
+export function RoleLimitsTab({ onLimitsUpdated, refreshTrigger }: { onLimitsUpdated?: () => void; refreshTrigger?: number }) {
   const { showConfirm } = useDialog();
   type RoleFeature = {
     key: string;
@@ -46,7 +46,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
 
   useEffect(() => {
     fetchLimits();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

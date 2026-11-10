@@ -520,6 +520,12 @@ export function ResearchExpertView({
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0 && canUseExpert) {
       loadPapers();
+      // Also re-read the open paper and its saved analyses in place (keeps the
+      // selected paper, the typed prompt, and any on-screen answer).
+      if (activePaperId) {
+        getResearchPaper(activePaperId).then(setActivePaper).catch(() => {});
+        loadSavedAnalyses(activePaperId);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);

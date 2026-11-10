@@ -42,6 +42,23 @@
   padding: 8px 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 10;
+  /* Never wider than the canvas: wrap onto a second row instead of running
+     under the properties panel (SCHOLARDOCX-0238). */
+  width: max-content;
+  max-width: calc(100% - 32px);
+  flex-wrap: wrap;
+  justify-content: center;
+  transition: left 0.3s ease, max-width 0.3s ease;
+}
+
+/* Docked properties panel (260px): center the toolbar over the visible canvas
+   only, and keep it clear of the panel. On phones the panel is an overlay
+   (responsive.css), so this applies from 768px up. */
+@media (min-width: 768px) {
+  .wb-toolbar.panel-open {
+    left: calc((100% - 260px) / 2);
+    max-width: calc(100% - 260px - 32px);
+  }
 }
 
 .wb-tool-btn {

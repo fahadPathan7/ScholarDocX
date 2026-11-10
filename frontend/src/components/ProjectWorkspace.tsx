@@ -740,7 +740,7 @@ export function ProjectWorkspace({
                 </h3>
                 <div className="project-card-grid">
                   {groupedProjects[degreeType].map((project) => (
-                    <article className="project-card" key={project.id}>
+                    <article className={`project-card degree-${String(project.degree_type || "other").toLowerCase().replace(/[^a-z]/g, "")}`} key={project.id}>
                       <div className="project-card-header">
                         <div className="project-card-title-row">
                           <strong>{project.name}</strong>
@@ -770,7 +770,10 @@ export function ProjectWorkspace({
                           })()}
                         </div>
                         <span className="project-card-meta">
-                          {formatDegreeType(project.degree_type)} · {project.intake_term || "Intake TBD"} · {project.status} · Created {formatLongDate(project.created_at)}
+                          <span className="project-chip project-chip-degree">{formatDegreeType(project.degree_type)}</span>
+                          <span className="project-card-intake">{project.intake_term || "Intake TBD"}</span>
+                          <span className={`project-chip project-chip-status status-${String(project.status || "").toLowerCase()}`}>{project.status}</span>
+                          <span className="project-card-created">Created {formatLongDate(project.created_at)}</span>
                         </span>
                         {project.description ? <p className="project-card-desc">{project.description}</p> : null}
                       </div>

@@ -1,0 +1,79 @@
+/* Sticky Notes + Documents polish (SCHOLARDOCX-0243). Matches the Dashboard look: paper cards,
+   layered shadow, serif titles. `.main-content`-prefixed; tokens from tools-polish.css (--tp-*).
+   Does NOT touch note fonts (see scripts/check-sticky-note-fonts.py). */
+
+/* ===== Sticky notes ===================================================== */
+.main-content .sticky-board {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(197, 138, 27, 0.12), transparent 35%),
+    #f3ecda;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  box-shadow: var(--tp-shadow, 0 16px 30px -18px rgba(60, 44, 14, 0.35));
+}
+.main-content .sticky-board-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: var(--tp-ink, #14262a);
+}
+
+/* notes: richer paper colours and a real lifted shadow */
+.main-content .sticky-card {
+  border: 1px solid rgba(88, 68, 32, 0.16);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 2px 3px rgba(60, 44, 14, 0.14),
+    0 18px 24px -14px rgba(60, 44, 14, 0.45);
+  transition: box-shadow 0.18s ease, filter 0.18s ease;
+}
+.main-content .sticky-card:hover {
+  filter: brightness(1.02);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 4px 6px rgba(60, 44, 14, 0.16),
+    0 26px 32px -14px rgba(60, 44, 14, 0.5);
+}
+.main-content .sticky-card.color-sun { background: linear-gradient(160deg, #fbe39a, #f2cd6a); }
+.main-content .sticky-card.color-mint { background: linear-gradient(160deg, #bfe8d0, #98d4b4); }
+.main-content .sticky-card.color-sky { background: linear-gradient(160deg, #bfdff5, #96c8ec); }
+.main-content .sticky-card.color-rose { background: linear-gradient(160deg, #f6c2c2, #eb9fa0); }
+.main-content .sticky-card.color-lilac { background: linear-gradient(160deg, #d9c9f2, #bba3e6); }
+.main-content .sticky-card.color-sand { background: linear-gradient(160deg, #eadbbf, #d9c39b); }
+
+/* group headings and colour filter swatches */
+.main-content .sticky-notes-view .sticky-group-title,
+.main-content .sticky-notes-view [class*="group-heading"] { color: var(--tp-ink-soft, #2c4244); font-weight: 750; }
+
+/* ===== Documents (restrained: same language as the Dashboard) ============ */
+.main-content .doc-category-card {
+  background: var(--tp-paper, #fffdf8);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 16px;
+  box-shadow: var(--tp-shadow, 0 1px 2px rgba(60, 44, 14, 0.08), 0 14px 28px -18px rgba(60, 44, 14, 0.35));
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.main-content .doc-category-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--tp-teal, #2f7d74);
+  box-shadow: var(--tp-shadow-hover, 0 22px 36px -18px rgba(31, 95, 88, 0.4));
+}
+.main-content .doc-category-card-title-group strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--tp-ink, #14262a);
+}
+.main-content .doc-category-card-meta,
+.main-content .doc-category-card-count { color: var(--tp-muted, #4f6466); }
+.main-content .doc-category-card .card-action-link,
+.main-content .doc-category-card-action { color: var(--tp-teal-deep, #1f5f58); font-weight: 700; }
+.main-content .doc-file-row {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 14px;
+  box-shadow: 0 6px 12px -10px rgba(60, 44, 14, 0.4);
+}
+.main-content .doc-file-name { color: var(--tp-ink, #14262a); font-weight: 700; }
+.main-content .doc-file-path { color: var(--tp-muted, #4f6466); }

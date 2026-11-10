@@ -2,8 +2,8 @@
 
 ## Storage Principle
 
-PostgreSQL stores structured metadata (SCHOLARDOCX-0139; previously SQLite).
-Secure files store binary and rich media artifacts on the local workspace.
+PostgreSQL stores structured metadata. Uploaded files (documents, media) live in object
+storage (SCHOLARDOCX-0139); the local workspace folder only holds temporary runtime files.
 
 ## Document Size Limit
 

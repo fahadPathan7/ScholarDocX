@@ -1,52 +1,35 @@
 # Architecture Overview
 
-ScholarDocX should be built as a secure personal workspace application with a frontend UI, local backend API, PostgreSQL database, and local media workspace.
-
-## Initial Architecture
+ScholarDocX is a cloud-deployed web app (SCHOLARDOCX-0139): a React single-page
+frontend, a FastAPI backend, PostgreSQL for structured data, and object storage for
+uploaded files. Stack, hosting, and connection details live in
+[stack-and-runtime.md](stack-and-runtime.md).
 
 ```text
-Browser UI
-  |
-  | HTTP on localhost
+Browser (React/Vite SPA)
+  |  HTTPS, JWT
   v
-FastAPI backend
+FastAPI backend ──> PostgreSQL (per-user rows, row-level isolation)
+  |            └──> Object storage (uploaded documents)
   |
-  | SQL
-  v
-PostgreSQL database
-  |
-  | file paths
-  v
-Local workspace media files
-
-FastAPI backend
-  |
-  | optional external API calls
-  v
-GLM AI API and Tavily API
+  └──> AI / search / billing providers (server-side keys, explicit user actions)
 ```
 
-## Core Boundaries
+## Boundaries
 
-- Frontend handles UI state, forms, views, and user interactions.
-- Backend owns persistence, workspace initialization, file operations, AI provider calls, and validation.
-- The database stores structured metadata.
-- Secure file system stores uploaded or generated binary files.
-- External APIs are called only by backend integration services.
+- Frontend: UI state, forms, views, interactions. Never calls an AI or search provider directly.
+- Backend: persistence, validation, file operations, provider calls, billing and limits ([billing-contract.md](billing-contract.md)).
+- Database: structured data. Object storage: binary files. Neither is reachable from the browser except through the API.
 
-## Architectural Priorities
+## Priorities
 
-1. Local data ownership.
-2. Simple setup.
-3. Clear module boundaries.
-4. Testable service layer.
-5. AI-DLC maintainability.
+1. Per-user data isolation and privacy ([security-privacy.md](security-privacy.md)).
+2. Free-tier hosting cost.
+3. Clear module boundaries and a testable service layer.
+4. Maintainability for AI coding agents (small files, context kept current).
 
 ## Avoid
 
-- Direct AI API calls from the frontend.
-- Browser access to arbitrary secure file paths.
-- Large all-in-one route files.
-- Large all-in-one UI pages.
-- Remote database assumptions.
-
+- Direct provider calls from the frontend.
+- Browser access to arbitrary storage paths.
+- Large all-in-one route files or UI pages (see the file-size rule in [CODE_RULES.md](../CODE_RULES.md)).

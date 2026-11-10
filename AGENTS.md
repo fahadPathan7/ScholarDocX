@@ -1,226 +1,67 @@
 # AGENTS.md
 
-Project: ScholarDocX
-
-This file is the root instruction file for AI agents working in this repository.
+Root rules for AI agents working in ScholarDocX. Keep this file short: rules with a
+longer spec link to it instead of restating it.
 
 ## Mission
 
-ScholarDocX is a secure personal workspace, privacy-first higher education application management portal. It helps applicants manage universities, programs, professors, deadlines, documents, outreach emails, and AI-assisted academic research from one local workspace.
+ScholarDocX is a privacy-first workspace for higher-education applicants: applications,
+deadlines, uploaded documents, outreach emails, and AI-assisted research in one place.
 
-## Mandatory AI-DLC Workflow
+**Stack and constraints** (SCHOLARDOCX-0139): React/Vite/TypeScript frontend, FastAPI
+backend, PostgreSQL + object storage on Supabase, hosted on Render. Free tiers only; no
+new paid infrastructure, analytics, or telemetry without explicit approval. AI/search
+providers are optional, server-side keys, called only from backend services on explicit
+user actions. Details: [technical/stack-and-runtime.md](AI-Context/technical/stack-and-runtime.md).
 
-Before writing or changing product code:
+## Workflow (AI-DLC)
 
-1. Read [AI-Context/README.md](AI-Context/README.md).
-2. Read the relevant repo-carried skills automatically loaded from `.agents/skills`, `.claude/skills`, or `.codex/skills`.
-3. Read the relevant business, functional, and technical context files for the requested work.
-4. Read or create the relevant Jira task file in [AI-Context/jira-tasks](AI-Context/jira-tasks).
-5. Refine context first when a feature is new, changed, unclear, or crosses module boundaries.
-6. Only then implement code.
-7. After implementation, update context and the Jira task with decisions, changed files, tests, and follow-ups.
+1. Read [AI-Context/README.md](AI-Context/README.md) and the relevant skill in `.claude/skills` (same set in `.agents/` and `.codex/`).
+2. Read the business / functional / technical files the task touches, and its Jira task.
+3. **Jira first**: major work needs a task file in [AI-Context/jira-tasks](AI-Context/jira-tasks) (inside an Epic) before code.
+4. **Context first**: update context before coding new or changed behaviour, and again after (decisions, changed files, tests, follow-ups). Do not end a session with stale context.
+5. Then implement. Keep changes scoped to the active task.
 
-### STRICT ENFORCEMENTS
-- **NO WORK WITHOUT JIRA**: Every piece of major work (features, large refactors, UI updates) MUST have an associated Jira story in `AI-Context/jira-tasks/`. Do not start writing code for major changes without first creating the task file inside an Epic.
-- **MANDATORY CONTEXT UPDATE**: After every feature or code update, the AI Agent MUST update the relevant AI-Context files (for example `technical/frontend-visual-system.md`, `technical/api-boundaries.md`, `technical/project-structure.md`, or `technical/security-privacy.md`) with any new architectural or design decisions. Do not end the session without updating the context.
-- **NO INFRASTRUCTURE OR ALGORITHM JARGON IN USER-FACING COPY**: Never expose internal implementation detail to users in the frontend UI, toasts, error messages, loading text, tooltips, marketing/upgrade copy, or any other string a user reads. This covers TWO categories:
-  1. **Infrastructure / provider names** — e.g. Supabase, Render, PostgreSQL, SQLAlchemy, FastAPI, Vite. Use domain abstractions ("cloud storage" not "Supabase storage buckets").
-  2. **Algorithm / data-pipeline jargon** — e.g. "vector", "embeddings", "vector embeddings", "pgvector", "semantic chunking", "chunks" (as in "X chunks indexed" or "Chunk #3"), "cosine similarity", "similarity search", "HNSW", "IVFFlat", "text extraction", "indexing", "re-indexing", "token count", "synthesizing", provider model IDs ("jina-embeddings-v4", "text-embedding-004"). Users should never see how a feature works under the hood — only what it does for them.
+Do not start coding when the user asked for context, planning, or docs only.
 
-  **Approved plain-language replacements** (use these or equivalent):
-  - "vector embeddings" / "embeddings" → "the paper's content" / "saved analysis"
-  - "chunks" / "chunk history" / "Chunk #3" → "sections" / "Section #3" / "passages"
-  - "vector similarity search" / "similarity search" → "AI-powered search across the paper"
-  - "similarity: 92%" → "relevance: 92%"
-  - "text extraction & semantic chunking" → "full-text reading with AI-powered section analysis"
-  - "re-indexing" → "retrying"
-  - "tokens consumed" → "credits used"
-  - raw HTTP status ("Request failed: 403") → "Something went wrong. Please try again."
+Conflict order: user's latest instruction → root rules (this file, [CLAUDE.md](CLAUDE.md), [CODE_RULES.md](AI-Context/CODE_RULES.md)) → Jira task → AI-Context → existing code patterns.
 
-  When in doubt, describe the **user outcome**, not the mechanism. A reviewer seeing "vector", "embedding", "chunk", "pgvector", "extraction", or a provider name in rendered UI copy should treat it as a regression to fix. Internal code (variable names, comments, type fields, CSS classes, console logs, API payloads) is exempt.
-- **ABSOLUTE BILLING ENFORCEMENT**: every external provider call made on a
-  user's behalf is charged to that user, with the plan gate checked before the
-  call. Foreground, background, admin-triggered, fallback, retry, and
-  vendor-"free" calls are all included; there are no exempt categories. The
-  full contract lives in
-  [AI-Context/technical/billing-contract.md](AI-Context/technical/billing-contract.md)
-  — read it before touching provider code, and do not restate it here.
-- **NO LEFTOVER ONE-OFF FIX SCRIPTS**: ad-hoc `fix_*` / `patch_*` /
-  `migrate_*` / `check_*` / `probe_*` / `rewrite_*` scripts, scratch `.sql`
-  files, fix-summary `.md` files ("FIX_…_README", "…_FIX_COMPLETE"), logs,
-  and DB dumps are throwaway tools. Once the fix is verified, DELETE them
-  from the repo in the same task — their durable parts must land as code:
-  schema changes as idempotent migrations in
-  `backend/app/db/connection.py` (`_add_*` helpers), behaviour as tests
-  under `backend/tests/`, decisions in AI-Context / the Jira task. Never
-  commit such files at the repo root or `backend/` root, and never commit
-  `*.log` or `*.db` (both gitignored). Operational scripts that will be run
-  repeatedly (e.g. `backend/scripts/create_superadmin.py`) live in
-  `scripts/` folders and are fine. (Cleanup of 60 accumulated fossils:
-  SCHOLARDOCX-0212.)
-## Repo-Carried Agent Skills
+## Hard rules
 
-ScholarDocX keeps project-specific `SKILL.md` files natively integrated in `.agents/skills`, `.claude/skills`, and `.codex/skills`. These skills are compact task guides for coding, context updates, test cases, context review, UI/UX, AI integrations, security/privacy, and handoff.
+- **No infrastructure or algorithm jargon in user-facing copy.** Never show provider/infra names (Supabase, Render, PostgreSQL, FastAPI, Vite), model IDs, or pipeline terms (vector, embeddings, pgvector, chunks, similarity search, indexing, extraction, tokens consumed, raw HTTP codes) in UI text, toasts, errors, tooltips, or marketing copy. Describe the user outcome instead: "the paper's content", "sections", "credits used", "retrying", "Something went wrong. Please try again." Internal code (names, comments, logs, payloads) is exempt.
+- **Every provider call is billed to the user**, gate checked first, no exemptions (background, fallback, retry, "free" models). Read [technical/billing-contract.md](AI-Context/technical/billing-contract.md) before touching provider code; `make guard-billing` and `make guard-context` enforce it. Update `backend/tests/regression/test_limits_billing_guards.py` with billing changes.
+- **No summary `.md` files** anywhere unless the user asks. Context goes in `AI-Context/` or a new Jira task file.
+- **No leftover one-off scripts** (`fix_*`, `patch_*`, `migrate_*`, scratch SQL, logs, DB dumps). Delete them when the fix is verified; durable parts become migrations, tests, or decisions. See [CODE_RULES.md](AI-Context/CODE_RULES.md).
+- **File size**: target ≤ 1000 lines, grace 1150 during a feature; split an over-limit file before the next feature. See [CODE_RULES.md](AI-Context/CODE_RULES.md).
+- **Tests**: add or update tests when behaviour, validation, persistence, or provider boundaries change. Do not run the suites unless the user asks.
+- Never commit secrets or real API keys.
 
-Use only the skills relevant to the current task. Skills supplement the source-of-truth order below; they do not override the user's latest instruction, root rules, the active Jira task, or AI-Context.
+## UI rules
 
+**Layout freedom (owner decision, 2026-11-10):** there are no mandated scroll, overflow, wrap, fixed-height, or single-row restrictions. Pages may scroll or fit the viewport as the design needs.
 
-
-## Source Of Truth
-
-Use this order when resolving conflicts:
-
-1. The user's latest explicit instruction.
-2. Root rules: this file, [CLAUDE.md](CLAUDE.md), and [CODE_RULES.md](AI-Context/CODE_RULES.md).
-3. Current Jira task file.
-4. AI-Context files.
-5. Existing codebase patterns.
-6. Historical source notes, now absorbed into [AI-Context](AI-Context/README.md).
-
-## Non-Negotiable Product Constraints
-
-- Cloud-deployed (SCHOLARDOCX-0139): the app runs on Render (free tier),
-  database on Supabase Postgres, file storage on Supabase Storage. The original
-  local-first / SQLite / local-file constraints were superseded by this
-  deployment decision.
-- Zero infrastructure cost: Render free + Supabase free tier.
-- AI integrations are optional external API calls controlled by server-side keys.
-- External AI/search calls remain explicit user actions behind backend services.
-- The app must remain maintainable by AI coding assistants as it grows.
-
-## Billing And Credit Enforcement Rules
-
-Every external provider call made on a user's behalf is charged to that user.
-There are no exempt categories: background tasks, fallback paths, retries,
-models the vendor prices at $0, and calls whose results get discarded are all
-billed. The operator never absorbs provider cost.
-
-**The contract — API, enforcement locations, gates, and the checklist for adding
-a provider — lives in one place:
-[AI-Context/technical/billing-contract.md](AI-Context/technical/billing-contract.md).**
-Read it before touching anything that calls a provider. It is kept honest by
-`scripts/check-context-drift.py`, so its function names are real; this section
-deliberately holds no API detail of its own, because the copy that used to live
-here drifted for a year and told agents to call four functions that never
-existed (SCHOLARDOCX-0205).
-
-Two guards enforce this, both wired into `make check`:
-
-- `make guard-billing` — fails when a function talks to a provider without
-  charging, or makes its billing context optional.
-- `make guard-context` — fails when context names code that does not exist.
-
-When you touch billing code, update
-`backend/tests/regression/test_limits_billing_guards.py`. Do not run it yourself
-unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md).
-
-## File Size And Modularity Rule
-
-- Target maximum file size: 1000 lines.
-- Temporary grace limit: up to 1150 lines during the current feature if a file starts near the limit.
-- If a file exceeds 1150 lines after a feature is completed, split it before beginning the next feature.
-- Prefer cohesive modules over large mixed-purpose files.
-- Before editing a large file, check line count and consider extracting helpers, components, schemas, routes, or services.
-
-## Non-Negotiable UI Rules
-
-These are recurring regressions. Violating them breaks the visual system and
-must be caught before opening a PR.
-
-**Layout freedom (owner decision, 2026-11-10):** there are NO mandated scroll,
-overflow, wrap, fixed-height, or single-row restrictions anywhere in this repo.
-Any older rule or comment implying otherwise is withdrawn. Pages may scroll
-vertically/horizontally or fit the viewport as the design needs. The modal
-backdrop rule below is the only layout-adjacent rule that still applies.
-
-**Content must stay reachable (SCHOLARDOCX-0227):** never put `overflow: hidden`
-(with `min-height: 0`) on a page root that has no inner scroller — content
-taller than the screen must scroll (the tab container or the root itself), not
-be cut off. Check new pages at ~1280×600 and 390×700.
+**Content must stay reachable (SCHOLARDOCX-0227):** never put `overflow: hidden` (with `min-height: 0`) on a page root that has no inner scroller. Content taller than the screen scrolls (tab container or the root), it is never cut off. Check new pages at ~1280×600 and 390×700.
 
 ### Modal backdrop blur (regressed 3+ times — read before touching modals)
 
-**Intended look:** blur covers the full `.main-content` work surface (breadcrumbs,
-view headers, toolbar, table) but the global TopBar and left Sidebar stay crisp.
+**Intended look:** blur covers the `.main-content` work surface; the TopBar and Sidebar stay crisp.
 
-**Why agents keep breaking it**
-
-1. **Copy-paste trap** — `rg modal-backdrop-main` returns ~10 files. Most still
-   use a legacy inline `<div className="modal-backdrop modal-backdrop-main">`.
-   Agents copy that pattern and miss the portal step. **Do not copy those files.**
-2. **CSS “simplification”** — `.modal-backdrop` (base) is `position: fixed`.
-   Agents merge or “unify” it with `.modal-backdrop-main` and switch to fixed
-   viewport positioning, blurring the sidebar and TopBar.
-3. **Two bugs, opposite symptoms** — under-blur (inline div in `.section-body`)
-   vs over-blur (`position: fixed` on `.modal-backdrop-main`). Fixing one often
-   reintroduces the other.
-4. **“Use existing patterns” misfires** — legacy inline backdrops are wrong
-   patterns. The only approved implementation is `<Modal>` from `Modal.tsx`.
-5. **Inline styles override CSS** — custom `position`/`backdropFilter` inline
-   (e.g. `RowPeekPanel.tsx`) bypass the canonical rule.
-
-| Symptom | Cause | Fix |
-|--------|-------|-----|
-| Sidebar/TopBar blurred | `.modal-backdrop-main` uses `position: fixed` | Restore `position: absolute; inset: 0` |
-| Only table area blurred; breadcrumbs sharp | Inline backdrop, no portal | Wrap in `<Modal onClose={…}>` |
-| Modal flush to top | `padding-top` changed from `160px` | Restore `padding-top: 160px` |
-
-**Required pattern for every main-content modal**
+**The only approved implementation is `<Modal>` from `Modal.tsx`** (default `scope="main"`). Do not use `scope="body"` for in-app modals (it blurs the TopBar and centers under the sidebar), and do not copy older files that still contain an inline `<div className="modal-backdrop modal-backdrop-main">`.
 
 ```tsx
-import { Modal } from "./Modal"; // or "../Modal"
+import { Modal } from "./Modal"; // nested modals: <Modal zIndex={1060}>
 
-export function MyModal({ onClose, … }) {
+export function MyModal({ onClose }) {
   return (
-    <Modal onClose={onClose}>          {/* nested: zIndex={1060} */}
-      <form className="modal-panel" onClick={(e) => e.stopPropagation()} …>
-        …
-      </form>
+    <Modal onClose={onClose}>
+      <form className="modal-panel" onClick={(e) => e.stopPropagation()}>…</form>
     </Modal>
   );
 }
 ```
 
-`<Modal scope="main">` (default) portals into `.main-content` and applies
-`.modal-backdrop-main`. That is the entire backdrop implementation — do not
-add your own backdrop div.
+**Forbidden:** a hand-rolled backdrop div or `fixed inset-0` overlay in a modal; custom portals to `#sheet-work-surface` or `.section-body`; making `.modal-backdrop-main` `position: fixed` / `min-height: 100vh` (it must stay `position: absolute; inset: 0`); inline `position`/`backdropFilter` overrides. The only sanctioned non-`<Modal>` backdrop is `LoginPage.tsx`'s `auth-modal-backdrop` (pre-login).
 
-**Forbidden**
+**Before shipping modal work:** sidebar and TopBar are sharp; breadcrumbs and view header are blurred; the panel sits below the top of the work surface (80px offset; 20px on screens ≤ 760px tall) with its body scrolling inside and Cancel/Submit visible.
 
-- Inline `<div className="modal-backdrop modal-backdrop-main">` anywhere except
-  inside `Modal.tsx`.
-- Changing `.modal-backdrop-main` to `position: fixed` / `min-height: 100vh`.
-- Custom portals to `#sheet-work-surface` or `.section-body` for standard modals.
-- Re-adding an inline backdrop div for any new modal. Every main-content modal
-  was migrated to `<Modal>` in SCHOLARDOCX-0217 (App.tsx document modals,
-  AboutView, AddToTrackerModal were the last). Do NOT use `scope="body"` for
-  in-app modals (SCHOLARDOCX-0229): it blurs the TopBar and centers on the whole
-  window, under the sidebar — use the default `scope="main"`. The only
-  sanctioned non-`<Modal>` backdrop is `LoginPage.tsx`'s
-  `auth-modal-backdrop` (pre-login page; nothing to keep sharp).
-
-**Before shipping modal work — visual check**
-
-- [ ] Sidebar icons/text are sharp (not blurred).
-- [ ] Global TopBar (“ScholarDocX”, Ask AI) is sharp.
-- [ ] Breadcrumbs and view header ARE blurred.
-- [ ] Panel sits ~160px below the top of the work surface.
-- [ ] On short screens (<= 760px tall) the top offset shrinks to 20px and the panel
-      body scrolls inside it (SCHOLARDOCX-0234) — Cancel/Submit stay visible.
-
-Canonical CSS and full spec:
-`AI-Context/technical/frontend-visual-system.md` (“Modal backdrop blur scoping”).
-
-- **Never expose infrastructure names or algorithm jargon in UI copy** (vectors, embeddings, chunks, pgvector, similarity, extraction, provider/model names, raw HTTP codes). See the "NO INFRASTRUCTURE OR ALGORITHM JARGON" rule above for the approved plain-language replacements.
-
-## Expected Agent Behavior
-
-- Keep changes scoped to the active Jira task.
-- Do not start implementation if the user explicitly asks for context, planning, or documentation only.
-- Prefer existing patterns once code exists.
-- Do not introduce cloud services, remote databases, analytics, or telemetry unless context and user approval explicitly require it.
-- Never commit secrets or real API keys.
-- Keep documentation short, structured, and easy for future agents to scan.
-- STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
-- Delete one-off fix/patch/migrate/probe scripts and scratch SQL as soon as the fix is verified (see "NO LEFTOVER ONE-OFF FIX SCRIPTS" above). Ending a task with `fix_*.py` still at the repo/backend root is a regression.
-- Add or update unit tests for each feature when meaningful behavior, data transformation, validation, persistence, or integration boundaries are introduced.
+Full spec: [technical/frontend-visual-system.md](AI-Context/technical/frontend-visual-system.md) ("Modal backdrop blur scoping").

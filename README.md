@@ -12,11 +12,6 @@ cloud object storage for uploaded files.
 
 What exists:
 
-- AI-DLC context structure
-- Business, functional, technical, workflow, and Jira-style task docs
-- Root agent rules
-- Coding rules
-- Testing expectations
 - FastAPI backend with JWT auth, Role-Based Access Control (RBAC), invite-code
   registration, and optional Google sign-in/sign-up (SCHOLARDOCX-0169)
 - PostgreSQL-backed persistence (Supabase), with cloud object storage for media
@@ -42,7 +37,7 @@ What exists:
 - Scholarship opportunities discovery and deep-hunt research
 - Profile page with plan/subscription details
 - About page for storage, AI, and email-compose details
-- Backend unit tests
+- Backend and frontend unit tests
 
 Not included yet:
 

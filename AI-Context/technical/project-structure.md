@@ -1,15 +1,10 @@
 # Project Structure
 
-This file defines the expected future organization. It is a guide, not current code.
+Where code lives. Keep this in sync when folders are added or renamed.
 
-## Current Repository State
+Agent skills live in `.agents/skills`, `.claude/skills`, and `.codex/skills`.
 
-The repository contains AI-DLC context plus the MVP product scaffold.
-
-AI-agent workflow skills are stored directly in `.agents/skills`, `.claude/skills`, and `.codex/skills` as repo-carried `SKILL.md` folders. These are the canonical skill locations; `AI-Context/agent-skills/` is obsolete.
-
-
-## Actual MVP Structure
+## Layout
 
 ```text
 
@@ -87,31 +82,9 @@ workspace/
   media/
 ```
 
-## Feature Module Guidance
+## Keeping this file honest
 
-Prefer feature-oriented folders when practical:
-
-- dashboard
-- hierarchy
-- documents
-- files
-- outreach
-- reminders
-- ai-assistant
-- settings
-
-## Naming Guidance
-
-- Use clear names over abbreviations.
-- Keep provider-specific code under integrations.
-- Keep database access in repositories or equivalent data access modules.
-- Keep business workflows in services.
-- Keep API routes thin.
-- Keep UI components focused and reusable only when reuse is real.
-
-## Context Rule
-
-When actual code structure is created, update this file to match reality.
+Update it when code structure changes.
 
 - **Sticky Notes (SCHOLARDOCX-0201)**: the feature lives in
   `frontend/src/components/sticky/` — `StickyNotesView` (container: data,

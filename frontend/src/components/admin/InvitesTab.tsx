@@ -1,4 +1,3 @@
-import { AdminPortal } from "./AdminPortal";
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../../lib/api";
 import { hasRole } from "../../lib/auth";
@@ -275,10 +274,8 @@ export function InvitesTab() {
         </div>
       </div>
       {viewUsagesCode && (
-        <AdminPortal>
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setViewUsagesCode(null)}></div>
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative animate-in zoom-in-95 duration-200">
+          <Modal onClose={() => setViewUsagesCode(null)}>
+            <div onClick={(ev) => ev.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                   <KeyRound className="text-indigo-500" size={20} />
@@ -329,8 +326,7 @@ export function InvitesTab() {
                 </button>
               </div>
             </div>
-          </div>
-        </AdminPortal>
+          </Modal>
       )}
     </div>
   );

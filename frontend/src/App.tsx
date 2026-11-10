@@ -1123,7 +1123,7 @@ function DocumentView(props: {
   return (
     <div className="page-grid doc-grid">
       {isUploadOpen ? (
-        <Modal scope="body" onClose={() => { if (!isUploading) closeUploadModal(); }}>
+        <Modal onClose={() => { if (!isUploading) closeUploadModal(); }}>
           <form className="modal-panel small-modal-panel doc-upload-panel" onClick={(event) => event.stopPropagation()} onSubmit={uploadFile}>
             <div className="modal-header">
               <div className="doc-upload-title">
@@ -1297,7 +1297,7 @@ function DocumentView(props: {
       </div>
 
       {selectedDocCategory ? (
-        <Modal scope="body" onClose={() => setSelectedDocCategory(null)}>
+        <Modal onClose={() => setSelectedDocCategory(null)}>
           <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>
@@ -1319,7 +1319,7 @@ function DocumentView(props: {
       ) : null}
 
       {categoryEditor ? (
-        <Modal scope="body" onClose={() => setCategoryEditor(null)}>
+        <Modal onClose={() => setCategoryEditor(null)}>
           <form className="modal-panel small-modal-panel doc-category-editor" onClick={(event) => event.stopPropagation()} onSubmit={saveCategory}>
             <div className="modal-header">
               <h2>{categoryEditor.mode === "rename" ? "Rename Category" : "Create Category"}</h2>
@@ -1348,7 +1348,7 @@ function DocumentView(props: {
       ) : null}
 
       {editingFile ? (
-        <Modal scope="body" onClose={() => setEditingFile(null)}>
+        <Modal onClose={() => setEditingFile(null)}>
           <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveFileEdit}>
             <div className="modal-header">
               <h2>Edit Document</h2>
@@ -1395,7 +1395,7 @@ function DocumentView(props: {
       ) : null}
 
       {showAllDocsModal ? (
-        <Modal scope="body" onClose={() => setShowAllDocsModal(false)}>
+        <Modal onClose={() => setShowAllDocsModal(false)}>
           <div className="modal-panel doc-category-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <div>

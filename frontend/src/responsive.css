@@ -18,13 +18,13 @@
  */
 
 /* ============================================================================
-   1. Mobile navigation drawer (<= 1450px)
-   The desktop sidebar is a persistent grid column. On screens <= 1450px it becomes an
+   1. Mobile navigation drawer (<= 1100px)
+   The desktop sidebar is a persistent grid column. On screens <= 1100px it becomes an
    off-canvas drawer that slides in from the left, with a tap-to-dismiss
    backdrop. Content gets the full width when the drawer is closed.
    ========================================================================= */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   html,
   body {
     overflow-x: hidden;
@@ -225,7 +225,7 @@
   height: 16px !important;
 }
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   main {
     display: flex !important;
     flex-direction: column !important;
@@ -390,10 +390,10 @@
 }
 
 /* ============================================================================
-   4. Dashboard Linear Stack (<= 1450px)
+   4. Dashboard Linear Stack (<= 1100px)
    ========================================================================= */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .page-grid.dashboard-grid,
   .dashboard-grid {
     display: flex !important;
@@ -443,7 +443,7 @@
   }
 }
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .project-layout,
   .project-dashboard,
   .project-home,
@@ -590,7 +590,7 @@
   width: max-content;
 }
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .about-models-table,
   .atlas-compare-table,
   .admin-table-container {
@@ -604,7 +604,7 @@
 }
 
 /* ============================================================================
-   7. Whiteboard Workspace (<= 1450px)
+   7. Whiteboard Workspace (<= 1100px)
    ========================================================================= */
 
 /* NOTE (SCHOLARDOCX-0171): The original selectors here were
@@ -612,9 +612,9 @@
    (WhiteboardView.tsx) actually renders `.wb-canvas-dummy` and `.wb-toolbar`.
    The mismatch made these overrides completely inert — the toolbar (~727px
    wide with 15 buttons) rendered full-width with no wrapping on every viewport
-   <= 1450px, overflowing ~1.9x a 375px screen. Selectors corrected below. */
+   <= 1100px, overflowing ~1.9x a 375px screen. Selectors corrected below. */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .whiteboard-view,
   .wb-canvas-dummy {
     touch-action: pan-x pan-y !important;
@@ -733,7 +733,7 @@ main > div {
   max-height: none !important;
 }
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
 
   /* Sub-tabs and filter pill containers wrap fluidly */
   .admin-tabs,
@@ -750,10 +750,10 @@ main > div {
 }
 
 /* ============================================================================
-   10. Documents Tab (<= 1450px)
+   10. Documents Tab (<= 1100px)
    ========================================================================= */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .doc-grid,
   .doc-category-grid,
   .doc-list-sections,
@@ -776,7 +776,7 @@ main > div {
 }
 
 /* ============================================================================
-   11. Sticky Notes Tab (<= 1450px)
+   11. Sticky Notes Tab (<= 1100px)
    ========================================================================= */
 
 /* NOTE (SCHOLARDOCX-0171): The original block targeted `.notes-grid`, but
@@ -785,7 +785,7 @@ main > div {
    overrides were also dropped: the board is a CSS-columns masonry by design
    (see sticky-notes.css), and grid properties never applied to it. */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .sticky-notes-view,
   .sticky-card-grid {
     min-width: 0 !important;
@@ -794,10 +794,10 @@ main > div {
 }
 
 /* ============================================================================
-   12. Advisor Atlas Tab (<= 1450px)
+   12. Advisor Atlas Tab (<= 1100px)
    ========================================================================= */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .advisor-atlas-view,
   .atlas-grid,
   .atlas-search-form,
@@ -856,7 +856,7 @@ main > div {
 }
 
 /* ============================================================================
-   13. Scholarship Hunt Tab (<= 1450px)
+   13. Scholarship Hunt Tab (<= 1100px)
    ========================================================================= */
 
 /* NOTE (SCHOLARDOCX-0171): The original block listed `.news-grid` in the
@@ -864,13 +864,13 @@ main > div {
    restoration. But `.news-card-grid` does not exist in any component
    (NewsFeed.tsx uses `.news-grid`; ScholarshipCatalog.tsx uses
    `.scholarship-catalog-grid`), and `.news-query-bar` is also phantom. So the
-   grid was forced to single-column flex at every viewport <= 1450px and never
+   grid was forced to single-column flex at every viewport <= 1100px and never
    restored — tablet/laptop users saw 1 card per row where 2-3 should fit.
    Restructured below: only the outer view collapses to column flow; the actual
    card grids (.news-grid, .scholarship-catalog-grid) keep their auto-fill grid
    so cards reflow 2-3 per row on tablet/desktop. */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .scholarship-news-view {
     display: flex !important;
     flex-direction: column !important;
@@ -894,11 +894,11 @@ main > div {
      Large Mobile  480–767px    -> @media (max-width: 767px)
      Mobile        375–479px    -> @media (max-width: 479px)
      Small Mobile  320–374px    -> @media (max-width: 374px)
-   The shell-wide sidebar drawer activates earlier at <= 1450px (section 1). */
+   The shell-wide sidebar drawer activates earlier at <= 1100px (section 1). */
 
-/* ---- CANONICAL collapse: single-column stack at <= 1450px ----------------
+/* ---- CANONICAL collapse: single-column stack at <= 1100px ----------------
    The Profile "mobile" threshold MUST match the rest of the shell (the
-   sidebar drawer activates at <= 1450px, see section 1). Below this width the
+   sidebar drawer activates at <= 1100px, see section 1). Below this width the
    two-column card grid (set via inline `gridTemplateColumns` on
    `.profile-layout` in ProfileView.tsx, and historically via conflicting rules
    in styles.css + visual-refresh.css) collapses to a single full-width column.
@@ -906,8 +906,8 @@ main > div {
    `!important` is required to win over the inline style. This is the single
    source of truth for the Profile 1-column collapse — do NOT reintroduce
    `.profile-layout { grid-template-columns: ... }` rules in other files.
-   Above 1450px the two-column layout is preserved. */
-@media (max-width: 1450px) {
+   Above 1100px the two-column layout is preserved. */
+@media (max-width: 1100px) {
   .profile-page,
   .profile-layout {
     display: flex !important;
@@ -926,7 +926,7 @@ main > div {
 /* ---- Tablet (768–1023px, query: <= 1023px): first density reduction --------
    The hero stops using full desktop sizing; admin roles wrap to a full-width
    row; the name/email block reflows beside the avatar. Pure density change —
-   the 1-column layout collapse already happened at <= 1450px above. */
+   the 1-column layout collapse already happened at <= 1100px above. */
 @media (max-width: 1023px) {
   .profile-hero.glass-panel {
     flex-wrap: wrap;
@@ -991,7 +991,7 @@ main > div {
     flex-shrink: 0;
   }
 
-  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1450px
+  /* NOTE: `.profile-meta-col { gap: 0.75rem }` is set once at the <= 1100px
      canonical collapse above; no need to repeat it here. */
 
   /* Make logout button full-width for easier reach. */
@@ -1058,7 +1058,7 @@ main > div {
 }
 
 /* ============================================================================
-   15. Admin Tab (<= 1450px)
+   15. Admin Tab (<= 1100px)
    ========================================================================= */
 
 /* NOTE (SCHOLARDOCX-0171): The original layout/tab/filter portion of this
@@ -1071,7 +1071,7 @@ main > div {
    Rewritten below to target the real classes. The modal rules further down
    were already live and remain unchanged. */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   #admin-view-root {
     min-width: 0 !important;
     width: 100% !important;
@@ -1179,10 +1179,10 @@ main > div {
 }
 
 /* ============================================================================
-   16. About Tab (<= 1450px)
+   16. About Tab (<= 1100px)
    ========================================================================= */
 
-@media (max-width: 1450px) {
+@media (max-width: 1100px) {
   .about-view,
   .about-page,
   .about-hero,

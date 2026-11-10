@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Modal } from "../Modal";
 import { KeyRound, RefreshCcw, Search, ShieldAlert, X } from "lucide-react";
 import { api } from "../../lib/api";
 import { emitUiError } from "../../lib/uiError";
@@ -274,10 +275,7 @@ export function PasswordResetRequestsTab({ refreshTrigger }: Props) {
 
       {/* Set-password modal */}
       {activeRequest && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          onClick={closeModal}
-        >
+        <Modal onClose={closeModal}>
           <div
             className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
@@ -356,7 +354,7 @@ export function PasswordResetRequestsTab({ refreshTrigger }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

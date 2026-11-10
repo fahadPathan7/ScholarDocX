@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { Modal } from "./Modal";
 import { X, ArrowLeft, Sparkles, Database, MessageSquare, Globe, Layout, Table, Layers, Target, Presentation, Coins, Package, HardDrive, Rows3, Compass, Rocket, Gem, Crown, CheckCircle2, Map, Bot, BookOpen, Library, FileText, WifiOff } from "lucide-react";
 import { api } from "../lib/api";
 import { emitUiError } from "../lib/uiError";
@@ -7,11 +7,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { PlanRequestHistoryTab, type UserPlanRequest } from "./plan/PlanRequestHistoryTab";
 import { STATIC_PLANS, STATIC_PRICING } from "./LandingPage/plan-defaults";
 
-function ModalPortal({ children }: { children: React.ReactNode }) {
-  const root = document.getElementById('root') || document.body;
-  if (!root) return null;
-  return createPortal(children, root);
-}
 
 type PlanLimits = {
   [feature: string]: {
@@ -551,12 +546,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
       </div>
 
       {requestPlan && (
-        <ModalPortal>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-[10px]"
-            style={{ background: "rgba(10, 15, 18, 0.6)" }}
-            onClick={closeRequestModal}
-          >
+          <Modal onClose={closeRequestModal}>
             <div
               className="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-md overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -688,8 +678,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
                 })()}
               </div>
             </div>
-          </div>
-        </ModalPortal>
+          </Modal>
       )}
     </div>
   );

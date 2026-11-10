@@ -275,8 +275,8 @@ export function SettingsTab() {
       </div>
 
       {showJwtModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <Modal onClose={() => setShowJwtModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-rose-500" />
@@ -325,7 +325,7 @@ export function SettingsTab() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showPricingModal && (
@@ -407,8 +407,8 @@ export function SettingsTab() {
       )}
 
       {showExternalApisModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <Modal onClose={() => setShowExternalApisModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[calc(100%-1.5rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
               <h3 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
                 <Globe className="w-5 h-5 text-orange-500" />
@@ -510,7 +510,7 @@ export function SettingsTab() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showPolarModal && (

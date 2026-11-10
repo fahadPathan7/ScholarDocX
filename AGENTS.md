@@ -133,6 +133,11 @@ Any older rule or comment implying otherwise is withdrawn. Pages may scroll
 vertically/horizontally or fit the viewport as the design needs. The modal
 backdrop rule below is the only layout-adjacent rule that still applies.
 
+**Content must stay reachable (SCHOLARDOCX-0227):** never put `overflow: hidden`
+(with `min-height: 0`) on a page root that has no inner scroller — content
+taller than the screen must scroll (the tab container or the root itself), not
+be cut off. Check new pages at ~1280×600 and 390×700.
+
 ### Modal backdrop blur (regressed 3+ times — read before touching modals)
 
 **Intended look:** blur covers the full `.main-content` work surface (breadcrumbs,
@@ -187,8 +192,10 @@ add your own backdrop div.
 - Changing `.modal-backdrop-main` to `position: fixed` / `min-height: 100vh`.
 - Custom portals to `#sheet-work-surface` or `.section-body` for standard modals.
 - Re-adding an inline backdrop div for any new modal. Every main-content modal
-  was migrated to `<Modal>` in SCHOLARDOCX-0217 (App.tsx global modals via
-  `scope="body"`, AboutView, AddToTrackerModal were the last). The only
+  was migrated to `<Modal>` in SCHOLARDOCX-0217 (App.tsx document modals,
+  AboutView, AddToTrackerModal were the last). Do NOT use `scope="body"` for
+  in-app modals (SCHOLARDOCX-0229): it blurs the TopBar and centers on the whole
+  window, under the sidebar — use the default `scope="main"`. The only
   sanctioned non-`<Modal>` backdrop is `LoginPage.tsx`'s
   `auth-modal-backdrop` (pre-login page; nothing to keep sharp).
 

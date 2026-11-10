@@ -106,9 +106,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       // ignore SSR or storage error
     }
-    setUser(null);
-    setIsAuthenticated(false);
-    window.location.href = "/";
+    // Do not reset user/isAuthenticated here: that re-renders ProtectedRoute,
+    // which redirects to "/" (first flash) right before this full reload
+    // (second flash). The reload discards all in-memory state anyway.
+    window.location.replace("/");
   };
 
   const refreshUser = async () => {

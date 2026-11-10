@@ -25,7 +25,7 @@ cascade delete) and is always queried scoped to the signed-in user.
 ## Invariants worth knowing
 
 - **Sheet rows** (`project_pages.rows_json`) are a JSON array of `Record<string, string>`. Rows also carry reserved `_`-prefixed metadata keys that survive CSV, paste, undo, and AI edits without leaking into exports: `_height` (row height px), `_cellStyles` (JSON of per-cell formatting; see `CellStyle` in `sheetModel.ts`), `_rowStyle` (JSON `{ bg }`). New reserved keys follow the same `_` prefix + JSON-string convention, which avoids a schema migration.
-- **Pinning**: `projects` and `project_sheets` each have `is_pinned` (top of lists) and `pinned_to_dashboard` (shows on the dashboard). Unpinning also removes the dashboard entry.
+- **Pinning**: `projects`, `project_sheets`, and `sticky_notes` (max 5, cleared on archive) each have `is_pinned` (top of lists) and `pinned_to_dashboard` (shows on the dashboard). Unpinning also removes the dashboard entry.
 - **Notifications** keep `notification_type` for routing/display and `preference_key` for the user preference bucket (workspace events plus admin categories such as `system`, `billing`, `plans`, `announcements`).
 - **`plan_upgrade_requests.request_type`** distinguishes an upgrade from a renewal. A renewal on an expired plan extends from approval time; on an active plan, from the current end date.
 - **`password_reset_requests`**: never confirms whether an email exists. A row is created only when the email matches a user, no pending request exists, and the IP limit allows. `Completed` means an admin set a new password (and bumped the user's `token_version`); `Dismissed` means cleared without a reset.

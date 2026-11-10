@@ -110,6 +110,8 @@ export type Dashboard = {
   pinned_projects: RecordMap[];
   pinned_sheets: RecordMap[];
   pinned_docs: RecordMap[];
+  /** Sticky notes shown on the dashboard, max 5 (SCHOLARDOCX-0245). */
+  pinned_notes: RecordMap[];
   calendar_items: RecordMap[];
 };
 
@@ -125,6 +127,7 @@ const emptyDashboard: Dashboard = {
   pinned_projects: [],
   pinned_sheets: [],
   pinned_docs: [],
+  pinned_notes: [],
   calendar_items: []
 };
 
@@ -457,6 +460,13 @@ export function App() {
     };
     window.addEventListener("scholardocx:navigate", handler as EventListener);
     return () => window.removeEventListener("scholardocx:navigate", handler as EventListener);
+  }, []);
+
+  // Something shown on the dashboard changed on another tab (SCHOLARDOCX-0245): re-fetch quietly.
+  useEffect(() => {
+    const handler = () => { void reloadDashboard().catch(() => {}); };
+    window.addEventListener("scholardocx:dashboard-changed", handler);
+    return () => window.removeEventListener("scholardocx:dashboard-changed", handler);
   }, []);
 
   // Cross-component "open the usage modal" requests (usageEvents bus).

@@ -19,7 +19,8 @@ position, open modals, and unsaved edits intact (SCHOLARDOCX-0237).
 3. **App-level data is refetched by `refreshActiveTab`** for every group, with `Promise.allSettled` (one failure must not abort the
    rest or leave the spinner on): notifications (bell), the dashboard summary (counts), the user (`refreshUser`), usage limits,
    and the credit balance; plus files and categories for Projects and Documents. The spinner lasts at least 500 ms.
-4. Other places that change data bump the groups they affect, for example Lumi's workspace changes bump `projects`, `sticky`,
+4. A change made on one tab that the dashboard shows (for example a pinned sticky note) calls `emitDashboardChanged()` (`lib/tokenEvents.ts`); `App.tsx` listens and re-fetches `/dashboard/summary`, so switching back needs no manual refresh.
+5. Other places that change data bump the groups they affect, for example Lumi's workspace changes bump `projects`, `sticky`,
    `whiteboard`, and `documents`, and clicking Projects in the sidebar bumps `projects`.
 
 ### Rules for a view's refresh effect

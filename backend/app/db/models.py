@@ -458,6 +458,8 @@ class StickyNotes(Base):
     font: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'caveat'"))
     font_size: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'medium'"))
     is_pinned: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
+    # SCHOLARDOCX-0245: shown on the dashboard (max 5 per user, enforced in Store.update_record).
+    pinned_to_dashboard: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'))
     # SCHOLARDOCX-0201. JSON array of lowercase tag strings; '[]' when untagged.
     tags_json: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
     # Manual board position. Lower sorts first within a group; ties fall back to

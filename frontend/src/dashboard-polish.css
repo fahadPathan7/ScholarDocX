@@ -57,3 +57,83 @@
   border-radius: 12px;
   color: var(--tp-ink-soft, #2c4244);
 }
+
+/* Metric tiles: the decorative bar on the right edge must never sit under the label text
+   (long labels such as "Advisor Atlas history" touched it on narrow screens). */
+.main-content .dashboard-snapshot .metric-card {
+  padding-right: 22px !important;
+  min-width: 0;
+}
+.main-content .dashboard-snapshot .metric-card span {
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  font-size: clamp(0.68rem, 0.55rem + 0.4vw, 0.8rem);
+}
+
+/* No empty scrollbar tracks: card bodies only show a scrollbar when their content overflows. */
+.main-content .dashboard-grid .section-body {
+  overflow-y: auto;
+  scrollbar-gutter: auto;
+}
+
+/* Independent columns (SCHOLARDOCX-0244): each column stacks its own cards and grows freely, so a long
+   "Pinned Projects" list no longer stretches the cards beside it. */
+.main-content .page-grid.dashboard-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto;
+  align-items: start;
+  overflow-y: auto;
+}
+.main-content .dashboard-grid .dashboard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.main-content .dashboard-grid .dashboard-col > .section {
+  grid-column: auto;
+  grid-row: auto;
+  height: auto;
+  min-height: 0;
+}
+
+/* Tablet and phone: columns dissolve into one stack in a sensible order. */
+@media (max-width: 1100px) {
+  .main-content .dashboard-grid .dashboard-col { display: contents; }
+  .main-content .dashboard-grid .dashboard-snapshot { order: 1; }
+  .main-content .dashboard-grid .dashboard-calendar { order: 2; }
+  .main-content .dashboard-grid .dashboard-today { order: 3; }
+  .main-content .dashboard-grid .dashboard-upcoming { order: 4; }
+  .main-content .dashboard-grid .dashboard-pinned-projects { order: 5; }
+  .main-content .dashboard-grid .dashboard-pinned-sheets { order: 6; }
+  .main-content .dashboard-grid .dashboard-pinned-docs { order: 7; }
+}
+
+/* Pinned sticky notes (SCHOLARDOCX-0245): one tinted block per note in column 3, after Next 7 Days. */
+.main-content .dashboard-grid .dashboard-note { border-top: 4px solid #d9b13f; }
+.main-content .dashboard-grid .dashboard-note.note-sun { background: linear-gradient(180deg, #fff6d6, #fbe9a8); border-top-color: #d9b13f; }
+.main-content .dashboard-grid .dashboard-note.note-mint { background: linear-gradient(180deg, #e6f6ed, #c9e9d8); border-top-color: #4fae82; }
+.main-content .dashboard-grid .dashboard-note.note-sky { background: linear-gradient(180deg, #e6f2fb, #c8e1f5); border-top-color: #4c97d0; }
+.main-content .dashboard-grid .dashboard-note.note-rose { background: linear-gradient(180deg, #fbe6e6, #f3c6c7); border-top-color: #d36d70; }
+.main-content .dashboard-grid .dashboard-note.note-lilac { background: linear-gradient(180deg, #f0e8fb, #dccdf2); border-top-color: #9376d1; }
+.main-content .dashboard-grid .dashboard-note.note-sand { background: linear-gradient(180deg, #f6eedd, #e8d9b9); border-top-color: #b99b5b; }
+.main-content .dashboard-grid .dashboard-note .section-body { padding-bottom: 6px; }
+.main-content .dashboard-grid .dashboard-note-body {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 2px 0 6px;
+  cursor: pointer;
+  color: var(--tp-ink, #14262a);
+  font: inherit;
+}
+.main-content .dashboard-grid .dashboard-note-body p { margin: 0; white-space: pre-wrap; line-height: 1.5; font-size: 0.92rem; }
+.main-content .dashboard-grid .dashboard-note-body .muted { color: var(--tp-muted, #4f6466); }
+.main-content .dashboard-grid .dashboard-note-checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.9rem; }
+.main-content .dashboard-grid .dashboard-note-checklist li::before { content: "☐ "; }
+.main-content .dashboard-grid .dashboard-note-checklist li.done { text-decoration: line-through; opacity: 0.65; }
+.main-content .dashboard-grid .dashboard-note-checklist li.done::before { content: "☑ "; }
+.main-content .dashboard-grid .dashboard-note-checklist li.more { opacity: 0.7; }
+.main-content .dashboard-grid .dashboard-note-checklist li.more::before { content: ""; }

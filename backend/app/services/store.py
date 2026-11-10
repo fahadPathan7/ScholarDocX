@@ -18,6 +18,8 @@ from app.db import calendar_models
 from app.services import calendar_service
 
 MAX_DOCUMENT_CATEGORIES = 16
+# SCHOLARDOCX-0245: sticky notes a user can show on the dashboard.
+MAX_DASHBOARD_STICKY_NOTES = 5
 
 MODEL_MAP = {
     "local_profiles": models.LocalProfiles,
@@ -61,7 +63,7 @@ TABLE_COLUMNS = {
     "notifications": {"user_id", "project_id", "title", "body", "notification_type", "preference_key", "due_at", "read_at"},
     "document_categories": {"user_id", "slug", "display_name", "sort_order"},
     # SCHOLARDOCX-0201 added tags_json, due_at, archived_at and sort_order.
-    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned", "tags_json", "due_at", "archived_at", "sort_order"},
+    "sticky_notes": {"user_id", "title", "body", "color", "is_checklist", "checklist_json", "font", "font_size", "is_pinned", "pinned_to_dashboard", "tags_json", "due_at", "archived_at", "sort_order"},
     "degree_workspaces": {"user_id", "degree_type", "display_name", "enabled"},
     "universities": {"user_id", "name", "country", "region", "website_url", "notes"},
     "programs": {"user_id", "university_id", "name", "degree_type", "department", "application_url", "funding_url", "notes"},
@@ -347,7 +349,25 @@ class Store:
         data = self._filter_payload(table, payload)
         if not data:
             return self._row(obj)
-            
+
+        if table == "sticky_notes":
+            # Archiving takes a note off the dashboard; pinning is capped per user.
+            if data.get("archived_at"):
+                data["pinned_to_dashboard"] = 0
+            if data.get("pinned_to_dashboard") and not getattr(obj, "pinned_to_dashboard", 0):
+                already = self.db.scalar(
+                    select(func.count()).select_from(model).where(
+                        model.user_id == obj.user_id,
+                        model.pinned_to_dashboard == 1,
+                        model.archived_at.is_(None),
+                    )
+                ) or 0
+                if already >= MAX_DASHBOARD_STICKY_NOTES:
+                    raise ValueError(
+                        f"You can show up to {MAX_DASHBOARD_STICKY_NOTES} sticky notes on the dashboard. "
+                        "Remove one first."
+                    )
+
         for k, v in data.items():
             setattr(obj, k, self._normalize(v))
             
@@ -698,6 +718,18 @@ class Store:
                 """), params
             ).mappings().all()
         ]
+        pinned_notes = [
+            dict(row)
+            for row in self.db.execute(text(
+                f"""
+                SELECT *
+                FROM sticky_notes
+                WHERE pinned_to_dashboard = 1 AND archived_at IS NULL {and_clause}
+                ORDER BY updated_at DESC
+                LIMIT {MAX_DASHBOARD_STICKY_NOTES}
+                """), params
+            ).mappings().all()
+        ]
         project_pages = [
             self._decode_page(row)
             for row in self.db.execute(text(
@@ -722,6 +754,7 @@ class Store:
             "pinned_projects": pinned_projects,
             "pinned_sheets": pinned_sheets,
             "pinned_docs": pinned_docs,
+            "pinned_notes": pinned_notes,
             "calendar_items": calendar_service.build_calendar_items(
                 self.db, self.current_user_id, self._calendar_items(project_pages)
             ),

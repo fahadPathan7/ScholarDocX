@@ -186,3 +186,37 @@
 }
 .main-content .project-detail .metric-card span { color: var(--tp-muted, #4f6466); font-weight: 600; }
 .main-content .project-detail .metric-card strong { color: var(--tp-ink, #14262a); font-family: var(--font-display); font-size: 1.7rem; }
+
+/* ---- Breathing room (SCHOLARDOCX-0246): cards were packed tight ---- */
+.main-content .project-home .section-body,
+.main-content .project-detail .section-body {
+  overflow-y: auto;            /* no empty scrollbar track */
+  padding: 8px 22px 24px;
+}
+.main-content .project-group-list { gap: 36px; }
+.main-content .project-group { gap: 16px; }
+.main-content .project-card-grid,
+.main-content .sheet-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+.main-content .project-card,
+.main-content .sheet-card {
+  padding: 22px 24px 18px 26px;
+  gap: 18px;
+}
+.main-content .project-card-header,
+.main-content .sheet-card-header { gap: 12px; padding-left: 0; }
+.main-content .project-card-title-row { gap: 16px; align-items: flex-start; }
+.main-content .project-card-meta { gap: 8px 10px; margin-top: 2px; }
+.main-content .project-card-desc { margin: 2px 0 0; }
+.main-content .project-card-actions,
+.main-content .sheet-card-actions {
+  padding: 14px 0 0;
+  margin-top: 6px;
+  gap: 12px;
+}
+.main-content .project-card-pins { gap: 8px; }
+.main-content .project-card-main-actions,
+.main-content .sheet-card-main-actions { gap: 10px; }
+.main-content .project-quota-wrap { gap: 6px; }

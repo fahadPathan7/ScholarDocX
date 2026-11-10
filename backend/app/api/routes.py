@@ -388,6 +388,9 @@ def _crud_routes(table: str):
             return store.update_record(table_name, record_id, payload.data)
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            # e.g. the dashboard sticky-note cap (SCHOLARDOCX-0245)
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.delete(f"/{table}" + "/{record_id}")
     def delete_record(

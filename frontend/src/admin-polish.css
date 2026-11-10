@@ -1,0 +1,53 @@
+/* Admin panel polish (SCHOLARDOCX-0249). Scoped to #admin-view-root. Moves the indigo accents (admin.css and Tailwind
+   indigo utilities used by the tabs) to the app's teal and gives cards the shared paper look (--tp-* tokens). */
+
+#admin-view-root .admin-tab-strip {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  box-shadow: var(--tp-shadow, 0 12px 24px -16px rgba(60, 44, 14, 0.35));
+}
+#admin-view-root .admin-tab-strip button { color: var(--tp-ink-soft, #2c4244); }
+#admin-view-root .admin-tab-strip button:hover { background: var(--tp-teal-wash, #e3f2ed); color: var(--tp-teal-deep, #1f5f58); }
+#admin-view-root .admin-tab-strip button.active {
+  background: linear-gradient(135deg, var(--tp-teal, #2f7d74), var(--tp-teal-deep, #1f5f58));
+  border-color: var(--tp-teal-deep, #1f5f58);
+  color: #fff;
+  box-shadow: 0 8px 16px -8px rgba(31, 95, 88, 0.7);
+}
+
+/* cards */
+#admin-view-root .profile-system-card,
+#admin-view-root .admin-dashboard-panel,
+#admin-view-root .admin-dashboard-stat-card {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 16px;
+  box-shadow: var(--tp-shadow, 0 1px 2px rgba(60, 44, 14, 0.08), 0 14px 28px -18px rgba(60, 44, 14, 0.35));
+}
+#admin-view-root .admin-dashboard-section__title h2,
+#admin-view-root .admin-dashboard-panel__header h3 { font-family: var(--font-display); font-weight: 650; color: var(--tp-ink, #14262a); }
+#admin-view-root .admin-dashboard-stat-card__value { color: var(--tp-ink, #14262a); font-family: var(--font-display); }
+#admin-view-root .admin-dashboard-stat-card--zero { opacity: 0.8; }
+
+/* tables */
+#admin-view-root table thead { background: #f6efdc !important; }
+#admin-view-root table thead th { color: var(--tp-ink-soft, #2c4244); font-weight: 750; }
+#admin-view-root table tbody tr:hover { background: #f4faf7 !important; }
+
+/* Tailwind indigo/violet utilities used across admin tabs -> teal */
+#admin-view-root .text-indigo-600, #admin-view-root .text-indigo-700, #admin-view-root .text-indigo-500 { color: var(--tp-teal-deep, #1f5f58) !important; }
+#admin-view-root .bg-indigo-50, #admin-view-root .bg-indigo-100 { background-color: var(--tp-teal-wash, #e3f2ed) !important; }
+#admin-view-root .border-indigo-100, #admin-view-root .border-indigo-200 { border-color: rgba(47, 125, 116, 0.35) !important; }
+#admin-view-root .bg-indigo-600 { background-color: var(--tp-teal, #2f7d74) !important; }
+#admin-view-root .hover\:bg-indigo-700:hover { background-color: var(--tp-teal-deep, #1f5f58) !important; }
+#admin-view-root .ring-indigo-100 { --tw-ring-color: rgba(47, 125, 116, 0.35) !important; }
+#admin-view-root .focus\:ring-indigo-500\/50:focus { --tw-ring-color: rgba(47, 125, 116, 0.4) !important; }
+#admin-view-root .profile-primary-button {
+  background: linear-gradient(135deg, var(--tp-teal, #2f7d74), var(--tp-teal-deep, #1f5f58));
+  border: 1px solid var(--tp-teal-deep, #1f5f58);
+  border-radius: 12px;
+  font-weight: 650;
+}
+
+/* the active tab's icon must stay visible on the teal pill */
+#admin-view-root .admin-tab-strip button.active svg { color: #fff !important; stroke: #fff; }

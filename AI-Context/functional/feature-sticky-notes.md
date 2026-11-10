@@ -104,3 +104,11 @@ unarchived note behaves exactly as it did before these columns existed.
 Sticky notes are not a rich document editor. They are for quick local notes,
 short checklists, and lightweight planning. Longer academic documents remain in
 the uploaded Documents workflow.
+
+## Show on dashboard (SCHOLARDOCX-0245)
+
+- Each active note has a dashboard button (layout icon) next to the pin. It toggles `pinned_to_dashboard`, which is separate from `is_pinned` (top of the board).
+- At most 5 notes per user can be on the dashboard. The backend rejects a sixth with HTTP 400 (`MAX_DASHBOARD_STICKY_NOTES` in `backend/app/services/store.py`); the UI checks first and shows a message. Re-saving an already pinned note is never blocked.
+- Archiving a note clears the flag. Archived notes never appear on the dashboard.
+- `GET /dashboard/summary` returns `pinned_notes` (non-archived, newest change first, max 5). The dashboard shows one tinted block per note in the third column after "Next 7 Days" (title plus text or checklist preview; clicking opens Sticky Notes). With none pinned, no section is rendered.
+

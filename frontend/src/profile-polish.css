@@ -1,0 +1,72 @@
+/* Profile page polish (SCHOLARDOCX-0247). Prefixed with `.profile-page:not(#admin-view-root)` so the Admin page
+   (which reuses profile classes) is untouched. Tokens from tools-polish.css (--tp-*). */
+
+/* ---- Hero: app teal ink instead of navy/purple ---- */
+.main-content .profile-page:not(#admin-view-root) .profile-hero-wrapper {
+  background: linear-gradient(135deg, #0f2e2b 0%, #14423d 55%, #1f5f58 100%);
+  box-shadow: 0 24px 40px -22px rgba(15, 46, 43, 0.7);
+}
+.main-content .profile-page:not(#admin-view-root) .gradient-blob.shape-1 { background: radial-gradient(circle, rgba(243, 223, 168, 0.28), transparent 60%) !important; }
+.main-content .profile-page:not(#admin-view-root) .gradient-blob.shape-2 { background: radial-gradient(circle, rgba(79, 164, 151, 0.4), transparent 60%) !important; }
+.main-content .profile-page:not(#admin-view-root) .gradient-blob.shape-3 { background: radial-gradient(circle, rgba(197, 138, 27, 0.25), transparent 60%) !important; }
+.main-content .profile-page:not(#admin-view-root) .profile-hero.glass-panel { background: rgba(10, 30, 28, 0.35); }
+.main-content .profile-page:not(#admin-view-root) .profile-hero-text h2 { font-family: var(--font-display); font-size: 1.6rem; font-weight: 650; }
+.main-content .profile-page:not(#admin-view-root) .profile-avatar { width: 68px; height: 68px; border-color: rgba(243, 223, 168, 0.6); }
+
+/* ---- Section cards ---- */
+.main-content .profile-page:not(#admin-view-root) .profile-system-card {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 18px;
+  box-shadow: var(--tp-shadow, 0 1px 2px rgba(60, 44, 14, 0.08), 0 16px 30px -18px rgba(60, 44, 14, 0.35));
+  padding: 22px 24px;
+}
+.main-content .profile-page:not(#admin-view-root) .profile-system-header {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  color: var(--tp-ink, #14262a);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-system-header svg { color: var(--tp-teal, #2f7d74); }
+.main-content .profile-page:not(#admin-view-root) .profile-system-hint { color: var(--tp-muted, #4f6466); font-size: 0.86rem; }
+
+/* subscription card stands out with a teal wash and edge */
+.main-content .profile-page:not(#admin-view-root) .profile-system-card.plan-card {
+  background: linear-gradient(180deg, #eaf6f1, #d9eee6);
+  border-color: rgba(47, 125, 116, 0.45);
+  border-top: 4px solid var(--tp-teal, #2f7d74);
+}
+
+/* ---- Action rows ---- */
+.main-content .profile-page:not(#admin-view-root) .profile-actions-stack { gap: 10px; border: 0; background: transparent; box-shadow: none; overflow: visible; padding: 2px 0 4px; }
+.main-content .profile-page:not(#admin-view-root) .profile-action-row {
+  background: #fff;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 12px;
+  box-shadow: 0 6px 12px -10px rgba(60, 44, 14, 0.4);
+  padding: 13px 16px;
+  color: var(--tp-ink, #14262a);
+  font-weight: 600;
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-row:hover {
+  transform: translateY(-1px);
+  border-color: var(--tp-teal, #2f7d74);
+  background: #f4faf7;
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-chevron { color: var(--tp-teal-deep, #1f5f58); }
+
+/* ---- Logout ---- */
+.main-content .profile-page:not(#admin-view-root) .profile-logout-button {
+  background: linear-gradient(135deg, #b44a45, #8f302c);
+  border: 1px solid #8f302c;
+  border-radius: 12px;
+  font-weight: 650;
+  box-shadow: 0 10px 20px -10px rgba(143, 48, 44, 0.7);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-logout-button:hover {
+  background: linear-gradient(135deg, #c1544e, #9a3632);
+  box-shadow: 0 14px 24px -10px rgba(143, 48, 44, 0.75);
+}

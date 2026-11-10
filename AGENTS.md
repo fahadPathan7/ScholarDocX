@@ -205,6 +205,8 @@ add your own backdrop div.
 - [ ] Global TopBar (“ScholarDocX”, Ask AI) is sharp.
 - [ ] Breadcrumbs and view header ARE blurred.
 - [ ] Panel sits ~160px below the top of the work surface.
+- [ ] On short screens (<= 760px tall) the top offset shrinks to 20px and the panel
+      body scrolls inside it (SCHOLARDOCX-0234) — Cancel/Submit stay visible.
 
 Canonical CSS and full spec:
 `AI-Context/technical/frontend-visual-system.md` (“Modal backdrop blur scoping”).

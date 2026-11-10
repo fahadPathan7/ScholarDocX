@@ -18,11 +18,11 @@ What exists:
 - Coding rules
 - Testing expectations
 - FastAPI backend with JWT auth, Role-Based Access Control (RBAC), invite-code
-  registration, and optional paid self-registration (Basic/Pro/Max plans)
+  registration, and optional Google sign-in/sign-up (SCHOLARDOCX-0169)
 - PostgreSQL-backed persistence (Supabase), with cloud object storage for media
   and document uploads
-- Polar (polar.sh) billing integration for plan purchases, subscription
-  lifecycle, and webhook-reconciled activation
+- Polar (polar.sh) billing integration for plan upgrades from inside the app,
+  subscription lifecycle, and webhook-reconciled activation
 - React/Vite/TypeScript frontend with Tailwind CSS
 - Dashboard, hierarchy, documents, files, outreach, reminders, and AI assistant
 - Project workspaces created from Targets/Projects
@@ -46,7 +46,6 @@ What exists:
 
 Not included yet:
 
-- Google OAuth implementation
 - SMTP email sending
 - Full rich-text editor package
 - Automatic Gmail/Outlook attachment insertion through compose links
@@ -129,9 +128,11 @@ ScholarDocX is deployed to Render using `render.yaml` at the repo root
 - **Database / storage** — Supabase Postgres pooler URL and a storage bucket
   for media uploads.
 
-Free-tier notes: the backend Web Service sleeps after 15 min of idle. Unpaid
-pending accounts are reaped every 2h by a scheduled cleanup plus a lazy safety
-net on login (see the paid-registration Jira task).
+Free-tier notes: the backend Web Service sleeps after 15 min of idle. For
+Google sign-in also set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`GOOGLE_REDIRECT_URI` (the backend callback) and `FRONTEND_ORIGIN`; without the
+client id/secret the Google button's endpoint returns 503 and email/password
+login keeps working.
 
 ## Access Control (RBAC) & Admin setup
 
@@ -142,21 +143,22 @@ are created explicitly via `backend/scripts/create_superadmin.py`, which prompts
 for credentials. The RBAC roles and permissions are defined in
 `backend/app/services/admin.py` and seeded by `initialize_database()`.
 
-Registration flow:
+Registration flow (two paths, both start on the free plan):
 
 1. **Invite code** — an admin generates an invite code from the Admin Dashboard
-   (or via the API). New users register with the code and get the `general_user`
-   role by default.
-2. **Paid self-registration** (admin-configurable via the `registration_mode`
-   app setting) — a user can register without an invite code by purchasing a
-   Basic/Pro/Max plan at signup. The account is created inert and activates
-   automatically once the billing webhook confirms payment; unpaid accounts are
-   deleted after 2 hours. Paid registration is rate-limited to 1 request / 24h
-   per IP.
+   (or via the API). New users register with the code and get the `free_user`
+   role.
+2. **Google** (optional) — "Sign in/up with Google" runs a backend-side
+   authorization-code + PKCE flow. A new Google user gets an active free
+   account immediately; a returning user logs in directly; a Google account
+   whose verified email matches an existing user is linked to it.
+
+Paid self-registration at signup was removed (SCHOLARDOCX-0169); users upgrade
+to Basic/Pro/Max after login through the plan flow (Polar checkout).
 
 To manage users after setup: log in as a super admin to assign `pro_user` /
-`max_user` roles, generate invite codes, toggle `registration_mode`, run the
-pending-account cleanup, and adjust system limits via the Admin Dashboard.
+`max_user` roles, generate invite codes, and adjust system limits via the
+Admin Dashboard.
 
 ## Tests
 
@@ -189,7 +191,8 @@ Before implementing a new feature or modifying an existing feature:
 
 ## Important Rules
 
-- Google OAuth 2.0 / OpenID Connect may be added later as an optional identity provider.
+- Google OAuth 2.0 / OpenID Connect sign-in is implemented (SCHOLARDOCX-0169) as an optional method alongside email/password. Keep it optional, request only `openid email profile`, and keep the client secret server-side.
+- Layout is not constrained by rule: pages may scroll vertically or horizontally, wrap, or fit the viewport — whatever makes the UI best. There are no mandated no-scroll, single-row, or no-wrap restrictions (the modal-backdrop pattern in AGENTS.md is the only layout-adjacent rule).
 - Gmail/Outlook compose links can prefill to, subject, and body, but cannot automatically attach files without Gmail API or Microsoft Graph integration.
 - Records and outreach live inside project sheets, not separate navigation areas.
 - Documents are uploaded and linked; ScholarDocX does not author SOPs or proposals internally.
@@ -210,7 +213,7 @@ Before implementing a new feature or modifying an existing feature:
 ## Next Recommended Tasks
 
 - Replace the MVP textarea document surface with a richer editor when document editing becomes central.
-- Add Google OAuth only when there is clear value, such as Calendar/Gmail/Drive integration.
+- Add Google Calendar/Gmail/Drive integrations only when there is clear value (Google sign-in itself already ships).
 - Add Gmail API, Microsoft Graph, or SMTP only after web compose workflows are proven insufficient.
 
 ## Maintaining This README

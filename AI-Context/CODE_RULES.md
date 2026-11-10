@@ -229,9 +229,10 @@ If you discover a table value that doesn't match its code-level default, do not 
 
 ## UI/UX Rules
 
-- Forms with many fields must be scrollable and fit within viewport constraints.
-- Use `max-height: calc(100vh - [offset])` for forms that may grow beyond screen height.
-- Keep form headers and submit buttons visible (fixed) while field content scrolls.
+- Layout, scroll, wrap and overflow behavior is unrestricted (owner decision,
+  2026-11-10): do not add or preserve no-scroll, fixed-height, single-row or
+  `nowrap` constraints just because an older rule said so. Pick what makes the
+  UI best.
 - Always validate user input before submission and show clear error messages.
 - Provide loading states during async operations (saving, fetching, etc.).
 - Disable action buttons during operations to prevent double-submission.

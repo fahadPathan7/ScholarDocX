@@ -4,7 +4,7 @@ Requirement group: FR-6
 
 ## Status
 
-Proposed future feature. Not part of the initial MVP unless the user explicitly prioritizes it.
+Implemented. Email/password + invite-code registration and optional Google sign-in/sign-up (SCHOLARDOCX-0169). Technical detail: [authentication-and-identity.md](../technical/authentication-and-identity.md).
 
 ## Goal
 
@@ -14,10 +14,10 @@ Allow optional identity through local profile and/or Google signin without compr
 
 - FR-6.1: The app can run without remote signup/signin.
 - FR-6.2: A local user profile may store display name and preferences.
-- FR-6.3: Google signin may be added as an optional authentication provider.
+- FR-6.3: Google signin is available as an optional authentication provider (implemented, SCHOLARDOCX-0169).
 - FR-6.4: Google signin must not be required for local data access unless a later business decision changes the product.
 - FR-6.5: Google OAuth scopes must be minimal and purpose-specific.
-- FR-6.6: User must be able to disconnect Google identity without deleting secure application data.
+- FR-6.6: (Not yet implemented) User should be able to disconnect Google identity without deleting application data.
 - FR-6.7: Authenticated users should be able to explicitly log out from the Profile view.
 - FR-6.8: Admin role limit/permission settings should support reset-to-default per role.
 - FR-6.9: Users with only admin roles and no user-tier role should see user-tier
@@ -48,21 +48,13 @@ Allow optional identity through local profile and/or Google signin without compr
 - FR-6.19: A "Forget Pass Requests" admin tab lists requests by status; an admin
   may set a new password for the user (resolving the request and invalidating
   prior sessions) or dismiss the request without changing the password.
-- FR-6.20: A user may register without an invite code by purchasing a Basic,
-  Pro, or Max plan at signup; the account is inert (cannot log in) until payment
-  is confirmed by the subscription webhook. (SCHOLARDOCX-0162)
-- FR-6.21: Accounts created via the paid path that remain unpaid are completely
-  deleted after 2 hours. (SCHOLARDOCX-0162)
-- FR-6.22: Paid registration is rate-limited to one attempt per client IP per
-  24 hours. (SCHOLARDOCX-0162)
-- FR-6.23: An admin setting `registration_mode` controls which registration
-  paths are open: `invite_only`, `invite_or_paid` (default), or `paid_only`.
-  (SCHOLARDOCX-0162)
-
-Note on FR-6.1 / BD-006: the "app can run without remote signup" stance remains
-true for invite-only mode. The paid path is an additional opt-in acquisition
-channel, never a replacement for invite-code registration when
-`registration_mode=invite_only`.
+- FR-6.20: (Superseded by SCHOLARDOCX-0169) Paid self-registration at signup,
+  the 2-hour unpaid-account purge, its per-IP rate limit, and the
+  `registration_mode` setting no longer drive behavior. Registration is invite
+  code or Google; both start on the free plan and users upgrade after login.
+- FR-6.21: A new Google user gets an active free account immediately; a Google
+  email that is verified and matches an existing user auto-links to it;
+  unverified Google emails are refused.
 
 ## Google Signin User Flow
 

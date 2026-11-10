@@ -229,9 +229,11 @@ Full design in `billing-and-payments.md`. Security-relevant points:
   avatar snapshot) in `external_identities`.
 - Do not expose OAuth secrets or refresh tokens to frontend code. No
   refresh tokens are stored at all — login only needs the id_token.
-- Google sign-in does NOT create accounts. Auto-link is permitted only
-  for Google emails with `email_verified=true`. A first-time Google user
-  with no matching `users.email` is rejected with a clear message.
+- Google sign-up creates an active free account for a first-time Google
+  user (`signup_method='google'`); auto-link to an existing user is
+  permitted only for Google emails with `email_verified=true`. (Corrected
+  to match `backend/app/api/auth_google.py`; this line previously said the
+  opposite.)
 
 ## Future Considerations
 

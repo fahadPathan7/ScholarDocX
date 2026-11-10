@@ -136,12 +136,10 @@ body text. When an alert can be mapped to a source project, sheet row, or
 calendar event, clicking it should navigate to that source. Alerts without a
 linked source should show a toast-style message on click instead of navigating.
 
-The application shell should use separate scrolling regions for the left
-navigation and right workspace. The main workspace header should remain fixed
-while the workspace content scrolls.
-
-The fixed main workspace header should have a clearly distinct visual treatment
-from the scrolling content so users can understand that it remains anchored.
+The shell currently uses separate scrolling regions for the left navigation
+and right workspace, with an anchored workspace header. This is a current
+design choice, not a requirement (layout restrictions withdrawn 2026-11-10);
+if the header stays anchored it should look distinct from scrolling content.
 
 ## Important UX Rule
 

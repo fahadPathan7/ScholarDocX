@@ -127,6 +127,12 @@ unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md
 These are recurring regressions. Violating them breaks the visual system and
 must be caught before opening a PR.
 
+**Layout freedom (owner decision, 2026-11-10):** there are NO mandated scroll,
+overflow, wrap, fixed-height, or single-row restrictions anywhere in this repo.
+Any older rule or comment implying otherwise is withdrawn. Pages may scroll
+vertically/horizontally or fit the viewport as the design needs. The modal
+backdrop rule below is the only layout-adjacent rule that still applies.
+
 ### Modal backdrop blur (regressed 3+ times — read before touching modals)
 
 **Intended look:** blur covers the full `.main-content` work surface (breadcrumbs,

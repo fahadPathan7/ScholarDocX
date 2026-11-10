@@ -6,6 +6,7 @@ import { FilePickerField } from "./FilePickerField";
 import { RecordMap, fileDownloadUrl } from "../lib/api";
 import type { ColumnDef, DateColorConfig, CellStyle } from "./sheet/sheetModel";
 import { textStyleToCss, cellBoxToCss } from "./sheet/sheetModel";
+import { daysUntilLocal } from "../lib/date";
 import { CellStyleBar } from "./sheet/CellStyleBar";
 
 const CELL_EDITOR_MIN_LINES = 3;
@@ -636,11 +637,8 @@ export function CellRenderer({
 export function rowClass(row: Record<string, string>) {
   const candidate = row["Follow-up date"] || row["Scheduled send time"] || row["Date"];
   if (!candidate) return "";
-  const due = new Date(candidate);
-  if (Number.isNaN(due.getTime())) return "";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+  const days = daysUntilLocal(candidate);
+  if (days === null) return "";
   if (days <= 3) return "due-urgent";
   if (days <= 7) return "due-warning";
   if (days <= 10) return "due-watch";

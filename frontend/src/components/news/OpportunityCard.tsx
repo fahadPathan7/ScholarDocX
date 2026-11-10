@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { CalendarClock, ChevronRight, ShieldCheck } from "lucide-react";
 import { ScholarshipOpportunity } from "../../lib/scholarshipOpportunitiesApi";
+import { daysUntilLocal } from "../../lib/date";
 import { OpportunityDetailDrawer } from "./OpportunityDetailDrawer";
 
 interface OpportunityCardProps {
@@ -12,9 +13,8 @@ export const DEADLINE_RADAR_THRESHOLD_DAYS = 7;
 
 // Mirrors the sheet system's default due-date thresholds (FR-7 Date Color Rules).
 export function deadlineTone(dateStr: string): "urgent" | "warning" | "watch" | "normal" | "past" {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return "normal";
-  const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+  const days = daysUntilLocal(dateStr);
+  if (days === null) return "normal";
   if (days < 0) return "past";
   if (days <= 3) return "urgent";
   if (days <= 7) return "warning";

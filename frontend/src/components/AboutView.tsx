@@ -200,7 +200,7 @@ export function AboutView() {
         <p className="ab-footnote">
           ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning
           <br />
-          All system dates and deadlines follow UTC, not local timezone.
+          Deadlines are calendar days shown as entered; timestamps are shown in your local timezone.
         </p>
       </div>
 

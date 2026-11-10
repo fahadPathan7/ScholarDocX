@@ -237,13 +237,13 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
 
   return (
     <div
-      className={`lp-pricing-card${variantClass}`}
+      className={`lp-pricing-card${variantClass}${plan.tier === "general_user" ? " tinted" : ""}`}
       style={{
         ["--reveal-delay" as string]: `${index * 80}ms`,
         ["--tier-accent" as string]: accent[plan.tier],
       }}
     >
-      {plan.variant === "popular" && <div className="lp-pricing-card-glow" />}
+      {(plan.variant === "popular" || plan.tier === "general_user") && <div className="lp-pricing-card-glow" />}
       {plan.badge && (
         <span
           className="lp-pricing-badge-popular"

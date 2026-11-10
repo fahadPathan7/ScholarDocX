@@ -110,8 +110,16 @@
   box-shadow: var(--ui-shadow-soft);
 }
 
-.lp-pricing-card.popular .lp-pricing-card-glow {
+.lp-pricing-card.popular .lp-pricing-card-glow,
+.lp-pricing-card.tinted .lp-pricing-card-glow {
   background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--tier-accent) 18%, transparent) 0%, transparent 60%);
+}
+
+/* Basic: same accent-tinted treatment as the popular card, in academic blue. */
+.lp-pricing-card.tinted {
+  border-color: var(--tier-accent);
+  background: rgba(255, 255, 252, 0.98);
+  box-shadow: var(--ui-shadow-soft);
 }
 
 .lp-pricing-card.premium-dark {
@@ -125,10 +133,15 @@
   color: white;
 }
 
+/* Light-on-navy text needs real contrast: #94a3b8 was ~5.5:1 and read as faint
+   next to white values. These sit at roughly 11:1 (feature rows) / 9:1 (copy). */
 .lp-pricing-card.premium-dark .lp-pricing-desc,
-.lp-pricing-card.premium-dark .lp-pricing-price-period,
+.lp-pricing-card.premium-dark .lp-pricing-price-period {
+  color: #cbd5e1;
+}
+
 .lp-pricing-card.premium-dark .lp-pricing-feature-item {
-  color: #94a3b8;
+  color: #e2e8f0;
 }
 
 .lp-pricing-card-glow {
@@ -213,7 +226,7 @@
 }
 
 .lp-pricing-card.premium-dark .lp-pricing-feature-icon {
-  color: #818cf8;
+  color: #a5b4fc;
 }
 
 .lp-pricing-feature-value {

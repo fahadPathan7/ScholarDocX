@@ -3,6 +3,7 @@
 /* ------------------------------------------------------------------ */
 
 import type { ColumnDef, ColumnType } from "./sheetModel";
+import { daysUntilLocal, toLocalInstant } from "../../lib/date";
 
 /* ------------------------------------------------------------------ */
 /*  Sort direction                                                     */
@@ -171,11 +172,8 @@ function matchesFilter(value: string, filter: ColumnFilter): boolean {
     case "datePreset": {
       if (filter.preset === "all") return true;
       if (!trimmed) return filter.preset !== "overdue";
-      const d = new Date(trimmed);
-      if (isNaN(d.getTime())) return true;
-      const now = new Date();
-      const nowUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-      const diffDays = Math.ceil((d.getTime() - nowUTC.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDays = daysUntilLocal(trimmed);
+      if (diffDays === null) return true;
       switch (filter.preset) {
         case "overdue": return diffDays < 0;
         case "next3": return diffDays >= 0 && diffDays <= 3;
@@ -187,17 +185,17 @@ function matchesFilter(value: string, filter: ColumnFilter): boolean {
 
     case "dateRange": {
       if (!trimmed) return false;
-      const d = new Date(trimmed);
-      if (isNaN(d.getTime())) return false;
+      const d = toLocalInstant(trimmed);
+      if (!d) return false;
       if (filter.from) {
-        const from = new Date(filter.from);
-        if (!isNaN(from.getTime()) && d < from) return false;
+        const from = toLocalInstant(filter.from);
+        if (from && d < from) return false;
       }
       if (filter.to) {
-        const to = new Date(filter.to);
+        const to = toLocalInstant(filter.to);
         // include the whole "to" day
-        to.setHours(23, 59, 59, 999);
-        if (!isNaN(to.getTime()) && d > to) return false;
+        if (to) to.setHours(23, 59, 59, 999);
+        if (to && d > to) return false;
       }
       return true;
     }

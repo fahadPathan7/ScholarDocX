@@ -20,6 +20,7 @@ import { emitNavigate } from "../lib/tokenEvents";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
 import { useUsage } from "../contexts/UsageContext";
 import { useAuth } from "../contexts/AuthContext";
+import { toLocalInstant } from "../lib/date";
 
 type Pack = {
   code: string;
@@ -53,7 +54,8 @@ function formatTokens(n: number) {
 
 function formatDate(dateStr: string) {
   try {
-    const d = new Date(dateStr);
+    const d = toLocalInstant(dateStr);
+    if (!d) return dateStr;
     return d.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",

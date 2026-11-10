@@ -2,6 +2,7 @@ import { Bell, CheckCheck, ExternalLink, Trash2, X } from "lucide-react";
 import { api, deleteRecord, RecordMap } from "../lib/api";
 import { getNotificationSettingLabel } from "../config/notificationLabels";
 import { useDialog } from "./DialogProvider";
+import { localDateKey } from "../lib/date";
 
 export function FloatingNotifications({
   calendarItems,
@@ -158,5 +159,5 @@ function dateKey(value: unknown) {
   }
   const parsed = new Date(String(value));
   if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString().slice(0, 10);
+  return localDateKey(parsed);
 }

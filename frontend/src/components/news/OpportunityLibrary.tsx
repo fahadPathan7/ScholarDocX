@@ -8,6 +8,7 @@ import {
   updateScholarshipOpportunity,
 } from "../../lib/scholarshipOpportunitiesApi";
 import { notify } from "../../lib/api";
+import { daysUntilLocal, localDateKey } from "../../lib/date";
 import { OpportunityCard, DEADLINE_RADAR_THRESHOLD_DAYS, deadlineTone, nearestDeadlineOf } from "./OpportunityCard";
 
 const STATUS_OPTIONS: ScholarshipOpportunity["status"][] = [
@@ -30,13 +31,12 @@ function nearestDeadlineDate(opportunity: ScholarshipOpportunity): string {
 }
 
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function isWithinRadarThreshold(dateStr: string): boolean {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return false;
-  const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+  const days = daysUntilLocal(dateStr);
+  if (days === null) return false;
   return days >= 0 && days <= DEADLINE_RADAR_THRESHOLD_DAYS;
 }
 

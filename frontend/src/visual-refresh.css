@@ -2337,3 +2337,14 @@ main {
 .modal-backdrop-main > .modal-panel {
   max-width: calc(100% - 32px) !important;
 }
+
+/* Short laptop screens: reclaim the 80px top offset and let panels use nearly
+   the whole work surface; panel bodies scroll internally (SCHOLARDOCX-0234). */
+@media (max-height: 760px) {
+  .modal-backdrop-main {
+    padding-top: 20px;
+  }
+  .modal-backdrop-main > .modal-panel {
+    max-height: calc(100% - 8px) !important;
+  }
+}

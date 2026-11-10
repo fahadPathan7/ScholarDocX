@@ -30,7 +30,7 @@ function statusTone(status: string) {
   return "bg-amber-100 text-amber-700";
 }
 
-export function TokenPurchaseRequestsTab() {
+export function TokenPurchaseRequestsTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const [requests, setRequests] = useState<PurchaseRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "Pending" | "Approved" | "Rejected" | "Cancelled">("all");
@@ -50,7 +50,7 @@ export function TokenPurchaseRequestsTab() {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [refreshTrigger]);
 
   const visibleRequests = useMemo(() => {
     let base = requests;

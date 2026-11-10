@@ -116,7 +116,7 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   background: #e0e7ff;
-  color: #4338ca;
+  color: #1f5f58;
   font-size: 0.75rem;
   font-weight: 600;
   margin-right: 0.25rem;
@@ -199,15 +199,15 @@
 }
 
 .admin-tab-strip button:focus-visible {
-  outline: 3px solid rgba(99, 102, 241, 0.28);
+  outline: 3px solid rgba(47, 125, 116, 0.28);
   outline-offset: 2px;
 }
 
 .admin-tab-strip button.active {
-  border-color: rgba(99, 102, 241, 0.26);
+  border-color: rgba(47, 125, 116, 0.26);
   background: #ffffff;
   color: #3730a3;
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 8px 18px rgba(47, 125, 116, 0.12);
 }
 
 .admin-tab-strip button svg {
@@ -216,7 +216,7 @@
 }
 
 .admin-tab-strip button.active svg {
-  color: #4f46e5;
+  color: #2f7d74;
 }
 
 /* Compact gradient action button for the App Settings config cards.
@@ -226,7 +226,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  background: linear-gradient(135deg, #2f7d74, #1f5f58);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
@@ -234,15 +234,15 @@
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.18);
+  box-shadow: 0 2px 6px rgba(47, 125, 116, 0.18);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   cursor: pointer;
 }
 
 .admin-config-btn:hover {
-  background: linear-gradient(135deg, #4338ca, #3730a3);
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.26);
+  background: linear-gradient(135deg, #1f5f58, #3730a3);
+  box-shadow: 0 4px 10px rgba(47, 125, 116, 0.26);
   transform: translateY(-1px);
 }
 
@@ -337,8 +337,8 @@
   place-items: center;
   border-radius: 10px;
   background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-  color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+  color: #2f7d74;
+  box-shadow: 0 2px 8px rgba(47, 125, 116, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
   flex: 0 0 auto;
 }
 
@@ -401,16 +401,16 @@
 }
 
 .admin-dashboard-subtab:hover {
-  color: #4f46e5;
+  color: #2f7d74;
   background: rgba(238, 242, 255, 0.6);
 }
 
 .admin-dashboard-subtab--active,
 .admin-dashboard-subtab--active:hover {
   color: #fff;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, #3a9a8d, #2f7d74);
   border-color: transparent;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(47, 125, 116, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* ── Stat card grid ──────────────────────────────────────────── */
@@ -625,7 +625,7 @@
   bottom: 8px;
   width: 3.5px;
   border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, var(--admin-stat-color, #4f46e5), color-mix(in srgb, var(--admin-stat-color, #4f46e5) 60%, transparent));
+  background: linear-gradient(180deg, var(--admin-stat-color, #2f7d74), color-mix(in srgb, var(--admin-stat-color, #2f7d74) 60%, transparent));
   opacity: 0.85;
   transition: opacity 0.2s ease;
 }
@@ -639,7 +639,7 @@
 .admin-dashboard-stat-card:hover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 12px 36px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.06);
-  border-color: color-mix(in srgb, var(--admin-stat-color, #4f46e5) 25%, rgba(203, 213, 225, 0.55));
+  border-color: color-mix(in srgb, var(--admin-stat-color, #2f7d74) 25%, rgba(203, 213, 225, 0.55));
   z-index: 10;
 }
 
@@ -661,8 +661,8 @@
   place-items: center;
   border-radius: 10px;
   background: var(--admin-stat-bg, #eef2ff);
-  color: var(--admin-stat-color, #4f46e5);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--admin-stat-color, #4f46e5) 15%, transparent),
+  color: var(--admin-stat-color, #2f7d74);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--admin-stat-color, #2f7d74) 15%, transparent),
     inset 0 0 0 1px rgba(255, 255, 255, 0.7);
   flex: 0 0 auto;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -670,7 +670,7 @@
 
 .admin-dashboard-stat-card:hover .admin-dashboard-stat-card__icon {
   transform: scale(1.06);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--admin-stat-color, #4f46e5) 22%, transparent),
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--admin-stat-color, #2f7d74) 22%, transparent),
     inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
@@ -705,8 +705,8 @@
 /* ── Tone color variants ─────────────────────────────────────── */
 .admin-dashboard-stat-card--indigo {
   --admin-stat-bg: #eef2ff;
-  --admin-stat-color: #4f46e5;
-  --admin-glow-color: rgba(79, 70, 229, 0.25);
+  --admin-stat-color: #2f7d74;
+  --admin-glow-color: rgba(47, 125, 116, 0.25);
 }
 
 .admin-dashboard-stat-card--emerald {
@@ -780,7 +780,7 @@
 
 .admin-dashboard-panel:hover {
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
-  border-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(47, 125, 116, 0.2);
 }
 
 .admin-dashboard-panel__header {
@@ -802,7 +802,7 @@
 }
 
 .admin-dashboard-panel__header svg {
-  color: #6366f1;
+  color: #3a9a8d;
   flex: 0 0 auto;
 }
 

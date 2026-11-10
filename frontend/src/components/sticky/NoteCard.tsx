@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, CalendarClock, Check, FileText, ListChecks, PenTool, Pin, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarClock, Check, FileText, LayoutDashboard, ListChecks, PenTool, Pin, Trash2 } from "lucide-react";
 import { SketchCanvas } from "./SketchCanvas";
 import {
   checklistProgress,
@@ -33,6 +33,7 @@ export function NoteCard({
   onOpen,
   onToggleItem,
   onTogglePin,
+  onToggleDashboard,
   onArchive,
   onDelete,
   onDragStart,
@@ -50,6 +51,8 @@ export function NoteCard({
   onOpen: (note: Note) => void;
   onToggleItem: (note: Note, itemId: string) => void;
   onTogglePin: (note: Note) => void;
+  /** Show / hide this note on the dashboard (SCHOLARDOCX-0245). */
+  onToggleDashboard?: (note: Note) => void;
   onArchive: (note: Note) => void;
   onDelete: (note: Note) => void;
   onDragStart?: (note: Note) => void;
@@ -114,6 +117,18 @@ export function NoteCard({
         >
           <Pin size={13} fill={note.is_pinned ? "currentColor" : "none"} />
         </button>
+        {!archived && onToggleDashboard ? (
+          <button
+            type="button"
+            className={`sticky-action-btn ${note.pinned_to_dashboard ? "active" : ""}`}
+            onClick={only(() => onToggleDashboard(note))}
+            aria-pressed={Boolean(note.pinned_to_dashboard)}
+            title={note.pinned_to_dashboard ? "Remove from dashboard" : "Show on dashboard"}
+            aria-label={note.pinned_to_dashboard ? "Remove from dashboard" : "Show on dashboard"}
+          >
+            <LayoutDashboard size={13} />
+          </button>
+        ) : null}
         <button
           type="button"
           className="sticky-action-btn"

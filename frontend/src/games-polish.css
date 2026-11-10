@@ -1,0 +1,57 @@
+/* Brain Games polish (SCHOLARDOCX-0248). CSS only; covers the header, game picker and start card.
+   Per-game boards keep their own styles in components/games/brain-games.css. Tokens from tools-polish.css (--tp-*). */
+
+.main-content .brain-games-header {
+  background: linear-gradient(135deg, #fffdf8 0%, #f3ecda 100%);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-top: 4px solid var(--tp-teal, #2f7d74);
+  border-radius: 18px;
+  box-shadow: var(--tp-shadow, 0 16px 30px -18px rgba(60, 44, 14, 0.35));
+}
+.main-content .brain-games-header h1,
+.main-content .brain-games-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 650;
+  color: var(--tp-ink, #14262a);
+}
+.main-content .brain-games-eyebrow { color: var(--tp-teal-deep, #1f5f58); font-weight: 750; letter-spacing: 0.14em; }
+.main-content .brain-games-header p { color: var(--tp-ink-soft, #2c4244); }
+
+/* game picker tiles */
+.main-content .brain-games-picker { gap: 14px; }
+.main-content .brain-games-picker button {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(60, 44, 14, 0.08), 0 12px 20px -16px rgba(60, 44, 14, 0.4);
+  color: var(--tp-ink, #14262a);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.main-content .brain-games-picker button:hover { transform: translateY(-2px); border-color: var(--tp-teal, #2f7d74); }
+.main-content .brain-games-picker button strong { color: var(--tp-ink, #14262a); font-weight: 700; }
+.main-content .brain-games-picker button small { color: var(--tp-muted, #4f6466); }
+.main-content .brain-games-picker button.active {
+  background: linear-gradient(135deg, #e3f2ed, #d2eadf);
+  border-color: var(--tp-teal, #2f7d74);
+  box-shadow: inset 4px 0 0 var(--tp-teal, #2f7d74), 0 14px 24px -16px rgba(31, 95, 88, 0.5);
+}
+
+/* start card */
+.main-content .game-start {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 18px;
+  box-shadow: var(--tp-shadow, 0 16px 30px -18px rgba(60, 44, 14, 0.35));
+}
+.main-content .game-start h2,
+.main-content .game-start h3 { font-family: var(--font-display); font-weight: 650; color: var(--tp-ink, #14262a); }
+.main-content .game-start p { color: var(--tp-ink-soft, #2c4244); }
+.main-content .game-start-mark { box-shadow: 0 14px 24px -12px rgba(31, 95, 88, 0.7); }
+.main-content .game-start-btn {
+  background: linear-gradient(135deg, var(--tp-teal, #2f7d74), var(--tp-teal-deep, #1f5f58));
+  border: 1px solid var(--tp-teal-deep, #1f5f58);
+  border-radius: 12px;
+  font-weight: 650;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 10px 20px -10px rgba(31, 95, 88, 0.7);
+}

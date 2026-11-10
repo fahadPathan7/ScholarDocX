@@ -15,6 +15,8 @@ const POLL_INTERVAL_MS = 3000;
 const IN_FLIGHT_STATUSES: DeepHuntRun["status"][] = ["queued", "running"];
 
 interface DeepHuntViewProps {
+  /** Bumped by the header Refresh: reload the run list and the open run in place. */
+  refreshTrigger?: number;
   onToast: (msg: string) => void;
   canUseDeepHunt: boolean;
   /** SCHOLARDOCX-0218: opens the plans view from the locked-state upgrade
@@ -37,7 +39,7 @@ function stageLabel(stage: string): string {
   return labels[stage] || stage;
 }
 
-export function DeepHuntView({ onToast, canUseDeepHunt, onUpgrade }: DeepHuntViewProps) {
+export function DeepHuntView({ onToast, canUseDeepHunt, onUpgrade, refreshTrigger }: DeepHuntViewProps) {
   const [runs, setRuns] = useState<DeepHuntRun[]>([]);
   const [activeRun, setActiveRun] = useState<DeepHuntRun | null>(null);
   const [isLoadingRuns, setIsLoadingRuns] = useState(true);
@@ -83,6 +85,17 @@ export function DeepHuntView({ onToast, canUseDeepHunt, onUpgrade }: DeepHuntVie
   useEffect(() => {
     loadRuns();
   }, []);
+
+  // Header Refresh: reload the history list and the open run without touching
+  // the goal text or the selected run.
+  useEffect(() => {
+    if (!refreshTrigger || refreshTrigger <= 0) return;
+    void refreshRuns();
+    if (activeRun) {
+      scholarshipDeepHuntApi.getRun(activeRun.id).then(setActiveRun).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   useEffect(() => {
     if (pollRef.current) {

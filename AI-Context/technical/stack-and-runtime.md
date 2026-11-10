@@ -1,16 +1,6 @@
 # Stack And Runtime
 
-## Recommended Stack From Source Notes
-
-- Frontend: Next.js or React/Vite with Tailwind CSS.
-- Backend: Python FastAPI.
-- Database: PostgreSQL (Supabase).
-- Storage: secure file system (original; migrated to Supabase Storage in SCHOLARDOCX-0139).
-- AI providers: GLM AI API and Tavily API.
-
-## Current Stack Decision Status
-
-Accepted for MVP.
+## Stack
 
 Frontend:
 

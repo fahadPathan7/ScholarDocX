@@ -387,7 +387,7 @@ export function ResearchExpertView({
 
   // Layout controls: collapsible library sidebar + collapsible prompts section so
   // the analysis output is not buried below the (now 12) prompt cards.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(true); // library starts collapsed
   const [promptsCollapsed, setPromptsCollapsed] = useState<boolean>(false);
 
   // Saved analysis outputs (max 10 per paper).
@@ -503,10 +503,8 @@ export function ResearchExpertView({
           // Update active paper with fresh data from the list
           setActivePaper(currentPaper);
         }
-      } else if (res.papers.length > 0) {
-        // No active paper, select the first one
-        selectPaper(res.papers[0].id);
       }
+      // Nothing is selected until the user picks a paper (no auto-select).
     } catch (err: any) {
       console.error("Failed to list research papers:", err);
       setErrorMsg(err.message || "Failed to load research papers");
@@ -520,6 +518,12 @@ export function ResearchExpertView({
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0 && canUseExpert) {
       loadPapers();
+      // Also re-read the open paper and its saved analyses in place (keeps the
+      // selected paper, the typed prompt, and any on-screen answer).
+      if (activePaperId) {
+        getResearchPaper(activePaperId).then(setActivePaper).catch(() => {});
+        loadSavedAnalyses(activePaperId);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);

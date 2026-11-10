@@ -175,6 +175,32 @@ def test_sticky_notes_are_persisted_and_counted(tmp_path):
         store.db.close()
 
 
+def test_sticky_notes_dashboard_pin_is_capped_and_archive_clears_it(tmp_path):
+    """SCHOLARDOCX-0245: at most 5 notes on the dashboard; archived notes leave it."""
+    import pytest
+
+    store, connection = make_store(tmp_path)
+    try:
+        notes = [store.create_record("sticky_notes", {"title": f"Note {i}", "body": ""}) for i in range(6)]
+        for note in notes[:5]:
+            assert store.update_record("sticky_notes", note["id"], {"pinned_to_dashboard": 1})["pinned_to_dashboard"] == 1
+
+        with pytest.raises(ValueError):
+            store.update_record("sticky_notes", notes[5]["id"], {"pinned_to_dashboard": 1})
+        assert len(store.dashboard_summary()["pinned_notes"]) == 5
+
+        # Re-saving an already pinned note is not blocked by the cap.
+        store.update_record("sticky_notes", notes[0]["id"], {"pinned_to_dashboard": 1, "title": "Renamed"})
+
+        # Archiving clears the flag and frees a slot.
+        archived = store.update_record("sticky_notes", notes[1]["id"], {"archived_at": "2026-11-10T10:00:00Z"})
+        assert archived["pinned_to_dashboard"] == 0
+        assert len(store.dashboard_summary()["pinned_notes"]) == 4
+        assert store.update_record("sticky_notes", notes[5]["id"], {"pinned_to_dashboard": 1})["pinned_to_dashboard"] == 1
+    finally:
+        store.db.close()
+
+
 def test_render_email_template_replaces_known_variables():
     text = render_text("Dear {{ professor_name }}, {{missing}}", {"professor_name": "Dr. Rahman"})
 

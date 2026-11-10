@@ -75,8 +75,8 @@ produced a result that was filtered out and never shown.
 > fallback, and every Advisor Atlas web search — and all OpenRouter charges
 > evaluated to zero. All are now charged. Two user-visible figures legitimately
 > increased as a result: the credits reported per Advisor Atlas run, and the
-> charge for embedding a long paper. Coverage table:
-> [technical/ai-token-economy.md](../technical/ai-token-economy.md#billing-coverage-scholardocx-0204--audited-and-fixed-2026-07-29).
+> charge for embedding a long paper. Contract:
+> [technical/billing-contract.md](../technical/billing-contract.md).
 
 ## Admin Behavior
 

@@ -1,13 +1,10 @@
 # AI-Context
 
-Compact, structured project context for AI-DLC development. The goal is to let a
-future agent understand the project without replaying long chats or reading the
-whole codebase.
+Compact project context for AI-DLC development, so an agent can understand the project
+without replaying chats or reading the whole codebase.
 
-**This file is a map, not a brain.** It says where things live and in what order
-to read them. It deliberately holds no rules of its own — a duplicated rule is a
-rule that will drift, and this file used to carry ~55 lines of billing detail
-that named four functions which never existed (SCHOLARDOCX-0205).
+**This file is a map, not a rulebook.** It says where things live and in what order to
+read them. Each rule has one home (see "Where The Rules Live"); link to it, never restate it.
 
 ## Folder Map
 
@@ -16,15 +13,13 @@ that named four functions which never existed (SCHOLARDOCX-0205).
 | [business](business) | goals, users, decisions, metrics, risks | living — must match today |
 | [functional](functional) | features, requirements, acceptance criteria | living — must match today |
 | [technical](technical) | architecture, stack, storage, APIs, integrations, testing | living — must match today |
-| [workflows](workflows) | the AI-DLC process rules themselves | living — must match today |
+| [workflows](workflows) | the AI-DLC process rules | living — must match today |
 | [planbook](planbook) | pre-implementation plans for large features | point-in-time |
 | [jira-tasks](jira-tasks) | task files used to execute work | point-in-time |
 
-The lifetime column matters. **Living context describes the present** and is
-corrected when the code moves. **Point-in-time files describe a moment** — a
-completed task naming a file that was later deleted is an accurate record, not a
-defect, and editing it to match today would falsify history. The drift guard
-checks living context only, for exactly this reason.
+**Living** context describes the present and is corrected when code moves. **Point-in-time**
+files (planbook, Jira tasks) record a moment; never edit them to match today. The drift guard
+(`make guard-context`) checks living context only.
 
 Skills live in `.agents/skills`, `.claude/skills`, and `.codex/skills`.
 
@@ -32,7 +27,7 @@ Skills live in `.agents/skills`, `.claude/skills`, and `.codex/skills`.
 
 1. Root agent rules: [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), [CODE_RULES.md](CODE_RULES.md).
 2. This file.
-3. The relevant repo-carried skill.
+3. The relevant skill in `.claude/skills`.
 4. The active Jira task.
 5. The planbook entry, when the task links one.
 6. Only the business / functional / technical files the task actually touches.
@@ -49,7 +44,8 @@ Each rule has exactly one home. Link to it; do not restate it.
 | Credit economy, balances, coverage | [technical/ai-token-economy.md](technical/ai-token-economy.md) |
 | Subscriptions and payment | [technical/billing-and-payments.md](technical/billing-and-payments.md) |
 | Provider integration detail | [technical/ai-integrations.md](technical/ai-integrations.md) |
-| File size, modularity, testing | [CODE_RULES.md](CODE_RULES.md) |
+| File size, modularity, testing, repo hygiene | [CODE_RULES.md](CODE_RULES.md) |
+| Agent rules, workflow, UI hard rules (modals, copy) | [AGENTS.md](../AGENTS.md) |
 | Security, privacy, data boundaries | [technical/security-privacy.md](technical/security-privacy.md) |
 | UI, theming, responsiveness | [technical/frontend-visual-system.md](technical/frontend-visual-system.md), [technical/responsive-design-system.md](technical/responsive-design-system.md) |
 | Process, handoff, branching | [workflows](workflows) |
@@ -85,8 +81,3 @@ Use relative links for repository files so context survives a move.
 Run the `scholardocx-context-audit` skill. It runs the mechanical drift check
 first, then works through the judgment questions the script cannot answer —
 staleness, contradiction, duplication, and orphaned context.
-
-## Historical Note
-
-The project began as two root files, `business.md` and `functional.md`. Both were
-deleted after their content was absorbed here.

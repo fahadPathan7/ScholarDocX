@@ -1,223 +1,40 @@
 # Testing Strategy
 
-## Testing Goals
+Goal: protect user data, workflow correctness, and the AI/billing boundaries.
 
-Protect local data, workflow correctness, and AI integration boundaries.
+## Rules
 
-## Feature Testing Rule
+- Add or update tests when a feature introduces business logic, data transformation, validation, persistence, API boundary behaviour, provider or integration boundaries, or file/storage behaviour. If none is needed, the Jira task says why.
+- Every Jira task lists planned and actual verification, and the tests added, updated, or intentionally skipped with the reason.
+- **Never execute tests on your own initiative.** Writing and updating tests after feature work is mandatory; running them (`pytest`, `npm test`, `make test`, `make check`) only happens when the user explicitly asks in that session ([CODE_RULES.md](../CODE_RULES.md) Testing Rules).
+- Backend tests mutate the database. Never permanently mutate shared or global state for a test; prefer `monkeypatch` over real writes to shared rows such as `app_settings` (see CODE_RULES.md).
 
-Every feature should add or update unit tests when it introduces:
+## Priority areas
 
-- Business logic
-- Data transformation
-- Validation
-- Persistence logic
-- API boundary behavior
-- Provider or integration boundaries
-- File system behavior
+Workspace and database initialization; schema and migrations; path validation and file storage; per-user isolation and role limits; project/sheet persistence and dashboard aggregation; billing and credit enforcement; AI provider boundary behaviour; authentication (email/password, invite codes, Google callback and account linking).
 
-If unit tests are not needed, the Jira task must explain why.
+## Backend
 
-**Never execute tests on your own initiative.** Creating/updating test files
-after feature work is mandatory; running them (`pytest`, `npm test`, `make
-test`, `make check`, etc.) is not — only run tests when the user explicitly
-asks in that session. See [CODE_RULES.md](../CODE_RULES.md) Testing Rules.
+Tests live in `backend/tests/`: `smoke/` (core-path boot checks), `regression/` (guards against known past bugs: security bypasses, IDOR, billing), and `unit/` (service, API, and persistence logic, the bulk). Shared fixtures and helpers are in `conftest.py` and `helpers.py`.
 
-## Priority Areas
+- **Isolated test database.** The suite reads `DATABASE_URL` from the repo-root `.env`, which would point at the real database, so run it against a throwaway Docker Postgres (SCHOLARDOCX-0209): `make test-db-start` (Postgres + pgvector on `localhost:5433`, copies `.env.test.example` to `.env.test` on first run), `make test-backend`, `make test-db-stop`, `make test-db-reset`. `conftest.py` loads `.env` then `.env.test` with `override=True`, so everything downstream follows the single `settings.database_target` chokepoint; the schema creates itself on first import. `.env.test` is gitignored; without it the suite falls back to `.env`, so never run it that way against real data.
+- **Fixtures and ORM hygiene**: `cleanup_user_records` in `tests/helpers.py` commits after deleting dependent FK rows; tests mixing raw SQL writes with ORM queries call `store.db.expire_all()`; fixtures that seed `AppSettings` set every product key explicitly.
+- **Parallelism**: `pytest.ini` runs `-n auto --dist loadscope` (one module per worker, modules in parallel), so two files touching the same global row can race; keep global-state tests on `monkeypatch`.
+- **Markers** (`--strict-markers`): `smoke` (fast core path; tag a feature's happy-path test), `regression` (tag the test for every fixed bug), `slow` (network-heavy). A test in `smoke/` or `regression/` carries the matching marker, so a category runs by folder or by marker.
+- What to cover: startup configuration, workspace and storage behaviour, database operations, service logic, file path safety, missing-key behaviour, mocked provider failures, and the Google callback and linking paths.
 
-1. Workspace initialization.
-2. PostgreSQL schema and migrations.
-3. Path validation and file storage.
-4. Application hierarchy and dashboard aggregation.
-5. Document versioning.
-6. Outreach reminders.
-7. AI provider boundary behavior.
-8. Optional authentication and identity behavior.
+## Frontend
 
-## Backend Testing
+Unit tests run with vitest (`npm test` in `frontend/`). There is no DOM test environment, so logic is extracted into plain modules that live next to their feature (for example `components/sheet/__tests__/`, `lib/__tests__/`, `lib/games/`, `lib/stickyNotes.ts`) and are tested there; components only render and handle input. Date-sensitive logic is tested under several timezones (UTC, Asia/Dhaka, US/Hawaii).
 
-### Test database (Docker) — run tests against an isolated DB, never production
+## Static guards
 
-Backend tests mutate the database (they create/delete users, projects, rows).
-The suite reads `DATABASE_URL` from the repo-root `.env` via
-`tests/conftest.py`, which — left to itself — points at the production Supabase
-database. To keep test data out of production, run the suite against a
-throwaway Docker Postgres instead:
+`make guards` runs `guard-billing` (every provider call charges the user), `guard-context` (living context references real code), and `guard-css` (three sheet and sticky-note CSS regressions). They are instant and cover failure modes review keeps missing.
 
-```bash
-make test-db-start    # Postgres + pgvector on localhost:5433
-make test-backend      # suite uses the Docker DB automatically
-make test-db-stop      # stop the container (keeps its data volume)
-make test-db-reset     # wipe and recreate the DB from scratch
-```
+## Manual verification (UI work)
 
-How it works (SCHOLARDOCX-0209): `conftest.py` loads `.env` first, then loads
-`.env.test` with `override=True` if it exists. `make test-db-start` copies
-`.env.test.example` to `.env.test` on first run, so the Docker `DATABASE_URL`
-takes precedence over the prod value. Everything downstream — `Settings()`,
-`make_settings`, the autouse cleanup fixtures, and import-time
-`initialize_database()` — picks up the Docker URL through the single
-`settings.database_target` chokepoint. The schema creates itself on first test
-import; no manual setup is needed.
+Run the dev servers, open the app in a browser, and check the changed screens at desktop and phone widths (about 1280x600, 1440x800, 390x700): no clipped or overlapping content, key workflows usable, modals inside the work surface. Dashboard, forms and validation, empty and error states, and AI confirmation and response display are checked by hand until a DOM test environment exists.
 
-`.env.test` is gitignored. If it is absent, the suite falls back to `.env`'s
-`DATABASE_URL` as before, so the change is backwards-compatible. Infra detail
-lives in `docker-compose.test.yml` (do not use it for dev or prod).
+## Gate
 
-Test:
-
-- Startup configuration.
-- Workspace folder creation.
-- Database operations.
-- Service logic.
-- File path safety.
-- Missing API key behavior.
-- Mocked GLM and Tavily failures.
-- Optional Google OAuth callback and local profile linking if auth is implemented.
-
-### Shared Database Fixtures & ORM Hygiene
-
-- **Pre-cleanup Commit & Session Rollback**: `cleanup_user_records` in `tests/helpers.py` explicitly calls `connection.commit()` after deleting dependent FK rows and user records. Test seed helpers (`_seed_user`) call `connection.db.rollback()` prior to cleanup to drop any uncommitted session state and release open table locks on PostgreSQL, preventing `UniqueViolation` and `DeadlockDetected` errors across repeated test runs.
-- **ORM Session Expiration**: Tests mixing raw SQL writes and SQLAlchemy ORM model queries must invoke `store.db.expire_all()` to flush/invalidate stale instances in the session identity map before asserting scalar database values.
-- **Product Settings Isolation**: Fixtures seeding `AppSettings` (`_seed_polar_products`) explicitly set all product keys (`basic`, `pro`, `max` monthly/quarterly) to distinct values so `handle_subscription_updated` role resolution remains isolated between test runs.
-
-### Test folder organization
-
-Backend tests live in `backend/tests/` organized into three category folders:
-
-```
-backend/tests/
-├── conftest.py          # autouse fixtures + sys.path setup (stays at root)
-├── helpers.py           # shared test helpers (make_settings, make_user, etc.)
-├── smoke/               # core-path boot checks (workspace, DB seeding, auth basics)
-├── regression/          # guards against known past bugs (security bypasses, IDOR)
-└── unit/                # service/API/persistence logic (the bulk of the suite)
-```
-
-**Folder = category; marker = runnable subset.** They stay in sync: a test in
-`smoke/` should carry `@pytest.mark.smoke`, a test in `regression/` should
-carry `@pytest.mark.regression`. This lets you run a category by folder OR by
-marker:
-
-```bash
-.venv/bin/pytest tests/smoke/       # by folder
-.venv/bin/pytest -m smoke           # by marker (same result)
-```
-
-When adding a new test file, place it in the folder matching its purpose and
-tag its tests with the corresponding marker.
-
-MVP command:
-
-```bash
-cd backend
-.venv/bin/pytest
-```
-
-## Frontend Testing
-
-Unit tests run with vitest (introduced in SCHOLARDOCX-0118, dev-only):
-
-```bash
-cd frontend
-npm test
-```
-
-Pure logic modules (no DOM needed) live next to their feature in
-`__tests__/` folders — e.g. `src/components/sheet/__tests__/` covers sort
-comparators, filter predicates, TSV/CSV parsing, and undo/redo history.
-Extract logic out of components/hooks into plain modules so it stays
-testable without a DOM environment.
-
-Also test (manually until a DOM test environment is added):
-
-- Dashboard rendering.
-- Forms and validation.
-- Empty states.
-- Error states.
-- Document editor save flow.
-- Email draft generation flow.
-- AI confirmation and response display.
-
-## Manual Verification
-
-For UI tasks:
-
-- Start local dev server.
-- Open the app in browser.
-- Verify desktop and mobile layouts when relevant.
-- Confirm no text overlaps and key workflows are usable.
-
-## Regression Gate
-
-A regression gate runs both suites locally and fails on any regression, so a
-broken change cannot land silently.
-
-### CI
-
-GitHub Actions CI was removed (SCHOLARDOCX-0139). There is no automated test
-gate on push. Run the test suites locally before deploying — Render auto-deploys
-on every push to `main` regardless of test status.
-
-### Local gate
-
-`make check` runs both test suites plus the frontend build, and `make test`
-runs both suites without the (slower) build:
-
-```bash
-make check       # backend tests + frontend tests + frontend build
-make test        # backend tests + frontend tests (no build)
-make test-backend  # backend only
-make test-frontend # frontend only
-```
-
-Before pushing, `make check` should be run locally — there is no CI safety
-net to catch regressions otherwise. As with all test execution, only run it
-when the user explicitly asks; otherwise remind the user to run it themselves
-before they push.
-
-### Fast feedback: smoke and regression subsets
-
-For a quick sanity check during development, run the tagged subsets instead of
-the full suite:
-
-```bash
-make smoke       # ~7 core-path tests in ~1s (workspace, persistence, path safety, auth basics)
-make regression  # the 5 regression-guarded tests (auth register/login, JWT forgery, IDOR scoping)
-make test-fast   # full backend suite excluding any @pytest.mark.slow tests
-```
-
-These are **subsets, not a substitute for the gate**. Always run `make check`
-before pushing; the smoke/regression targets are for local iteration speed.
-
-### Test markers
-
-Backend tests support markers registered in `backend/pytest.ini`
-(`--strict-markers` is on, so typos are caught):
-
-- `@pytest.mark.smoke` — fast core-path tests safe to run on every change.
-- `@pytest.mark.regression` — guards against a known past regression.
-- `@pytest.mark.slow` — long-running or network-heavy tests.
-
-Tag conventions:
-
-- When adding a new feature, tag its core happy-path test `@pytest.mark.smoke`
-  so it joins the fast feedback loop.
-- When fixing a bug, tag the regression test with `@pytest.mark.regression`
-  so it stays in the guarded baseline.
-- Tag network-heavy or slow tests `@pytest.mark.slow` so `make test-fast` and
-  `pytest -m "not slow"` can skip them.
-
-You can also run subsets directly with `-m`:
-
-```bash
-cd backend && .venv/bin/pytest -m smoke      # same as `make smoke`
-cd backend && .venv/bin/pytest -m regression # same as `make regression`
-cd backend && .venv/bin/pytest -m "not slow" # same as `make test-fast`
-```
-
-## Task-Level Rule
-
-Each Jira task must list planned verification and actual verification results.
-
-Each Jira task must also list unit tests added, updated, or intentionally skipped with reason.
+There is no CI: GitHub Actions has only scheduled maintenance jobs, and Render auto-deploys every push to `main` regardless of tests. `make check` (backend tests, frontend tests, frontend build) is the local gate; `make test` skips the build; `make smoke`, `make regression`, and `make test-fast` are quick subsets, not a substitute. As with all test execution, run them only when the user asks; otherwise remind the user to run `make check` before pushing.

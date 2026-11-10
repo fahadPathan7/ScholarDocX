@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive, Plus, RotateCcw, Search, StickyNote } from "lucide-react";
 import { api, deleteRecord, notify, RecordMap } from "../../lib/api";
+import { emitDashboardChanged } from "../../lib/tokenEvents";
 import { useDialog } from "../DialogProvider";
 import { NoteCard } from "./NoteCard";
 import { NoteComposer, draftFromNote, draftIsEmpty, draftToPayload, emptyDraft, type NoteDraft, type SaveState } from "./NoteComposer";
@@ -21,6 +22,8 @@ import {
 import "./sticky-notes.css";
 import "./sticky-controls.css";
 
+// Matches MAX_DASHBOARD_STICKY_NOTES in backend/app/services/store.py (SCHOLARDOCX-0245).
+const MAX_DASHBOARD_NOTES = 5;
 const SORT_STORAGE_KEY = "scholardocx.stickynotes.sort";
 
 /** How long a deleted note can be brought back. */
@@ -94,6 +97,8 @@ export function StickyNotesView({
         const saved = await api.patch<RecordMap>(`/sticky_notes/${note.id}`, { data });
         setNotes((current) => current.map((existing) => (existing.id === note.id ? { ...existing, ...saved } : existing)));
         setViewingNote((current) => (current?.id === note.id ? { ...current, ...saved } : current));
+        // Pinning, archiving, ticking items or editing a dashboard note changes what the dashboard shows.
+        if (note.pinned_to_dashboard || "pinned_to_dashboard" in data || "archived_at" in data) emitDashboardChanged();
         return saved;
       } catch (error) {
         // Put the old row back rather than leaving the screen showing a
@@ -123,6 +128,7 @@ export function StickyNotesView({
           const saved = await api.patch<RecordMap>(`/sticky_notes/${editingNote.id}`, { data });
           setNotes((current) => current.map((note) => (note.id === editingNote.id ? { ...note, ...saved } : note)));
           setEditingNote((current) => (current ? { ...current, ...saved } : current));
+          if (editingNote.pinned_to_dashboard) emitDashboardChanged();
           if (!auto) await notify("sticky_note_update", { sheetName: data.title });
           setSaveState("saved");
         } else {
@@ -175,9 +181,22 @@ export function StickyNotesView({
 
   const togglePin = (note: Note) => patchNote(note, { is_pinned: note.is_pinned ? 0 : 1 });
 
+  // SCHOLARDOCX-0245: up to 5 notes can be shown on the dashboard. The backend enforces
+  // the same cap; checking here avoids an optimistic flip that would be rolled back.
+  const dashboardCount = notes.filter((n) => n.pinned_to_dashboard && !n.archived_at).length;
+  const toggleDashboard = (note: Note) => {
+    if (!note.pinned_to_dashboard && dashboardCount >= MAX_DASHBOARD_NOTES) {
+      onToast(`You can show up to ${MAX_DASHBOARD_NOTES} notes on the dashboard. Remove one first.`);
+      return;
+    }
+    void patchNote(note, { pinned_to_dashboard: note.pinned_to_dashboard ? 0 : 1 }).then((saved) => {
+      if (saved) onToast(note.pinned_to_dashboard ? "Removed from dashboard." : "Added to dashboard.");
+    });
+  };
+
   const toggleArchive = async (note: Note) => {
     const restoring = isArchived(note);
-    await patchNote(note, { archived_at: restoring ? "" : new Date().toISOString() });
+    await patchNote(note, restoring ? { archived_at: "" } : { archived_at: new Date().toISOString(), pinned_to_dashboard: 0 });
     setViewingNote(null);
     onToast(restoring ? "Note restored to the board." : "Note archived.");
   };
@@ -201,6 +220,7 @@ export function StickyNotesView({
     setViewingNote(null);
     try {
       await deleteRecord("sticky_notes", note.id);
+      if (note.pinned_to_dashboard) emitDashboardChanged();
       await notify("sticky_note_delete", { sheetName: note.title || "Untitled note" });
       setUndoable(note);
     } catch (error) {
@@ -336,6 +356,7 @@ export function StickyNotesView({
                       onOpen={setViewingNote}
                       onToggleItem={toggleItem}
                       onTogglePin={togglePin}
+                      onToggleDashboard={toggleDashboard}
                       onArchive={toggleArchive}
                       onDelete={deleteNote}
                       onDragStart={(dragged) => setDragId(String(dragged.id))}

@@ -12,7 +12,7 @@ import {
   ShieldAlert, Clock, Trash2, Check, X, Shield, Activity
 , ChevronRight, CircleDollarSign, Package, Globe, EyeOff, Eye, BookOpen} from "lucide-react";
 
-export function SettingsTab() {
+export function SettingsTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const { showAlert } = useDialog();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,7 @@ export function SettingsTab() {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleUpdate = async (key: string, value: string) => {
     try {
@@ -353,7 +353,7 @@ export function SettingsTab() {
               </button>
             </div>
             <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
-              <PlanPricingTable />
+              <PlanPricingTable refreshTrigger={refreshTrigger} />
             </div>
             <div className="modal-footer">
               <button
@@ -392,7 +392,7 @@ export function SettingsTab() {
               </button>
             </div>
             <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
-              <ModelPricingTab />
+              <ModelPricingTab refreshTrigger={refreshTrigger} />
             </div>
             <div className="modal-footer">
               <button
@@ -681,7 +681,7 @@ export function SettingsTab() {
               </button>
             </div>
             <div className="modal-content overflow-y-auto overflow-x-auto flex-1 min-h-[360px]">
-              <TokenPacksTab />
+              <TokenPacksTab refreshTrigger={refreshTrigger} />
             </div>
             <div className="modal-footer">
               <button

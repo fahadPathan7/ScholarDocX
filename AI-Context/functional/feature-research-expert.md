@@ -95,3 +95,7 @@ ScholarDocX Research Expert is a privacy-first, vector-search augmented research
 - **User Isolation**: All paper records and chunk embeddings have foreign keys to `users.id` with `CASCADE` delete rules. Users cannot access or query papers belonging to other users.
 - **Privacy**: Paper text extraction is local-first server-side. Text chunks are transmitted to AI providers only during explicit user embedding and analysis requests.
 - **Workspace Separation**: `static_files` rows with `file_type='research_paper'` are storage-tracking records for Research Expert, not Documents records. Generic document file lists and category counts exclude them.
+
+## Default view (owner decision, 2026-11-10)
+
+Opening Research Expert shows the library **collapsed** and **no paper selected** (the "select a paper" placeholder). The newest paper is no longer auto-selected; the user picks one from the library. Refresh keeps whichever paper is open.

@@ -36,7 +36,7 @@ function formatRequestType(type: PlanRequestType) {
   return type === "extension" ? "Renewal" : "Change";
 }
 
-export function PlanRequestsTab({ requestType = "all", title, description, emptyMessage }: Props) {
+export function PlanRequestsTab({ requestType = "all", title, description, emptyMessage, refreshTrigger }: Props & { refreshTrigger?: number }) {
   const { showConfirm } = useDialog();
   const [requests, setRequests] = useState<PlanRequestRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,7 @@ export function PlanRequestsTab({ requestType = "all", title, description, empty
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [refreshTrigger]);
 
   const visibleRequests = useMemo(() => {
     let base = requestType === "all" ? requests : requests.filter((request) => (request.request_type ?? "upgrade") === requestType);

@@ -2,6 +2,8 @@ import { ReactNode, useState } from "react";
 import { CalendarDays, FileText, FolderOpen, X } from "lucide-react";
 import { CalendarMonthView } from "./CalendarMonthView";
 import { Section } from "./Section";
+import { emitNavigate } from "../lib/tokenEvents";
+import { parseChecklist, parseText } from "../lib/stickyNotes";
 import { Modal } from "./Modal";
 import { AddReminderModal } from "./AddReminderModal";
 import { useDialog } from "./DialogProvider";
@@ -11,6 +13,7 @@ import type { Dashboard } from "../App";
 
 export function DashboardView({
   dashboard,
+  loading = false,
   notificationCount,
   onCalendarEventClick,
   onProjectClick,
@@ -18,6 +21,8 @@ export function DashboardView({
   onToast
 }: {
   dashboard: Dashboard;
+  /** True until the first summary arrives: counts show a placeholder, not a false 0. */
+  loading?: boolean;
   notificationCount: number;
   onCalendarEventClick: (event: RecordMap) => void;
   onProjectClick?: (projectId: string) => void;
@@ -52,6 +57,7 @@ export function DashboardView({
   const pinnedProjects = dashboard.pinned_projects || [];
   const pinnedSheets = dashboard.pinned_sheets || [];
   const pinnedDocs = dashboard.pinned_docs || [];
+  const pinnedNotes = dashboard.pinned_notes || [];
 
   const handleToggleDone = async (event: RecordMap, done: boolean) => {
     try {
@@ -96,162 +102,194 @@ export function DashboardView({
 
   return (
     <div className="page-grid dashboard-grid">
-      <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
-        <div className="metric-grid">
-          {cards.map(({ label, value, max }) => {
-            const atCap = typeof max === "number" && max > 0 && value >= max;
-            return (
-              <article className="metric-card" key={label}>
-                <span>{label}</span>
-                <strong className={atCap ? "metric-at-cap" : undefined}>
-                  {value}
-                </strong>
-              </article>
-            );
-          })}
-        </div>
-      </Section>
-
-      <Section title="Project Calendar" eyebrow="Upcoming dates" className="dashboard-calendar">
-        <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
-          <CalendarDays size={22} />
-          <div>
-            <strong>{futureCalendarCount(dashboard.calendar_items || [])}</strong>
-            <span>upcoming date{futureCalendarCount(dashboard.calendar_items || []) === 1 ? "" : "s"}</span>
+      <div className="dashboard-col dashboard-col-1">
+        <Section title="Workspace Snapshot" eyebrow="Overview" className="dashboard-snapshot">
+          <div className="metric-grid">
+            {cards.map(({ label, value, max }) => {
+              const atCap = typeof max === "number" && max > 0 && value >= max;
+              return (
+                <article className="metric-card" key={label}>
+                  <span>{label}</span>
+                  <strong className={atCap ? "metric-at-cap" : undefined}>
+                    {loading ? "–" : value}
+                  </strong>
+                </article>
+              );
+            })}
           </div>
-          <small>
-            {nextCalendarEvent
-              ? `Next: ${formatShortDate(nextCalendarEvent.date_key || nextCalendarEvent.date)} · ${nextCalendarEvent.title || "Untitled row"}`
-              : "Open full calendar"}
-          </small>
-        </button>
+        </Section>
 
-        {isCalendarOpen ? (
-          <Modal onClose={() => setIsCalendarOpen(false)}>
-            <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Project Calendar</h2>
-                <button className="icon-button" type="button" onClick={() => setIsCalendarOpen(false)} title="Close calendar">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content">
-                <CalendarMonthView
-                  events={dashboard.calendar_items || []}
-                  empty="Add dates in project sheet rows to build the central calendar."
-                  focusDate={nextCalendarEvent?.date_key || nextCalendarEvent?.date || null}
-                  scopeLabel="All projects"
-                  onEventClick={(event) => {
-                    setIsCalendarOpen(false);
-                    onCalendarEventClick(event);
-                  }}
-                  onAddReminder={(dateKey) => {
-                    setEditingReminder(null);
-                    setReminderDate(dateKey);
-                    setIsAddReminderOpen(true);
-                  }}
-                  onEditReminder={handleEditReminder}
-                  onDeleteReminder={handleDeleteReminder}
-                />
-              </div>
+        <Section title="Pinned Docs" eyebrow="Dashboard" className="dashboard-pinned-docs">
+          <List
+            items={pinnedDocs}
+            empty="Pin docs to dashboard."
+            onClick={async (item) => {
+              try {
+                const url = await fileDownloadUrl(item.id as string);
+                window.open(url, "_blank", "noopener,noreferrer");
+              } catch (error) {
+                console.error("Failed to open file", error);
+                onToast?.("Could not open this file. Please try again.");
+              }
+            }}
+            render={(item) => (
+              <>
+                <FileText size={14} />
+                <div>
+                  <strong>{item.display_name}</strong>
+                  <span>{item.file_type || "Document"} · {formatLongDate(item.created_at)}</span>
+                </div>
+              </>
+            )}
+          />
+        </Section>
+      </div>
+
+      <div className="dashboard-col dashboard-col-2">
+        <Section title="Project Calendar" eyebrow="Upcoming dates" className="dashboard-calendar">
+          <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
+            <CalendarDays size={22} />
+            <div>
+              <strong>{futureCalendarCount(dashboard.calendar_items || [])}</strong>
+              <span>upcoming date{futureCalendarCount(dashboard.calendar_items || []) === 1 ? "" : "s"}</span>
             </div>
-          </Modal>
-        ) : null}
-      </Section>
+            <small>
+              {nextCalendarEvent
+                ? `Next: ${formatShortDate(nextCalendarEvent.date_key || nextCalendarEvent.date)} · ${nextCalendarEvent.title || "Untitled row"}`
+                : "Open full calendar"}
+            </small>
+          </button>
 
-      {/* formatDegreeType helper ensures 'phd' is properly capitalized */}
-      <Section title="Pinned Projects" eyebrow="Dashboard" className="dashboard-pinned-projects">
-        <List
-          items={pinnedProjects}
-          empty="Pin projects to dashboard."
-          onClick={(item) => onProjectClick?.(item.id)}
-          render={(item) => (
-            <>
-              <FolderOpen size={14} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
+          {isCalendarOpen ? (
+            <Modal onClose={() => setIsCalendarOpen(false)}>
+              <div className="modal-panel calendar-modal-panel" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>Project Calendar</h2>
+                  <button className="icon-button" type="button" onClick={() => setIsCalendarOpen(false)} title="Close calendar">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="modal-content">
+                  <CalendarMonthView
+                    events={dashboard.calendar_items || []}
+                    empty="Add dates in project sheet rows to build the central calendar."
+                    focusDate={nextCalendarEvent?.date_key || nextCalendarEvent?.date || null}
+                    scopeLabel="All projects"
+                    onEventClick={(event) => {
+                      setIsCalendarOpen(false);
+                      onCalendarEventClick(event);
+                    }}
+                    onAddReminder={(dateKey) => {
+                      setEditingReminder(null);
+                      setReminderDate(dateKey);
+                      setIsAddReminderOpen(true);
+                    }}
+                    onEditReminder={handleEditReminder}
+                    onDeleteReminder={handleDeleteReminder}
+                  />
+                </div>
               </div>
-            </>
+            </Modal>
+          ) : null}
+        </Section>
+
+        <Section title="Pinned Projects" eyebrow="Dashboard" className="dashboard-pinned-projects">
+          <List
+            items={pinnedProjects}
+            empty="Pin projects to dashboard."
+            onClick={(item) => onProjectClick?.(item.id)}
+            render={(item) => (
+              <>
+                <FolderOpen size={14} />
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
+                </div>
+              </>
+            )}
+          />
+        </Section>
+
+        <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
+          <List
+            items={pinnedSheets}
+            empty="Pin sheets to dashboard."
+            onClick={(item) => onCalendarEventClick({ project_id: item.project_id, sheet_id: item.sheet_id, page_id: item.id })}
+            render={(item) => (
+              <>
+                <FileText size={14} />
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.project_name || "Project"} · Created {formatLongDate(item.created_at)}</span>
+                </div>
+              </>
+            )}
+          />
+        </Section>
+      </div>
+
+      <div className="dashboard-col dashboard-col-3">
+        <Section title="Today" eyebrow="Dates due today" className="dashboard-today">
+          {todaysEvents.length ? (
+            <div className="upcoming-event-list">
+              {todaysEvents.map((event, index) => (
+                <EventRow
+                  key={`today-${event.id ?? `${event.page_id}-${event.row_index}-${event.date_field}`}-${index}`}
+                  event={event}
+                  onEventClick={onCalendarEventClick}
+                  onToggleDone={handleToggleDone}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="empty">Nothing due today.</p>
           )}
-        />
-      </Section>
+        </Section>
 
-      <Section title="Today" eyebrow="Dates due today" className="dashboard-today">
-        {todaysEvents.length ? (
-          <div className="upcoming-event-list">
-            {todaysEvents.map((event, index) => (
-              <EventRow
-                key={`today-${event.id ?? `${event.page_id}-${event.row_index}-${event.date_field}`}-${index}`}
-                event={event}
-                onEventClick={onCalendarEventClick}
-                onToggleDone={handleToggleDone}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="empty">Nothing due today.</p>
-        )}
-      </Section>
-
-      <Section title="Next 7 Days" eyebrow="From tomorrow onward" className="dashboard-upcoming">
-        {followingEvents.length ? (
-          <div className="upcoming-event-list">
-            {followingEvents.map((event, index) => (
-              <EventRow
-                key={`${event.id ?? `${event.page_id}-${event.row_index}-${event.date_field}`}-${index}`}
-                event={event}
-                onEventClick={onCalendarEventClick}
-                onToggleDone={handleToggleDone}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="empty">No row dates in the next 7 days.</p>
-        )}
-      </Section>
-
-      <Section title="Pinned Sheets" eyebrow="Dashboard" className="dashboard-pinned-sheets">
-        <List
-          items={pinnedSheets}
-          empty="Pin sheets to dashboard."
-          onClick={(item) => onCalendarEventClick({ project_id: item.project_id, sheet_id: item.sheet_id, page_id: item.id })}
-          render={(item) => (
-            <>
-              <FileText size={14} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.project_name || "Project"} · Created {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
+        <Section title="Next 7 Days" eyebrow="From tomorrow onward" className="dashboard-upcoming">
+          {followingEvents.length ? (
+            <div className="upcoming-event-list">
+              {followingEvents.map((event, index) => (
+                <EventRow
+                  key={`${event.id ?? `${event.page_id}-${event.row_index}-${event.date_field}`}-${index}`}
+                  event={event}
+                  onEventClick={onCalendarEventClick}
+                  onToggleDone={handleToggleDone}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="empty">No row dates in the next 7 days.</p>
           )}
-        />
-      </Section>
-
-      <Section title="Pinned Docs" eyebrow="Dashboard" className="dashboard-pinned-docs">
-        <List
-          items={pinnedDocs}
-          empty="Pin docs to dashboard."
-          onClick={async (item) => {
-            try {
-              const url = await fileDownloadUrl(item.id as string);
-              window.open(url, "_blank", "noopener,noreferrer");
-            } catch (error) {
-              console.error("Failed to open file", error);
-              onToast?.("Could not open this file. Please try again.");
-            }
-          }}
-          render={(item) => (
-            <>
-              <FileText size={14} />
-              <div>
-                <strong>{item.display_name}</strong>
-                <span>{item.file_type || "Document"} · {formatLongDate(item.created_at)}</span>
-              </div>
-            </>
-          )}
-        />
-      </Section>
+        </Section>
+        {pinnedNotes.map((note) => {
+          const items = parseChecklist(note);
+          const body = parseText(note.body || "");
+          return (
+            <Section
+              key={String(note.id)}
+              title={note.title || "Untitled note"}
+              eyebrow="Sticky note"
+              className={`dashboard-note note-${note.color || "sun"}`}
+            >
+              <button type="button" className="dashboard-note-body" onClick={() => emitNavigate("sticky")} title="Open Sticky Notes">
+                {note.is_checklist && items.length ? (
+                  <ul className="dashboard-note-checklist">
+                    {items.slice(0, 5).map((item) => (
+                      <li key={item.id} className={item.done ? "done" : ""}>{item.text}</li>
+                    ))}
+                    {items.length > 5 ? <li className="more">+{items.length - 5} more</li> : null}
+                  </ul>
+                ) : body ? (
+                  <p>{body}</p>
+                ) : (
+                  <p className="muted">No text.</p>
+                )}
+              </button>
+            </Section>
+          );
+        })}
+      </div>
 
       {isAddReminderOpen && (
         <AddReminderModal

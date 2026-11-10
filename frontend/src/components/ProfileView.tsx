@@ -78,7 +78,10 @@ export function ProfileView({
   onViewPlans,
   onBuyCredits,
   onViewAdmin,
+  refreshTrigger,
 }: {
+  /** Bumped by the header Refresh: re-read the saved profile and plan state. */
+  refreshTrigger?: number;
   workspace: RecordMap | null;
   onToast?: (msg: string) => void;
   onViewPlans?: () => void;
@@ -203,6 +206,36 @@ export function ProfileView({
       }
     });
   }, []);
+
+  // Header Refresh: re-read the saved profile and notification preferences in
+  // place. The edit form's draft is only replaced when it has no unsaved changes.
+  // (The user/plan itself is refreshed app-wide by App.tsx's refreshActiveTab.)
+  useEffect(() => {
+    if (!refreshTrigger || refreshTrigger <= 0) return;
+    api.get<RecordMap[]>("/local_profiles").then((rows) => {
+      const first = rows[0];
+      if (!first) return;
+      const loaded: ProfileData = {
+        display_name: first.display_name ?? "",
+        email: first.email ?? "",
+        preferred_email_provider: first.preferred_email_provider ?? "gmail",
+        timezone: first.timezone ?? "",
+        notes: first.notes ?? "",
+        avatar: first.avatar ?? "",
+      };
+      const draftIsClean = JSON.stringify(draft) === JSON.stringify(saved);
+      setSaved(loaded);
+      if (draftIsClean) setDraft(loaded);
+      if (first.notification_settings) {
+        try {
+          setNotificationSettings(normalizeNotificationSettings(JSON.parse(first.notification_settings as string)));
+        } catch (e) {
+          // keep the current preferences if the stored value is unreadable
+        }
+      }
+    }).catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   const saveNotificationSettings = async (newSettings: Record<string, boolean>) => {
     if (!profileId) return;

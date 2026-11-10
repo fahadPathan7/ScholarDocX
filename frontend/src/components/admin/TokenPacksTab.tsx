@@ -65,7 +65,7 @@ function TableSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function TokenPacksTab() {
+export function TokenPacksTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -88,8 +88,9 @@ export function TokenPacksTab() {
   };
 
   useEffect(() => {
-    fetchPacks();
-  }, []);
+    // A header Refresh re-fetches quietly (no full-page spinner); the first load shows it.
+    fetchPacks(refreshTrigger ? { silent: true } : undefined);
+  }, [refreshTrigger]);
 
   const updateDraft = (code: string, patch: Partial<Draft>) => {
     setDrafts((prev) => ({ ...prev, [code]: { ...prev[code], ...patch } }));

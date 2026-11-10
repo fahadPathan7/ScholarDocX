@@ -1,48 +1,32 @@
 # CLAUDE.md
 
-Project: ScholarDocX
+Project: ScholarDocX — an AI-DLC managed repository. Context is part of the product.
 
-Claude and other coding agents should treat this repository as an AI-DLC managed project. Context is part of the product, not an afterthought.
+Read [AGENTS.md](AGENTS.md) first; it holds the rules, workflow, and hard constraints.
+This file only adds the reading order and product summary.
 
-## Quick Start
-
-For any task, load context in this order:
+## Reading order
 
 1. [AGENTS.md](AGENTS.md)
 2. [CODE_RULES.md](AI-Context/CODE_RULES.md)
-3. [AI-Context/README.md](AI-Context/README.md)
-4. Relevant repo-carried skills in `.claude/skills` or `.agents/skills`
-5. The active task file in [AI-Context/jira-tasks](AI-Context/jira-tasks)
-6. Only the business, functional, and technical files relevant to the task
+3. [AI-Context/README.md](AI-Context/README.md) (the map of where each rule lives)
+4. The relevant skill in `.claude/skills`
+5. The active task in [AI-Context/jira-tasks](AI-Context/jira-tasks)
+6. Only the business / functional / technical files the task touches
 
+## Product
 
-## Work Protocol
+A cloud-deployed (Render + Supabase, free tier) portal for higher-education applicants:
 
-- If the task is new, create a Jira task file before coding.
-- If the task modifies behavior, update functional context first.
-- If the task changes architecture, storage, APIs, integrations, or file organization, update technical context first.
-- If the task changes user value, product scope, privacy posture, monetization, or target users, update business context first.
-- Keep each context file focused. Do not create one giant project brain.
-- STRICT RULE: Do NOT create any summary `.md` files at the root of the project or anywhere else unless explicitly told by the user. All context updates must happen inside the existing files in `AI-Context/` or as a new Jira task file.
-- Record decisions in the proper decision file, not only in chat.
-
-## Current Product Direction
-
-ScholarDocX is a cloud-deployed (Render + Supabase free tier, SCHOLARDOCX-0139) application portal for higher education applicants. It combines:
-
-- Hierarchical application tracking by degree, geography, institution, program, and professor.
-- Unified dashboard for deadlines, progress, outreach, and reminders.
-- Rich document drafting for SOPs, research proposals, LOR drafts, and variations.
-- Per-user isolated cloud storage for PDFs, CVs, transcripts, certificates, and linked files.
-- Email template and follow-up management.
-- Optional Google sign-in alongside email/password and invite-code registration.
-- AI providers (GLM, Gemini, Groq, Mistral, OpenRouter) plus Tavily search for research, drafting, and academic strategy support, behind backend services.
+- Hierarchical application tracking: projects, sheets, programs, professors.
+- Dashboard for deadlines, progress, outreach, reminders; central calendar and notifications.
+- Document vault: users upload and link externally prepared files (it is not a writing surface).
+- Outreach/email tracking and follow-ups inside project sheets.
+- AI assistant, Research Expert, Advisor Atlas, Scholarship Hunt, behind backend services with per-user billing and limits.
+- Email/password + invite-code accounts and optional Google sign-in; plans via Polar.
 
 ## Guardrails
 
-- Keep the zero-infrastructure-cost footprint (Render free + Supabase free); no new paid services by default.
-- Keep each user's data isolated and never expose it to third parties; no analytics or telemetry without approval.
-- Layout/scroll restrictions are withdrawn (see AGENTS.md "Layout freedom").
-- Do not exceed the file-size policy in [CODE_RULES.md](AI-Context/CODE_RULES.md).
-- Do not add features that require paid infrastructure by default.
-- Do not code before context is updated for new or changed features.
+- Zero-infrastructure-cost footprint; no new paid services, analytics, or telemetry without approval.
+- Each user's data stays isolated and is never exposed to third parties.
+- Do not code before context and the Jira task are updated for new or changed behaviour.

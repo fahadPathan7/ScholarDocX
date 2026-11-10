@@ -377,6 +377,10 @@ def _add_sticky_note_planning_columns(conn) -> None:
     conn.execute(
         text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP WITH TIME ZONE")
     )
+    # SCHOLARDOCX-0245: dashboard pin (max 5 per user, enforced in the store).
+    conn.execute(
+        text("ALTER TABLE sticky_notes ADD COLUMN IF NOT EXISTS pinned_to_dashboard INTEGER NOT NULL DEFAULT 0")
+    )
 
 
 def _add_paper_embedding_task_column(conn) -> None:

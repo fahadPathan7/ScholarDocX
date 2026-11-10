@@ -320,9 +320,22 @@ Implications:
   invites the next agent to reinvent what was removed on purpose.
 - New skills go in `.agents/skills/` and are symlinked. Never copied.
 
+## BD-013: One Home For Agent Rules; Entry Files Stay Lean (SCHOLARDOCX-0235)
+
+Status: Accepted
+
+Decision: `AGENTS.md` is the single home for agent workflow and hard rules (jargon, billing
+pointer, modal pattern, layout/reachability, repo hygiene pointers). `CLAUDE.md` only adds the
+reading order and a product summary and defers to it. File-size policy lives only in
+`CODE_RULES.md`; the separate `technical/file-size-and-modularity.md` was deleted.
+`architecture-overview.md` and `project-structure.md` describe the cloud architecture and real
+layout, not a local-first or "future" design. Entry files must not reference deleted files or
+carry history.
+
+Rationale: the same rules were restated in several files and had drifted; shorter entry files cost
+fewer tokens on every task and leave nothing to contradict.
+
 ## Pending Decisions
 
-- Final desktop/local delivery model: browser app with local backend vs packaged desktop shell.
-- Whether SMTP support ships in MVP or remains post-MVP.
-- Whether document editor stores rich text as HTML, JSON, Markdown, or multiple formats.
-- Whether Google OAuth should be prioritized for MVP or deferred until Google Calendar/Gmail/Drive integration work.
+- Whether SMTP support ships or Gmail/Outlook compose links stay the only outreach path.
+- Whether further Google integrations (Calendar, Gmail, Drive) are worth adding beyond sign-in.

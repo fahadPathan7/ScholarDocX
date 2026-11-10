@@ -11,7 +11,8 @@ export function LandingFooter() {
         </p>
         {/* Product owner credit (SCHOLARDOCX-0215) */}
         <p className="lp-footer-credit">
-          Designed &amp; built by <span>Fahad Pathan</span>
+          Designed &amp; built by{" "}
+          <a href="https://fahadpathan7.github.io/" target="_blank" rel="noopener noreferrer">Fahad Pathan</a>
         </p>
       </div>
     </footer>

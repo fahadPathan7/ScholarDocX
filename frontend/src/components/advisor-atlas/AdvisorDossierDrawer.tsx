@@ -37,6 +37,8 @@ import {
 import { useUsage } from "../../contexts/UsageContext";
 
 type Props = {
+  /** Bumped by the header Refresh; reloads the dossier in place. */
+  refreshTrigger?: number;
   /** A live candidate, or null when opening a saved snapshot. */
   candidateId: string | null;
   /** SCHOLARDOCX-0197: opens the dossier frozen when this professor was
@@ -455,6 +457,7 @@ export function AdvisorDossierDrawer({
   onChanged,
   onToast,
   onConfirmSave,
+  refreshTrigger,
 }: Props) {
   const { refreshUsage } = useUsage();
   const [candidate, setCandidate] = useState<AdvisorCandidateDetail | null>(null);
@@ -465,32 +468,41 @@ export function AdvisorDossierDrawer({
   // something is unavailable rather than broken.
   const [archived, setArchived] = useState<{ savedAt?: string; source?: string } | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  // `silent` is the header-Refresh path: reload in place with no spinner, keep
+  // notes the user has typed but not saved, and never close the drawer on failure.
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
+    const notesAreDirty = silent && notes !== (candidate?.user_notes || "");
     try {
       if (!candidateId && savedProfessorId) {
         const saved = await advisorAtlasApi.getSavedDossier(savedProfessorId);
         setCandidate(saved.candidate as AdvisorCandidateDetail);
-        setNotes((saved.candidate as AdvisorCandidateDetail)?.user_notes || "");
+        if (!notesAreDirty) setNotes((saved.candidate as AdvisorCandidateDetail)?.user_notes || "");
         setArchived({ savedAt: saved.saved_at, source: saved.source_run_label ?? undefined });
         return;
       }
       if (!candidateId) return;
       const data = await advisorAtlasApi.getCandidate(candidateId);
       setCandidate(data);
-      setNotes(data.user_notes || "");
+      if (!notesAreDirty) setNotes(data.user_notes || "");
       setArchived(null);
     } catch {
+      if (silent) return;
       onToast("Could not load the advisor dossier.");
       onClose();
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     load();
   }, [candidateId, savedProfessorId]);
+
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   const saveNotes = async () => {
     if (!candidate) return;

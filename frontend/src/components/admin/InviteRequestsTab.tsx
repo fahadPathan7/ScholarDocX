@@ -9,7 +9,7 @@ import {
   ShieldAlert, Clock, Trash2, Check, X, Shield, Activity
 , Users, Search} from "lucide-react";
 
-export function InviteRequestsTab() {
+export function InviteRequestsTab ({ refreshTrigger }: { refreshTrigger?: number }) {
   const { showAlert } = useDialog();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ export function InviteRequestsTab() {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleReview = async (id: string, action: string, req: any) => {
     try {

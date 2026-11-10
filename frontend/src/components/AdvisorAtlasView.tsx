@@ -292,7 +292,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
       {mode === "saved" ? (
         <AdvisorSavedProfessors
-          refreshTrigger={savedRefresh}
+          refreshTrigger={savedRefresh + (refreshTrigger ?? 0)}
           onToast={onToast}
           onOpenDossier={setCandidateId}
           onOpenSavedDossier={setSavedDossierId}
@@ -411,6 +411,7 @@ export function AdvisorAtlasView({ onToast, refreshTrigger }: Props) {
 
       {(candidateId != null || savedDossierId != null) && (
         <AdvisorDossierDrawer
+          refreshTrigger={refreshTrigger}
           candidateId={candidateId}
           savedProfessorId={savedDossierId}
           onClose={() => {

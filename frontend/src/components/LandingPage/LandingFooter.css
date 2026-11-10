@@ -4,4 +4,15 @@
 .lp-footer-logo { font-family: var(--lp-serif); font-size: 26px; font-weight: 650; letter-spacing: -0.02em; color: var(--lp-ink); }
 .lp-footer-copy { font-size: 13px; color: var(--lp-muted); margin: 0; }
 .lp-footer-credit { font-size: 13px; color: var(--lp-ink-soft); margin: 0; padding-top: 12px; border-top: 1px solid var(--lp-line-strong); }
-.lp-footer-credit span { font-family: var(--lp-serif); font-style: italic; font-weight: 600; color: var(--lp-blue); }
+.lp-footer-credit a {
+  font-family: var(--lp-serif);
+  font-style: italic;
+  font-weight: 600;
+  color: var(--lp-blue);
+  text-decoration: underline;
+  text-decoration-color: var(--lp-gold-soft);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease, color 0.2s ease;
+}
+.lp-footer-credit a:hover { color: var(--lp-ink); text-decoration-color: var(--lp-gold); }

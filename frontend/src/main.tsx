@@ -18,6 +18,7 @@ import "./notes-docs-polish.css";
 import "./profile-polish.css";
 import "./games-polish.css";
 import "./admin-polish.css";
+import "./header-actions-polish.css";
 import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
 
 import { AuthProvider } from "./contexts/AuthContext";

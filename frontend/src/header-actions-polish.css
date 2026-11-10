@@ -1,0 +1,64 @@
+/* Header action buttons (collapse nav, refresh, notifications).
+   Warm paper chips with a finer icon stroke, matching the notes/dashboard polish.
+   Scoped to .top-actions; sizing needs !important only because responsive.css
+   sets the compact 34px size with !important. */
+.top-actions .icon-button {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  flex-basis: 36px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #fffefa, #f8f2e4);
+  border: 1px solid rgba(88, 68, 32, 0.2);
+  color: #2c4244;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 1px 2px rgba(60, 44, 14, 0.1),
+    0 8px 14px -10px rgba(60, 44, 14, 0.35);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.top-actions .icon-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 1.7;
+}
+
+.top-actions .icon-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff, #eef6f1);
+  border-color: rgba(47, 125, 116, 0.5);
+  color: #1f5f58;
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(60, 44, 14, 0.12),
+    0 12px 18px -12px rgba(31, 95, 88, 0.5);
+}
+
+.top-actions .icon-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(60, 44, 14, 0.14) inset;
+}
+
+.top-actions .icon-button:focus-visible {
+  outline: 2px solid #2f7d74;
+  outline-offset: 2px;
+}
+
+.top-actions .icon-button:disabled {
+  opacity: 0.7;
+}
+
+/* Unread count: warm coral dot with a paper ring instead of a flat red pill. */
+.top-actions .notification-badge-header {
+  background: #c9533f;
+  border: 2px solid #fffdf8;
+  box-sizing: content-box;
+  font-size: 10px;
+  height: 14px;
+  min-width: 14px;
+  padding: 0 3px;
+  right: -7px;
+  top: -7px;
+  box-shadow: 0 2px 4px rgba(120, 40, 28, 0.3);
+}

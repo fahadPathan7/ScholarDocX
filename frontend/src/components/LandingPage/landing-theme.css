@@ -40,6 +40,6 @@
 
 /* Global `main` is a flex container; stop wide children (game tiles) from
    forcing the section past the viewport on phones. */
-.lp-container main > section { min-width: 0; max-width: 100%; }
+.lp-container main > section { min-width: 0; }
 .lp-pillars-section { box-sizing: border-box; width: 100%; max-width: 1200px; }
 .lp-pillar-stage, .lp-pillar-stage > *, .lp-pillar-preview-col { min-width: 0; }

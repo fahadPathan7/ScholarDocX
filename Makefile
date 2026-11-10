@@ -188,8 +188,14 @@ guard-billing: ## Verify every provider call charges the user
 guard-context: ## Verify AI-Context references resolve to real code
 	@python3 scripts/check-context-drift.py
 
+# Static guard: three CSS regressions with one cause (a broad rule out-ranking a
+# specific one). Run from frontend/ because the scripts read relative paths.
+.PHONY: guard-css
+guard-css: ## Verify sheet/sticky-note CSS invariants
+	@cd frontend && python3 ../scripts/check-sticky-column.py && python3 ../scripts/check-sticky-note-fonts.py && python3 ../scripts/check-css-modifier-collisions.py
+
 .PHONY: guards
-guards: guard-billing guard-context ## Run every static guard
+guards: guard-billing guard-context guard-css ## Run every static guard
 
 # Full regression gate: billing guard + both test suites + frontend build. This
 # is the same command the CI workflow (.github/workflows/ci.yml) runs, so a

@@ -1,249 +1,65 @@
 # Security And Privacy
 
-## Privacy Baseline
+## Baseline
 
-ScholarDocX stores private academic data in Supabase (PostgreSQL + Storage) and
-serves it via the Render-hosted backend. The local-first origin (SCHOLARDOCX-0139)
-was superseded by a cloud deployment decision: structured data lives in Supabase
-Postgres and uploaded files live in Supabase Storage. External AI/search calls
-remain explicit user actions behind backend services.
+ScholarDocX holds private academic data: essays, SOPs, proposals, CVs, transcripts, certificates, identity
+files, professor correspondence, target lists, and funding notes. Structured data lives in Postgres and uploaded
+files in object storage (SCHOLARDOCX-0139), served by the backend. Each user's data is isolated and never
+shared. External AI and search calls are explicit user actions behind backend services; provider keys stay
+server-side.
 
-## Sensitive Data Types
+## Data and files
 
-- Essays
-- SOPs
-- Research proposals
-- CVs
-- Transcripts
-- Certificates
-- Passport or identity files
-- Professor email conversations
-- University target lists
-- Funding strategy notes
+- Never commit real `.env` files or keys. Do not log API keys or, by default, full document contents.
+- Validate file paths before reads and writes, use allowlists for upload categories and file types, and keep every file inside its storage prefix.
+- **Maximum document size is 10 MB per file** (`MAX_DOCUMENT_SIZE_BYTES` in `backend/app/core/workspace.py`), validated client-side for feedback and server-side as the boundary.
+- **Per-user browser state**: chat history and other sensitive client state are keyed by user id (for example `scholardocx_chat_history_${user.id}`); non-user-scoped legacy keys are purged on startup and logout so users sharing a browser never see each other's cached AI turns (SCHOLARDOCX-0160, `lib/migrateStorageKeys.ts`).
+- **File downloads use short-lived, file-scoped tokens** (SCHOLARDOCX-0222): the frontend opens file content via `POST /files/{id}/download-link` (5-minute JWT with `purpose=file_download` and `file_id`; `create_download_token` / `decode_download_token` in `auth/jwt.py`), never by putting the 30-day session token in a URL, where it would leak into history, logs, and shared links. `view_file_content` accepts the download token or a normal session and enforces ownership on both. The legacy `?token=` session fallback remains for old links but new code must not use it; purpose isolation means a session token never validates as a download token and vice versa.
 
-## Local Security Rules
+## What may be sent to providers
 
-- Do not commit real `.env` files.
-- Do not log API keys.
-- Do not log full document contents by default.
-- Validate paths before file reads and writes.
-- Keep files inside the configured workspace.
-- Use allowlists for upload categories and supported file types where possible.
-- **Enforce maximum document size limit of 10 MB per file** to prevent resource
-  exhaustion, storage abuse, and excessive bandwidth usage. This limit is
-  validated both client-side and server-side.
-- **Client-Side Account Isolation for Local Storage**: User conversation history
-  and sensitive local state must be scoped per user ID (e.g.,
-  `scholardocx_chat_history_${user.id}`). Non-user-scoped legacy keys must be
-  purged on startup and logout to ensure multiple users sharing the same browser
-  never see another account's cached AI turns (SCHOLARDOCX-0160).
+- AI and search calls must be explicit user actions; show when content may go to an external provider; handle provider errors without losing user data.
+- **Scholarship Hunt**: the goal text and optional degree level, destinations, and intake term go to the search provider as query terms (and to the OpenRouter planner and filter); only crawled-page text, title, and URL go to the extraction provider. Never application records, documents, or profile details. The Hunt Profile (and any nationality field) was removed in SCHOLARDOCX-0178. `scholarship_deep_hunt_runs` is user-scoped like every other table.
+- **Advisor Atlas**: public page excerpts and the user-entered research-profile fields go to GLM after an explicit search. Never private documents, transcripts, email history, or application records. Fetching rejects loopback, private-network, file, and unsafe redirect targets; limits content type and size; sanitizes remote HTML; and respects robots and public-access restrictions. Deep Hunt reuses the same `PublicCrawler`, so it inherits those controls.
+- **Research Expert**: text is read from the user's uploaded PDF on the server and passages are sent to Jina for embeddings (see [ai-integrations.md](ai-integrations.md)). The PDF is opened only through `/api/research/papers/{paper_id}/pdf`, which resolves it from a user-owned `research_papers` row and its storage record; Documents lists, category counts, and `/files/{file_id}/content` do not expose `file_type='research_paper'` rows. Research papers still count toward the shared `total_documents_bytes` limit.
+- **Advisor Atlas usage** is gated by the `can_use_advisor_atlas` plan check and metered in credits; candidate ownership is verified before a refresh spends credits. Frontend controls are informational, never the security boundary.
 
+## Authentication and authorization
 
-## External API Rules
+- **JWT secret**: `JWT_SECRET` comes from the environment (`settings.jwt_secret_key`). `get_jwt_secret` raises 500 if it is missing or still starts with the known-compromised placeholder prefix; never reintroduce a hardcoded secret or a silent fallback.
+- **Roles come from the database**, not the token payload: `get_current_user` loads the user row, checks the token version (revocation), applies plan expiry, and refuses suspended accounts. Do not trust token-embedded roles for permission decisions.
+- **Per-user isolation is enforced server-side.** Any handler that lists, reads, or mutates user-scoped records must inject the store through `get_user_store`, which sets `Store.current_user_id`; plain `get_store` is unscoped and leaks rows. The store scopes any table whose columns include `user_id`.
+- **Google sign-in** is optional (SCHOLARDOCX-0169): authorization-code + PKCE runs server-side, scopes are `openid email profile`, only the Google `sub`, email, name, and avatar snapshot go into `external_identities`, no refresh tokens are stored, and the client secret never reaches the frontend. A first-time Google user gets an active free account (`signup_method='google'`); auto-link to an existing user is permitted only when the Google email is verified.
+- **Forgot-password** must not allow user enumeration: `POST /auth/forgot-password` always returns HTTP 200 with the same message regardless of whether the email exists, whether a request was created, or whether a limit applied. Two silent limits (enforced by not creating a row): one pending request per user and one per client IP per hour. The IP budget is consumed before the email lookup so the limit is not a timing or enumeration oracle.
+- Remote sign-in is how users reach the hosted app; do not add paths that bypass `get_current_user` (the only anonymous routes are auth, `plans/public`, webhooks, and internal secret-gated routes).
 
-- AI/search calls must be explicit user actions.
-- Show when content may be sent to external providers.
-- Keep provider credentials server-side.
-- Handle provider errors without losing local data.
-- Scholarship Hunt query generation may send only selected public filter labels,
-  a deterministic search baseline, and current date/cycle guidance to
-  OpenRouter. It must not include application records, documents, profile
-  details, or Tavily results.
-- Advisor Atlas may send public page excerpts and user-entered research-profile
-  fields to GLM after explicit search action. It must not send private
-  documents, transcripts, email history, or application records.
-- Research Expert (SCHOLARDOCX-0174) extracts text from user-uploaded PDF papers locally server-side. Text chunks are sent to Google AI Studio Gemini API for 768-dim embedding generation (`text-embedding-004`). During analytical queries, top-k relevant text chunks are sent to the configured LLM provider for context-bounded analysis. User papers and vector embeddings are strictly user-scoped (`user_id` foreign key isolation). Papers and embeddings cannot be accessed by other users and are permanently removed upon user deletion or paper deletion.
-- Research Expert PDF viewing is isolated from the Documents workspace. The
-  browser opens cited papers through `/api/research/papers/{paper_id}/pdf`,
-  which resolves the PDF from a user-owned `research_papers` row and its linked
-  `static_files` storage record. Generic document lists, category counts, and
-  `/files/{file_id}/content` do not expose `file_type='research_paper'` rows.
-  Research papers still count toward the shared `total_documents_bytes` storage
-  limit.
-- Hunt Profile (and its client-side fit score) was removed in
-  SCHOLARDOCX-0178 — no nationality or profile field exists anywhere in
-  Scholarship Hunt to guard.
-- Deep Hunt runs (Phase 5, SCHOLARDOCX-0125) send only the run's goal text
-  and optional degree level/destinations/intake term to Tavily as query
-  terms, and only crawled-page text/title/URL to the extraction provider —
-  the same boundary "Analyze" already enforces. `scholarship_deep_hunt_runs`
-  is listed in `USER_SCOPED_TABLES` so runs and their results are isolated
-  per user like every other table in this section. Deep Hunt's crawler
-  reuses `advisor_atlas.crawler.PublicCrawler`, so it inherits the same
-  loopback/private-network/file/redirect rejection and robots/size/content
-  -type limits described below, without re-implementing them.
-- Advisor Atlas fetching must reject loopback, private-network, file, and unsafe
-  redirect targets; limit content type and size; sanitize remote HTML; and
-  respect robots and public access restrictions.
-- Advisor Atlas new-run and evidence-refresh endpoints must enforce the
-  authenticated user's `advisor_atlas_searches_per_month` role limit on the
-  backend. Candidate ownership must be verified before a refresh consumes
-  quota, and frontend controls are informational rather than the security
-  boundary.
+## Polar billing security (SCHOLARDOCX-0156 / 0157)
 
-## Polar Billing Security (SCHOLARDOCX-0156 / 0157)
+Design: [billing-and-payments.md](billing-and-payments.md). Security points:
 
-Full design in `billing-and-payments.md`. Security-relevant points:
+- `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` live on `Settings`, server-side only; the checkout endpoint proxies the provider call so the token stays there.
+- `/webhooks/polar` is anonymous and authenticated solely by signature: svix verification runs before any DB write, a missing `POLAR_WEBHOOK_SECRET` fails closed (500), and svix enforces `svix-id`/`svix-signature`/`svix-timestamp` and a 5-minute replay window.
+- `payload.customer_email` is untrusted: the customer identity derives from `current_user`, so a spoofed email cannot redirect a purchase to another account.
+- `success_url` is validated against `Settings.cors_origins` + `cors_origin_regex` (open-redirect guard).
+- Idempotency: `polar_processed_events` dedups by svix message id, so retries cannot double-grant credits; handlers raise 5xx for reconciliation misses and unknown products so Polar retries.
+- Checkout failures return a generic message; the provider name and upstream body are logged server-side only (see the copy rule in AGENTS.md).
 
-- **Secrets are server-side only.** `POLAR_ACCESS_TOKEN` (checkout creation
-  bearer key) and `POLAR_WEBHOOK_SECRET` (svix verification key) live on the
-  `Settings` class and are never exposed to the frontend. The checkout endpoint
-  proxies the provider call precisely so the token stays server-side.
-- **The webhook endpoint is anonymous and authenticated solely by signature.**
-  `/webhooks/polar` has NO `Depends(get_current_user)` — Polar cannot
-  authenticate. svix `Webhook.verify` runs BEFORE any DB write; a missing
-  `POLAR_WEBHOOK_SECRET` fails closed (500, never accept). svix natively
-  enforces `svix-id` / `svix-signature` / `svix-timestamp` presence and a ±5 min
-  replay window.
-- **`payload.customer_email` is untrusted.** The checkout endpoint ignores the
-  client-supplied email and derives the customer identity from `current_user`
-  (the authenticated session). A spoofed email cannot redirect a purchase onto
-  another user's account or unlock a different customer's history.
-- **`success_url` is allowlisted.** Before being forwarded to the provider it is
-  validated against `Settings.cors_origins` + `cors_origin_regex` — an
-  authenticated client cannot redirect a post-payment buyer to an arbitrary
-  external host (open-redirect / phishing guard).
-- **Webhook idempotency is enforced.** The `polar_processed_events` table dedups
-  by svix message id; retried deliveries cannot double-grant credits or
-  duplicate plan mutations. Handlers raise 5xx (so Polar retries) for
-  reconciliation misses and unknown products rather than silently returning 200.
-- **Error messages never leak the provider.** Checkout failures return a generic
-  user-facing detail; the provider name and upstream response body are logged
-  server-side only (AGENTS.md: no infrastructure exposure in UI copy).
+## Rate limiting (SCHOLARDOCX-0137)
 
-## Authentication Rules
+- Every IP and user rate limit lives in one registry, `RATE_LIMIT_RULES` in `backend/app/auth/rate_limit.py` (22 rules), enforced through the shared `rate_limiter`. Do not re-implement inline buckets; add a rule and call `check_and_record` (counts every hit), or `check` then `record` on a bad outcome (login and password change record only failed credentials, so legitimate use never consumes the budget). Forgot-password swallows the limit into a generic 200 to keep the anti-enumeration invariant.
+- Identity: unauthenticated endpoints (`/auth/login`, `/auth/register`, `/auth/invite-request`, `/auth/forgot-password`, `/auth/contact-admin`) key on client IP (`client_ip_from_request`); authenticated expensive endpoints key on user id (`user_identity`).
+- Limits run before plan and credit checks so they fast-fail before any spend. Covered: every AI-billing endpoint, every search or extraction endpoint (deep-hunt run, advisor-atlas run and refresh, scholarship analyze), file upload, and the auth endpoints. Deliberately not limited: plain GET reads, cheap user-scoped writes, `/auth/plans/request` (one-pending-per-user guard), and `/admin/*` (already permission gated).
+- The registry feeds the admin Info tab via `GET /admin/info/rate-limits` (permission `admin_view_info`).
+- Buckets are in memory and per process: they reset on restart and are not shared across workers, which is acceptable for a single-process deployment. `client_ip_from_request` reads `request.client.host` with no `X-Forwarded-For` handling; behind a reverse proxy that would key every user on the proxy IP (follow-up if the topology changes).
 
-- JWT signing keys are the root of all role guards. The secret must never be a
-  committed constant. `initialize_database()` provisions a per-install random
-  secret (`secrets.token_hex(32)`) and rotates any value still set to the
-  historical `scholar-docx-secure personal workspace...` placeholder. Read sites
-  (`get_jwt_secret`) must raise rather than fall back to a default if the
-  secret is missing or compromised. Never reintroduce a hardcoded secret or a
-  silent fallback.
-- Roles for authorization are read from the database, not from the JWT
-  payload, so a client cannot self-elevate. Do not trust token-embedded roles
-  for permission decisions.
-- Per-user data isolation is enforced server-side via `Store.current_user_id`.
-  Any handler that lists/reads/mutates user-scoped records must inject the
-  store through `get_user_store` (which sets `current_user_id`), never
-  `get_store` — the latter leaves the store unscoped and leaks other users'
-  rows. Known-user-scoped tables are listed in `USER_SCOPED_TABLES`.
-- Forgot-password must not allow user enumeration: `POST /auth/forgot-password`
-  always returns HTTP 200 with an identical message whether or not the email is
-  registered, whether or not a request was created, and even when a rate limit
-  applies. Two silent limits apply (enforced by not creating a row): at most one
-  pending request per user, and one request per client IP per hour. The IP
-  budget is consumed before the email lookup so the limit cannot be used as a
-  timing/enumeration oracle.
-- Do not require remote signin for local-only MVP workflows.
-- **File downloads use short-lived, file-scoped tokens (SCHOLARDOCX-0222).** The
-  frontend must open file content via `POST /files/{id}/download-link`
-  (5-minute JWT with `purpose=file_download` + `file_id`, helpers
-  `create_download_token`/`decode_download_token` in `auth/jwt.py`), never by
-  appending the 30-day session token to a URL — long-lived tokens in URLs leak
-  into browser history, server logs, and shared links. `view_file_content`
-  accepts the download token OR a normal session; ownership is enforced on
-  both paths. The legacy `?token=` session fallback remains accepted for old
-  links but must not be used by new code; purpose isolation means a session
-  token never validates as a download token and vice versa.
+## Role limits and billing guards (SCHOLARDOCX-0111)
 
-## Rate Limiting (SCHOLARDOCX-0137)
+- Plan expiry is applied at auth time (`app/auth/plan_state.py`): `get_current_user` strips expired user-tier roles and falls back to `free_user`.
+- Count-based usage (`total_projects`, `total_sheets`, `total_records`, `total_documents_bytes`, `total_sticky_notes`, `total_whiteboards`) means current usage, not lifetime. `resync_usage_counts` (`app/auth/limits.py`) recounts from live data after route deletes (`RESYNC_FEATURES_BY_TABLE`), after every agent plan, and at startup; `total_records` counts rows inside `rows_json`.
+- Create paths pre-increment the counter, so a failed storage write must give the quota back (compensating decrement in the CRUD create, sheet-create, rows-update, and file-upload routes); upload also settles the difference between the declared size and the bytes written.
+- `verify_model_permission` must receive the settings object: with no model it resolves the default-provider chain `AiService` uses and enforces `can_use_<provider>`, so omitting the model is not a bypass.
+- A missing `role_limits` row **denies**: `check_and_increment_limit` raises and `get_user_limit` returns 0 with an ERROR log; users with no user-tier role get 0. Admin role-limit edits must call `invalidate_limits_cache()`. Billing details: [billing-contract.md](billing-contract.md), [ai-token-economy.md](ai-token-economy.md).
 
-- All IP/user request-rate limits live in one place: the `RATE_LIMIT_RULES`
-  registry in `backend/app/auth/rate_limit.py`, enforced through the shared
-  `rate_limiter` singleton. Do not re-implement inline `defaultdict(list)`
-  buckets — add a rule to the registry and call `check_and_record` (counts
-  every hit), or `check` + `record` (for check-first / count-on-failure flows
-  like login).
-- Three enforcement patterns exist:
-  - `check_and_record(key, identity)` — count every request (register,
-    contact-admin, all AI/hunt/atlas/news/upload endpoints).
-  - `check(key, identity)` then `record(key, identity)` only on a bad outcome
-    — login and password-change (records only on failed credentials, so legit
-    uses never consume the budget).
-  - `check_and_record` swallowed into a generic 200 — forgot-password (never
-    raises 429; preserves the anti-enumeration invariant above).
-- Identity: unauthenticated endpoints (`/auth/login`, `/auth/register`,
-  `/auth/invite-request`, `/auth/forgot-password`, `/auth/contact-admin`) key
-  on client IP via `client_ip_from_request`; all authenticated expensive
-  endpoints key on user id via `user_identity(user)` (more accurate for a
-  local multi-user install).
-- Rate limits sit **before** plan-tier quota checks (token budget,
-  `can_use_scholarship_hunt`, etc.) so they fast-fail before any spend.
-- Coverage (19 rules total): every AI-billing endpoint (`/ai/chat`,
-  `/ai/research`, `/ai/summarize`, `/ai/actions/plan`, `/ai/actions/execute`),
-  every search/extraction endpoint (deep-hunt run, advisor-atlas run +
-  candidate refresh, news search + query-preview, scholarship analyze +
-  catalog check-cycle), file upload, and the five auth endpoints. Deliberately
-  NOT rate-limited: pure `GET` reads (cheap DB queries), cheap user-scoped DB
-  writes (bookmarks, saved-queries, generic CRUD, outreach log, template
-  render), `/auth/plans/request` (already has a one-pending-per-user guard),
-  and all `/admin/*` routes (already admin-auth + permission gated).
-- The registry is the single source of truth for the admin Info tab:
-  `GET /admin/info/rate-limits` returns `rate_limiter.catalog()`, gated by the
-  `admin_view_info` permission (default ON for both admin roles).
-- Buckets are in-memory and per-process with a `threading.Lock`; they reset on
-  restart and are not shared across workers. This is acceptable for the
-  local-first single-process deployment.
-- Known limitation: `client_ip_from_request` reads `request.client.host`
-  directly; there is no `X-Forwarded-For` handling yet (relevant only if the
-  app is ever served behind a reverse proxy — tracked as a follow-up).
-- Latent bug fixed by SCHOLARDOCX-0137: `/auth/register` previously pruned and
-  checked its bucket but never recorded into it, so the 5/5min limit could not
-  trigger. Switching to `check_and_record` fixed this.
+## Possible later work
 
-## Role Limits And Billing Guards (SCHOLARDOCX-0111)
-
-- Plan expiry is enforced at auth time: `get_current_user` strips expired
-  user-tier roles and falls back to `free_user`. `check_and_increment_limit`
-  only checks the not-yet-started plan date.
-- Count-based usage (`total_projects`, `total_sheets`, `total_records`,
-  `total_documents_bytes`, `total_sticky_notes`, `total_whiteboards`) means
-  *current* usage, not lifetime. Deletes must free quota:
-  `resync_usage_counts` in `app/auth/limits.py` recounts from live data and
-  runs after route deletes (`RESYNC_FEATURES_BY_TABLE`), after every agent
-  plan, and at startup. `total_records` counts rows inside `rows_json`
-  (`json_array_length`), never pages.
-- Create paths pre-increment the counter, so a failed storage write must give
-  the quota back (compensating decrement in the CRUD create, sheet-create,
-  rows-update, and file-upload routes). Upload also settles the difference
-  between the client-declared size and the bytes actually written.
-- `verify_model_permission` must be called with the settings object: when no
-  model is specified it resolves the same default-provider chain `AiService`
-  uses (groq→gemini→mistral→glm) and enforces `can_use_<provider>` — omitting
-  the model is not a provider-permission bypass.
-- Billing (`ai_tokens.py`): both `charge` and `charge_flat_fee` gate the
-  purchased bucket on `can_use_purchased_tokens`; `compute_cost` prices
-  deactivated models (deactivation blocks selection, not billing); duplicate
-  Pending purchase requests per user+pack are rejected; pack approval is
-  idempotent via the Pending-status guard.
-- Missing role-limit rows default to allow (`check_and_increment_limit`) and
-  no-cap (`get_user_limit` → -1); users without any user-tier role get 0.
-  Admin role-limit edits must call `invalidate_limits_cache()`.
-- Google OAuth (SCHOLARDOCX-0169) is implemented as an OPTIONAL login
-  method. It must stay optional unless a later business decision changes
-  this. Authorization-code + PKCE flow runs server-side; the client
-  secret never reaches the frontend.
-- Request minimal scopes (`openid email profile`).
-- Store only necessary identity fields (Google `sub`, email, name,
-  avatar snapshot) in `external_identities`.
-- Do not expose OAuth secrets or refresh tokens to frontend code. No
-  refresh tokens are stored at all — login only needs the id_token.
-- Google sign-up creates an active free account for a first-time Google
-  user (`signup_method='google'`); auto-link to an existing user is
-  permitted only for Google emails with `email_verified=true`. (Corrected
-  to match `backend/app/api/auth_google.py`; this line previously said the
-  opposite.)
-
-## Future Considerations
-
-Possible later features:
-
-- Local backup export.
-- Encrypted local workspace.
-- Redaction before AI calls.
-- Per-document privacy flags.
-- "Connect Google" button in Profile/Settings (link an existing password
-  account to Google from within the app, as opposed to login-time auto-link).
-
-These are not MVP requirements unless a Jira task adds them.
+Redaction before AI calls, per-document privacy flags, and a "Connect Google" action in Profile for linking an existing password account. None is required unless a Jira task adds it.

@@ -11,6 +11,7 @@ import type { Dashboard } from "../App";
 
 export function DashboardView({
   dashboard,
+  loading = false,
   notificationCount,
   onCalendarEventClick,
   onProjectClick,
@@ -18,6 +19,8 @@ export function DashboardView({
   onToast
 }: {
   dashboard: Dashboard;
+  /** True until the first summary arrives: counts show a placeholder, not a false 0. */
+  loading?: boolean;
   notificationCount: number;
   onCalendarEventClick: (event: RecordMap) => void;
   onProjectClick?: (projectId: string) => void;
@@ -104,7 +107,7 @@ export function DashboardView({
               <article className="metric-card" key={label}>
                 <span>{label}</span>
                 <strong className={atCap ? "metric-at-cap" : undefined}>
-                  {value}
+                  {loading ? "–" : value}
                 </strong>
               </article>
             );

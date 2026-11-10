@@ -163,7 +163,11 @@ export function App() {
   const [files, setFiles] = useState<RecordMap[]>([]);
   const [documentCategories, setDocumentCategories] = useState<RecordMap[]>([]);
   const [notifications, setNotifications] = useState<RecordMap[]>([]);
+  // The splash screen stays up until the first data load completes (or fails),
+  // so the dashboard never appears half-empty. `message` becomes "Ready." when
+  // refresh() succeeds and carries the error text when it fails.
   const [message, setMessage] = useState("Loading ScholarDocX...");
+  const [dashboardReady, setDashboardReady] = useState(false);
   const defaultTab = isUser() ? "dashboard" : (isAdmin() ? "admin" : "profile");
   // SCHOLARDOCX-0222: tab state lives in the URL (deep links, working Back,
   // reload persistence). setActiveTab pushes a history entry; popstate maps
@@ -207,24 +211,17 @@ export function App() {
   const refresh = async () => {
     setIsRefreshing(true);
     try {
-      const [
-        workspaceStatus,
-        summary,
-        fileRows,
-        categoryRows,
-        notificationRows
-      ] = await Promise.all([
-        api.get<RecordMap>("/workspace/status"),
-        api.get<Dashboard>("/dashboard/summary"),
-        listRecords<RecordMap>("static_files"),
-        api.get<RecordMap[]>("/document_categories"),
-        listRecords<RecordMap>("notifications")
+      // The five requests run in parallel; the splash lifts once all have landed.
+      await Promise.all([
+        api.get<RecordMap>("/workspace/status").then(setWorkspace),
+        api.get<Dashboard>("/dashboard/summary").then((summary) => {
+          setDashboard(summary);
+          setDashboardReady(true);
+        }),
+        listRecords<RecordMap>("static_files").then(setFiles),
+        api.get<RecordMap[]>("/document_categories").then(setDocumentCategories),
+        listRecords<RecordMap>("notifications").then(setNotifications)
       ]);
-      setWorkspace(workspaceStatus);
-      setDashboard(summary);
-      setFiles(fileRows);
-      setDocumentCategories(categoryRows);
-      setNotifications(notificationRows);
       setMessage("Ready.");
     } finally {
       setIsRefreshing(false);
@@ -300,17 +297,13 @@ export function App() {
   };
 
   useEffect(() => {
-    // Ensure the backend workspace + DB schema exist before reading dashboard
-    // data. This MUST stay sequential: /workspace/init calls initialize_database
-    // directly (bypassing the get_store memoization flag), and the dashboard
-    // reads route through get_store which would otherwise race to re-run DDL
-    // against the same tables. Concurrent DDL + reads exhaust the connection
-    // pool and stall the app (observed as a hang on repeated refreshes).
-    api
-      .post<RecordMap>("/workspace/init", {})
-      .then(refresh)
-      .catch((error) => setMessage(error?.message || "Failed to connect to backend server. Please check backend status."));
-
+    // No separate /workspace/init round-trip: the backend initializes the
+    // database once at boot and every data route funnels through the same
+    // memoized, lock-guarded init (ensure_db_initialized), so nothing here
+    // needs to run before the data requests.
+    refresh().catch((error) =>
+      setMessage(error?.message || "Failed to connect to backend server. Please check backend status.")
+    );
 
     // Global instant custom tooltips replacing browser-native title delay
     const handleMouseOver = (e: any) => {
@@ -672,6 +665,7 @@ export function App() {
           <div className={`tab-container ${activeTab === "dashboard" ? "" : "hidden-tab"}`}>
             <DashboardView
               dashboard={dashboard}
+              loading={!dashboardReady}
               notificationCount={notifications.filter((item) => !item.read_at).length}
               onCalendarEventClick={navigateToCalendarEvent}
               onProjectClick={navigateToProject}

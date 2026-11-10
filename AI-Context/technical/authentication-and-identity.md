@@ -1,198 +1,44 @@
 # Authentication And Identity
 
-## Current Technical Position
+## Model
 
-The secure personal workspace MVP ships with a full JWT auth model (the earlier "no auth
-gate" stance is superseded):
+JWT sessions with three ways in. Rules that protect them are in [security-privacy.md](security-privacy.md);
+this file describes how identity works.
 
-- Registration is invite-gated **or** paid (admin-configurable via the
-  `registration_mode` app setting: `invite_only`, `invite_or_paid`, or
-  `paid_only`); login returns a signed JWT.
-- Paid self-registration (SCHOLARDOCX-0162): a user without an invite code may
-  register by purchasing a Basic/Pro/Max plan at signup. The account is created
-  in an inert state (`is_active=0` with `pending_payment_since` set), cannot log
-  in, is activated on the `subscription.created` webhook (which sets
-  `is_active=1` and clears `pending_payment_since`), and is **completely deleted
-  after 2 hours if unpaid** (GitHub Actions cron + lazy safety net on login).
-  The paid-registration endpoint is rate-limited to 1 request / 24h / IP. No
-  email verification is required — the paid checkout session + browser
-  continuity is the trust anchor (the app has no email-sending infra today).
-- `get_current_user` validates the token, loads the user from the DB, enforces
-  `is_active`, and checks `token_version` (revocation). Authorization roles are
-  taken from the DB row, not the token payload.
-- `get_current_user` also supports extracting JWT tokens via a `token` query parameter when the `Authorization` header is not present (e.g. for browser file download/preview tabs).
-- Role guards: `require_admin`, `require_super_admin`, `require_role`. The
-  admin router is protected router-wide (`get_current_user` + `require_admin`)
-  plus a second fine-grained layer via `require_feature` /
-  `check_and_increment_limit` for destructive admin actions. Note: Admins (including `super_admin`) do NOT short-circuit or bypass regular user role checks. To access user-facing features, an admin must explicitly hold a user role (`general_user`, `pro_user`, `max_user`). Admins only get access to the admin tab.
+- **Email + password**, registered with an **invite code** (admin-generated), giving the free plan. Login returns a signed JWT.
+- **Google sign-in/sign-up** (SCHOLARDOCX-0169), optional, also free-plan. Details below.
+- Users upgrade to Basic/Pro/Max after login through the plan flow (Polar checkout, [billing-and-payments.md](billing-and-payments.md)). Paid registration at signup (SCHOLARDOCX-0162) was removed in 0169, along with `/auth/register-paid`, `/auth/google/complete-invite`, `/auth/google/complete-paid`, `CompleteSignupPage`, and `RegistrationCompletePage`; the `registration_mode` setting no longer drives behaviour.
+- Admin-created users (`signup_method='admin'`) and admin-mediated password reset (below) complete the picture.
 
-## JWT Secret Management
+## Session handling
 
-- The signing secret is stored in `app_settings.jwt_secret_key`.
-- `initialize_database()` provisions a per-install random secret and rotates
-  any compromised placeholder. There is no constant fallback; `get_jwt_secret`
-  raises HTTP 500 if the secret is missing or still compromised.
-- Rotating the secret invalidates all outstanding tokens (forces re-login) and
-  is the correct response to any suspected key compromise.
-- The algorithm is pinned to HS256 on decode (no `alg:none` confusion).
+- `get_current_user` (`backend/app/auth/dependencies.py`) validates the token, loads the user from the database, enforces `is_active` (suspended accounts are refused), checks `token_version` (revocation), and applies plan expiry. **Roles come from the database row, not the token payload.** It also accepts a `token` query parameter when no `Authorization` header is present, kept for legacy file links; new code opens files through short-lived download tokens instead ([security-privacy.md](security-privacy.md)).
+- Role guards: `require_admin`, `require_super_admin`, `require_role`. The admin router is protected router-wide (`get_current_user` + `require_admin`) plus a fine-grained layer (`require_feature` / `check_and_increment_limit`) for destructive admin actions. Admins, including `super_admin`, do not short-circuit regular user role checks; to use user features an admin needs a user-tier role.
+- **JWT secret**: `JWT_SECRET` (or `JWT_SECRET_KEY`) from the environment into `settings.jwt_secret_key`. Startup deletes any legacy `app_settings.jwt_secret_key` row. `get_jwt_secret` raises HTTP 500 if the secret is missing or still a known-compromised placeholder; there is no constant fallback. The algorithm is pinned to HS256 on decode (no `alg:none` confusion). Rotating the secret signs everyone out and is the right response to any suspected compromise.
+- Frontend: the token payload hydrates `AuthContext` immediately and `GET /auth/me` refreshes the user in the background (see [api-boundaries.md](api-boundaries.md)). Logout is an explicit button in Profile: call the logout endpoint, clear the token and session state, navigate to `/login`, and never delete user data.
 
-The earlier "lightweight local profile / no auth gate" notes below are kept as
-historical context.
+## Google OAuth (SCHOLARDOCX-0169)
 
-## Google OAuth 2.0 Guidance
+Authorization code + PKCE with the exchange done server-side via `authlib`.
 
-Google OAuth 2.0 / OpenID Connect can support signup/signin.
+- `GET /api/auth/google/login` generates `state`, `nonce`, and a PKCE verifier, stores them in a signed HttpOnly cookie (`sd_google_oauth_state`, signed with the JWT secret, 10-minute TTL), and redirects to Google with scopes `openid email profile` and `prompt=select_account`.
+- `GET /api/auth/google/callback` verifies the signed state cookie (CSRF guard), exchanges the code with the PKCE verifier, validates the id_token (signature against Google's JWKS, `aud`, `iss`, `nonce`), then resolves the user. On success it mints the existing JWT (`create_token`) and redirects to `FRONTEND_ORIGIN/auth-complete?token=...`; on failure to `auth-complete?error=...`. The frontend `/auth-complete` page hydrates `AuthContext.login()` and goes to `/dashboard`, or bounces to `/login` with the message.
+- **Account resolution**: a new Google user gets an active free account immediately (`signup_method='google'`, roles `['free_user']`); a returning linked user logs in directly; a Google email that is verified (`email_verified=true`) and matches an existing `users.email` is auto-linked by inserting an `external_identities` row; unverified Google emails are refused.
+- **Config** (`config.py`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (the backend callback), `FRONTEND_ORIGIN`. Without client id and secret, `google_enabled` is false and `/auth/google/login` returns 503. For local development use a localhost redirect URI and origin.
+- **Frontend**: "Sign in/up with Google" buttons on the login and register pages (`GoogleAuthButton`) link to `${API_BASE}/auth/google/login`; OAuth secrets never reach the browser.
+- **Data**: `external_identities` links a provider identity to a user (provider `'google'`, `provider_subject_id` = Google `sub`, snapshots of email, display name, avatar URL, `connected_at`), unique on `(provider, provider_subject_id)`; one user may have several. No OAuth or refresh tokens are stored, since sign-in needs only the id_token. Later Google API integrations would need incremental authorization and encrypted token storage.
 
-Recommended approach for a web app with a backend:
+## Forgot password (admin-mediated)
 
-- Use Google Identity Services or standard OpenID Connect.
-- Prefer authorization code flow through the backend for server-side validation and token handling.
-- Use minimal authentication scopes: `openid`, `email`, `profile`.
-- Store only the Google subject identifier and basic profile fields needed for local UX.
-- Keep tokens server-side if tokens are needed.
-- Do not expose client secrets or refresh tokens to the frontend.
+`POST /auth/forgot-password` is unauthenticated and returns the same generic message in every case (no enumeration, see [security-privacy.md](security-privacy.md)); at most one pending `password_reset_requests` row per user and one request per client IP per hour, enforced silently. `GET /admin/password-reset-requests` and `POST /admin/password-reset-requests/{id}/resolve` are gated by `admin_manage_password_resets`; `resolve` either `set_password` (hashes the new password, increments `token_version` to revoke all sessions, marks `Completed`) or `dismiss` (marks `Dismissed`).
 
-## Google OAuth Implementation (SCHOLARDOCX-0169)
+## Plan access lifecycle
 
-Google sign-in/sign-up is implemented as an OPTIONAL auth method alongside
-email/password. Registration is now simplified to two paths: invite-code
-or Google — both give a free plan. Paid self-registration at signup was
-removed; users upgrade to paid plans later via the logged-in plan flow.
+- User-tier access is enforced from `plan_started_at` / `plan_ends_at` in the backend limit layer; expired plans fall back to `free_user` at auth time.
+- The frontend shell treats an expired plan as limited navigation: workspace tabs (Dashboard, Projects, Documents, Sticky Notes, Whiteboard, ...) are hidden while Profile, Settings, About, and plan management stay reachable.
+- The Profile subscription card shows three states from the same date logic: normal, a warning at 7 or fewer days left, and an urgent expired state with renewal guidance.
+- Renewals are stored separately from upgrades (`request_type`) so the existing plan record is extended rather than replaced; a renewal approved after expiry starts from the approval time, otherwise from the current end date.
 
-**Flow:** authorization-code + PKCE, backend-side exchange via `authlib`.
+## Tests to keep
 
-- `GET /api/auth/google/login` → 302 to Google consent. Generates a random
-  `state` + `nonce` + PKCE verifier; stashes all three in a signed HttpOnly
-  cookie (`sd_google_oauth_state`, signed with the JWT secret, 10 min TTL).
-  Scopes: `openid email profile`. `prompt=select_account`.
-- Google redirects to `GET /api/auth/google/callback?code=...&state=...`.
-  Backend verifies the signed state cookie (CSRF guard), exchanges the code
-  (with the PKCE verifier), validates the id_token (signature vs Google
-  JWKS, `aud`, `iss`, `nonce`), then resolves the user.
-- On success the backend mints the EXISTING JWT (`create_token`) and 302s
-  the browser to `FRONTEND_ORIGIN/auth-complete?token=...`.
-- On failure the backend 302s to `FRONTEND_ORIGIN/auth-complete?error=...`.
-- Frontend `/auth-complete` reads the token, hydrates `AuthContext.login()`,
-  and navigates to `/dashboard`. On error it bounces to `/login` with the
-  message in router state.
-
-**Account model (simplified):**
-
-- Google sign-up: a NEW Google user gets an ACTIVE FREE account created
-  immediately (`signup_method='google'`, `is_active=1`, `roles=['free_user']`).
-  No invite code or payment required — the user goes straight to the
-  dashboard and can upgrade to a paid plan later.
-- Google sign-in: a returning user with a linked account logs in directly.
-- Auto-link by verified email: if the Google id_token's `email` (with
-  `email_verified=true`) matches an existing `users.email`, an
-  `external_identities` row is inserted and the user is logged in.
-  Unverified Google emails are refused (a verified-email guarantee is
-  what makes auto-link safe).
-
-**Env config (`config.py`):** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-`GOOGLE_REDIRECT_URI` (points at the BACKEND callback), `FRONTEND_ORIGIN`
-(where the browser is sent after minting the token). If client id/secret
-are unset, `google_enabled` is False and `/auth/google/login` returns 503.
-
-**Frontend:** "Sign in/up with Google" buttons on `LoginPage.tsx` and
-`RegisterPage.tsx` link to `${API_BASE}/auth/google/login`. No OAuth
-secrets ever reach the frontend.
-
-**Removed (SCHOLARDOCX-0169 simplification):** `/auth/register-paid`,
-`/auth/google/complete-invite`, `/auth/google/complete-paid`, the
-`registration_mode` setting, `CompleteSignupPage`, `RegistrationCompletePage`.
-Paid registration at signup was replaced by the post-login upgrade flow.
-
-## Localhost Redirects
-
-Local development can use localhost redirect URIs. Production or packaged-app redirect strategy must be decided during the auth task.
-
-Potential redirect examples:
-
-- `http://localhost:<backend-port>/auth/google/callback`
-- A packaged desktop app custom URI scheme if the app later becomes desktop-packaged.
-
-## Data Model: external_identities
-
-The `external_identities` table links OAuth/OIDC provider identities to a
-ScholarDocX user. One user may have multiple linked identities.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | String(36) PK | UUID |
-| `provider` | Text | `'google'` (extensible) |
-| `provider_subject_id` | Text | Google `sub` claim |
-| `user_id` | FK → `users.id` | The linked local user |
-| `email` | Text (nullable) | Snapshot of provider email |
-| `display_name` | Text (nullable) | Snapshot |
-| `avatar_url` | Text (nullable) | Snapshot |
-| `connected_at` | DateTime | Auto-set on insert |
-
-Unique on `(provider, provider_subject_id)`. No `oauth_tokens` table is
-needed — Google login does not store refresh tokens (no offline Google
-API access is required for sign-in).
-
-## Security Rules
-
-- Do not require Google signin for local-only features.
-- Do not store unnecessary Google profile data.
-- Do not request broad Google API scopes during signin.
-- Use incremental authorization for later Google API integrations.
-- Encrypt stored refresh tokens if the app stores them.
-- Validate ID tokens or authorization-code exchange responses server-side.
-- Clear local session state on signout without deleting application data.
-
-## Current Logout UX Contract
-
-- Profile view should expose an explicit logout button for authenticated users.
-- Frontend logout should call auth logout endpoint when available, then clear
-  local auth token/session state and navigate to `/login`.
-- Logout should never delete local project/workspace/user data.
-
-## Plan Access Lifecycle
-
-- User-tier plan access is enforced through `plan_started_at` and
-  `plan_ends_at` checks in the backend limit layer.
-- The frontend shell should also treat an expired user-tier plan as limited
-  navigation access: hide workspace tabs such as Dashboard, Projects,
-  Documents, Sticky Notes, and Whiteboard, while preserving Profile, Settings,
-  About, and plan-management entry points.
-- Profile-level subscription summary UI should derive plan state from the same
-  date logic and present three visual states: normal, warning when 7 or fewer
-  days remain, and urgent expired messaging with direct renewal/change-plan
-  guidance.
-- Plan renewal requests are stored separately from upgrades so the admin can
-  preserve the existing plan record and extend the deadline instead of
-  replacing the current subscription when a user asks for more time on the same
-  tier.
-- If a renewal is approved after the plan has already expired, the new
-  deadline starts from the approval timestamp so the user regains access from
-  the moment the admin acts.
-
-## Testing Requirements
-
-If auth is implemented, add unit tests for:
-
-- Provider config validation.
-- OAuth callback success path.
-- OAuth callback failure path.
-- Local profile creation/linking.
-- Signout behavior.
-- Disconnect behavior.
-- Scope handling.
-
-## Forgot Password (admin-mediated reset)
-
-- `POST /auth/forgot-password` is unauthenticated and always returns HTTP 200
-  with an identical generic message. It never reveals whether an email is
-  registered, whether a request was created, or whether a rate limit applied.
-- Two limits are enforced silently (by not creating a row): at most one pending
-  `password_reset_requests` row per user, and one request per client IP per
-  hour (in-memory `defaultdict` of timestamps, matching the login/register/
-  invite-request limiter style).
-- `GET /admin/password-reset-requests` and
-  `POST /admin/password-reset-requests/{id}/resolve` are gated by the
-  `admin_manage_password_resets` permission. `resolve` supports `set_password`
-  (hashes a new password and increments the user's `token_version`, revoking all
-  prior sessions, then marks the request `Completed`) and `dismiss` (marks the
-  request `Dismissed` without changing the password).
+Provider config validation, OAuth callback success and failure paths, account linking and auto-link rules (verified email only), logout behaviour, scope handling, and the forgot-password invariants.

@@ -1,521 +1,94 @@
 # Frontend Visual System
 
+How the UI is styled and the rules that prevent known regressions. Responsive tiers and the
+drawer breakpoint live in [responsive-design-system.md](responsive-design-system.md). User-facing copy
+rules (no infrastructure or algorithm jargon) live in AGENTS.md and are not restated here.
+
 ## Direction
 
-ScholarDocX should feel like a local research command center: focused,
-interactive, and polished without becoming decorative marketing UI.
-
-> **Responsive Design System**: For all non-desktop viewports (≤ 1200px), off-canvas navigation drawer, single-column flex linear card stacking, compact topbar controls, and unrestricted horizontal/vertical scrollability, read [responsive-design-system.md](responsive-design-system.md).
-
+A focused research command center: readable, interactive, polished, not decorative marketing UI.
+The workspace is teal on a warm ivory canvas with a dark-green sidebar; the public landing page uses
+a related ivory / ink-navy / gold editorial look. No external fonts or CDN assets beyond the
+declared font link, and the PDF.js worker is bundled locally.
 
 ## Principles
 
-- Use a distinctive but highly readable local-font stack and tighter typography
-  scale.
-- Keep global headers compact enough that workspace content remains visible on
-  laptop-sized screens.
-- Keep work surfaces scan-friendly, with dense cards and clear hierarchy.
-- Project card grids should prefer a maximum of four cards per row on wide
-  screens. Card widths should be fluid within the available grid space, not
-  fixed pixel widths; stable card height is acceptable for scan consistency.
-- Use color to clarify hierarchy and state, not to overpower body text or make
-  labels hard to read.
-- Prefer low-saturation, eye-soothing canvas and surface colors for planning
-  screens. Avoid bright warm accents, heavy gradients, and visible background
-  patterns that compete with work content.
-- **Layout freedom (owner decision, 2026-11-10)**: there is no mandated scroll
-  model. Pages and panels may scroll vertically or horizontally, wrap, or fit
-  the viewport — choose whatever gives the best UI for the screen. The earlier
-  "shell stays fixed, only inner regions scroll" rule is withdrawn. Existing
-  fixed-shell behavior may stay where it works, but it is not a requirement
-  and may be changed when a redesign calls for it.
-- **Never clip content (SCHOLARDOCX-0227)**: `.tab-container` is the default scroll
-  owner; page roots must grow to content or scroll themselves, and the sidebar
-  scrolls on short screens (see the "Never clip page content" block at the end
-  of `visual-refresh.css`).
-- Sheet tables should behave like spreadsheet work areas: the row-number/index
-  column stays frozen on the left during horizontal scroll, and grouped column
-  headers must keep high text contrast against their background. There is no repetitive
-  Actions column on the sheet; instead, row controls (View Details, Edit, and Email) are
-  contextually shown in the selection toolbar only when exactly 1 row is selected. When
-  multiple rows are selected, only bulk actions (Copy, Duplicate, Delete) are visible.
-- Sheet rows should default to a stable, scan-friendly preview height. Long
-  text, long words, emails, and URLs should be clipped or wrapped within their
-  own cells and never force automatic row expansion or bleed into adjacent
-  columns.
-- Clipped sheet cells should not use ambiguous fade blocks. Use a clear,
-  clickable preview state and provide a full-cell viewer for reading and
-  copying the complete value.
-- Sheet cell interactivity should be applied to the whole visible cell area,
-  not a small inner text chip. Avoid browser tooltip labels and zoom-in cursors
-  in the grid because they make the spreadsheet feel less native.
-- Full-cell editing should happen inside the cell viewer, with clear Save and
-  Cancel actions, and should persist only the selected cell value.
-- Multi-line cell editors should auto-size as the user types until roughly 10
-  text lines are visible, then use editor-level scrolling instead of growing
-  the whole modal.
-- Empty cells should have a quiet but clickable full-cell target, not a dead
-  dash. Their editor panel should use the same typed controls as filled cells.
-- File cells in the full-cell editor should reuse the existing local document
-  picker/upload component so attachment selection stays consistent across the
-  record form and single-cell editing.
-- Cell text and cell formatting (bold/italic/underline/strikethrough, text
-  color, cell background, row background, alignment, font size presets, and a
-  curated system-font list of 15 fonts: System Sans, Arial, Helvetica, Verdana,
-  Trebuchet MS, Calibri, Optima, Century Gothic, Georgia, Palatino, Garamond, Bookman, Goudy Old Style, Times New Roman, and Monospace) is applied through a compact formatting bar
-  (`CellStyleBar`) rendered directly inside the section header actions
-  (`SheetToolbarActions`), positioned to the left of the 'Import / Export' button
-  when a cell is focused, with parity in the full-cell viewer and full screen mode. The "Applying to X selected rows"
-  scope selection indicator is positioned to the left of the formatting bar (`CellStyleBar`).
-  The bar must not distort row height. File cells never show the format bar. Formatting
-  persists per cell in the row's `_cellStyles` reserved key and per row in
-  `_rowStyle`; it is never sent to CSV exports. Custom color inputs and swatches
-  do not lose editor focus when clicked. Text and background color buttons feature
-  colored horizontal underlines beneath their icons to represent the current state,
-  defaulting to transparent dashed lines when no custom color is set.
-- Sheet toolbar action buttons (Columns, Edit columns, Categorize, Date Colors, Email Config, Views)
-  render with the active/selected status class (`.secondary.active`) whenever their popovers, modals,
-  or views are currently active or open.
-- Horizontal overflow areas should feel pannable: users can hold the primary
-  mouse button and drag left/right on the scroll surface to move sideways,
-  without hijacking interactions on buttons, links, inputs, selects, textareas,
-  file pickers, or modal controls.
-- Use a balanced palette with enough contrast to separate work surfaces from the
-  canvas. Muted teal can remain the primary action color, but pair it with
-  restrained blue and warm accent states so the interface does not read as a
-  single green wash.
-- Dropdown menus (such as Columns and Categorize list selectors) use a compact row spacing layout (0.125px gap, 0.2px 8px padding, 0px margin inputs, 1.2 line height) to maintain dense and clean scannability.
-- System-wide responsive design is enforced across six key viewports: 320px, 375px, 430px (phones), 768px (tablets), 1024px, and 1440px (desktops). Playwright visual audit sweeps can inspect in-app tabs and public routes; overflow findings are advisory, not a pass/fail gate. On smaller viewports (≤768px and ≤430px), static non-functional decorative header copy, ambient canvas banners, and heavy marketing subtitles are hidden to declutter the workspace and maximize scrollable functional area (`overflow-y: auto`).
-- **Responsive Single-Row Flex Parity Rules — WITHDRAWN (owner decision, 2026-11-10)**: toolbars, section headers and ribbons are no longer required to stay single-row / `nowrap` / `overflow-x: auto`. They may wrap, stack, or scroll as the design needs. Historical rationale: [responsive-design-system.md](responsive-design-system.md).
+- Keep headers compact so work content stays visible on laptop screens; dense, scannable cards with clear hierarchy.
+- Color clarifies hierarchy and state; it never overpowers body text. Prefer low-saturation, eye-soothing surfaces for planning screens (muted teal primary, restrained blue and warm accents, no heavy gradients or busy patterns behind work content).
+- Project card grids: at most four cards per row on wide screens, fluid widths.
+- Motion is for state changes, panel entry, hover, and focus feedback; honor `prefers-reduced-motion`.
+- Floating panels stay visually separate from content through depth, backdrop blur, and clear headers.
+- Dashboard type is compact; admin panels read as a dense operational console; profile columns stay visually balanced; the collapsed sidebar is an icon rail with readable centered icons and accessible labels.
 
-- Dashboard typography should be compact: headings and metric numbers should
-  support scanning without visually shouting.
-- Admin dashboard panels should feel like a dense operational console: compact
-  metric cards, clear table headers, stable panel heights, and polished empty
-  states. Avoid sparse blank card bodies when recent admin activity is limited.
-- Profile pages should keep identity, workspace, plan, usage, and security
-  actions visually balanced. Avoid one column ending far above another on
-  desktop when cards can be regrouped without changing behavior.
-- The collapsed left navigation should behave as an icon rail: icons stay at
-  readable size, buttons are centered, active state does not overlap the icon,
-  and hidden text remains accessible through labels or tooltips.
-- Use motion for state changes, panel entry, card hover, and focus feedback.
-- Keep floating panels visually separate from page content through depth,
-  backdrop blur, and clear headers.
-- **Modal backdrop blur scoping — NON-NEGOTIABLE (regressed 3+ times).**
-  Read this entire block before creating or editing any modal.
+## Layout and scrolling
 
-  **Design intent**
+- **Layout freedom (owner decision, 2026-11-10):** no mandated scroll model, single-row, `nowrap`, or fixed-height rule.
+- **Never clip content (SCHOLARDOCX-0227):** `.tab-container` is the default scroll owner. A page root must either grow to its content or scroll itself, never combine `overflow: hidden` with `min-height: 0` without an inner scroller. The sidebar scrolls on short screens. The shared block is at the end of `visual-refresh.css`; dashboard grid rows use a min-content minimum so cards never shrink below their content.
+- Main views (Dashboard, Projects, Documents, Sticky Notes, Whiteboard, ...) stay mounted in `.tab-container` and are hidden with `.hidden-tab` (`display: none !important`) to avoid unmount blinks and layout shifts.
+- Full-page tab views (About, Plans, Buy credits, Admin) use `.tab-page` (+ `--scroll` / `--column`); do not hand-roll inline flex/overflow/background wrappers.
+- Wide tables intentionally scroll horizontally inside bounded containers; horizontal scrollers support click-drag panning without hijacking buttons, inputs, selects, or modal controls.
+- Split panes avoid stretched side panels when one pane is only a control form; the content-heavy pane may own an internal scroller.
+- Inner page layouts must not use a semantic `<main>` (the global `main` style sets the root viewport layout); use `<div className="news-main">`. The global `main` is a flex container, so wide section children need `min-width: 0`.
+- The admin page contains its content (`#admin-view-root` and children `min-width: 0; max-width: 100%`).
 
-  | Region | Blurred when modal open? |
-  |--------|--------------------------|
-  | Left Sidebar | No — stays crisp |
-  | Global TopBar | No — stays crisp |
-  | Breadcrumbs, view headers, toolbar, table | Yes |
-  | Modal panel | No — stays sharp |
+## Modal backdrop blur (non-negotiable; regressed 3+ times)
 
-  **Architecture (two pieces that must work together)**
+The required pattern and forbidden list are in AGENTS.md ("Modal backdrop blur"). The mechanics:
 
-  1. **Portal target** — `<Modal>` (`frontend/src/components/Modal.tsx`) uses
-     `createPortal(…, document.querySelector(".main-content"))`. The backdrop
-     must be a direct child of `.main-content` (`position: relative`).
-  2. **CSS positioning** — `.modal-backdrop-main` uses `position: absolute;
-     inset: 0` so it fills `.main-content` only. The base `.modal-backdrop`
-     class is `position: fixed` (only for `scope="body"`, which in-app modals must not use — SCHOLARDOCX-0229);
-     `.modal-backdrop-main` overrides that — do not merge or remove the override.
+| Region | Blurred while a modal is open? |
+|---|---|
+| Sidebar, global TopBar | No (crisp) |
+| Breadcrumbs, view headers, toolbar, table | Yes |
+| Modal panel | No |
 
-  **Why agents regress this (do not repeat)**
+1. **Portal target**: `<Modal>` (`frontend/src/components/Modal.tsx`) portals into `.main-content` (`position: relative`), so the backdrop is a direct child of the work surface. `scope="body"` exists but in-app modals must not use it: it blurs the TopBar and centers under the sidebar (SCHOLARDOCX-0229).
+2. **CSS**: `.modal-backdrop-main` is `position: absolute; inset: 0` (never `fixed`, never `min-height: 100vh`); the base `.modal-backdrop` is `position: fixed` and `.modal-backdrop-main` overrides it, so do not merge or remove the override. Canonical copies live in `styles.css` and `visual-refresh.css`.
+3. **Placement**: 80px top offset (`<Modal compact>` uses 48px for dense admin dialogs); at 760px tall or less the offset is 20px and panels may use the whole surface. The backdrop scrolls if a panel is taller than the surface, panel width is capped to the work surface (`calc(100% - 32px)`), and panel bodies scroll inside with header and footer fixed. Size custom panels against the work surface (percentages), not `vw`/`vh`.
+4. **Accessibility** (in `<Modal>`): Escape closes the topmost modal, focus is trapped and restored, `role="dialog" aria-modal="true"` (pass `label`), and stacked modals (`zIndex >= 1060`) get `data-modal-depth="nested"` which CSS uses to lighten the blur. Never write `[style*="zIndex..."]` selectors.
+5. **Exceptions**: only `LoginPage.tsx`'s `auth-modal-backdrop` (pre-login, nothing to keep sharp). `DialogProvider` (`showAlert` / `showConfirm` / `showPrompt`) portals into `.main-content` with `.scoped-main`, falling back to fixed full-viewport only where no `.main-content` exists (login, splash). If a dialog does not fit `<Modal>`, change `Modal.tsx`; never write a second backdrop.
+6. Do not copy older files that grep shows containing an inline `modal-backdrop modal-backdrop-main` div; that pattern blurs only `.section-body`.
 
-  - Grep for `modal-backdrop-main` and copy a legacy inline div from another file
-    → blur scoped to `.section-body` only (breadcrumbs stay sharp). **Wrong.**
-  - “Simplify” modal CSS by making `.modal-backdrop-main` fixed like `.modal-backdrop`
-    → blur bleeds over sidebar and TopBar. **Wrong.**
-  - Re-add an inline backdrop div “for one special case” instead of using
-    `<Modal>` → **Wrong.** Every main-content modal uses `<Modal>` now
-    (SCHOLARDOCX-0217 finished the last inline ones).
+## Theme
 
-  **Only approved implementation**
+- **Tokens** live in `visual-refresh.css` (`--ui-*`), with `app-brand.css` (imported last) layering the in-app brand alignment (SCHOLARDOCX-0230): ivory canvas (`--ui-canvas #f6f1e6`, warm `--ui-line`), serif display face (`--font-display` = Fraunces) for h1/h2, section titles, and the sidebar wordmark, and a gold accent (`--ui-gold #c58a1b`) on the active-nav marker and the Pro plan badge. Put further brand-level tweaks in `app-brand.css`.
+- **Landing page** (`frontend/src/components/LandingPage/`, SCHOLARDOCX-0223): ivory-paper / ink-navy / gold editorial theme. Tokens are scoped to `.lp-container` in `landing-shared.css` (`--lp-ink #0e1b33`, `--lp-ivory #fbf7ef`, `--lp-blue #1f3a8a`, `--lp-gold #c58a1b`, `--lp-serif` Fraunces) and also remap local `--ui-*`, so the in-app teal is untouched. `landing-theme.css` (imported last) holds cross-section overrides. One file per section plus an `index.tsx` barrel. Emphasised words are italic blue with a gold underline; the closing CTA is the only dark block; the header is transparent at rest and frosted on scroll, with its scroll listener on `.lp-container` (the page scrolls inside it, not the window). Motion is dependency-free (`useReveal` over `IntersectionObserver`, `.reveal` -> `.in-view`, staggered with `--reveal-delay`, reduced-motion safe; the stats band counts up capability numbers, never fabricated user counts). The hero product plate is a pure CSS/SVG mock; the FAQ is an accessible single-open accordion (`grid-template-rows: 0fr -> 1fr`). Do not re-add "How It Works" or `#how`. Pricing defaults come from `plan-defaults.ts` and zero-priced payloads are never rendered (SCHOLARDOCX-0214). Footer credits "Designed & built by Fahad Pathan".
+- **Auth pages** (`LoginPage.tsx`, `RegisterPage.tsx`) share `auth-*` primitives in `LoginPage.css`. Every view has a "Back to home" pill, and sub-views offer "Back to login" and "Back to registration". Registration is invite code or Google; quarterly billing toggles show a "Save 20%" chip. While a request is in flight `SlowStartToast` shows a bottom toast that dismisses itself after 6s (SCHOLARDOCX-0231); the splash screen keeps its own wake-up tip.
+- **Suspended account**: a suspended login shows an "Account Suspended" notice with Contact Admin (opens an appeal textarea, `maxLength={500}`, `POST /auth/contact-admin`) and Close.
+- Admin tables carry badges for join method (invite amber, purchase emerald, admin indigo, Google) and plan source (Polar cyan, admin-set purple, not subscribed slate), with matching filter groups, now behind a collapsible Filters bar (SCHOLARDOCX-0232).
 
-  ```tsx
-  import { Modal } from "../Modal";
+## Shared primitives and conventions (SCHOLARDOCX-0213)
 
-  return (
-    <Modal onClose={onClose} zIndex={1060 /* optional, for nested modals */}>
-      <form className="modal-panel" onClick={(e) => e.stopPropagation()} …>
-        …panel content only — no backdrop div…
-      </form>
-    </Modal>
-  );
-  ```
+Reuse these instead of inline styles or new variants: `.tab-page`; `.secondary.compact` (32px) paired with `.icon-button.compact`; `.text-button` (popover-footer action, with `.danger`); `.modal-content.stacked` (flex column, 16px gap); `.modal-callout` (`--plain`, `is-tip`); `.modal-footer` (`flex-wrap: wrap; gap: 12px`, never re-declare inline); `.field-label`. Fixed regressions not to reintroduce: dashboard card headers and bodies share one 14px left inset; the unread-notification accent is an inset box-shadow (border width must never change); the Register `or` divider and Google button span the full grid (`grid-column: 1 / -1`); calendar weekday labels align with day numbers; the whiteboard minimap sits 20px from its canvas; `.wb-text-dim` does not exist (use `--wb-text-muted`); the sticky board is CSS-columns masonry by design; `--sheet-index-width` is the single source for the row-index column. The `Field` component matches select option values case-insensitively. User-facing text about cloud-hosted resources must not say "saved locally".
 
-  Canonical reference: Create Project modal in `ProjectWorkspace.tsx`.
+## Sheets
 
-  `<Modal>` also owns the accessibility layer (added SCHOLARDOCX-0217): Escape
-  closes the topmost open modal, focus is trapped inside and restored on
-  close, the backdrop carries `role="dialog" aria-modal="true"` (pass `label`
-  for an accessible name), and stacked modals (`zIndex >= 1060`) get
-  `data-modal-depth="nested"`, which CSS uses to lighten the backdrop blur —
-  never write `[style*="zIndex…"]` attribute selectors (they cannot match
-  React's hyphenated style serialization).
+- **Grid vs chrome**: `frontend/src/sheet-table-polish.css` owns the grid (table, headers, cells, resize, sticky columns); `components/sheet/sheet-chrome.css` owns everything around it (toolbar, buttons, menus, shortcuts panel, blank state). New sheet styling goes in one of these, never inline.
+- **One menu primitive**: `components/sheet/SheetMenu.tsx` (`SheetMenu` + `SheetMenuItem` / `SheetMenuToggle` / `SheetMenuLabel` / `SheetMenuDivider`). Toolbar grouping is by purpose: View, Views, Format, Data; only Add record and search sit outside a menu. Toolbar buttons show `.secondary.active` while their popover, modal, or view is open.
+- **Spreadsheet behaviour**: the row-number column stays frozen and opaque; there is no Actions column (View Details, Edit, Email appear in the selection toolbar for exactly one selected row; bulk Copy/Duplicate/Delete for several). Rows keep a stable preview height; long text is clipped or wrapped inside its cell, never auto-expands rows or bleeds sideways. Clipped cells show a clear clickable preview and open a full-cell viewer for reading, copying, and editing (explicit Save/Cancel, persists only that cell; multi-line editors auto-size to about 10 lines, then scroll). The whole visible cell is the interactive target (no tiny chip, no browser tooltips, no zoom cursors); empty cells get a quiet clickable target with the same typed controls; file cells reuse the document picker.
+- **Cell formatting**: the compact `CellStyleBar` sits in the section header actions (`SheetToolbarActions`) left of Import / Export when a cell is focused (parity in the full-cell viewer and full-screen mode; the "Applying to X selected rows" indicator sits left of it). Options: bold/italic/underline/strikethrough, text color, cell and row background, alignment, size presets, and a curated list of 15 system fonts. It never distorts row height, is never shown for file cells, persists per cell in `_cellStyles` and per row in `_rowStyle` (reserved row keys, see [data-model.md](data-model.md)), and is never exported to CSV. Color inputs keep editor focus; the color buttons show the current color as an underline (transparent dashed when unset).
+- **Density and view preferences** drive the existing `--sheet-row-height` and `--sheet-cell-lines` variables. Density, frozen column, and colour rules are per-reader and live in `localStorage`, never on the shared page record.
+- **Pure logic, tested**: grid rules in `components/sheet/sheetGrid.ts`, filters in `sheetFilters.ts`, insights and colour rules in `sheetInsights.ts` (tests next to each). This repo has no DOM test harness, so logic kept out of components is the only logic that can be tested.
+- **Dates**: parse sheet dates with `parseSheetDate`, never `new Date(value)` (a date-only string parses as UTC but a timestamped one as local, so comparisons drift by a day east of UTC). Date-sensitive tests run under UTC, Asia/Dhaka, and US/Hawaii. Colour rules resolve last-wins; operators are filtered by column type; conditional tints are a background wash plus a left marker, never a saturated fill. The command palette (`Ctrl/Cmd+K`) keeps a fixed order.
+- **No sticky first data column.** It was attempted and removed after two regressions (it interacts badly with sticky row headers, `content-visibility: auto`, `table-layout: fixed`, `min-width: 1200px`, and the rounded `overflow: auto` container). `.is-first-data-col` remains only as a hook. Do not retry without a browser to verify.
+- **The sticky row-number column must stay opaque.** `.sheet-table td.row-header` is sticky; without an opaque background the scrolling rows show through. Many `... td` rules out-rank it (hover, due tints, focus, zebra), so `background` and `box-shadow` use `!important` at the foot of `sheet-chrome.css`. Any new rule that backgrounds sheet cells must target `td.data-cell`, not a bare `td`.
 
-  **Forbidden markup**
+## Sticky notes, whiteboard, games
 
-  ```tsx
-  // NEVER — missing portal; blur trapped in nearest positioned ancestor
-  <div className="modal-backdrop modal-backdrop-main" onClick={onClose}>
-    <form className="modal-panel">…</form>
-  </div>
-  ```
+- **Sticky notes** live in `components/sticky/` with two stylesheets (`sticky-notes.css` board and card, `sticky-controls.css` everything around a note); rules (parsing, tags, due buckets, search, sort, reorder) are pure functions in `lib/stickyNotes.ts`. **Never reset `font` wholesale** on a themed note element: `font: inherit` includes `font-family` and resolves to the card's Caveat default instead of the user's choice. Reset size, weight, style, line-height, letter-spacing, and colour only.
+- **Never reuse a global utility name as a local modifier**: `.secondary`, `.primary`, `.compact` carry real layout in `styles.css` / `visual-refresh.css`. Name modifiers for what they are (`.filters`, `.tools`).
+- **Whiteboard**: any board, including the last, can be deleted; with none left it resets drawing state and shows `wb-empty-state` ("No whiteboards yet") with a create CTA.
+- **Brain Games** (`components/games/`): one stylesheet `brain-games.css` scoped to `.brain-games`, `.game-*` and per-game prefixes; it does not participate in `responsive.css`. All rules, generators, and searches are pure functions in `lib/games/`, components only render and handle input. Animations are short feedback one-shots and each must be listed in the `prefers-reduced-motion` block, clearing `transform` as well as `animation`. Copy in `gameRules.ts` and the how-to blurbs is plain language (no "minimax", "flood fill", "vector"). The file is over the 1000-line target; a seventh game should split it per game.
 
-  **Canonical CSS** (mirror in `styles.css` and `visual-refresh.css`; do not edit
-  without reading the AGENTS.md modal section):
+## Other components
 
-  ```css
-  .modal-backdrop-main {
-    position: absolute;                 /* NOT fixed — scopes to .main-content */
-    inset: 0;
-    min-height: 100%;
-    backdrop-filter: blur(8px) saturate(110%);
-    background: radial-gradient(circle, rgba(15,23,20,0.4) 0%, rgba(15,23,20,0.55) 100%);
-    z-index: 1050;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 160px;                 /* lowered, not flush to top */
-  }
-  ```
+- **Research Expert PDF viewer** (`ResearchPdfViewer.tsx`): `pdfjs-dist` renders papers client-side and highlights cited passages on the real text layer. The worker is bundled locally (`pdfjs-dist/build/pdf.worker.min.mjs?url`), the viewer is `React.lazy`-loaded so the ~480 KB chunk downloads only on "View in PDF", and minimal `.textLayer` rules are inlined in `research-pdf-viewer.css`.
+- **Documents and Projects grids**: compact glassmorphic cards with auto height and quiet hover scaling; document category titles sit inline with the icon, the latest-upload line appears only when files exist, and uploads start from the category card. Projects group by degree case-insensitively. Project cards show the quota bar and chip immediately with a grey pulse (`.quota-loading`) so nothing shifts while quotas load.
+- **Plan Comparison** (`plan-comparison.css`): light glassmorphic deck, per-tier tinted outlines (Max as a dark card), and a hover glare sweep.
+- **Splash screen**: shown while the first data load runs (and on failure or the auth gate); its cold-start note is a quiet borderless sub-line (`.splash-message-secondary`) above a rotating tip carousel (6s).
+- Dropdown menus use compact row spacing for scannability.
 
-  **Migration status:** every main-content modal now uses `<Modal>`
-  (SCHOLARDOCX-0217 migrated the last inline backdrops — the App.tsx document
-  modals (now default `scope="main"`), `AboutView` models dialog, and
-  `AddToTrackerModal`). The only remaining non-`<Modal>` backdrop is
-  `LoginPage.tsx`'s `auth-modal-backdrop` — a pre-login, full-viewport dialog
-  where there is no sidebar/TopBar to keep sharp; leave it unless the auth
-  pages are redesigned.
+## CSS organization
 
-  **Already migrated to `<Modal>`:** Email Configuration, Edit columns, Add column,
-  Create Project, Create Sheet (via `ProjectWorkspace.tsx`).
-
-  **Admin/settings dense dialogs:** pass `<Modal compact>` for `padding-top: 48px`
-  instead of the default `160px` (sheet/project modals with breadcrumbs).
-- Modals within the main content area should blur only the main work surface and MUST NOT blur the app's TopBar or the left Sidebar.
-- The view's own headers (like "Admin Dashboard") SHOULD be blurred when a modal is open. Only the global app TopBar remains unblurred.
-- All new modal creations must keep appropriate space from the edges (e.g., use `items-start justify-center pt-24` or `items-center p-4 sm:p-8` depending on layout).
-- Avoid external font/CDN dependencies to preserve secure personal workspace expectations.
-- **Research Expert PDF viewer** (`ResearchPdfViewer.tsx`) uses the `pdfjs-dist`
-  library to render uploaded papers client-side and highlight cited passages on
-  the real PDF text layer. The PDF.js worker is bundled locally
-  (`import "pdfjs-dist/build/pdf.worker.min.mjs?url"`) — no CDN, consistent with
-  the local-first/no-external-CDN rule. The whole viewer is `React.lazy`-loaded
-  (behind `Suspense`) so the ~480 KB PDF.js chunk only downloads when a user
-  actually opens "View in PDF", keeping the main bundle lean. Minimal PDF.js
-  `.textLayer` positioning rules are inlined in `research-pdf-viewer.css` (the
-  full `pdf_viewer.css` is intentionally not imported).
-- Prefer additive override styles in focused CSS files rather than expanding
-  oversized global CSS.
-- The public landing page (`frontend/src/components/LandingPage/`) is split into
-  a colocated component directory (one file per section + colocated CSS + an
-  `index.tsx` barrel) rather than a single component, to respect the file-size
-  rule as the page grew. `main.tsx` imports it as `./components/LandingPage` and
-  resolves to the barrel with no router change.
-- **Landing Page Feature Spotlight Showcase (`PillarsShowcase.tsx` & `PillarsShowcase.css`)**:
-  Separately features and markets the 3 core power tools: **Research Expert** (deep AI paper & proposal analysis), **Advisor Atlas** (research-fit scoring & verified faculty contact details), and **Focus Games** (6 cognitive micro-break games). Includes an interactive 3-tab stage with live simulated UI card mockups (analytical prompts selector, professor match score gauge, mini-game previews), glowing ambient light nodes, themed accent badges (`accent-cyan`, `accent-emerald`, `accent-amber`), and direct header navigation (`#featured-tools`).
-- Landing-page motion is dependency-free: a `useReveal()` hook wraps
-  `IntersectionObserver` and toggles a shared `.reveal` → `.in-view` CSS
-  transition (staggered via a `--reveal-delay` custom property). It honors
-  `prefers-reduced-motion` by revealing content immediately. The same hook
-  powers a count-up `StatsBand` (capability numbers only, never fabricated user
-  counts). No framer-motion or animation library is added.
-- The hero uses a pure CSS/SVG mock of the workspace (`ProductPreview`) — no
-  external screenshots or CDN assets — built from the existing `--ui-*` tokens.
-- The landing FAQ is an accessible accordion (single-open, `aria-expanded`,
-  height animated via a `grid-template-rows: 0fr → 1fr` transition rather than
-  JS-measured heights).
-- The public auth pages (`LoginPage.tsx`, `RegisterPage.tsx`) use a shared set of
-  `auth-*` visual primitives in `LoginPage.css` built from the `--ui-*` tokens.
-  The card layout uses a wide container (`.auth-card.auth-card-wide`, `max-width: 740px`)
-  for registration to allow multi-column horizontal field layouts: Plan and Billing
-  Cycle side-by-side, full-width single horizontal Price Readout banner (mint background),
-  Display Name and Email side-by-side, Password and Confirm Password side-by-side.
-  The registration page defaults to opening the "Purchase a plan" tab.
-  Price readout, hint text, cycle toggle button text (`Quarterly Save 20%`), and footer links
-  formatting are set to single-line display (`white-space: nowrap`) to prevent line wrapping
-  and vertical overflow on laptop viewports.
-  Quarterly billing toggles across the landing page, registration form, and plan comparison view
-  display a promotional `Save 20%` badge chip for marketing incentive.
-  Every auth view renders a "Back to home" `Link` to `/` as a pill at the top-left of
-  the card. All sub-views (Request Invite, Forgot Password, Success screens) provide both
-  "Back to login" and "Back to registration" links. Auth logic, API calls, and routing are unchanged.
-- The Admin Panel Users tab (`UsersTab.tsx`) includes a **Join Method** column (`Joined by Invite` amber badge vs `Online Purchase` emerald badge vs `Admin Created` indigo badge) with a corresponding `Join Method` filter subgroup (`All Methods` | `Joined via Invite` | `Online Purchase` | `Admin Created`), as well as a **Plan Source** column (`Via Polar` cyan badge vs `Admin Set` purple badge vs `Not Subscribed` slate badge) with a corresponding `Plan Source` filter subgroup (`All Sources` | `Via Polar` | `Admin Set` | `Not Subscribed`) so admins can track both how accounts joined and how current active plans were granted.
-- The Admin Panel Info tab (`InfoTab.tsx`) includes a dedicated **System Cron Jobs & Automated Maintenance** panel detailing active background maintenance routines (Expired Plan Downgrade, Unpaid Pending Account Cleanup), their schedules (Daily UTC, 2-hour interval), routes, CLI scripts, auth headers, and execution behaviors.
-
-## Implementation Notes
-
-- `frontend/src/styles.css` is oversized and should not receive broad new
-  visual-system rules.
-- New broad visual polish should live in dedicated CSS files imported after the
-  legacy stylesheet.
-- Component markup changes should stay minimal unless the behavior or hierarchy
-  needs to change.
-- Split-pane work areas should avoid stretched side panels when one pane is
-  only a control form. The content-heavy pane can own an internal scroller.
-- Documents category grid cards utilize a compact layout (height auto/118px, padding 14px 16px) with glassmorphism (translucent background, blur filter) and quiet, neutral hover scaling (no bright colored glows) to maintain a low-saturation, eye-soothing visual system. Category titles display inline to the right of the category icons (inside `.doc-category-card-title-group`) to yield a clean horizontal layout that eliminates empty vertical space. Typography is compact (16px semibold title) with overflow clipping to prevent wrapping. To minimize visual noise, the latest upload subtext (`11px` metadata) is conditionally displayed only when the category has documents, leaving 0-file cards completely clean and centered. Document upload actions are located at the card-level (inside `.doc-category-card-footer-actions`), pre-populating and pre-selecting the specific category within the upload modal.
-- Projects grid cards utilize a flexible layout matching the glassmorphic aesthetics. Auto-sizing heights (removing fixed grid auto rows) prevent empty vertical spacing and allow cards to stretch to the tallest card in their row. Accent strips on the left side of the cards are disabled in favor of clean border lines. Subtitle metadata and descriptions utilize small, clean fonts (11px meta, 12px description with a 2-line clamp). Card toolbar actions use low-contrast, borderless button styling for administrative controls (Pin, Dashboard, Edit, Delete), showing soft translucent background and border accents only when active or hovered. Projects are grouped by degree type in a case-insensitive manner (e.g. 'phd' and 'PhD' belong to the same group) to avoid duplicate headers in the list.
-- To prevent unmounting blinks and layout shifts, main navigation views (Dashboard, Projects, Documents, Sticky Notes, Whiteboard, etc.) are kept mounted in the DOM using a `.tab-container` class and hidden dynamically via a `.hidden-tab` class (`display: none !important`).
-- To prevent layout shifts inside the Projects card grid when sheet quotas are loading asynchronously, the progress bar and chip render immediately with a subtle grey pulse loading animation (`.quota-loading` and `.loading`) instead of completely hiding the block.
-- The `Field` component matches option values case-insensitively when rendering select dropdowns. This resolves visual mismatches where database values (e.g. 'phd') have different casing than option keys (e.g. 'PhD'), preventing the dropdown from defaulting to 'Select'.
-- Inner page layouts and workspace components must NOT use semantic `<main>` elements for their layout content (e.g. `<div className="news-main">` instead of `<main className="news-main">`). The HTML `<main>` tag is styled globally in the visual system for the root viewport layout, and nesting inner `<main>` tags will result in layout height pollution (e.g. height: 100dvh) and screen clipping.
-- The loading Splash Screen features a subtle, borderless sub-line (`.splash-message-secondary`, `rgba(255,255,255,0.52)`, `12px`, `font-weight: 400`) without icons or borders for the cold-start notice ("The first load after a period of inactivity may take up to a minute while the server wakes up.") alongside a rotating carousel of tips and academic quotes (cycling every 6 seconds) with subtle slide-up fade animations (`.fade-in`, `.fade-out`, `.splash-tips-container`) to communicate Render's free tier sleep delay quietly without stealing visual focus.
-- The subscription Plan Comparison view utilizes a dedicated style sheets module (`plan-comparison.css`) that transforms the comparison grid into a light glassmorphic deck on a clean slate background (`#f8fafc`). The design includes soft ambient background color washes (`.plan-glow-node-1`, `.plan-glow-node-2`), micro-glowing card outlines color-coded per tier (with General in blue tint, Pro in emerald tint, and Max standing out as a premium dark obsidian card), clean sans-serif typography (`font-extrabold text-sm`) for feature limit readouts, and a diagonal glare sweep reflection (`.glare-sweep-beam`) that glints when cards are hovered.
-- All user-facing alerts and modals must avoid local-first persistence terms (e.g. 'saved locally', 'store locally') when referring to cloud-hosted resources such as user profiles, avatars, or uploaded files. Instead, use cloud-oriented terms such as 'Profile saved.', 'Avatar saved.', 'Ready to upload', and 'Upload file'.
-- **No algorithm or infrastructure jargon in user-facing copy (SCHOLARDOCX-0174)**: the rule and its approved plain-language replacements live in AGENTS.md ("No infrastructure or algorithm jargon"); this file does not restate them.
-- The Whiteboard view allows deleting any whiteboard, including the final active board. When no whiteboards remain, the component cleanly resets drawing state and transitions to the `wb-empty-state` screen ('No whiteboards yet') with a CTA to create a new whiteboard.
-- The Admin Panel Settings tab (`SettingsTab.tsx`) Registration card uses a split-pane footer layout with a subtle slate-50 background, a border-t divider, an uppercase tracking-wider label for the Mode select dropdown (custom border and focus ring styled cleanly instead of raw inputs), and a soft emerald action button with an inline `Trash2` icon for the manual account cleanup trigger.
-- **Suspended Account View (`SplashScreen.tsx` & `LoginPage.tsx`)**: When a suspended user (`user_suspended` / `user_blocked`) attempts to log in on `LoginPage.tsx`, the primary informative "Account Suspended" modal ("Your account has been suspended from ScholarDocX. If you think this was a mistake, please contact an administrator.") renders first with a **Contact Admin** button and a **Close** button. Clicking **Contact Admin** opens the appeal message textarea form modal (`maxLength={500}`, `POST /auth/contact-admin`), with a **Cancel** button to return to the info notice.
-- **Landing page "Scholar's Study" theme (SCHOLARDOCX-0223, supersedes the
-  0215 dark aurora)**: the public landing page
-  (`frontend/src/components/LandingPage/`) is an ivory-paper / ink-navy / gold
-  editorial system. Tokens are scoped to `.lp-container` in
-  `landing-shared.css` (`--lp-ink #0e1b33`, `--lp-ivory #fbf7ef`,
-  `--lp-blue #1f3a8a`, `--lp-gold #c58a1b`, `--lp-serif` = Fraunces) and also
-  remap local `--ui-*` so the in-app teal system is untouched. Display type is
-  serif (hero, section titles, prices, stats); emphasised words use italic
-  blue with a gold underline (`.lp-hero-title em`, `.lp-section-title span`).
-  `landing-theme.css` is imported last and holds cross-section overrides
-  (serif headings, paper surfaces, mobile overflow guards — global `main` is a
-  flex container, so section children need `min-width: 0`). Hero = ruled-paper
-  backdrop + framed product plate; closing CTA is the only dark block (ink +
-  gold). Header: transparent paper at rest, frosted on scroll; the scroll
-  listener attaches to `.lp-container` (the page scrolls inside it, NOT the
-  window). "How It Works" was removed by owner request (do not re-add it or
-  `#how`). Footer credits "Designed & built by Fahad Pathan". Pricing display
-  defaults come from `plan-defaults.ts`; zero-priced payloads are never
-  rendered (SCHOLARDOCX-0214). No infrastructure jargon in landing copy.
-- **In-app brand alignment (SCHOLARDOCX-0230)**: `frontend/src/app-brand.css`
-  (imported last in `main.tsx`) warms the workspace to the landing page's
-  identity without replacing the teal system: ivory canvas tokens
-  (`--ui-canvas #f6f1e6`, warm `--ui-line`), serif display face
-  (`--font-display` = Fraunces) for h1/h2, section titles and the sidebar
-  wordmark, gold accent (`--ui-gold #c58a1b`) for the active-nav marker and the
-  Pro plan badge. Teal buttons/links and the dark-green sidebar are unchanged.
-  Put further brand-level tweaks in that file rather than editing tokens in
-  `visual-refresh.css`.
-- **Auth slow-start toast (SCHOLARDOCX-0231)**: Login, Register (and the
-  Google button) no longer render an inline "first load may take a minute" note
-  under the submit button. `SlowStartToast` (`components/SlowStartToast.tsx`,
-  styles `.auth-toast` in `LoginPage.css`) shows a bottom-centered toast while a
-  request is in flight and dismisses itself after 6s, re-arming on the next
-  submit. The splash screen's own wake-up tip is unchanged.
-- **Alignment conventions (SCHOLARDOCX-0213)**: system-wide UI alignment audit
-  fixed the drift below and added shared primitives — reuse them instead of
-  inline styles or new one-off variants:
-  - `.tab-page` (+ `--scroll` / `--column` modifiers, `styles.css`) is the
-    wrapper for full-page tab views (About / Plans / Buy credits / Admin);
-    do not hand-roll inline `flex`/`overflow`/`background` wrappers for these.
-  - `.secondary.compact` (32px) pairs a labelled action with
-    `.icon-button.compact` in one header row; `.text-button` is the borderless
-    popover-footer action (paired with `.danger` for destructive text).
-  - `.modal-content.stacked` (flex column, 16px gap) and `.modal-callout`
-    (+ `--plain` / `is-tip`) replace the inline-stacked modal bodies and
-    hand-rolled callout boxes; `.modal-footer` is `flex-wrap: wrap; gap: 12px`
-    everywhere — never re-declare it inline.
-  - `.field-label` matches `.field span` for control groups not wrapped in
-    `.field` (used by Advisor Atlas research defaults).
-  - Fixed regressions to not reintroduce: dashboard card headers and bodies
-    share one 14px left inset; the notification unread accent is an inset
-    box-shadow (border width must never change between read/unread — text
-    would jump); Register page's `or` divider + Google button span the full
-    `auth-form-horizontal` grid (`grid-column: 1 / -1`); calendar weekday
-    labels left-align with the day numbers; the whiteboard minimap sits 20px
-    from its canvas (the canvas is already panel-offset — don't add the panel
-    width again); `.wb-text-dim` does not exist — use `--wb-text-muted`;
-    ProjectDashboard/DashboardView calendar modals use `<Modal>` (the legacy
-    inline `modal-backdrop-main` div blurred only `.section-body`); the sticky
-    board is a CSS-columns masonry by design (grid overrides are inert);
-    `--sheet-index-width` is the single source for the row-index column.
-- **Responsive design (SCHOLARDOCX-0150)**: the app is fully responsive across
-  320 / 375 / 430 / 768 / 1024 / 1440 px. The responsive system has three pieces:
-  1. **`frontend/src/responsive.css`** — a dedicated override sheet imported
-     LAST in `main.tsx` (after `cell-formatting.css`). All new broad
-     responsive rules live here, not in the oversized `styles.css`. New rules
-     use Tailwind-aligned breakpoints (640 / 768 / 1024) while the legacy
-     `@media (max-width: 980px)` block in `styles.css` is left intact for the
-     769–980px band. **Do not expand `styles.css` with new responsive rules —
-     add them to `responsive.css`.**
-  2. **Mobile nav drawer (≤768px)** — the desktop sidebar (a persistent
-     `grid-template-columns: 280px 1fr` column) becomes an off-canvas slide-in
-     drawer. `App.tsx` holds `mobileNavOpen` state and uses the `useIsMobile`
-     hook (`frontend/src/hooks/useMediaQuery.ts`). The nav collapse toggle
-     button (`nav-toggle-button` class) renders a `Menu` (hamburger) icon on
-     mobile and the `PanelLeftClose/Open` icons on desktop. The drawer
-     (`aside.sidebar.sidebar-open`) is `position: fixed; transform:
-     translateX(-100%) → 0`, width `min(280px, 82vw)`, z-index 1080, with a
-     tap-to-dismiss `.sidebar-mobile-backdrop` (z-index 1070). `handleSidebarNav`
-     closes the drawer after every tab switch. Above 768px the desktop
-     collapse behaviour (280px↔86px) is unchanged — do not remove the
-     `nav-collapsed` class or the legacy 980px block.
-  3. **Per-view fixes** — documents category grid constrained with
-     `min-width: 0` (cards were forcing ~403px min-content); about-page
-     hero/flow panels given `min-width: 0` so the grid track doesn't overflow;
-     about models modal resets its `margin-left: 150px` sidebar offset on
-     mobile; PlanComparisonView toggle row uses `flex-wrap`; admin tables and
-     the sheet table rely on their existing `overflow-auto` scroll wrappers
-     (confirmed working). Wide tables intentionally scroll horizontally inside
-     bounded containers — this is correct, not a bug.
-
-
-
-
-- **Brain Games surface (SCHOLARDOCX-0198 / 0199 / 0200)**: the six games under
-  `frontend/src/components/games/` share one stylesheet, `brain-games.css`,
-  scoped entirely under `.brain-games`, `.game-*`, and per-game prefixes
-  (`.sudoku-*`, `.g2048-*`, `.mine-*`, `.word-*`, `.ttt-*`, `.pattern-*`). It
-  does not participate in `responsive.css`; its two breakpoint blocks live at
-  the foot of the file with the rest of the games' rules, because nothing
-  outside this view consumes them.
-  - **Game rules are never in components.** Every rule, generator and search
-    lives as a pure function in `frontend/src/lib/games/`, and the components
-    hold only rendering and input. This is deliberate and load-bearing: the
-    repo has no DOM testing library, so logic kept out of the components is
-    the only game logic that can be tested at all. A new game or mechanic
-    goes in `lib/games/` first.
-  - **Motion is feedback, not decoration.** Animations here exist to make a
-    state change legible (a 2048 merge, a word row's marks arriving, a won
-    tic-tac-toe line) and are all short one-shots driven by a class the
-    component clears on a timer. Every one of them must also be listed in the
-    `@media (prefers-reduced-motion: reduce)` block at the foot of
-    `brain-games.css`, clearing `transform` as well as `animation` — a tile
-    caught mid-flip at 90 degrees is invisible if only the animation is
-    removed.
-  - **Copy in `gameRules.ts` and the `howTo` blurbs follows the no-jargon
-    rule above**: plain language only, no "minimax", "flood fill", "chord",
-    "vector" or similar. Describe the move, not the mechanism.
-  - `brain-games.css` is at ~1015 lines, over the 1000-line target and inside
-    the grace band in `CODE_RULES.md`. A seventh game should split it
-    per-game (`games/styles/`) rather than extend it further.
-
-- **Sheet chrome vs. sheet grid (SCHOLARDOCX-0202)**: sheet styling is split by
-  role across two files and they should stay that way.
-  `frontend/src/sheet-table-polish.css` owns the **grid** — table, headers,
-  cells, row/column resize, sticky columns. `components/sheet/sheet-chrome.css`
-  owns everything **around** it — toolbar, buttons, menus, the shortcuts panel
-  and the blank state. New sheet styling goes in one of these, never inline:
-  the toolbar previously carried ~400 lines of inline style objects, every
-  button restating its own padding and font size and every dropdown its own
-  border and shadow, which is precisely why the menus had drifted apart from
-  one another.
-  - **One dropdown component.** `components/sheet/SheetMenu.tsx` is the only
-    menu primitive (`SheetMenu` + `SheetMenuItem` / `SheetMenuToggle` /
-    `SheetMenuLabel` / `SheetMenuDivider`). Adding a menu means composing
-    these, not writing another portal-and-panel block.
-  - **Toolbar grouping is by purpose**: View (what you see), Views (saved
-    arrangements), Format (how it looks), Data (what crosses the boundary).
-    Only *Add record* and search sit outside a menu. A new control belongs in
-    whichever menu matches its purpose rather than as another top-level button.
-  - **Row density drives the existing `--sheet-row-height` and
-    `--sheet-cell-lines` variables**, not a parallel set of rules, so anything
-    already sized from them follows automatically. Density and the frozen-column
-    preference are per-person and live in `localStorage`, never on the shared
-    page record.
-  - **Grid rules are pure functions** in `components/sheet/sheetGrid.ts`
-    (density presets, type alignment, bulk-edit change sets, the shortcut list
-    as data), tested in `sheetGrid.test.ts`. Same arrangement as
-    `sheetFilters.ts`, `lib/games/` and `lib/stickyNotes.ts`, and for the same
-    reason: this repo has no DOM test harness.
-
-- **Sheet insights and colour rules (SCHOLARDOCX-0203)**: column statistics and
-  conditional-formatting evaluation are pure functions in
-  `components/sheet/sheetInsights.ts`, tested in `sheetInsights.test.ts`.
-  - **Parse sheet dates with `parseSheetDate`, never `new Date(value)`.**
-    JavaScript parses a date-only string (`"2026-08-05"`) as UTC midnight but a
-    timestamped one as local. Sheet date columns store the date-only form, so
-    comparing them against a locally computed "today" is off by a day for
-    anyone east of UTC — a deadline rule firing a day early in a product built
-    around deadlines. Any new date comparison in the sheet must go through this
-    helper.
-  - **Date-sensitive tests run under multiple timezones.** The suite is
-    executed under UTC, Asia/Dhaka and US/Hawaii; a single-timezone run would
-    not have caught the above.
-  - **Colour rules resolve last-wins**, matching the spreadsheet convention:
-    the rule added at the bottom of the list is the one that takes effect.
-    Rule operators are filtered by column type so a rule that can never fire
-    cannot be constructed.
-  - **Conditional tints are a background wash plus a left marker**, never a
-    saturated fill — a strongly coloured row makes its own text harder to read.
-  - **Per-reader settings live in `localStorage`, not on the page record**:
-    density, frozen column, and colour rules all describe how one person wants
-    to read a shared sheet.
-  - **The command palette (`Ctrl/Cmd+K`) keeps a fixed order**, not a
-    usage ranking. Stable ordering is what makes it faster than a menu.
-
-- **Modal backdrops — one implementation, no exceptions (SCHOLARDOCX-0203)**:
-  every dialog in the sheet and sticky-note views now goes through `<Modal>`
-  from `components/Modal.tsx`. Converted in this task: `ShortcutsPanel`,
-  `CommandPalette`, `FormatRulesModal`, the column-stats layer, `RowPeekPanel`
-  (which had inline `position`/`backdropFilter` overrides), `CsvImportModal`,
-  `NoteComposer` and `NoteViewer`. There are no remaining hand-rolled
-  `modal-backdrop` divs under `components/sheet/` or `components/sticky/`.
-  `DialogProvider` (`showAlert`/`showConfirm`/`showPrompt`) was the opposite
-  defect — a fixed full-viewport backdrop that blurred the TopBar and Sidebar
-  — and now portals into `.main-content` with a `.scoped-main` class, falling
-  back to fixed full-viewport only where no `.main-content` exists (login,
-  splash). If a new dialog needs a backdrop, use `<Modal>`; if `<Modal>` does
-  not fit, change `Modal.tsx` rather than writing a second backdrop.
-
-- **Sheet grid: no sticky first data column (SCHOLARDOCX-0203)**. Attempted and
-  removed after two regressions. The sheet grid combines `position: sticky`
-  row headers, `content-visibility: auto` on rows (an off-screen-row perf
-  optimisation), `table-layout: fixed`, `min-width: 1200px` and a rounded
-  `overflow: auto` container. Those interact badly and the failure modes are
-  layout-level, so they are invisible to type-checking and to CSS specificity
-  analysis. `.is-first-data-col` is still emitted on the first data cell as a
-  hook. Do not re-attempt this without a browser to check the result in.
-
-- **The sheet's sticky row-number column must stay opaque (SCHOLARDOCX-0203)**.
-  `.sheet-table td.row-header` is `position: sticky`. A sticky cell without an
-  opaque background is a window — the rows scrolling horizontally underneath
-  show through it, and cell text appears to bleed across the row numbers.
-  Seventeen selectors across four stylesheets set a background on `... td` and
-  out-rank it (row hover, the `due-urgent`/`due-warning`/`due-watch` deadline
-  tints, `row-focused`, and zebra banding). Most predate this task; the banding
-  only made a long-standing bug visible on every even row rather than on hover.
-  The column therefore defends itself: `background` and `box-shadow` are set
-  with `!important` at the foot of `sheet-chrome.css`, with hover and selected
-  variants so it still responds. **Any new rule that backgrounds sheet cells
-  must target `td.data-cell`, not a bare `td`.** Enforced by
-  `scripts/check-sticky-column.py`, which fails if the `!important` defence is
-  removed or if a new rule in `sheet-chrome.css` out-ranks it without one.
-
-- **Sticky note fonts: never reset `font` wholesale (SCHOLARDOCX-0201 fix)**.
-  A note's font is applied by `.font-{caveat,sans,serif,mono} X` rules in
-  `sticky-notes.css`, one per themed element (`.check-item`, `.sticky-body`,
-  `.note-title`, `.sticky-title-input`, `h2.sticky-view-title`,
-  `.sticky-check-row span`) — all at specificity (0,2,0), and applied to the
-  elements rather than to the card. Any rule that sets `font` or
-  `font-family` on one of those with higher specificity silently wins, and the
-  note renders in the wrong font. The `font: inherit` shorthand is the usual
-  culprit: it includes `font-family`, and `inherit` resolves to the card's
-  Caveat default rather than the user's choice. When resetting a control
-  (a `<button>` used as a checklist row, say), reset size, weight, style,
-  line-height, letter-spacing and colour — never the family. Enforced by
-  `scripts/check-sticky-note-fonts.py`.
-- **Two standing CSS guards.** `scripts/check-sticky-column.py` and
-  `scripts/check-sticky-note-fonts.py` both encode the same lesson: a generic
-  rule out-ranking a specific one is invisible in review and in type-checking,
-  and shows up only as a rendering bug. Run both after touching sheet or
-  sticky-note styling.
-- **Never reuse a global utility class name as a local modifier
-  (SCHOLARDOCX-0201 fix)**. `styles.css` and `visual-refresh.css` define bare
-  single-class utilities (`.secondary`, `.primary`, `.compact`, …) that carry
-  real layout. `<div className="sticky-toolbar-row secondary">` picks up
-  `justify-content: center`, `min-height`, padding and a radius from the
-  secondary-*button* utility — which centred the sticky-notes filter row and
-  made the chips jump left as soon as a "Clear filters" button appeared beside
-  them. Name modifiers for what they are (`.filters`, `.tools`), never for
-  where they sit. Enforced by `scripts/check-css-modifier-collisions.py`.
-- **Run all three CSS guards after touching sheet or sticky-note styling**:
-  `scripts/check-sticky-column.py`, `scripts/check-sticky-note-fonts.py`,
-  `scripts/check-css-modifier-collisions.py`. They encode three regressions
-  with one shared cause — a broad rule silently out-ranking a specific one —
-  which is invisible to TypeScript and to code review, and shows up only as a
-  rendering bug.
+- `styles.css` is oversized and receives no broad new rules. New visual work goes in focused files imported after it. Load order is set in `main.tsx`: `styles.css`, `visual-refresh.css`, `documents-refresh.css`, `about-refresh.css`, `about-page.css`, `sheet-table-polish.css`, `cell-formatting.css`, `responsive.css`, `app-brand.css`.
+- Keep component markup changes minimal unless behaviour or hierarchy needs them.
+- **Run the CSS guards** after touching sheet or sticky-note styling (`make guard-css`, also part of `make guards`): `scripts/check-sticky-column.py`, `scripts/check-sticky-note-fonts.py`, `scripts/check-css-modifier-collisions.py`. All three catch one cause, a broad rule silently out-ranking a specific one, which is invisible to TypeScript and review and shows up only as a rendering bug.

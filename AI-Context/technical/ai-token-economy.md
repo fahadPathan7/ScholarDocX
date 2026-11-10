@@ -1,578 +1,73 @@
-# Technical: AI Token Economy
+# Technical: AI Credit Economy
 
-Full design lives in
-[planbook/central-ai-token-economy.md](../planbook/central-ai-token-economy.md).
-This file is the condensed technical reference for implementers.
+How credits work. **How a provider call must be billed is owned by
+[billing-contract.md](billing-contract.md)** (the API, enforcement points, gates, and the checklist for
+adding a provider); this file does not restate it. Code names: tokens in code and the database,
+"credits" in anything users read. Original design: [planbook/central-ai-token-economy.md](../planbook/central-ai-token-economy.md).
 
-## Two-Currency Model
+## Two currencies
 
-- **Real cost ($)**: computed from per-model pricing in `ai_models`.
-  `cost_usd = in*in_price/1e6 + out*out_price/1e6`.
-- **User tokens**: deducted at the configurable rate
-  `ai_token_rate_tokens_per_dollar` (default 10000 → 1 token per $0.0001).
-  `tokens = ceil(cost_usd * rate)`.
+- **Real cost ($)**: from per-model pricing in `ai_models`: `cost_usd = in*in_price/1e6 + out*out_price/1e6`.
+- **User credits**: `tokens = ceil(cost_usd * rate)` with `app_settings.ai_token_rate_tokens_per_dollar`
+  (default 10000, i.e. 1 credit per $0.0001).
 
-Admins see/manage $; users see/spend tokens.
+Admins see and manage dollars; users see and spend credits. Seeded models ship at $0, so real metering
+starts once a price is set in the admin Model Pricing tab. Admins do not get unlimited credits and do not
+bypass limits.
 
-## Tables (additive)
+## Tables
 
-- `ai_models(provider, model_id, display_name, input_price_per_1m,
-  output_price_per_1m, is_active, sort_order)` — unique `(provider, model_id)`.
-- `ai_token_balances(user_id pk, subscription_remaining, subscription_period,
-  subscription_used_this_period, purchased_remaining, purchased_total,
-  last_reset_at, total_spent_tokens, total_spent_usd)`.
-  `subscription_remaining` is the live bucket (decremented on charge, reset to the
-  tier allowance at month rollover). `subscription_used_this_period` is the
-  authoritative **monthly-used** counter (incremented on charge, zeroed on rollover)
-  — see SCHOLARDOCX-0086. `total_spent_tokens`/`total_spent_usd` are all-time.
-- `ai_token_ledger(user_id, model_id, provider, input_tokens, output_tokens,
-  cost_usd, tokens_delta signed, source, balance_bucket, ref_id, note,
-  created_at)` — append-only; negative delta = consumed, positive = granted.
-- `ai_token_packs(code unique, display_name, token_amount, price_usd,
-  is_active, sort_order)`.
-- `ai_token_purchase_requests(user_id, pack_id, status, requested_at,
-  reviewed_at/by, admin_notes)`.
-- `app_settings` (monthly AI credit allowance, SCHOLARDOCX-0140/0155): keys
-  `plan_ai_credits_<tier>` (free/general/pro/max). Edited in Settings → Plan
-  Pricing. The legacy `role_limits.ai_tokens_per_month` row is purged on every
-  `initialize_database()` and is no longer surfaced in the Role Limits admin UI.
-- `app_settings`: `ai_token_rate_tokens_per_dollar`.
+- `ai_models`: provider, model id, display name, input/output price per 1M, active, sort order; unique on (provider, model id).
+- `ai_token_balances` (one row per user): `subscription_remaining` (live monthly bucket, reset to the tier allowance at month rollover), `subscription_used_this_period` (tracked monthly-used counter, zeroed on rollover), `purchased_remaining` / `purchased_total` (never expire), `total_spent_tokens` / `total_spent_usd` (all time).
+- `ai_token_ledger`: append-only; negative `tokens_delta` = consumed, positive = granted; carries model, provider, token counts, cost, `source`, `balance_bucket`, `ref_id`.
+- `ai_token_packs` and `ai_token_purchase_requests`: the pack catalog and the request/approval queue.
+- `app_settings`: `plan_ai_credits_<tier>` (free/general/pro/max monthly allowance, edited in Settings -> Plan Pricing) and the rate above. The legacy `role_limits.ai_tokens_per_month` row is purged on every `initialize_database()`.
 
-## Billing Service — `app/services/ai_tokens.py`
+## Spending rules
 
-- `refresh_balance(user, session)` — lazy row creation + monthly reset of the
-  subscription bucket to the tier allowance.
-- `get_role_monthly_allowance(user, session)` — returns the allowance for the user's tier (max_user, pro_user, general_user). Admins do not get unlimited tokens or bypass limits; they must have a user role to receive any tokens.
-- `ensure_can_spend(user, session, min_tokens=1)` — raises `OutOfTokens`
-  (HTTP 402) on zero balance. Hard stop.
-- `compute_cost(model_id, in, out, session)` → `(cost_usd, tokens)`.
-- `charge(user, model_id, provider, in, out, source, session, ref_id=None)` —
-  atomic: consume subscription first then purchased; append ledger rows.
-- `grant_purchased(user_id, tokens, session, source, note, ref_id)` — for pack
-  approval / admin grants.
+- A charge consumes the subscription bucket first, then purchased credits, atomically, writing ledger rows. A zero balance hard-stops with HTTP 402 (`OutOfTokens`); the frontend turns any 402 into the out-of-credits flow, not a toast.
+- "Used this month" is tracked (`subscription_used_this_period`), not derived. Deriving it as allowance minus remaining went negative after mid-period plan changes. The grant "holds until month end" policy for `subscription_remaining` is unchanged.
+- Token-metered calls go through `AiService.chat()` (`backend/app/services/ai.py`), which captures provider `usage` (input/output tokens) and charges. Optional enrichment (for example Advisor Atlas vision) is charge-after with no pre-check so it never aborts a run.
+- Metering replaced the old count limits: `daily_ai_chats`, `monthly_ai_chats`, and Advisor Atlas search counts no longer exist. Retained limits: `ai_messages_per_session`, model permission checks, and external search counts (`web_searches_*`, `news_searches_*`).
+- Provider fees that are not token-metered are flat fees set in admin Settings -> External APIs & Agents Pricing: `tavily_*`, `jina_call_cost_usd` (0.002), `openalex_call_cost_usd` (0.001), and a per-hit Brave cost (read via `get_brave_call_cost_per_hit_usd`).
 
-## Monthly-used tracking (SCHOLARDOCX-0086 — implemented)
+## Packs and purchases (router `/ai-tokens`, `backend/app/api/ai_tokens.py`)
 
-"Used this month" is **tracked**, not derived. The previous derivation
-(`monthly_allowance - subscription_remaining`, clamped ≥ 0) collapsed to 0 whenever
-`subscription_remaining` exceeded the current allowance — which happens after any
-mid-period plan/allowance change, because `refresh_balance` only re-syncs the
-subscription bucket at month boundaries. With a bucket granted at a higher tier
-(e.g. 5M `max_user`) than the current plan (2M `pro_user`), the subtraction went
-negative and hid the real consumption the ledger recorded.
+- User: `GET /balance` (remaining, allowance, spend totals, rate, `subscription_used`, `can_purchase_packs`), `GET /packs`, `POST /purchase-requests {pack_code}`, `GET /purchase-requests/me`.
+- Admin: `/admin/packs` and `/admin/models` (super_admin only; partial updates validated), `/admin/purchase-requests` queue and `.../{id}/review` approve/reject (permission `admin_manage_token_requests`).
+- Approval calls `grant_purchased` (source `pack_purchase`) and is idempotent: the Pending-status guard makes a second review raise instead of granting twice. There is no payment gateway in this flow; approval is the grant.
+- Buying packs is gated per plan by the boolean role limit `can_purchase_token_packs` (free/basic 0, pro/max 1). `GET /balance` reports it via a read-only check (`can_purchase_packs`) that mirrors the guard without writing usage rows, so the buy UI matches the API. When off, the buy page shows an upgrade upsell.
 
-- `subscription_used_this_period` is incremented by `sub_used` in `charge()` (the
-  subscription-bucket portion; `mixed`-bucket charges already split their sub share
-  into `sub_used`). Unlimited/free calls don't touch it.
-- `refresh_balance()` zeroes it on the period-rollover UPDATE; new rows default to 0.
-- `GET /ai-tokens/balance` returns it as `subscription_used`.
-- The migration backfills it once from `ai_token_ledger`
-  (`SUM(-tokens_delta) WHERE balance_bucket IN ('subscription','mixed') AND
-  substr(created_at,1,7) = subscription_period`) so existing activity is reflected
-  immediately.
-- Frontend reads `balance.subscription_used` directly (`UsageModal`,
-  `AiTokenWidget` tooltip, `AiTokenUsageButton` topbar %). The topbar "pool" is now
-  `used + remaining` (coherent) instead of `monthly_allowance + purchased_total`, so
-  the numbers always add up even when the live bucket was granted at a higher tier.
-- The "grant holds until month-end" policy for `subscription_remaining` is
-  **unchanged** — only the *used* metric is corrected; mid-period reconciliation of
-  `remaining` against the current allowance is explicitly out of scope.
+## Frontend
 
+- `TokenEconomyContext` (`src/contexts/`) loads the balance, exposes `useTokenEconomy()` (`balance`, `refresh`, `openBuyTokens`, `canPurchasePacks`), and hosts the out-of-credits modal (triggered by the `scholardocx:out-of-tokens` event from any 402 in `src/lib/api.ts`). `openBuyTokens` navigates to the full-page Buy Credits view (`BuyTokensView`).
+- `AiTokenWidget` (balance pill, red/amber/emerald by remaining), `AiTokenUsageButton` (top-bar usage), and `UsageModal` (balance card plus quota bars; `ai_tokens_per_month` is excluded from the bars because its spend lives in the balance).
+- Admin tabs in `src/components/admin/`: `TokenPacksTab` and `ModelPricingTab` (super_admin), `TokenPurchaseRequestsTab` (`admin_manage_token_requests`).
+- Cross-view navigation uses the `scholardocx:navigate` window event (`lib/tokenEvents.ts`).
 
-## AI Usage Capture — `app/services/ai.py`
+## How specific features are billed
 
-`_chat_with_glm/groq/mistral/gemini` now return `(answer, usage)` where
-`usage = {input_tokens, output_tokens}`:
-- GLM/Groq/Mistral/OpenRouter (OpenAI-compatible): `usage.prompt_tokens` /
-  `completion_tokens`.
-- Gemini: `usageMetadata.promptTokenCount` / `candidatesTokenCount`.
+Gates: `can_use_scholarship_hunt` covers the whole scholarship suite (search, Analyze, Deep Hunt); Research Expert uses `can_use_research_reader`; Advisor Atlas uses `can_use_advisor_atlas`. All are plan checks (`limit_count` 1/0), not counters.
 
-`chat()` adds `usage`, `model_id`, `provider` to its return dict. `research()`
-and `summarize_memory()` inherit usage via the `chat()` dict they return.
+- **Scholarship Analyze and Deep Hunt extraction** go through `AiService.chat()`: pre-flight in the API layer, then the background service attaches billing before running. Deep Hunt search uses Brave and charges every raw hit before filtering, with a worst-case pre-flight at run creation ([ai-integrations.md](ai-integrations.md)). The scholarship catalog is static, free, and makes no network calls.
+- **Search cache** (`services/search_cache.py`): 15-minute, per-user, in-process. A cache hit is not a provider call, so it is not charged; keys always include the user id.
+- **Worst-case pre-flight ceilings**: `/ai/research` (Tavily fee plus a conservative answer ceiling from `RESEARCH_MAX_INPUT_TOKENS` / `RESEARCH_MAX_OUTPUT_TOKENS` in `services/ai.py`), Research Expert analysis (`estimate_analysis_cost` in `research_paper_estimates.py`, shipped as `analysis_cost_estimate`), and Advisor Atlas run creation (`estimate_run_cost` in `services/advisor_atlas/cost_estimate.py`, shipped as `cost_estimate`). If real usage still exceeds a ceiling the flow fails 402 with honest copy.
+- **Research Expert embeddings (Jina)**: one flat charge per user operation (`charge_source` values `jina_embedding`, `_retry`, `_query`): `jina_call_cost_usd` plus the input tokens priced from the `ai_models` row for the embedding model. It is raised only after every Jina batch for that operation succeeds, so a failed run costs nothing. **Single-charge invariant**: `_generate_embeddings()` is the only place the fee is raised; wrappers pass `charge_source` and never charge again (a double charge once billed every analysis question twice, SCHOLARDOCX-0180). The price is read through `get_jina_call_cost_usd`, never a hardcoded fallback.
+- **Advisor Atlas OpenAlex**: a flat fee, `openalex_call_cost_usd`, charged once per professor resolved (one metered search; lookups after it are free), on the call rather than the match, and only when a request was actually issued (`OpenAlexClient.attempted_metered_call`). Deep runs only. Pre-flight with `AiService.can_spend_external()`; a user at zero skips enrichment. The single charge site is `_attach_scholarly_record` in `advisor_atlas/service.py`; the client never bills. `charge_external_call` and `external_billing_cost` never raise, so a billing error cannot fail a run.
+- **Advisor Atlas Tavily and vision** are charged via `charge_external_call` and `charge_tokens`; out-of-credits stops the work (Discovery's per-candidate handler re-raises `OutOfTokens`).
+- The admin dashboard counts calls per provider from ledger `source` values (`tavily_*`, `jina_*`, `openalex_author_lookup`).
 
-- **Research Expert (SCHOLARDOCX-0174)**:
-  - Paper embedding generation calls the Jina AI API (`jina-embeddings-v4`, 1024 dims) and is billed as a flat fee, not token-metered — see "Research Expert Jina embedding billing" below.
-  - Analytical paper queries call `AiService.chat(..., request_label="research_paper_analysis")` which automatically meters input/output tokens via `AiService.charge_tokens`.
-  - Both embedding generation and paper analysis require pre-flight token balance validation (`ensure_can_spend`) and fail with HTTP 402 if credits are zero.
-scholarship-query generator is not an `AiService` call, so `/news/query-preview`
-charges it explicitly from the surfaced `usage`.
+## Structural guarantees
 
-## Wiring (Phase 2 — implemented)
+The call-site rules and the static guard (`make guard-billing`) live in [billing-contract.md](billing-contract.md). Related invariants that live in this domain:
 
-- `/ai/chat`, `/ai/research`, `/ai/summarize`, `/ai/actions/plan`: removed
-  `daily_ai_chats` + `monthly_ai_chats` enforcement; metered by tokens via the
-  `chat()` funnel. KEPT: `ai_messages_per_session` (per-session context guard),
-  `verify_model_permission` (role can/cannot), and web-search counts
-  (`can_use_web_search`, `web_searches_per_day/_month`) — external Tavily
-  searches are not token-metered.
-- `/news/query-preview` (Scholarship Hunt query build): removed the
-  `news_searches_per_*` count and the search-limit gate; now `ensure_can_spend`
-  + `charge` for the OpenRouter call (source `scholarship_query_build`). The
-  actual searches (`/news/search` POST+GET) KEEP their daily/monthly counts.
-- Advisor Atlas `/runs` (create) + `/candidates/{id}/refresh`: removed
-  `advisor_atlas_searches_per_month`; `ensure_can_spend` pre-flight + per-call
-  charging via the service's `AiService` (background run uses a dedicated
-  session).
-- Deprecated count limits torn out (Phase 5): `daily_ai_chats`,
-  `monthly_ai_chats`, `advisor_atlas_searches_per_month` are removed from the
-  schema seed, `DEFAULT_ROLE_LIMITS`, the new-user `user_usage_stats` init
-  lists, and `canonical_features` (so `migrate_database` deletes any leftover
-  rows on existing DBs). AI chat / Advisor Atlas usage is metered solely by
-  tokens; `ai_messages_per_session` (per-session guard) and the external search
-  counts (`web_searches_*`, `news_searches_*`) are retained.
-
-## Vision charging + AiService helpers (Phase 5 — implemented)
-
-`AiService` exposes `can_spend()` (ensure_can_spend guard) and
-`charge_tokens(model_id, provider, input_tokens, output_tokens, source,
-ref_id)` — both no-ops when no billing context is attached. `chat()` uses them.
-`advisor_atlas/analysis.py::analyze_visual_source` (raw httpx GLM vision call)
-now captures the OpenAI-compatible `usage` and calls `charge_tokens`
-(source `advisor_atlas_vision`). Charge-after, no pre-check, so an optional
-enrichment never aborts a run; the next required call hard-stops if the balance
-is truly empty.
-
-## Pack catalog + purchase flow (Phase 3 — implemented)
-
-New router `app/api/ai_tokens.py` (prefix `/ai-tokens`):
-
-- `GET /balance` — subscription + purchased remaining, monthly allowance, spend
-  totals, rate, `is_unlimited`. Refreshes the subscription bucket on read.
-- `GET /packs` — active packs (buy UI).
-- `POST /purchase-requests` `{pack_code}` — creates a Pending request (FK to
-  `ai_token_packs.id`). Rejects inactive/unknown packs (404).
-- `GET /purchase-requests/me` — caller's own requests.
-- `GET /admin/packs` — all packs incl. inactive (super_admin).
-- `PATCH /admin/packs/{code}` — super_admin config: price, token grant amount,
-  display name, active flag (partial update; validates token_amount > 0,
-  price_usd ≥ 0).
-- `GET /admin/purchase-requests?status=` — admin queue (joins user + pack).
-- `POST /admin/purchase-requests/{id}/review` `{action, admin_notes}` —
-  approve/reject. Approve calls `grant_purchased` (source `pack_purchase`,
-  ref the request id) and marks Approved; reject marks Rejected.
-- `GET /admin/models` — all models with per-1M-token pricing (super_admin).
-- `PATCH /admin/models/{model_pk}` `{input_price_per_1m, output_price_per_1m,
-  display_name, is_active}` — super_admin model-pricing config; partial update,
-  validates prices ≥ 0. This is what feeds `compute_cost`, so real usage metering
-  only begins once a price is set here (seeded models ship at $0 = free).
-
-Service functions live in `ai_tokens.py`: `list_packs` / `get_pack` /
-`update_pack` / `submit_purchase_request` / `list_my_purchase_requests` /
-`list_purchase_requests` / `resolve_purchase_request`. Approval is idempotent:
-the Pending-status guard makes a second review raise instead of granting twice.
-
-Permissions:
-
-- Pack pricing/config = super_admin only (router uses `require_super_admin`).
-- Request approve/reject + queue = new permission `admin_manage_token_requests`,
-  seeded for general_admin + super_admin (1, never), gated via
-  `check_and_increment_limit` exactly like `admin_manage_plan_requests`.
-
-Permission hygiene fixes folded in:
-
-- `ai_tokens_per_month` added to `canonical_features` (was delete-then-reseeded
-  by `migrate_database` on every init) and to `DEFAULT_ROLE_LIMITS` — otherwise
-  an admin "reset role limits" would wipe the monthly allowance.
-- `admin_manage_token_requests` added to all four declaration sites
-  (`schema.py` seed, `connection.py` seed + `canonical_features`,
-  `services/admin.py` `DEFAULT_ROLE_LIMITS`).
-
-## Per-plan token-pack purchasing (SCHOLARDOCX-0083 — implemented)
-
-Purchasing packs is gated by a boolean role limit `can_purchase_token_packs`
-(stored like `can_use_web_search`: `limit_count` 1/0, `reset_period='never'`).
-No new tables — it reuses `role_limits`.
-
-Seeding (4 user tiers only; admin roles are intentionally not seeded because
-the enforcement resolver `get_primary_user_role` ignores them for non-`admin_`
-features, so admin rows would be inert):
-
-- `DEFAULT_ROLE_LIMITS` (`services/admin.py`), `SEED_SQL` (`schema.py`), and the
-  `connection.py` migration seed block + `canonical_features` set all carry:
-  free_user=0, general_user=0, pro_user=1, max_user=1.
-
-Enforcement:
-
-- `POST /ai-tokens/purchase-requests` calls
-  `_require_feature("can_purchase_token_packs", current_user, store.db)` before
-  creating the request → 403 when off. `_require_feature` uses
-  `check_and_increment_limit(..., 0, session)` (permission check, no increment).
-
-Balance exposure:
-
-- `GET /ai-tokens/balance` adds `can_purchase_packs: bool`. Computed by a
-  read-only `ai_tokens.can_purchase_packs(user, session)` that resolves the
-  user's primary role and reads `limit_count` (true unless the row is 0). This
-  is read-only (does NOT call `check_and_increment_limit`, which would write a
-  `user_usage_stats` row on every balance read) and mirrors the guard's
-  allow/block outcome so the buy UI matches the API.
-
-Frontend:
-
-- `useTokenEconomy()` exposes `canPurchasePacks` from the balance response.
-  `BuyTokensModal` renders an **upgrade upsell** (link to Choose Plan) instead
-  of the pack list when `canPurchasePacks` is false. `PlanComparisonView` adds a
-  boolean feature row "Extra AI tokens purchasable" (✓/✗) from `GET /auth/plans`.
-  Admin `LimitsTab` exposes the toggle (key starts with `can_` → auto-toggle).
-  Navigating to Choose Plan from the upsell uses a `scholardocx:navigate`
-  window event (`lib/tokenEvents.ts`), handled in `App.tsx` → `setActiveTab("plans")`.
-
-## Frontend (Phase 4 — implemented)
-
-**Token economy context** (`src/contexts/TokenEconomyContext.tsx`): fetches
-`GET /ai-tokens/balance`, exposes `useTokenEconomy()` → `{balance, loading,
-refresh, openBuyTokens, canPurchasePacks}`. Mounted in `main.tsx` between
-`AuthProvider` and `UsageProvider`. Listens for the `scholardocx:out-of-tokens`
-window event (any 402 anywhere) → opens the out-of-tokens modal + refreshes
-balance. `openBuyTokens` no longer opens a modal — it emits
-`emitNavigate("buy-credits")` (SCHOLARDOCX-0085); the context still hosts the
-out-of-tokens modal app-globally, and its "Buy AI credits" CTA also navigates to
-the page.
-
-**402 handling** (`src/lib/api.ts`): a 402 response dispatches
-`emitOutOfTokens()` and throws, *before* the generic `scholardocx:ui-error`
-channel — so out-of-tokens is a dedicated buy-flow modal, not a toast. All
-token-economy cost is shown to users in tokens; $ stays admin-only.
-
-**Balance widget** (`src/components/AiTokenWidget.tsx`): a compact pill showing
-remaining subscription tokens (+ purchased if any) with a red/amber/emerald colour
-shift by remaining. It renders a `<button>` by default (opens the buy page via
-`openBuyTokens`) but accepts `interactive={false}` to render a non-interactive
-`<span>` — used as the trailing balance indicator inside the Profile card's
-"Buy More AI Credits" action row (SCHOLARDOCX-0085), avoiding a nested button. The
-`is_unlimited` field is reserved for future extensibility but currently always
-returns false (no role grants unlimited tokens).
-
-**Buy flow (`src/components/BuyTokensView.tsx` — a full page as of
-SCHOLARDOCX-0085, replacing the former `BuyTokensModal`): hidden `buy-credits`
-view mirroring `PlanComparisonView` chrome (back button + title + Packs/My
-Requests toggle). Lists active packs (`GET /packs`) as plan-style cards with a
-Request action (`POST /purchase-requests`), the user's request history
-(`GET /purchase-requests/me`) rendered in a full-width container (`w-full` with filter pills and enhanced card layout, SCHOLARDOCX-0160), and a live balance strip. Renders the upgrade
-upsell (→ Choose Plan) when `canPurchasePacks` is false. Request → admin approves
-→ tokens granted (never expire). No payment gateway — approval is the grant.
-
-**Out-of-tokens modal** (`src/components/OutOfTokensModal.tsx`): explains the
-hard stop, offers Buy tokens / Maybe later.
-
-**Admin tabs** (`src/components/admin/`), registered in `AdminView.tsx`:
-- `TokenPacksTab.tsx` — super_admin. Editable pack rows (display name, token
-  amount, price, active toggle) → `PATCH /admin/packs/{code}`.
-- `ModelPricingTab.tsx` — super_admin. Editable per-model $/1M input/output
-  prices, display name, active toggle → `PATCH /admin/models/{id}`.
-- `TokenPurchaseRequestsTab.tsx` — `admin_manage_token_requests` permission.
-  Status-filtered queue (joins user + pack) → `POST /admin/purchase-requests/{id}/review`.
-
-Tab gating: model pricing + token packs are super-admin only (real-cost
-metering); token-purchase-request review is the `admin_manage_token_requests`
-role-limit (general_admin + super_admin), mirroring plan requests.
-
-**LimitsTab cleanup** (`AdminView.tsx`): removed `daily_ai_chats`,
-`monthly_ai_chats` from the "AI Chat" group and deleted the whole "Advisor
-Atlas" count group; added an "AI Tokens" group for `ai_tokens_per_month`
-(with a `formatTokenCount` K/M formatter and `Unlimited` for -1) and an
-`ai_tokens_per_month` info-modal entry. Added `admin_manage_token_requests` to
-the "System Configuration" admin group and the optimistic `adminPermissions`
-defaults. `src/lib/accessErrors.ts` `FEATURE_LABELS` updated likewise.
-
-**User-facing limit teardown (Phase 5 frontend completion):** removed the dead
-count-limit UI left by the backend teardown so nothing shows stale data:
-
-- `UsageModal.tsx` — dropped the orphaned Advisor Atlas label; excludes
-  `ai_tokens_per_month` from the quota bars (its spend lives in the balance, not
-  `usage_stats`, so a 0/N bar would mislead); added an **AI Token Balance** card
-  (subscription / purchased / spend) via `useTokenEconomy`.
-- `AdvisorAtlasView.tsx` + `advisor-atlas/AdvisorAtlasSearchForm.tsx` — removed
-  the "Monthly limit" count badge (read a removed limit → always "Unlimited")
-  and the client-side `quotaReached` submit gate; Advisor Atlas is now gated
-  solely by tokens (backend 402 → out-of-tokens modal). `Gauge` import dropped.
-- `PlanComparisonView.tsx` — replaced `monthly_ai_chats` in the core tier grid
-  with `ai_tokens_per_month` (Monthly AI Tokens, K/M format); removed
-  `daily_ai_chats` and `advisor_atlas_searches_per_month` rows.
-- `UsageIndicator.tsx` is dead code (never imported); left untouched.
-
-## Scholarship opportunity extraction billing (Epic-ScholarshipHunt)
-
-> **Consolidated in SCHOLARDOCX-0136:** `can_use_scholarship_analyze` and
-> `can_use_scholarship_deep_hunt` no longer exist as separate limits. The
-> single `can_use_scholarship_hunt` permission now gates the entire
-> scholarship suite (search, catalog cycle-check, Analyze, and Deep Hunt).
-> The notes below describe the original per-feature gating for history; the
-> enforcement helpers in `scholarship_opportunities.py` and
-> `scholarship_deep_hunt.py` now check `can_use_scholarship_hunt`.
-
-- `POST /scholarship-opportunities/analyze` (Phase 1 of the scholarship
-  pipeline) is gated by a new boolean role limit `can_use_scholarship_analyze`
-  (free/general = 0, pro/max = 1) checked via
-  `check_and_increment_limit(user, "can_use_scholarship_analyze", 0, session)`
-  — a permission check, not a count decrement, mirroring
-  `can_use_scholarship_hunt`.
-- The actual extraction call is metered like any other `AiService` call:
-  `ensure_can_spend` before, `charge(..., source="scholarship_analyze")`
-  after, via `AiService.set_billing()` — same funnel as Advisor Atlas.
-- No new count-based limit key (`scholarship_analyze_daily`, etc.) was added.
-  This follows the same direction as the Phase 5 teardown below: count limits
-  on AI-metered actions were removed in favor of a boolean plan gate + token
-  cost, and a new count key would work against that.
-- ~~"Check current cycle" on a catalog entry reuses the existing
-  `can_use_scholarship_hunt` gate and flat-fee Tavily billing
-  (`_charge_scholarship_hunt` in `backend/app/api/news.py`) — no new quota
-  key.~~ SUPERSEDED (SCHOLARDOCX-0176): the catalog is static-only. The
-  "Check current cycle" endpoint, `_charge_scholarship_hunt`, and the
-  Tavily-backed catalog path are all removed. Browsing the catalog is free
-  and makes zero network calls.
-
-## Deep Hunt run billing (SCHOLARDOCX-0125, Phase 5)
-
-- `POST /scholarship-deep-hunt/runs` (and `/resume`) are gated by a new
-  boolean role limit `can_use_scholarship_deep_hunt` (free/general = 0,
-  pro/max = 1) — same `check_and_increment_limit(user,
-  "can_use_scholarship_deep_hunt", 0, session)` shape as
-  `can_use_advisor_atlas`, not `can_use_scholarship_analyze`'s flat-fee
-  cousin. This follows Advisor Atlas's model, not the plain Hunt tab's.
-- Each of a run's extraction calls (up to ~12 per run) goes through the same
-  `scholarship_extraction_service.extract()` → `AiService.chat()` path as
-  Phase 1's Analyze, so it is metered identically:
-  `ensure_can_spend` pre-flight in the API layer, then the background
-  service attaches billing via `AiService.set_billing(load_user_dict(...))`
-  before running, same as Advisor Atlas's background runs.
-- ~~Tavily search calls inside a run (up to 3 passes) are **not** charged a
-  flat fee. They are recorded as zero-cost ledger rows via
-  `AiService.record_external_search(source="scholarship_deep_hunt_search")`,
-  mirroring Advisor Atlas's own search calls — cost stays 0, but the call
-  still surfaces in the admin Tavily usage dashboard.~~
-  **SUPERSEDED (SCHOLARDOCX-0175):** Deep Hunt no longer uses Tavily. Brave
-  Search replaced it, and every raw Brave hit is charged before filtering via
-  `charge_flat_fee(..., hits * get_brave_call_cost_per_hit_usd(), source=
-  "scholarship_hunt_hit")`, with a worst-case `ensure_can_spend` pre-flight at
-  `POST /scholarship-deep-hunt/runs`. See "Per-hit billing (FR-8.48)" in
-  [ai-integrations.md](ai-integrations.md).
-- The run's other two AI calls — the query planner and the relevance filter —
-  are **not** charged (L1/L2, SCHOLARDOCX-0204), nor is the extraction step's
-  OpenRouter fallback (L3). See the audit section below.
-- No new count-based daily/monthly limit key was added for Deep Hunt, for
-  the same reason `can_use_scholarship_analyze` didn't get one: count limits
-  on AI-metered actions were removed project-wide in the Phase 5 teardown
-  above in favor of gate + token cost.
-- **Search-result caching (SCHOLARDOCX-0220).** `services/search_cache.py`
-  provides a 15-minute per-user TTL cache (bounded, in-process). Deep Hunt's
-  Brave passes and `/ai/research`'s Tavily call check it before the provider.
-  Rule: **a cache hit is not a provider call, so it is not charged** — the
-  per-hit fee / flat search fee only runs on a miss. Keys always include the
-  user id (never share entries across users).
-- **Worst-case pre-flight ceilings everywhere (SCHOLARDOCX-0218).** Deep
-  Hunt's per-hit ceiling pattern now covers the other expensive flows:
-  `/ai/research` pre-flights the Tavily flat fee + a conservative answer
-  ceiling (`RESEARCH_MAX_INPUT_TOKENS`/`RESEARCH_MAX_OUTPUT_TOKENS` in
-  `services/ai.py`, web-results component computed from the request's own
-  caps); Research Expert analyze pre-flights a per-paper ceiling
-  (`estimate_analysis_cost` in `research_paper_service.py`, embedding + the
-  paper's top-K largest sections over the model cascade) and ships it on the
-  paper payload as `analysis_cost_estimate`; Advisor Atlas create pre-flights
-  `estimate_run_cost` (`services/advisor_atlas/cost_estimate.py`, every
-  search/AI pass at the pipeline's caps × the candidate cap) and returns it
-  as `cost_estimate`. If actual usage still exceeds a ceiling (rare — the
-  constants are conservative), the flow fails 402 with honest copy; for
-  `/ai/research` that copy says the web-search fee was already deducted
-  (`RESEARCH_ANSWER_OUT_OF_CREDITS_MESSAGE`).
-
-## Research Expert Jina embedding billing (SCHOLARDOCX-0174)
-
-Jina AI (`jina-embeddings-v4`) generates the vector embeddings used by the
-Research Expert feature for paper chunk storage and analysis-query retrieval.
-Unlike the AI-metered providers above, Jina is billed as a **flat fee per user
-operation** — the same model Tavily uses for web/Scholarship Hunt searches.
-
-- **Setting key**: `app_settings.jina_call_cost_usd` (default `0.002`), seeded
-  by `schema.py` SEED_SQL and editable in the admin **Settings → External APIs
-  & Agents Pricing** modal (`SettingsTab.tsx`). Read at call time via
-  `get_jina_call_cost_usd(session)` in `ai_tokens.py`.
-- **Charge**: `charge_flat_fee(user, session, cost_usd, source=...)`, **exactly
-  one** charge per user-visible operation, raised **after** every Jina HTTP batch
-  for that operation has returned successfully (so a paper needing 20 batches
-  still costs one charge, and a failed run costs nothing). Lives in
-  `ResearchPaperService._charge_jina_embedding()`, invoked via the
-  `charge_source` parameter of `_generate_embeddings()`:
-  - upload → `source="jina_embedding"`
-  - retry → `source="jina_embedding_retry"`
-  - analyze query embedding → `source="jina_embedding_query"`
-- **Single-charge invariant**: `_generate_embeddings()` is the only place a Jina
-  fee is raised, and it raises at most one. Callers that wrap it (such as
-  `_generate_single_embedding()`) pass their own `charge_source` rather than
-  charging separately. Fixed in SCHOLARDOCX-0180: the query path previously
-  charged inside `_generate_embeddings` *and* again in
-  `_generate_single_embedding`, billing every analysis question twice.
-- **Correct setting key**: `_charge_jina_embedding()` reads the price through
-  `ai_tokens.get_jina_call_cost_usd()`. Also fixed in SCHOLARDOCX-0180: it
-  previously queried a `research_paper_jina_cost_usd` key that is seeded nowhere,
-  so it always fell through to a hardcoded `0.005` and silently ignored whatever
-  an admin had configured. Combined with the double charge, an analysis query
-  cost `2 × 0.005 = 0.01` USD-equivalent against a configured price of `0.002`.
-- **Pre-flight**: `ensure_can_spend()` runs before each call and raises
-  `OutOfTokens` (HTTP 402) on insufficient balance.
-- **Gate**: no separate Jina role limit — access is covered by the existing
-  `can_use_research_reader` gate (Pro/Max). Jina is a hard dependency of the
-  feature, so disabling Research Expert disables Jina transitively.
-- **Dashboard**: the admin dashboard reports `jina_total` — count of ledger
-  rows whose `source` is one of the three Jina labels (alongside the existing
-  `tavily_*` counts).
-- **Size-scaled since SCHOLARDOCX-0204 (L8)**: the charge is
-  `jina_call_cost_usd + (total_input_tokens priced from the ai_models row for
-  jina-embeddings-v4)`. A flat fee alone recovered the same $0.002 from a
-  60-page paper as from a one-page abstract, while Jina bills us per token, so
-  the operator absorbed the difference on exactly the uploads that cost most.
-  Still one charge per operation — the single-charge invariant above is
-  unchanged, and the token component is folded into that one charge rather than
-  raised as a second one.
-- **What changed**: the prior *purely* token-metered path (`ai_tokens.charge(...,
-  provider="jina", model_id="jina-embeddings-v4")`) was **removed** in favor of
-  the admin-configurable fee. The `ai_models` row for `jina-embeddings-v4`
-  described here as "a pricing reference only" now drives the token component of
-  that fee.
-
-## Advisor Atlas OpenAlex billing (SCHOLARDOCX-0183)
-
-OpenAlex supplies the scholarly record shown in the professor dossier (h-index,
-i10, citation counts, publication cadence, topics, affiliation history). Like
-Tavily/Jina/Brave it is billed as a **flat fee per user operation**, not
-token-metered.
-
-- **Setting key**: `app_settings.openalex_call_cost_usd` (default `0.001`),
-  seeded by `schema.py` SEED_SQL and editable in admin **Settings → External APIs
-  & Agents Pricing**. Read at call time via
-  `ai_tokens.get_openalex_call_cost_usd(session)`. The default deliberately
-  mirrors OpenAlex's own list price for a search ($1 per 1,000 calls).
-- **What is metered**: OpenAlex charges `search` at $1/1,000, `list+filter` at
-  $0.10/1,000, and **single-entity lookups at nothing**. A dossier costs exactly
-  one search (author resolution); everything after it is a free lookup. So the
-  fee is raised once per professor resolved, not once per field retrieved.
-- **Charged on the call, not the match**: OpenAlex bills the search whether or
-  not the result clears our identity-confidence floor, so the user is charged
-  when `OpenAlexClient.attempted_metered_call` is set. Declining an ambiguous
-  match does not refund a request that was already made.
-- **Never charged** when no request is issued: blank professor name, budget guard
-  tripped, or a latched 429.
-- **Pre-flight**: `AiService.can_spend_external()` runs before the call; a user at
-  zero credits skips enrichment rather than going negative.
-- **Plumbing**: `AiService.charge_external_call()` and `.external_billing_cost()`
-  encapsulate the billing context. Neither raises — a billing error must never
-  fail an Advisor Atlas run. (They once had a sibling that recorded a call at
-  zero cost; it was deleted in SCHOLARDOCX-0204 because nothing legitimately
-  needs it.)
-- **Scope**: deep runs only. A Discovery run screening 80 candidates would both
-  exhaust the OpenAlex daily budget and bill the user 80 times for candidates
-  that may never surface.
-- **Dashboard**: admin reports `openalex_total` — ledger rows with
-  `source = 'openalex_author_lookup'`.
-
-### Single-charge invariant
-
-As with Jina (SCHOLARDOCX-0180, where a wrapper double-billed every query), there
-is exactly **one** charge site for OpenAlex: `_attach_scholarly_record` in
-`advisor_atlas/service.py`. `OpenAlexClient` itself never bills. Do not add a
-charge inside the client or inside `resolve_author`.
-
-## Remaining phases
-
-- Phases 1–5 complete (metering, teardown, model pricing, packs + purchase
-  flow, frontend admin tabs + user widget + out-of-tokens flow).
-- **Open: billing coverage.** SCHOLARDOCX-0204 found eight paths where the
-  economy above is bypassed. See the next section.
-
-## Billing coverage (SCHOLARDOCX-0204 — audited and fixed, 2026-07-29)
-
-Every provider call now charges the user. The audit found eight gaps; all are
-closed. Detail and rationale:
-[SCHOLARDOCX-0204](../jira-tasks/Epic-BillingAndPlans/SCHOLARDOCX-0204-billing-leak-audit-unbilled-provider-calls.md).
-
-| Path | Charged | Mechanism |
-|------|---------|-----------|
-| `/ai/chat`, `/ai/summarize` | Yes | `AiService.chat()` — `ensure_can_spend` + `charge` |
-| `/ai/research` Tavily fee | Yes | Charged inside `research()` at the search, not at the route |
-| `/ai/actions/plan` | Yes | Billing context passed from the route |
-| Research Expert embeddings | Yes | Base fee + token component, one charge per operation |
-| Research Expert analysis | Yes | `AiService.chat()` |
-| Scholarship Analyze — primary | Yes | `AiService.chat()` |
-| Scholarship Analyze / Deep Hunt — OpenRouter fallback | Yes | `charge_tokens` in `_openrouter_fallback`, pre-flighted |
-| Deep Hunt Brave hits | Yes | Per raw hit, pre-filter |
-| Deep Hunt query planner | Yes | `ai_service` is a required parameter |
-| Deep Hunt relevance filter | Yes | `ai_service` is a required parameter |
-| Advisor Atlas GLM chat + vision | Yes | `charge_tokens` |
-| Advisor Atlas OpenAlex | Yes | Flat fee, one per metered call |
-| Advisor Atlas Tavily | Yes | `charge_external_call` at the Tavily rate, pre-flighted |
-| Any OpenRouter call | Yes | Model id seeded from settings; provider-rate fallback |
-
-### The three mechanisms that produced the leaks
-
-Worth naming, because none of them was "someone forgot to bill" — each had a
-documented charge helper that never ran:
-
-1. **An optional billing context.** `ai_service: Any = None` with the charge
-   behind `if ai_service is not None`. One call site omitted it; the guard was
-   permanently false. Fixed by making `ai_service` a **required** parameter on
-   `DeepHuntQueryPlanner.plan` and `DeepHuntRelevanceFilter.score`, with a test
-   asserting it stays required.
-2. **A fallback beside a billed primary.** `chat()` billed; the direct-httpx
-   OpenRouter retry next to it did not. Fixed by charging inside
-   `_openrouter_fallback`, immediately after the response and before parsing.
-3. **A price lookup that missed silently.** `compute_cost` returned `$0` for an
-   unknown `model_id`, so a charge was raised, a ledger row written, and nothing
-   deducted. Fixed with `_lookup_price` (exact model → provider house rate), an
-   ERROR log when neither resolves, and `validate_model_pricing()` run at
-   startup.
-
-### Structural guarantees now in place
-
-- **`record_external_search()` is deleted.** It wrote a `tokens_delta=0` ledger
-  row so an unbilled call would still appear in dashboards — making the call
-  look accounted for while the operator paid. Per BD-011 no such category
-  exists, so a "record but don't charge" helper has no legitimate caller. A test
-  asserts it stays gone.
-- **`app/auth/plan_state.py` is the only place plan expiry is applied.** Both
-  `get_current_user` and `ai_tokens.load_user_dict` call `apply_plan_expiry`, so
-  a background run resolves the same effective tier a live request would (L6).
-  `load_user_dict` also returns no roles for a suspended account, so a queued run
-  cannot outlive the suspension.
-- **Unseeded role limits deny.** `check_and_increment_limit` raises and
-  `get_user_limit` returns `0` when no `role_limits` row exists, with an ERROR
-  log naming the missing role/feature (L7). `can_purchase_packs` and
-  `can_use_purchased_tokens_feature` mirror it. A test asserts every
-  dynamically-referenced feature has a `DEFAULT_ROLE_LIMITS` entry — that
-  assertion is what makes deny-by-default safe, so keep it passing before adding
-  any new gate.
-- **Out of credits stops the work.** Advisor Atlas pre-flights each Tavily search
-  and raises `OutOfTokens`; Discovery's per-candidate `except Exception`
-  deliberately re-raises it rather than logging and continuing, which previously
-  let a run keep making unbilled searches after the balance hit zero.
-- **A static guard enforces all of the above.**
-  `scripts/check-provider-call-billing.py` (`make guard-billing`, first step of
-  `make check`) walks `backend/app` and fails when a function talks to a
-  provider without charging, or declares `ai_service=None`. Reviewed exceptions
-  sit in an `EXEMPT` dict that must name the caller doing the billing; a stale
-  entry is itself a failure, so a rename cannot hand an unreviewed function a
-  pass. The guard was validated by re-introducing L1/L2 and L5 and confirming it
-  fails on each. **When it fires, the fix is a charge — not a new EXEMPT line.**
+- `app/auth/plan_state.py` is the only place plan expiry is applied; `get_current_user` and `load_user_dict` both use it, so a background run resolves the same tier as a live request. `load_user_dict` returns no roles for a suspended account.
+- A missing `role_limits` row denies (`check_and_increment_limit` raises, `get_user_limit` returns 0, with an ERROR log). A test asserts every dynamically referenced feature has a `DEFAULT_ROLE_LIMITS` entry; keep it passing before adding a gate. New limits must be declared in all seed sites (`schema.py`, `connection.py` seed and `canonical_features`, `services/admin.py` `DEFAULT_ROLE_LIMITS`).
+- `compute_cost` resolves an unknown model through `_lookup_price` (exact model, then the provider house rate), logs an ERROR when neither resolves, and `validate_model_pricing()` runs at startup.
+- A "record but do not charge" helper must not exist (BD-011); a test asserts `record_external_search` stays gone.
 
 ## Rules
 
-- Every provider call is charged, including internal/auxiliary calls. "Free
-  tier", "background task", "fallback", and "internal" are not exemptions — see
-  the audit table above for what happens when they are treated as such.
-- Billing context is a required argument, not an optional one. An
-  `ai_service=None` default that guards a charge is how L1 and L2 happened.
-- An unpriced model is a configuration failure, not a free call.
-- Failed calls with no usage are voided; usage returned before an error is
-  charged.
-- Deduction is atomic per call (single transaction) to avoid balance drift.
-- Charging happens after the call (output tokens unknown beforehand). A call
-  the two buckets cannot fully cover is rejected whole — the deduction is one
-  conditional `UPDATE` (see `_atomic_deduct` in `services/ai_tokens.py`): 0
-  rows update, the balance is left untouched, and `OutOfTokens` (402) is
-  raised. Concurrent charges can never both spend the same credits, and
-  partial/clamped under-deduction no longer exists (SCHOLARDOCX-0217).
-- Deprecated count limits (`daily_ai_chats`, `monthly_ai_chats`,
-  `advisor_atlas_searches_per_month`) were **removed outright** in Phase 5 (not
-  left dormant): deleted from the schema seed, `DEFAULT_ROLE_LIMITS`, the
-  new-user `user_usage_stats` init lists, and `canonical_features`, so
-  `migrate_database` scrubs any leftover rows on existing DBs. AI chat and
-  Advisor Atlas usage is metered solely by tokens now.
+- All costs shown to users are in credits; dollars stay admin-only.
+- Never raise a second charge for one user-visible operation.
+- Pack purchases are request-and-approve; the purchased bucket never expires.

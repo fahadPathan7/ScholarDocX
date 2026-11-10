@@ -1,900 +1,132 @@
 # AI Integrations
 
-> **Audit status (SCHOLARDOCX-0204, 2026-07-29): audited and fixed.** Every
-> provider call in this file is now charged to the user. Four paths were
-> unbilled (Deep Hunt query planner, Deep Hunt relevance filter, the
-> scholarship-extraction OpenRouter fallback, and every Advisor Atlas Tavily
-> search) and all OpenRouter charges computed $0 because the settings model id
-> did not match the seeded `ai_models` row. Coverage table:
-> [technical/ai-token-economy.md](ai-token-economy.md#billing-coverage-scholardocx-0204--audited-and-fixed-2026-07-29).
-> Note that a "BILLING ENFORCEMENT" paragraph in this file records the
-> *requirement*; it is not by itself evidence the code bills. Verify at the call
-> site. Detail:
-> [SCHOLARDOCX-0204](../jira-tasks/Epic-BillingAndPlans/SCHOLARDOCX-0204-billing-leak-audit-unbilled-provider-calls.md).
-
-## Billing Enforcement
-
-**Every provider call here is billed to the user. The contract — the real API,
-enforcement locations, gates, and the checklist for adding a provider — is in
-[billing-contract.md](billing-contract.md).**
-
-This file used to restate that contract in full. The restatement drifted: it
-told agents to call `charge_ai_tokens`, `check_available_tokens`, and
-`check_flat_fee_balance` (none of which exist), and to enforce at
-`NewsService.search` and two other methods that also do not exist. It is gone;
-read the contract instead.
-
-### The failure mode this keeps hitting
-
-Every leak found in SCHOLARDOCX-0204 was *"billing wired but never invoked"*,
-not *"billing forgotten"*. The charge helper existed, was documented, and was
-skipped at runtime by one of three mechanisms:
-
-1. **An optional `ai_service` parameter defaulting to `None`.** The charge sits
-   behind `if ai_service is not None`; a call site omits the argument and the
-   whole billing branch is dead. (L1, L2.)
-2. **A fallback added after the fact.** The primary call is billed; the retry
-   next to it is not. (L3.)
-3. **A price lookup that silently misses.** An unknown model resolved to $0, so
-   a charge was raised, a ledger row written, and nothing deducted. (L4.)
-
-So: make the billing context **non-optional in the signature**, and make an
-unpriced model a startup warning rather than a free call. `make guard-billing`
-enforces both.
+How AI and search providers are used. All provider calls happen in the backend, never the browser,
+and no provider key reaches the client. **Billing of every provider call is owned by
+[billing-contract.md](billing-contract.md)** and the credit economy by [ai-token-economy.md](ai-token-economy.md);
+this file records behaviour and invariants, not charging rules. A statement in context that "X is
+billed" is a requirement, not evidence: verify at the call site.
 
 ## Providers
 
-- GLM AI API for chat, drafting, summarization, and rewriting.
+- **GLM** (default chat, drafting, summarization, agent planning, Advisor Atlas analysis; vision for visual sources), **Google Gemini**, **Groq**, **Mistral**: chat providers behind `AiService` (`backend/app/services/ai.py`).
+- **OpenRouter**: Scholarship Hunt query planner, relevance filter, and extraction fallback.
+- **Tavily**: `/ai/research` web research and Advisor Atlas source discovery.
+- **Brave Search**: Scholarship Hunt deep search.
+- **Jina AI**: Research Expert embeddings. **OpenAlex**: Advisor Atlas scholarly record and publications.
+- Provider keys come from backend environment variables; real keys are never committed. Users pick a chat model and a background model (routing, summarization); there is no auto-fallback cycling. Gemini is used on its free tier: no image/audio generation, no search grounding, no paid-only endpoints.
 
-- Google AI Studio Gemini API for optional chat, drafting, summarization, and
-  rewriting fallback. (Research Expert embeddings moved off Gemini to Jina AI —
-  see the Research Expert Vector Embeddings section below.)
-- Tavily API for `/ai/research` web research and for Advisor Atlas source
-  discovery. (It no longer powers Scholarship Hunt — Brave replaced it in
-  SCHOLARDOCX-0175.)
-- OpenRouter for the Scholarship Hunt query planner, the relevance filter, and
-  the extraction fallback. (The user-review step it once fed was removed with
-  the Hunt Profile in SCHOLARDOCX-0178.)
-- **Research Expert (SCHOLARDOCX-0174)**:
-  - Vector embeddings via the Jina AI REST API (`jina-embeddings-v4`, `task="text-matching"`, 1024 dimensions, batches of 16). No fallback provider.
-  - Cosine distance similarity search using pgvector operator (`<=>`) over `research_paper_chunks`, including the keyword section-boost pass, which is ranked by the same cosine distance so every relevance score shown to the user is measured rather than assumed.
-  - Analytical queries pass through `AiService.chat(...)` with vector-retrieved chunk context and system prompt instruction, using a GLM-5.2 → Groq compound model cascade.
-  - Billing: one charge per Jina operation — a `jina_call_cost_usd` base fee plus a token component priced from the `ai_models` row for `jina-embeddings-v4` (SCHOLARDOCX-0204 L8, so a long paper costs more than a short one) — plus standard `AiService` token metering for the analysis call. See [ai-token-economy.md](ai-token-economy.md).
-
-Gemini support is built around free-tier local use:
-
-- Read `GEMINI_API_KEY` from the backend environment.
-- Available Gemini models (free tier):
-  - **Gemini 2.5 Flash-Lite**: 15 RPM, 1000 RPD. Best for high-volume chat.
-  - **Gemini 2.5 Flash**: 10 RPM, 250 RPD. Good for summarization, translation.
-  - **Gemini 2.5 Pro**: 5 RPM, 100 RPD. Best for complex reasoning, internal tasks.
-- Users explicitly select both a chat model and a background model (routing,
-  summarization). There is no auto-select or auto-fallback model cycling.
-- Do not use Gemini image/audio generation, Google Search grounding, or
-  paid-only media endpoints in the MVP.
-- Tavily remains the web-search source so search behavior and source rendering
-  stay provider-neutral.
-
-
-- Brave Search API powers Scholarship Hunt (deep search); Tavily powers
-  `/ai/research` (RAG-style web research). Each is isolated to its own key
-  and call sites (`BRAVE_API_KEY` vs `TAVILY_API_KEY`). OpenRouter remains
-  used by Scholarship Hunt's query planner + relevance filter and by
-  extraction fallback.
-
-## Integration Boundary
-
-All provider calls happen in the backend, never the browser — no provider key
-ever reaches the client.
-
-The actual layout, which is **not** the per-provider package tree an earlier
-version of this file proposed (`backend/app/integrations/glm/` and siblings were
-never built):
+Layout (provider HTTP lives in a private method of the owning service; billing lives one level up where the user and session are known):
 
 ```text
-backend/app/services/ai.py                    AiService — chat/research/summarize
-                                              for GLM, Gemini, Groq, Mistral
-backend/app/services/ai_tokens.py             billing for every provider
-backend/app/services/brave_search_service.py  Brave (Scholarship Hunt)
-backend/app/services/deep_hunt_query_planner.py   OpenRouter planner + relevance
-backend/app/services/scholarship_extraction.py    OpenRouter extraction fallback
-backend/app/services/advisor_atlas/openalex.py    OpenAlex client
-backend/app/services/research_paper_service.py    Jina embeddings
+services/ai.py                         AiService: chat/research/summarize for GLM, Gemini, Groq, Mistral
+services/ai_tokens.py                  billing for every provider
+services/brave_search_service.py       Brave (Scholarship Hunt)
+services/deep_hunt_query_planner.py    OpenRouter planner and relevance filter
+services/scholarship_extraction.py     extraction (OpenRouter fallback)
+services/advisor_atlas/openalex.py     OpenAlex client
+services/research_paper_service.py     Jina embeddings
 ```
 
-Provider HTTP lives in a private method of the owning service (`_chat_with_glm`,
-`_tavily_search`, …). Billing does **not** live there — it belongs one level up,
-at the entry point that has the user and the session. See
-[billing-contract.md](billing-contract.md).
+## Key handling and privacy
+
+- Read keys from the environment, validate availability at startup or first use, never expose them to the frontend.
+- Do not silently send full application records to providers; send the smallest useful context and make sensitive-context sending visible.
+- AI output is never saved as an official record without a user action.
+- A provider failure must not become fake work: `AiService.chat` returns `mode: "provider-error"` or `"local-fallback"` with zero-token usage instead of raising, so callers that count AI calls must check the mode first. Advisor Atlas records failures in `research_metrics.failed_ai_calls` / `.analysis_degraded` and the dossier shows a notice.
+
+## Research flow (`/ai/research`)
+
+1. The client sends rolling memory context and the web-search hint; the backend checks `can_use_web_search` and the web-search limits.
+2. A small, domain-neutral routing prompt (machine-readable JSON) decides whether to search; on failure, timeout, or invalid JSON it fails open and searches with the original query.
+3. Tavily returns results (served from the 15-minute per-user search cache when available); the backend builds compact context (titles, snippets, URLs).
+4. A configured chat provider answers with source references; the user chooses whether to save.
+
+Routing and synthesis prompts stay separate. Provider-error and local-fallback responses keep their mode and are never relabeled as successful research.
+
+## Chat memory and drafting
+
+- After a completed session has at least four messages the frontend asks `/ai/summarize` for a rolling summary (under 600 tokens, preserving intent and durable decisions); the next request carries `[Conversation Summary So Far]` and `[Last Turn]`. Failed summaries are ignored so provider errors never become memory. Summarization is user-billed even though users do not trigger it explicitly.
+- Drafting receives only the required text and metadata; suggestions are shown separately from the original, and the user accepts, edits, or discards.
+
+## Agentic actions (plan, confirm, execute)
+
+1. The frontend sends a mutation-looking request to `/ai/actions/plan` (gates: `can_use_agents` and the planner provider's `can_use_<provider>`).
+2. The planner returns `no_action`, `needs_info`, or `needs_confirmation`. Only Confirm calls `/ai/actions/execute`, which checks `can_use_agents` as a boolean and enforces the same role limits as the manual routes for create actions (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`, `records_per_sheet`, `total_sticky_notes`).
+3. Execution uses `Store` methods; provider output is never executable code. All actions are local database mutations: no emails, submissions, external uploads, or overwriting document versions. Admin actions are structurally impossible (no admin action type; the planner prompt refuses them). Agent tasks are always user-initiated; there are no background agent runs.
+
+Structure: `ai_actions.py` (orchestration, planner prompt, heuristic fallback), `ai_actions_catalog.py` (action registry), `ai_actions_workspace.py` and `ai_actions_execute.py` (sheet-workspace normalizers and executors), `ai_actions_records.py` (spec-driven create/update/delete/list for record domains; foreign keys are resolved by name, never by provider-supplied ids), `ai_actions_read.py` (read and analysis helpers), `ai_actions_analyze.py` (post-execution analysis).
+
+Behaviours worth keeping: later actions in a plan inherit `project_ref` / `sheet_ref` from earlier ones; column keys, project and sheet names resolve case-insensitively with a substring fallback; pin/dashboard actions use the real schema fields; `filter_rows_by_value` resolves the column semantically via `find_best_column`.
+
+### Sheet Ask AI constraints
+
+The sheet Ask AI menu (`frontend/src/components/sheet/askAiPrompts.ts`, `AskAiMenu.tsx`) feeds one preset message at a time into the pipeline above. Two limits shape what a preset may ask:
+
+1. `AiActionService.plan` caps the planner completion at `max_tokens=1200`, so a request that needs unique generated text per row breaks past about 5-8 rows. Presets must not ask for unique per-row content across every row.
+2. `_build_planner_prompt` injects real cell data for only the first 30 rows of the target sheet (`_target_sheet_block`). A message may carry `(row_index: N)` or `(row_indices: [...])` markers (built by `rowTarget()` / `selectedRowsTarget()`); those rows (up to 20 extra) are always included (`_extract_targeted_row_indices`).
+
+So each preset is scoped to one row, one column, a small selected set, or a backend-computed column scan (`get_deadlines`, `analyze_sheet`, `filter_rows`, `get_column_values` run over the full row set and are accurate at any size). Every preset tells the model to say what is missing instead of guessing (planner Parsing Rule 18). For auto-executed read-only plans, `AiActionService.analyze_results` makes a second call (`max_tokens=2048`) over results bounded by `serialize_results_for_analysis` (about 150-200 rows, 12k chars, 120-char cells, with a `truncated` flag) and the analyst prompt must state truncation or insufficient data plainly.
+
+## Scholarship Hunt (`scholarship_deep_hunt.py`)
+
+One natural-language goal runs the whole pipeline; there is no depth knob and one search surface. Gate: `can_use_scholarship_hunt` (Pro/Max); rate limit `scholarship_deep_hunt_run` (5 runs per 10 minutes).
+
+1. **Plan queries**: `DeepHuntQueryPlanner.plan` (one OpenRouter call) makes 3-4 diverse, acronym-expanded queries plus `field_synonyms`; deterministic fallback on error.
+2. **Brave search**: `SEARCH_PASSES=2` x `MAX_RESULTS_PER_PASS=8` = at most 16 raw hits, de-duplicated by canonical URL. `BraveSearchService` is a thin adapter returning the 9-key card contract (`article_id, title, link, source_name, pubDate, image_url, description, country, _search_score`; the score derives from rank).
+3. **Hard filters**: deterministic and free; drop pages with an explicit closed status, a stale cycle, or conflicting destinations/fields (`_has_explicit_closed_status`, `_is_stale_cycle`, `matches_destinations`, `has_conflicting_fields`).
+4. **Crawl and extract**: top `MAX_CRAWL_PAGES=12` via `PublicCrawler`; top `MAX_EXTRACTIONS=12` via the extraction service. Missing fields stay missing. The extraction prompt forbids naming an aggregator or hosting site as `sponsor`, or assuming `application_url` is the crawled page, unless the text says so.
+5. **Relevance filter**: one batched `DeepHuntRelevanceFilter.score` call, floor `RELEVANCE_FLOOR=0.4`; broad umbrella programs (5+ unrelated fields) score low; a deterministic synonym-keyword fallback keeps relevance always enforced. Survivors sort by `relevance_score` descending.
+6. **Dedup**: by `_dedup_key(canonical_name)` (strips years, apostrophes, plural filler) keeping the highest-relevance then most complete; distinctly named programs are never merged. No hard cap on survivors.
+7. **Store on the run**, not the library: results live in `scholarship_deep_hunt_runs.results_json` and become `scholarship_opportunities` rows only when the user saves one (`POST /scholarship-deep-hunt/runs/{id}/results/save`, via `upsert_scholarship_opportunity`).
+
+Caps (FIFO rules in [CODE_RULES.md](../CODE_RULES.md)): the Opportunity Library is capped at `MAX_LIBRARY_ENTRIES = 100` per user; a brand-new row beyond it raises `LibraryFullError` (HTTP 409), updating an owned `normalized_url` is never blocked, and it is a fixed constant, not a role limit. Run history keeps 10 runs (`create_run` evicts the oldest) and eviction or delete detaches saved opportunities (`deep_hunt_run_id = NULL`) instead of deleting them. The scholarship catalog (`GET /scholarship-catalog`) is static: zero network calls, no billing.
+
+Billing shape (details in the contract and economy docs): every raw Brave hit is charged before filtering at an admin-set per-hit price, with a worst-case pre-flight at run creation (16 hits); the planner, relevance filter, and extraction (including the OpenRouter fallback) are all charged; an "OpenRouter Free" model still costs the user.
+
+Transparency: before submitting, the UI shows the cost ceiling ("Up to N sources · up to M credits"); during the run `progress_json` counters (`sources_scanned`, `sources_filtered`, `opportunities_extracted`) drive a live funnel. User-facing copy never names Brave, Tavily, or pipeline terms. `field_of_study` is a manual form field (`CreateDeepHuntRunRequest.field_of_study`) used by the planner and filter; field matching happens server-side, so do not rebuild a browser-side fit chip.
 
 ## Advisor Atlas
 
-- Advisor Atlas uses Tavily for targeted public source discovery and GLM-5.2
-  (default; override via `ADVISOR_ATLAS_GLM_MODEL`) for bounded structured
-  extraction, fit analysis, dossier generation, and next-action guidance.
-- **BILLING**: a run is metered per call, not by a flat run fee or a monthly run
-  count. The `POST /advisor-atlas/runs` and candidate-refresh endpoints:
-  1. Check the `can_use_advisor_atlas` gate before proceeding.
-  2. Pre-flight with `ensure_can_spend` before any provider work.
-  3. Charge each provider call the run makes, as it makes it:
-     - GLM chat + vision: **IMPLEMENTED** (`AiService.chat()`, `analyze_visual_source`).
-     - OpenAlex: **IMPLEMENTED** (SCHOLARDOCX-0183, flat fee per metered call).
-     - Tavily: **IMPLEMENTED (L5, SCHOLARDOCX-0204)** — `_tavily_search` charges
-       `get_tavily_call_cost_usd` via `charge_external_call`, pre-flighted with
-       `can_spend_external()`. It previously called `record_external_search()`,
-       writing a `tokens_delta=0` counter row and charging nothing, which made it
-       the largest single unbilled surface in the product: `search_depth:
-       "advanced"` searches issued many times per run (discovery + per-candidate
-       passes + deep research across up to 80 candidates). A run that cannot pay
-       now raises `OutOfTokens` and fails rather than continuing to spend —
-       Discovery's per-candidate `except Exception` re-raises it deliberately.
-  4. Background runs load the user with `load_user_dict(user_id, session)` and
-     charge that user. There is no system bypass.
-
-  > The old `advisor_atlas_searches_per_month` quota (General 3 / Pro 10 / Max
-  > 30) and the per-run flat fee were **removed in Phase 5** — credits replaced
-  > both. Context described them for a year afterwards. Metering is per call.
-- Advisor Atlas text and vision analysis omit provider output-token fields,
-  matching standard AI chat behavior. Schema prompts, source compaction, and
-  response validation bound the work without an arbitrary feature-level token
-  ceiling.
-- Individual-professor research uses a purpose-specific query plan instead of a
-  single Tavily query. Identity, profiles, research/lab, publications,
-  scholarly-index metrics, funding/grants, recruitment, and recent
-  news/activity are searched independently and tagged before deduplication
-  (eight passes as of SCHOLARDOCX-0109).
-- High-value accessible results are crawled selectively, prioritizing official
-  university pages, lab or personal sites, scholarly profiles, DOI/publisher
-  pages, and authoritative grant sources. Search snippets remain secondary
-  evidence.
-- Professor analysis may use multiple GLM calls: specialist extraction passes
-  for identity/research, publications, and funding/recruitment, followed by a
-  schema-validated synthesis. Missing keys still use deterministic local
-  analysis.
-- Deep research applies to both modes with no depth toggle. Discovery screens
-  every candidate (one targeted search plus analysis), then re-processes the
-  top ~15 candidates by fit through the full professor pipeline. Candidate
-  processing uses bounded asyncio concurrency; the crawler serializes requests
-  per host so polite per-domain delays hold under concurrency. Research usage
-  is tracked per candidate for accurate telemetry.
-- Research telemetry remains local operational metadata and is separate from
-  product quota accounting. The role-limit key
-  `advisor_atlas_searches_per_month` counts accepted new Advisor Atlas runs and
-  professor evidence refreshes as one action each, regardless of their internal
-  Tavily, crawl, or AI-call counts. General, Pro, and Max defaults are 3, 10,
-  and 30 per calendar month.
-- Full internal evidence may be persisted, while the candidate API and dossier
-  UI expose only the top eight diverse sources by authority and confidence.
-- Advisor Atlas source normalization preserves identity-bearing query
-  parameters such as the Google Scholar `user` ID. Generic Scholar search pages
-  are not accepted as professor profiles.
-- Repeated URLs found by multiple search passes merge their purposes and retain
-  the strongest content instead of being overwritten by the final pass.
-- Verified professor pages may trigger one bounded linked-page crawl for
-  publications, activities/CV, homepage, scholarly profiles, code profiles,
-  and lab pages. Linked pages remain subject to the public URL, robots, size,
-  and content-type controls.
-- Deterministic identity reconciliation runs after AI synthesis. Candidate
-  section extraction, name-matched email selection, profile ownership,
-  structured HTML table rows, and publication authorship checks override or
-  remove conflicting generated values.
-- `AiService.chat` accepts a non-user-controlled operation label for diagnostic
-  logs. Advisor Atlas supplies explicit labels for each specialist pass and
-  final synthesis; normal assistant requests retain standard chat labels.
-- Department discovery uses a separate bounded university-map pass before
-  professor discovery. It returns related academic units with relationship
-  class, rationale, source URL, and confidence.
-- Discovery uses more than one bounded map query, then performs a faculty
-  directory query per selected unit. High-value official directory results are
-  crawled selectively, and a bounded fallback query is used only when a unit
-  yields too few verified candidates. Directory fetch outcomes are retained in
-  the run summary for transparent coverage reporting.
-- Discovery analysis returns explainable semantic bridges and an opportunity
-  forecast for the next two or three academic semesters. Current explicit
-  openings and future likelihood are separate fields.
-- When GLM is unavailable, deterministic matching uses curated academic concept
-  families and weighted phrase/token evidence. The UI must label this as a
-  limited fallback rather than equivalent semantic inference.
-- The configured GLM vision model is optional and reserved for public visual
-  documents that cannot be extracted as text.
-- Provider calls remain backend-only and receive only public source excerpts
-  plus the user-entered matching profile.
-- Missing provider keys produce a deterministic local result from directly
-  supplied or discoverable public pages where possible.
-- AI output must validate against the feature schema and cite source IDs.
-- Unsupported claims are removed or marked unknown.
-- Forecast confidence cannot exceed evidence confidence. Funding, publication
-  velocity, or lab activity may support a future-likelihood signal but never a
-  confirmed current opening.
-- Google Scholar access restrictions are not bypassed; publication enrichment
-  may use official pages, DOI records, Crossref, OpenAlex, ORCID, or Semantic
-  Scholar alternatives.
-
-**CRITICAL BILLING REMINDERS FOR ADVISOR ATLAS**:
-1. **Flat-fee at start**: Charge one flat-fee unit (`charge_flat_fee`) when the run starts, gated by `can_use_advisor_atlas` and `advisor_atlas_searches_per_month`.
-2. **Token-metered during run**: Every Tavily search, GLM extraction call, and vision call during the run MUST charge tokens via `charge_ai_tokens`. The flat fee does not pre-pay provider costs—it only counts as one "Advisor Atlas search" unit.
-3. **Background runs are billed**: Advisor Atlas runs may be triggered asynchronously (e.g., after user confirmation or scheduled refresh). These MUST load user context via `load_user_dict` and charge the user's balance. No system account bypass.
-4. **Pre-flight checks prevent wasteful runs**: Check the gate and monthly limit BEFORE starting the Tavily/GLM work. If the user lacks quota, reject the run request and return a clear error without consuming credits.
-
-## Scholarship Hunt Search (SCHOLARDOCX-0175 v2 — Brave + unified deep search)
-
-The filter-based "Hunt" tab and its query-building machinery (FilterPanel,
-QueryReviewDialog, CustomPromptDialog, SavedQueriesDialog, NewsCard,
-NewsFeed) are deleted. The former "Deep Hunt" tab is renamed "Search" and
-is the single search surface. One natural-language goal runs the full
-plan → search → hard-filter → crawl → extract → relevance-filter → persist
-pipeline. There is no `depth` knob and no second search path.
-
-### Provider
-- **Brave Search API** powers Scholarship Hunt. Endpoint
-  `GET https://api.search.brave.com/res/v1/web/search`, header
-  `X-Subscription-Token: <BRAVE_API_KEY>`, params `q` (with `-site:`
-  domain exclusions prefixed), `count` ≤20, `freshness=py`,
-  `safesearch=moderate`, `extra_snippets=true`.
-- The `BraveSearchService` (`backend/app/services/brave_search_service.py`)
-  is a thin HTTP + normalize adapter. It returns the existing 9-key card
-  contract (`article_id, title, link, source_name, pubDate, image_url,
-  description, country, _search_score`) so downstream code is
-  provider-agnostic. Brave has no score field; `_search_score` is derived
-  from rank position.
-- Tavily remains only for `/ai/research` (RAG-style web research). The
-  two are isolated by key (`BRAVE_API_KEY` vs `TAVILY_API_KEY`) and call
-  site. `TAVILY_API_KEY_SCHOLARSHIP_HUNT` is no longer read by Scholarship
-  Hunt but is kept in config/env for back-comat with `/ai/research`.
-
-### Pipeline (`scholarship_deep_hunt.py`)
-1. **Plan queries.** `DeepHuntQueryPlanner.plan(...)` — one OpenRouter Free
-   call producing 3-4 diverse, acronym-expanded queries + a `field_synonyms`
-   list. Deterministic fallback on any error.
-2. **Brave search.** `SEARCH_PASSES=2` queries × `MAX_RESULTS_PER_PASS=8`
-   results = 16 raw hits max. Deduped by canonical URL across passes. Tuned
-   (SCHOLARDOCX-0175) to match the crawl/extract budget of 12 — every scanned
-   source has a real chance of being vetted; the prior 4×10=40 config billed
-   28 hits per run that were always discarded.
-3. **Hard filters (FR-8.27 retirement).** Drop results where
-   `_has_explicit_closed_status`, `_is_stale_cycle`, or
-   `matches_destinations`/`has_conflicting_fields` fail. Deterministic,
-   free, never invent — they reject pages that explicitly contradict the
-   user's intent.
-4. **Crawl + extract.** Top `MAX_CRAWL_PAGES=12` via `PublicCrawler`;
-   top `MAX_EXTRACTIONS=12` extracted via `scholarship_extraction_service`
-   (same anti-hallucination contract: missing stays missing).
-5. **Relevance filter.** One batched `DeepHuntRelevanceFilter.score(...)`
-   call. Drops anything below `RELEVANCE_FLOOR=0.4` (SCHOLARDOCX-0177: raised
-   from 0.3). The prompt and its deterministic heuristic fallback both treat
-   a broad/umbrella program (5+ unrelated `fields_of_study`, e.g. a generic
-   Erasmus Mundus overview page spanning engineering, health, law, and
-   humanities) as OFF_TOPIC/low-scoring even when the goal's field is
-   technically among the many listed — a program that funds almost every
-   discipline is not the close, field-specific match the user asked for.
-   Orders survivors by `relevance_score DESC`.
-6. **Canonical-name dedup (SCHOLARDOCX-0177).** Before persisting, accepted
-   extractions are grouped by `_dedup_key(canonical_name)` — a normalization
-   that strips years/year-ranges, apostrophes, and plural filler words so
-   trivial title variants of the same generic program (e.g. "Erasmus Mundus
-   Scholarship 2026" vs "...2026–2027" vs "...Scholarships") collapse to one
-   entry, keeping the highest-relevance (then most-complete) extraction.
-   Distinctly-named programs (different core wording, e.g. a specific
-   joint-master consortium acronym) keep separate keys and are never merged.
-   This runs in addition to (not instead of) the existing per-URL dedup
-   during search-pass collection. No hard cap on the number of surviving
-   results — dedup + the relevance floor are the only quality gates.
-7. **Store on the run (SCHOLARDOCX-0178: no auto-save).** Accepted, deduped
-   results are written to `scholarship_deep_hunt_runs.results_json` — NOT
-   upserted into `scholarship_opportunities`. `GET /scholarship-deep-hunt/
-   runs/{id}` decodes `results_json` into `results`, each annotated live
-   with `in_library`/`opportunity_id` by checking the user's existing
-   `normalized_url`s (same computation Catalog uses for its `in_library`
-   badge). A result only becomes a Library row when the user calls
-   `POST /scholarship-deep-hunt/runs/{id}/results/save` with its
-   `normalized_url`, which upserts via the same
-   `upsert_scholarship_opportunity` helper "Analyze" uses (dedup-by-URL,
-   no-invented-fields contract, and the `MAX_LIBRARY_ENTRIES=100` cap below).
-
-### Opportunity Library cap (SCHOLARDOCX-0178)
-`upsert_scholarship_opportunity` (`api/scholarship_opportunities.py`) enforces
-`MAX_LIBRARY_ENTRIES = 100` per user before inserting a brand-new row (an
-update to an already-owned `normalized_url` is never blocked — the cap only
-stops growth, not editing/re-saving what's already there). Exceeding it
-raises `LibraryFullError`, which every call site (the "Analyze" endpoint and
-the Deep Hunt "save result" endpoint) converts to `HTTP 409` with a
-plain-language message. This is a fixed backend constant, not an
-admin-configurable role limit; the Admin panel's Info tab ("Save & Storage
-Caps" section) states the cap as information only.
-
-### Run history cap (SCHOLARDOCX-0178)
-`ScholarshipDeepHuntRepository.create_run` FIFO-evicts down to
-`MAX_STORED_RUNS - 1` (9) existing runs before inserting, so a user never
-has more than 10 "Previous Searches". Eviction (and `delete_run`) call
-`_detach_saved_opportunities`, which sets
-`scholarship_opportunities.deep_hunt_run_id = NULL` for that run rather than
-deleting those rows — a user's explicitly-saved Library entry must survive
-its source run being pruned or deleted. (Before SCHOLARDOCX-0178, deleting a
-run deleted its linked opportunities outright, which was correct when every
-accepted result was auto-saved 1:1 with its run; it is not correct once
-saving is a separate, user-curated action.)
-
-### Sponsor/link accuracy (SCHOLARDOCX-0177)
-`scholarship_extraction.py`'s `EXTRACTION_SYSTEM_PROMPT` explicitly forbids
-naming a hosting/aggregator/directory site as `sponsor` unless the crawled
-text states that organization funds the *specific* opportunity — some pages
-(e.g. a national exchange agency's public scholarship database) list many
-programs they do not themselves fund, and the extraction model must not
-infer sponsorship from domain/branding alone. The same rule applies to
-`application_url`: it must be a specific page named in the text, not assumed
-to be the crawled page itself.
-
-### Per-hit billing (FR-8.48)
-- **Every raw Brave result is billed**, including those later filtered out.
-  The scanning was done for the user's search; the user carries it. The
-  vetting (turning noise into structured opportunities) is the value we add
-  on top at no extra scanning cost.
-- Charged per pass via
-  `charge_flat_fee(user, db, hits_this_pass × per_hit_cost, source="scholarship_hunt_hit")`,
-  where `per_hit_cost = get_brave_call_cost_per_hit_usd(db)` (admin-configurable,
-  default $0.015, seeded in `app_settings`).
-- **Pre-flight** (`create_run`): the user's balance is checked against the
-  worst case (`MAX_RAW_HITS_PER_RUN = SEARCH_PASSES × MAX_RESULTS_PER_PASS =
-  2×8 = 16` × price × token rate ≈ 2,400 credits ≈ $0.24 at default price)
-  via `ensure_can_spend(min_tokens=…)`. If insufficient → HTTP 402 "Not
-  enough credits for this search. It scans up to 16 sources." (no
-  provider/algorithm jargon).
-- SCHOLARDOCX-0176: the catalog is **static-only**. The
-  `/scholarship-catalog/{id}/check-cycle` endpoint and the
-  `news_service.search_catalog` Brave wrapper are removed. The catalog
-  (`GET /scholarship-catalog`) makes zero network calls and carries no
-  billing — it is a curated reference with multi-link entries split into
-  `program` and `university` categories.
-- The plan gate `can_use_scholarship_hunt` (Pro/Max) is enforced before
-  any spend. Rate limit `scholarship_deep_hunt_run` (5 runs / 10 min).
-
-### Search transparency (FR-8.50)
-- Pre-submit, the UI shows the cost ceiling via `formatCostEstimate(...)`:
-  "Up to 80 sources · up to 1,200 credits".
-- During the run, the backend emits `progress_json` counters
-  (`sources_scanned`, `sources_filtered`, `opportunities_extracted`) and
-  the UI renders a live funnel: "N scanned → M on-target → K opportunities".
-- User-facing copy contains no provider/algorithm jargon (no "Brave",
-  "Tavily", "hit", "relevance", "extraction"). Admin-panel labels may
-  name the provider.
-
-### Deleted / deprecated (this story)
-- `backend/app/services/news_query_generator.py` — planner supersedes it.
-- `backend/app/services/news_feedback.py` — only the deleted endpoints used it.
-- `/news/search`, `/news/query-preview` endpoints and `_charge_scholarship_hunt`.
-- Frontend: `FilterPanel.tsx`, `QueryReviewDialog.tsx`, `CustomPromptDialog.tsx`,
-  `SavedQueriesDialog.tsx`, `NewsCard.tsx`, `NewsFeed.tsx`.
-- `news_service.py` retains only `build_search_query` (deterministic fallback
-  used by the planner); the filter helpers (`_has_explicit_closed_status`,
-  `_is_stale_cycle`, etc.) are consumed by the deep pipeline via import.
-  SCHOLARDOCX-0176: `search_catalog` is removed (catalog is static-only).
-
-**CRITICAL BILLING REMINDERS**:
-1. **Pre-flight is mandatory**: `create_run` MUST check `can_use_scholarship_hunt` AND `ensure_can_spend(min_tokens=worst_case)` BEFORE enqueuing the run. If either fails, return 403/402 without calling Brave or OpenRouter.
-2. **Per-pass per-hit charge is mandatory**: After EACH Brave pass returns, charge `hits × per_hit_cost` via `charge_flat_fee(source="scholarship_hunt_hit")`. The charge covers raw hits including filtered-out sources.
-3. **Extraction is token-metered**: `ScholarshipExtractionService.extract` bills through `AiService.chat` → `charge()` as before (unchanged).
-4. **Charge recording is mandatory**: Commit each charge to the DB so the user balance and admin dashboards reflect actual usage.
-
-## API Key Handling
-
-- Read keys from environment variables.
-- Do not store real keys in source control.
-- Do not expose keys to frontend.
-- Validate provider availability at startup or first use.
-
-**BILLING ENFORCEMENT**: Every provider integration MUST check the user's plan gate (`can_use_glm`, `can_use_gemini`, `can_use_groq`, `can_use_mistral`, `can_use_web_search`, `can_use_scholarship_hunt`, `can_use_advisor_atlas`) BEFORE making API calls, even if the provider key is present in the environment. A configured key does NOT mean all users can use it—only users whose plan includes the feature gate can make calls.
-
-## Research Flow
-
-1. User asks a research question.
-2. Frontend sends any local rolling memory context and the web search hint.
-3. **BILLING ENFORCEMENT**: Backend checks `can_use_web_search` gate and `web_searches_per_session` / `web_searches_per_month` limits BEFORE proceeding.
-4. Backend uses a small objective routing prompt to decide whether search is needed.
-   - **BILLING ENFORCEMENT**: The routing call (to GLM/Gemini/Groq/Mistral) is charged via `charge_ai_tokens`.
-5. If routing fails, times out, returns invalid JSON, or returns incomplete JSON,
-   backend defaults to searching with the original user query.
-6. Tavily returns search results when search is needed.
-   - **BILLING ENFORCEMENT**: The Tavily search is charged via `charge_flat_fee` with `category="web_research"`.
-7. Backend prepares compact research context with titles, snippets, and URLs.
-8. A configured chat provider summarizes or reasons over that context with the
-   user's request.
-   - **BILLING ENFORCEMENT**: The synthesis call is charged via `charge_ai_tokens`.
-9. Response returns to UI with source references when possible.
-10. User chooses whether to save the result.
-
-Routing and synthesis prompts should be separate:
-
-- The router must be domain-neutral and return only machine-readable JSON.
-- The synthesis prompt should answer the user's actual request, cite or name
-  sources when web context is used, and avoid unnecessary off-domain lectures.
-- Provider-error and local-fallback responses should keep their mode instead of
-  being relabeled as successful research.
-
-**CRITICAL**: Every AI call in the research flow (routing, synthesis) MUST record token usage. The Tavily search MUST record a flat-fee charge. If any pre-flight check fails (insufficient tokens, missing gate, exceeded quota), reject the request and return a clear error to the user WITHOUT making external calls.
-
-## Chat Memory Flow
-
-1. Frontend keeps full chat sessions in browser secure storage.
-2. After a completed session has at least four messages, frontend asks
-   `/ai/summarize` for a rolling summary.
-3. **BILLING ENFORCEMENT**: `/ai/summarize` checks `can_use_<provider>` for the configured background model (Gemini by default) and token balance BEFORE calling the provider.
-4. `/ai/summarize` uses a compact memory-specific prompt and fast configured
-   model.
-5. **BILLING ENFORCEMENT**: The summarization call is charged via `charge_ai_tokens` after a successful response.
-6. The next user request includes labeled memory sections:
-   `[Conversation Summary So Far]` and `[Last Turn]`.
-7. Failed summaries are ignored by the frontend so provider errors do not become
-   chat memory.
-
-Memory summaries should be under 600 tokens, preserve user intent and durable
-decisions, and avoid storing full sensitive documents unless the user explicitly
-asked to use that text in the chat.
-
-**BILLING NOTE**: Summarization is a background-model operation but it is NOT exempt from billing. Even though users do not explicitly trigger it, it consumes their token balance because it improves their chat experience. Pre-flight check and charge recording are mandatory.
-
-## Drafting Flow
-
-1. User selects current document or email draft context.
-2. Backend receives only required text and metadata.
-3. **BILLING ENFORCEMENT**: Backend checks `can_use_<provider>` for the configured chat model and token balance BEFORE calling the provider.
-4. A configured chat provider generates suggestions.
-5. **BILLING ENFORCEMENT**: The drafting call is charged via `charge_ai_tokens` after a successful response.
-6. UI shows suggestions separately from original content.
-7. User accepts, edits, or discards.
-
-**BILLING NOTE**: Drafting is a user-initiated operation. Pre-flight validation and charge recording apply the same as for chat.
-
-## Agentic Action Flow
-
-Agentic workspace actions use a plan-confirm-execute pattern:
-
-1. Frontend sends the user request to `/ai/actions/plan` before normal chat
-   when the text appears to request a workspace mutation.
-2. **BILLING ENFORCEMENT**: `/ai/actions/plan` checks `can_use_agents` gate and `can_use_<provider>` for the configured planner model. It checks token balance BEFORE calling the provider.
-3. Backend action planner returns one of:
-   - `no_action`: continue normal chat/research.
-   - `needs_info`: ask the user for missing project, sheet, row, or note data.
-   - `needs_confirmation`: show a proposed action plan.
-4. **BILLING ENFORCEMENT**: The planner call is charged via `charge_ai_tokens` after a successful response (regardless of whether it returns `no_action`, `needs_info`, or `needs_confirmation`—the provider was called and tokens were consumed).
-5. Frontend renders the proposed action plan with Confirm and Cancel controls.
-6. Only Confirm calls `/ai/actions/execute`.
-7. Execution uses `Store` methods for project, sheet, row, and sticky note
-   writes; AI provider output is never trusted as executable code.
-8. `/ai/actions/execute` checks `can_use_agents` as a boolean permission only;
-   it does not consume a separate usage counter.
-9. **BILLING ENFORCEMENT**: Create-type actions in the execution phase enforce role limits (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`, `records_per_sheet`, `total_sticky_notes`) via `check_and_increment_limit` BEFORE mutating the database. Execution does NOT make additional AI calls (the plan was already generated and charged), but it must respect workspace quota limits.
-
-Supported action types (SCHOLARDOCX-0110 expanded the agent to all non-admin
-user domains):
-
-- **Sheet workspace CREATE**: `create_project`, `create_sheet`, `add_rows`, `create_sticky_note`, `duplicate_sheet`
-- **Sheet workspace UPDATE**: `update_project`, `update_sheet`, `update_row`, `rename_project`, `rename_sheet`, `bulk_update_rows`, `update_sticky_note`
-- **Sheet workspace DELETE**: `delete_project`, `delete_sheet`, `delete_row`, `clear_sheet`, `delete_sticky_note`
-- **Sheet workspace MODIFY**: `add_column`, `add_group`, `pin_project`, `pin_sheet`, `unpin_project`, `unpin_sheet`, `add_to_dashboard`, `remove_from_dashboard`
-- **Sheet workspace READ (Smart)**: `search_rows`, `filter_rows`, `analyze_sheet`, `get_deadlines`, `get_overdue_rows`, `get_column_values`, `get_projects`, `get_sheets`, `get_rows`, `get_project_summary`, `get_sticky_notes`, `get_dashboard`, `get_notifications`, `count_items`
-- **Record domains** (spec-driven `create_/update_/delete_/list_` quadruples in
-  `ai_actions_records.py`): documents, email templates, email drafts,
-  reminders, deadlines, universities, programs, professors, applications,
-  research notes.
-- **Record specials**: `add_document_version`, `complete_reminder`,
-  `complete_deadline`, `log_outreach` (optional `follow_up_days` creates a
-  reminder via `Store.log_outreach`), `update_outreach_log`,
-  `list_outreach_logs`, `get_due_reminders`, `mark_notifications_read`.
-
-Agent action architecture:
-
-- `ai_actions.py` — `AiActionService` orchestration, planner prompt assembly,
-  heuristic fallback, plan normalization core.
-- `ai_actions_catalog.py` — action registry (supported/read-only sets,
-  create-limit feature map, plan descriptions, execution messages).
-- `ai_actions_workspace.py` — normalizers for the sheet-workspace actions
-  (moved out of `ai_actions.py` for the file-size rule).
-- `ai_actions_execute.py` — executors for the sheet-workspace actions plus the
-  project/page resolution helpers; create executors call the service's
-  role-limit hooks before mutating.
-- `ai_actions_records.py` — domain spec table plus a generic
-  normalize/execute engine for the record domains and specials. Foreign keys
-  are resolved by name (university/program/professor/template/application),
-  never by trusting provider-supplied ids.
-- `ai_actions_read.py` — smart read/analysis helpers (unchanged).
-
-Execution permissions:
-
-- `/ai/actions/execute` passes the authenticated user into the service.
-  Create-type actions enforce the same role limits as the manual routes:
-  `total_projects`, `total_sheets`, `sheets_per_project`, `total_records`,
-  `records_per_sheet`, `total_sticky_notes` via `check_and_increment_limit`
-  and `get_user_limit`. `can_use_agents` stays a boolean gate with no counter.
-- Admin actions are structurally impossible: no admin action type exists in
-  the registry and the planner prompt instructs an explicit refusal for user
-  management, roles, limits, invites, tokens, settings, and model management.
-
-All actions are local database mutations. They do not send emails, submit
-applications, upload files externally, overwrite existing document versions,
-or call cloud storage.
-
-**CRITICAL BILLING REMINDERS FOR AGENT ACTIONS**:
-1. **Plan generation is billed**: The `/ai/actions/plan` call MUST check `can_use_agents`, `can_use_<provider>`, and token balance BEFORE calling the provider. The call MUST be charged via `charge_ai_tokens` after the provider responds, even if the plan result is `no_action`.
-2. **Execution is quota-gated but not double-billed**: `/ai/actions/execute` enforces workspace limits (`total_projects`, etc.) via `check_and_increment_limit` but does NOT make additional AI calls or charge additional tokens (the plan was already billed). However, role limits must be enforced before mutating.
-3. **Background agent tasks do not exist**: Agent actions are always user-initiated. There are no background or admin-triggered agent executions that bypass the user context or billing flow.
-
-## Sheet Ask AI menu: scale constraints and row-targeting (SCHOLARDOCX-0179)
-
-The sheet **Ask AI** dropdown (`frontend/src/components/sheet/askAiPrompts.ts`,
-`AskAiMenu.tsx`) feeds the plan-confirm-execute pipeline above one preset
-message at a time. Two hard constraints shape what a preset can safely ask
-for, discovered via a user report that the prior whole-sheet catalog was
-"too heavy for AI":
-
-1. **`AiActionService.plan` caps the planner's completion at
-   `max_tokens=1200`** for the entire JSON plan. A request needing unique
-   generated text per row (an email, a summary) turns into one `update_row`
-   action per row, each carrying that text — this reliably exceeds the
-   budget past roughly 5-8 rows. This is a token ceiling, not a prompt-
-   wording problem, so presets must not ask for unique per-row content
-   across "every row."
-2. **`_build_planner_prompt` injects real cell data for at most the first
-   30 rows of the target sheet** (`_target_sheet_block`, added
-   SCHOLARDOCX-0156) when the message carries `(sheet_id: "...")`. A preset
-   aimed at a specific row beyond that window had zero visibility into it.
-   SCHOLARDOCX-0179 fixed this: a message can also carry a structured
-   `(row_index: N)` or `(row_indices: [N,M,...])` marker (embedded by
-   `askAiPrompts.ts`'s `rowTarget()`/`selectedRowsTarget()` helpers), and
-   `_target_sheet_block` guarantees those specific rows are included even
-   outside the first-30 window (capped at 20 extra rows, parsed by the
-   `_extract_targeted_row_indices` static method).
-
-Given these constraints, every Ask AI preset is scoped to one of:
-- **One row** (`fill-cell`, `row-summary`, `row-email-draft`,
-  `row-next-step`) — visible only when a cell is focused (that's the only
-  reliable single-row reference point today).
-- **One column** (`column-missing`, `column-breakdown`) — visible only
-  when a cell is focused (its column is the target); routes through
-  `filter_rows`/`get_column_values`, which are backend-computed over the
-  full row set via `Store` and are NOT limited by the 30-row injection
-  window, so these are accurate at any sheet size.
-- **A small user-selected set of rows** (`compare-selected`) — visible
-  only with 2+ selected rows; the actual selected row indices are now sent
-  explicitly (`AskAiContext.selectedRowIndices`, previously only a count
-  was sent, so "compare the selected rows" had no way to know which rows
-  those were).
-- **A single always-available column scan** (`deadline-risk`) — safe at
-  any scale because it's backend-computed (`get_deadlines`/`analyze_sheet`)
-  and the read results go through the bounded, truncation-honest
-  `analyze_results` second pass (see below), not the 1200-token planner
-  output.
-
-Every preset's `build()` text explicitly instructs the model to say so —
-and name what's missing — when the targeted row/column doesn't have
-enough data, rather than guessing (reinforced by planner Parsing Rule 18 in
-`ACTION_PLANNER_SYSTEM_PROMPT`).
-
-### Post-execution analysis pass (SCHOLARDOCX-0156, still in use)
-
-For auto-executed read-only plans, `AiActionService.analyze_results` runs a
-**second** LLM call (`max_tokens=2048`) over the executed results so the
-final answer is a real analysis, not a raw row dump. `serialize_results_for_
-analysis` (`ai_actions_analyze.py`) hard-bounds the payload (~150-200 rows,
-12k chars, 120-char cells) and sets a `truncated` flag; the analyst system
-prompt (`ACTION_ANALYST_SYSTEM_PROMPT`) requires the model to state plainly
-when results are truncated or when the supplied data can't answer the
-question — this is the existing, general-purpose form of the "say so, don't
-guess" pattern SCHOLARDOCX-0179 extended into the planner phase for
-row/column-scoped presets.
-
-## Agent Execution & Normalization Enhancements (SCHOLARDOCX-0172)
-
-To ensure high performance and zero multi-step failures in agent execution:
-
-- **Multi-Action Context Inheritance**: `project_ref` and `sheet_ref` (`ai_actions_workspace.py`) inspect previous actions in reverse order to inherit `project_id`, `project_name`, `sheet_id`, or `sheet_name` when a subsequent action in a plan omits explicit target names.
-- **Case-Insensitive Column Key Mapping**: `row_for_columns`, `execute_update_row`, and `execute_bulk_update_rows` (`ai_actions_execute.py`) map AI-supplied row keys to page column names case-insensitively and via best column match, preventing column values from being dropped or duplicated due to casing differences.
-- **Pinning & Dashboard Schema Alignment**: `execute_pin_project`, `execute_unpin_project`, `execute_pin_sheet`, `execute_unpin_sheet`, `execute_add_to_dashboard`, and `execute_remove_from_dashboard` use the canonical database fields `is_pinned` (integer 1/0 for sidebar) and `pinned_to_dashboard` (integer 1/0 for dashboard) as defined in `store.py`.
-- **Fuzzy Substring Fallback**: `resolve_project`, `resolve_page`, and `_find_by_name` attempt a case-insensitive substring fallback match when an exact match yields zero results. If exactly one candidate matches, it resolves cleanly.
-- **Semantic Column Filtering**: `filter_rows_by_value` (`ai_actions_read.py`) resolves `column_name` against sheet columns via `find_best_column` when `columns` is provided.
-
-## Deep Hunt Intent Matching (SCHOLARDOCX-0173)
-
-Deep Hunt previously leaned entirely on raw Tavily search — a free-text goal
-was string-concatenated into queries with hard-coded suffixes, so acronyms
-like `cse` were never expanded to `computer science` and results ignored the
-user's field/degree/funding intent. Two small AI calls now wrap the
-web-search ingredient so results actually match the goal:
-
-- **Query Planner** (`app/services/deep_hunt_query_planner.py`,
-  `DeepHuntQueryPlanner`): one OpenRouter Free call per run turns the goal +
-  Hunt-Profile facets into 3–4 diverse, acronym-expanded queries and a
-  `field_synonyms` list. Falls back to the deterministic `_fallback_queries`
-  templates on any error. `SEARCH_PASSES` bumped 3→4 so the field-specific
-  query is not truncated.
-  - **BILLING ENFORCEMENT (L1, SCHOLARDOCX-0204 — fixed):** charged against the
-    user's balance even though the model is "OpenRouter Free". `ai_service` is a
-    **required** parameter of `plan()`; it used to default to `None` with the
-    charge behind `if ai_service is not None`, and the sole call site omitted it,
-    so the guard was permanently false.
-- **Relevance Filter** (`DeepHuntRelevanceFilter`): one batched OpenRouter
-  Free call judges every extracted opportunity RELEVANT/OFF_TOPIC against the
-  goal's field/degree/funding intent, returning a 0–1 `relevance_score`. The
-  accept gate (`_is_acceptable`) enforces a `RELEVANCE_FLOOR` so off-topic
-  pages are rejected even when well-formed. Falls back to a deterministic
-  synonym-keyword match (field-first: 0.1 unrelated, 0.7 overlap, 0.2
-  overlap-but-broad-umbrella-listing, 0.5 unstated — SCHOLARDOCX-0177 added
-  the broad-umbrella case) when AI is unavailable — relevance is always
-  enforced.
-  - **BILLING ENFORCEMENT (L2, SCHOLARDOCX-0204 — fixed):** one batched call per
-    run, charged. `ai_service` is required on `score()` for the same reason as on
-    `plan()`.
-- **Field-of-study dimension**: extracted end-to-end. `fields_of_study` is
-  part of the extraction schema (`scholarship_extraction.py`), persisted as
-  `scholarship_opportunities.fields_of_study_json`, and unpacked by
-  `_with_parsed_fields`. It feeds the backend relevance filter's synonym
-  matching.
-  - The frontend fit-score chip (`✓ computer science` / `✗ not in your field`)
-    and the `computeFitScore` helper it used were **removed with the Hunt
-    Profile** in SCHOLARDOCX-0178. Field matching now happens server-side in the
-    relevance filter, not in the browser. Do not rebuild the chip without
-    reopening that decision.
-- **Ranking**: `scholarship_opportunities` for a run are returned
-  `ORDER BY relevance_score DESC` (then `updated_at DESC`), so on-topic
-  results surface first instead of by update time.
-- **Cost**: +2 OpenRouter Free calls per run (planner + relevance batch),
-  both with `reasoning: {exclude: true}`. "Free" is OpenRouter's pricing tier for
-  the model, **not** a reason to skip billing the user — see the two
-  markers above. Extraction cost unchanged (billed per opportunity on the
-  primary path, and — since SCHOLARDOCX-0204 L3 — on its OpenRouter fallback
-  too).
-  `field_of_study` is a manual Search-form field
-  (`CreateDeepHuntRunRequest.field_of_study`, stored on
-  `scholarship_deep_hunt_runs.fields_of_study`) sent to the backend so the planner
-  and filter can use it — SCHOLARDOCX-0178 removed the Hunt Profile it used to
-  optionally prefill from.
-
-**CRITICAL BILLING REMINDERS FOR DEEP HUNT** (required behaviour; current state
-marked per item — see SCHOLARDOCX-0204):
-1. **Per-hit search charge**: Brave results are charged per raw hit before
-   filtering (`get_brave_call_cost_per_hit_usd`), with a worst-case
-   `ensure_can_spend` pre-flight at `POST /runs`. Gated by
-   `can_use_scholarship_hunt`. **IMPLEMENTED** — see "Per-hit billing (FR-8.48)".
-2. **Query planner is billed**: the OpenRouter call generating diverse queries
-   charges tokens. **IMPLEMENTED (L1)**.
-3. **Relevance filter is billed**: the batched relevance call charges tokens.
-   **IMPLEMENTED (L2)**.
-4. **Extraction is billed**: on *both* the configured-provider path
-   (`AiService.chat()`) and the OpenRouter fallback (`charge_tokens` in
-   `_openrouter_fallback`, pre-flighted with `can_spend()`).
-   **IMPLEMENTED (L3)**.
-5. **Background runs are billed**: Deep Hunt runs are asynchronous. They MUST
-   load user context via `load_user_dict(user_id, session)` at run start and
-   charge that user for all provider calls. No system-account bypass.
-   **IMPLEMENTED**. `load_user_dict` now applies plan expiry via
-   `app/auth/plan_state.py` and refuses suspended accounts **(L6 fixed)**.
-6. **A "free" model still costs the user**: `settings.openrouter_free_model` is
-   seeded into `ai_models` at init, and `compute_cost` falls back to the
-   provider's house rate for any uncatalogued model id, so an OpenRouter call can
-   no longer price at `$0`. `validate_model_pricing()` reports any remaining gap
-   at startup. **IMPLEMENTED (L4)** — this was the prerequisite for 2–4 above
-   deducting anything at all.
-### Advisor Atlas Scholarly Graph (OpenAlex) — SCHOLARDOCX-0183
-
-- **Provider**: OpenAlex (`https://api.openalex.org`), client in
-  `app/services/advisor_atlas/openalex.py`.
-- **Environment Keys**: `OPENALEX_API_KEY` (**optional**), `OPENALEX_BASE_URL`.
-- **Cost model**: freemium, *not* free-and-keyless. **$0.10/day of usage without
-  a key, $1/day with a free key** (account only, no payment details). Within the
-  budget: single-entity lookups unlimited, ~10,000 list+filter calls, ~1,000
-  searches. The CC0 bulk snapshot is entirely free but is hundreds of GB and
-  quarterly. See https://developers.openalex.org/guides/authentication.
-- **Spend discipline**: a dossier costs **one metered search** to resolve the
-  author, then unlimited single-entity lookups. Enrichment runs on **deep runs
-  only** — a Discovery run screening 80 candidates would exhaust the daily budget
-  on names it may never surface.
-- **BILLING (flat fee per author lookup)**: charged like Tavily/Jina/Brave via
-  `charge_flat_fee(..., source="openalex_author_lookup")`, admin-configurable at
-  **Settings → External APIs & Agents Pricing** (`app_settings.openalex_call_cost_usd`,
-  default `0.001`, matching OpenAlex's own $1/1,000 search list price), read via
-  `ai_tokens.get_openalex_call_cost_usd()`.
-  - Charged **once per metered author `search`**, and on the *call*, not on a
-    successful match — OpenAlex bills the search whether or not we accept the
-    result. `OpenAlexClient.attempted_metered_call` is the flag the service bills
-    on.
-  - The follow-on single-entity record lookups are **free at OpenAlex and are not
-    charged**.
-  - Never billed when: the name is blank, the budget guard has tripped, or a 429
-    was latched — in all three cases no request is issued.
-  - Pre-flight `AiService.can_spend_external()` runs first, so a user at zero
-    credits skips enrichment rather than being charged into the negative.
-  - Billing goes through `AiService.charge_external_call()` /
-    `.external_billing_cost()` rather than reaching into the service's private
-    billing context, and never raises — a billing failure must not sink a run.
-- **Budget guard**: OpenAlex does **not** hard-stop at the daily budget — usage
-  beyond it draws on any prepaid balance, so running to zero can cost real money.
-  The client reads `X-RateLimit-Limit` / `-Remaining` / `-Credits-Used` and
-  `meta.cost_usd` from every response and stops issuing metered calls once
-  remaining drops below `BUDGET_RESERVE_FRACTION` (5%) of the daily limit. This
-  also leaves headroom for browsing openalex.org, which draws on the same budget.
-- **Admin dashboard**: reports `openalex_total` — count of ledger rows with
-  `source = 'openalex_author_lookup'` (alongside `tavily_*` and `jina_total`).
-- **Degradation is mandatory**: missing key, exhausted budget (429), rejected
-  credentials (401/403), outage, or timeout all return `None` and leave the run
-  exactly as capable as it is without OpenAlex. Never fails a run.
-- **Identity safety**: an author record is attached only above a confidence floor
-  combining full-name, given-name, and institution matching. A surname-only match
-  or two near-tied candidates attach **nothing** — the wrong researcher's h-index
-  beside a professor's name is worse than no h-index.
-- **Privacy**: only the professor's name and institution are sent — public facts
-  already sent to Tavily on every run. The applicant's interests, documents, SOP
-  and profile never leave the machine; topic matching happens locally afterwards.
-  The `api_key` identifies the deployment, never the end user.
-- **Fields consumed**: `summary_stats.h_index` / `.i10_index` /
-  `.2yr_mean_citedness`, `works_count`, `cited_by_count`, `counts_by_year`
-  (publication cadence), `topics[]`, `affiliations[].institution` +
-  `.years` (structured career timeline), `orcid`, `works_api_url`.
-
-### Advisor Atlas Publications Come From The Index, Not A Crawl (SCHOLARDOCX-0191)
-
-- The dossier's "Latest publications" list is built from **OpenAlex works**
-  (`OpenAlexClient.recent_works`), not from crawling a scholarly profile.
-  Google Scholar disallows `/citations` in `robots.txt`; ORCID and Semantic
-  Scholar return JavaScript shells with no text (all verified live in
-  SCHOLARDOCX-0188). Crawling was never going to work for this section.
-- Indexed works **bypass** `_validate_analysis`'s publication checks by design.
-  Those checks exist to stop a *model* inventing a paper; these carry DOIs from
-  the same API that identified the author. Do not "fix" this by routing them
-  through the allowlist — it would discard every one of them.
-- The works lookup is a **second billable OpenAlex call, of a different and
-  cheaper class**. Bill from `client.metered_calls` (an ordered list of
-  `"search"` / `"list"`), never from `attempted_metered_call` and never from a
-  bare count: `app_settings.openalex_call_cost_usd` is the *search* price, and
-  a list call is a tenth of it (`METERED_CALL_COST_RATIO`). Each class has its
-  own ledger source (`METERED_CALL_SOURCE`) so the admin dashboard does not
-  read two author lookups where there was one. Fetch works *before* the charge
-  block so nothing goes out unbilled, and re-run `can_spend_external()` before
-  the second call — the first one already spent against the same balance.
-- Enrichment stays deep-runs-only. A screened candidate legitimately has no
-  publications; the UI must say "not researched deeply yet", not "none found" —
-  they are different answers and only one is a cue to press Refresh.
-
-### A Failed Provider Call Is Not Work Done (SCHOLARDOCX-0191)
-
-`AiService.chat` returns `mode: "provider-error"` / `"local-fallback"` with
-zero-token usage rather than raising. Any caller that counts calls must check
-the mode first: counting a failure as an AI call produced a dossier reading
-"1 AI analyses · 0 Credits used" with no publications and no explanation, when
-what had actually happened was a total analysis failure and a silent fallback
-to the deterministic analyser. Advisor Atlas counts these into
-`research_metrics.failed_ai_calls` / `.analysis_degraded` and the dossier
-renders a notice. A metric that renders "0" for "free", "not attempted" and
-"failed" alike is not a metric.
-
-### Advisor Atlas Research Metrics — Real Credits, Not Token Estimates (SCHOLARDOCX-0189)
-
-- The dossier's Research Metrics panel must never show the word "tokens" —
-  only "credits" (the vocabulary used everywhere else in the app).
-- `AiService.charge_tokens()` and `.charge_external_call()` now return the
-  underlying `ai_tokens.charge()` / `.charge_flat_fee()` result dict (or
-  `None` when no billing context is attached / nothing was charged) instead
-  of discarding it. The `charged` field is the real number of credits
-  actually deducted — it can be less than the call's cost if the balance ran
-  out mid-call, which is exactly why an estimate is the wrong number to show
-  a user.
-- `chat()` merges `credits_charged` into its returned `usage` dict whenever a
-  charge was raised.
-- Advisor Atlas (`analysis.py`'s `_record_ai_usage`, the vision path, and
-  `service.py`'s OpenAlex charge site) accumulates every call's real
-  `credits_charged` into the run's `usage` dict, exposed to the frontend as
-  `research_metrics.credits_used`. Tavily searches are billed at
-  $0 for Advisor Atlas (`record_external_search`) and contribute nothing to
-  this figure — it reflects only the AI (GLM chat/vision) and metered
-  external (OpenAlex) calls the run actually made.
-  **SUPERSEDED (L5, SCHOLARDOCX-0204):** Tavily searches are now charged at the
-  configured rate and DO contribute to `credits_used`. The per-run figure is
-  correspondingly higher than before the fix — that is the true cost surfacing,
-  not a regression.
-- This return-value change is additive: `charge_tokens()`/`charge_external_call()`
-  have exactly one other set of callers each (`deep_hunt_query_planner.py`,
-  the OpenAlex site in `advisor_atlas/service.py`), none of which used the
-  previous `None`/`bool` return value.
-
-### Advisor Atlas Discovery Quality Gates (SCHOLARDOCX-0190)
-
-Four invariants Discovery must hold. Each was violated in a live run and each
-cost the user real credits, not just result quality.
-
-1. **Never `json.dumps` a stored record into a prompt.** Candidates re-read
-   from storage carry `datetime` fields, which raise `TypeError` and — inside
-   the deep phase's `except Exception` — silently reduced every dossier to its
-   screening pass. Use `analysis.json_dump`. Prompts must also send
-   `candidate_prompt_payload(candidate)`, never the whole row: the row holds
-   the previous analysis, and a model shown its own earlier conclusions
-   re-derives them instead of re-reading the evidence.
-2. **A candidate must look like a person.** `crawler.clean_person_name` tests
-   shape *and* vocabulary (`_looks_like_person`). Capitalised page furniture
-   ("Graduate Faculty", "CHNG Brochure", "Skip to main content") has the same
-   shape as a name and was being screened, billed and surfaced as faculty.
-3. **A unit only owns faculty found on its own pages.**
-   `discovery.source_belongs_to_unit` gates both search-derived and
-   directory-crawled candidates; a page failing it is recorded as
-   `fetch_status: "off_target"` and reported as a coverage gap. Without it a
-   "Computer Science" directory search that landed on Chemistry filed twelve
-   chemists as Computer Science professors.
-4. **A unit is an organisation that employs faculty.**
-   `intelligence.is_academic_unit_name` rejects job titles and degree
-   programmes before they reach the unit list, because `collect()` spends up
-   to two searches and four crawls *per unit*.
-
-Presentation follows from these: an entry the pipeline cannot attribute to a
-real person, a real unit, or its own evidence must be dropped at discovery, not
-flagged downstream — by the time analysis flags it, it has already been paid
-for and shown.
-
-Three further rules govern what reaches the user, all in
-`advisor_atlas/candidate_quality.py` and all deliberately **deterministic** —
-they run on every candidate, so a model call here would cost credits per
-candidate and fail open:
-
-5. **Rank an advisor, not a person.** `advising_eligibility` classifies
-   `eligible` / `limited` / `ineligible` from title, email domain, and (only
-   when the title is missing) the professor's own profile text. A candidate who
-   cannot supervise is excluded from research matches and shown with a reason —
-   never deleted. Protect `Senior Lecturer`, `Reader` and
-   `Research Assistant Professor`: those ranks do supervise, and a naive
-   keyword list buries them.
-6. **Confidence must be earned, never generated.**
-   `calibrate_evidence_confidence` caps the figure by how many distinct sources
-   name the person (0 → 25 … 3+ → 85, +10 official, max 95) and only ever
-   lowers it. It must run before `opportunity_forecast`, which caps its own
-   confidence at the candidate's.
-7. **Merge conservatively.** `same_person` matches on shared profile URL,
-   shared email, or surname + compatible first name + same institution.
-   "Compatible" is initial-vs-full only — a prefix rule merges `Hua Li` with
-   `Hui Li`, two real people.
-
-### Research Expert Vector Embeddings (Jina AI)
-
-- **Provider**: Jina AI Embeddings (`https://api.jina.ai/v1/embeddings`)
-- **Environment Key**: `JINA_API_KEY`
-- **Model**: `jina-embeddings-v4`
-- **Task (SCHOLARDOCX-0193)**: **asymmetric pair** — `retrieval.passage` when
-  indexing a paper, `retrieval.query` when embedding a question. Searching a
-  paper is a short question against a long passage, which is what the
-  `retrieval` adapter exists for; `text-matching` is the *symmetric* adapter
-  ("is sentence A like sentence B") and using it for retrieval compresses the
-  score spread until on-topic and off-topic passages are indistinguishable.
-  - **Never mix the two.** A query embedded with one adapter compared against
-    passages embedded with another does not error — it returns meaningless
-    numbers. `research_papers.embedding_task` records what each paper was
-    indexed with and `QUERY_TASK_FOR_PASSAGE_TASK` picks the matching query
-    task. Papers indexed before this change stay on `text-matching` for both
-    sides until re-indexed, and an unknown stored value resolves to legacy,
-    never to the new task.
-  - Re-indexing an existing paper (`retry_paper_processing`) is the upgrade
-    path and is **user-initiated**, because it spends credits.
-- **Dimensions**: `1024` (`EMBEDDING_DIMENSIONS`; kept under pgvector's
-  2000-dim ceiling for HNSW/IVFFlat indexes)
-- **Policy**: Exclusive provider (no fallback). If Jina API fails or `JINA_API_KEY` is missing/invalid, an explicit HTTP 500/503 exception is raised to the user.
-- **BILLING ENFORCEMENT (flat fee per operation — SCHOLARDOCX-0174, corrected in SCHOLARDOCX-0180)**: Jina embedding calls are billed as a **flat fee per user operation** (paper upload / retry / analyze), NOT token-metered. The fee is admin-configurable in **Settings → External APIs & Agents Pricing** (`app_settings.jina_call_cost_usd`, default `$0.002`) and is read through `ai_tokens.get_jina_call_cost_usd()`. Enforcement lives in `ResearchPaperService._charge_jina_embedding()`, raised exactly once per operation via the `charge_source` parameter of `_generate_embeddings()`, after all batches for that operation succeed:
-  - Upload → `charge_flat_fee(..., source="jina_embedding")`
-  - Retry → `charge_flat_fee(..., source="jina_embedding_retry")`
-  - Analyze query embedding → `charge_flat_fee(..., source="jina_embedding_query")`
-  - **Do not add a second charge in a wrapper.** `_generate_embeddings()` is the single charging point. The analyze path previously charged there *and* again in `_generate_single_embedding()`, double-billing every question; and `_charge_jina_embedding()` read a non-existent `research_paper_jina_cost_usd` key, so the admin-configured price was ignored in favour of a hardcoded `0.005`.
-  - Pre-flight `ensure_can_spend()` runs before the call and raises `OutOfTokens` (HTTP 402) if the user's combined subscription + purchased balance cannot cover it. Access itself is gated by the existing `can_use_research_reader` role limit (Pro/Max) — no separate Jina gate.
-  - The prior token-metered path (`ai_tokens.charge` with `provider="jina"`) was **removed**; the `ai_models` row for `jina-embeddings-v4` is retained only as a pricing reference and no longer drives billing.
-
-## Privacy Rules
-
-- Do not silently send full application records to AI providers.
-- Send the smallest useful context.
-- Make sensitive-context sending visible to the user.
-- Do not save AI outputs as official records without user action.
-
-## Testing Guidance
-
-- Mock GLM and Tavily in tests.
-- Test prompt construction separately from provider transport.
-- Test missing key behavior.
-- Test provider failure behavior.
-- Test routing JSON parsing and fail-open search behavior.
-- Test summarization fallback behavior so failed providers do not poison memory.
-- Test Gemini payload/response parsing and provider fallback ordering.
-
-- Test action planning validation, missing-info behavior, and confirmed local
-  execution.
+Tavily finds targeted public sources; GLM (default GLM-5.2, override `ADVISOR_ATLAS_GLM_MODEL`) does bounded structured extraction, fit analysis, dossiers, and next-action guidance. Gate: `can_use_advisor_atlas`. Metering is per provider call (GLM chat and vision, OpenAlex, Tavily); there is no monthly run count or flat run fee. Background runs load the user with `load_user_dict`; out-of-credits raises `OutOfTokens` and stops the run.
+
+- **Individual-professor research** uses eight tagged search passes (identity, profiles, research/lab, publications, scholarly metrics, funding, recruitment, recent news), merged by URL keeping the strongest content. High-value official, lab, scholarly, and grant pages are crawled selectively; a verified professor page may trigger one bounded linked-page crawl. Everything respects public-URL, robots, size, and content-type controls. Source normalization keeps identity-bearing query parameters (Google Scholar `user`); generic Scholar search pages are not professor profiles; Google Scholar restrictions are never bypassed.
+- **Analysis** may use several GLM calls (specialist passes, then a schema-validated synthesis; explicit operation labels for logs). Deterministic identity reconciliation runs afterwards (section extraction, name-matched email, profile ownership, publication authorship) and overrides conflicting generated values. AI output must validate against the schema and cite source IDs; unsupported claims are removed or marked unknown.
+- **Discovery** maps related academic units first (relationship class, rationale, source URL, confidence), then runs a faculty-directory query per selected unit with a bounded fallback; directory fetch outcomes feed the coverage report. Deep research applies to both modes: Discovery screens every candidate, then re-processes the top ~15 by fit through the full professor pipeline with bounded concurrency (the crawler serializes per host). The full evidence is stored; the API and dossier show the top eight diverse sources.
+- **Forecast**: semantic bridges plus an opportunity outlook for the next 2-3 semesters. Current explicit openings and future likelihood are separate fields; forecast confidence never exceeds evidence confidence and a future-likelihood signal never becomes a confirmed opening.
+- **Fallbacks**: with GLM or keys missing, deterministic matching uses curated concept families and weighted phrases; the UI must label it a limited fallback. The GLM vision model is optional and only for public visual documents that cannot be read as text. Providers receive only public source excerpts plus the user-entered matching profile.
+
+### OpenAlex scholarly graph
+
+- Client: `services/advisor_atlas/openalex.py`; env `OPENALEX_API_KEY` (optional), `OPENALEX_BASE_URL`. Freemium: about $0.10/day without a key, $1/day with a free key; single-entity lookups are free.
+- A dossier costs one metered search (author resolution) plus free lookups. Enrichment runs on deep runs only (a Discovery run screening 80 candidates would exhaust the budget on names it may never surface).
+- The client reads `X-RateLimit-*` and `meta.cost_usd` and stops metered calls below `BUDGET_RESERVE_FRACTION` (5%) of the daily limit; OpenAlex does not hard-stop, so overrun could cost real money.
+- Degradation is mandatory: a missing key, 429, 401/403, outage, or timeout returns `None` and leaves the run as capable as without OpenAlex.
+- **Identity safety**: attach an author record only above a confidence floor (full name, given name, institution). A surname-only match or two near-tied candidates attach nothing.
+- Only the professor's name and institution are sent; the applicant's interests, documents, and profile never leave the app.
+- **Publications come from the index, not a crawl** (`OpenAlexClient.recent_works`): Google Scholar disallows `/citations`, and ORCID and Semantic Scholar serve script shells. Indexed works deliberately bypass `_validate_analysis`'s publication checks, which exist to stop a model inventing papers; do not route them through the allowlist. The works lookup is a second, cheaper metered class (`METERED_CALL_COST_RATIO`): bill from `client.metered_calls` (ordered `"search"`/`"list"`) with the per-class ledger source (`METERED_CALL_SOURCE`), fetch works before the charge block, and re-run `can_spend_external()` before the second call. A screened candidate legitimately has no publications; the UI says "not researched deeply yet", not "none found".
+- Research Metrics show real credits (`research_metrics.credits_used`, accumulated from the `credits_charged` returned by `charge_tokens` / `charge_external_call`), never token estimates, and never the word "tokens".
+
+### Discovery quality gates (each was violated in a live run and cost real credits)
+
+1. Never `json.dumps` a stored record into a prompt (datetimes raise `TypeError` and silently degrade every dossier); use `analysis.json_dump` and send `candidate_prompt_payload(candidate)`, never the whole row (a model shown its own earlier conclusions re-derives them).
+2. A candidate must look like a person: `crawler.clean_person_name` checks shape and vocabulary (`_looks_like_person`); page furniture such as "Graduate Faculty" has a name's shape.
+3. A unit owns only faculty found on its own pages: `discovery.source_belongs_to_unit` gates search and directory candidates; failures become `fetch_status: "off_target"` and a coverage gap.
+4. A unit is an organisation that employs faculty: `intelligence.is_academic_unit_name` rejects job titles and degrees before the per-unit search and crawl budget is spent.
+5. Rank an advisor, not a person: `advising_eligibility` (title, email domain, profile text only when the title is missing) yields `eligible` / `limited` / `ineligible`; ineligible candidates are excluded from research matches and shown with a reason, never deleted. Protect `Senior Lecturer`, `Reader`, and `Research Assistant Professor`.
+6. Confidence is earned: `calibrate_evidence_confidence` caps by distinct sources naming the person (0 -> 25 ... 3+ -> 85, +10 official, max 95), only ever lowers, and runs before `opportunity_forecast`.
+7. Merge conservatively: `same_person` matches on a shared profile URL, shared email, or surname + compatible first name + same institution (initial-vs-full only; a prefix rule would merge `Hua Li` and `Hui Li`).
+
+Rules 5-7 and the identity checks live in `advisor_atlas/candidate_quality.py` and are deliberately deterministic: they run on every candidate, and a model call would cost credits per candidate and fail open. Drop what the pipeline cannot attribute at discovery; do not flag it downstream after it has been paid for.
+
+## Research Expert embeddings (Jina)
+
+- `https://api.jina.ai/v1/embeddings`, key `JINA_API_KEY`, model `jina-embeddings-v4`, 1024 dimensions (`EMBEDDING_DIMENSIONS`, under pgvector's 2000-dim index ceiling), batches of 16. Exclusive provider: a missing or invalid key returns an explicit 500/503, no fallback.
+- **Asymmetric pair** (SCHOLARDOCX-0193): `retrieval.passage` when indexing a paper, `retrieval.query` when embedding a question. Never mix adapters: a mismatched query returns meaningless numbers without erroring. `research_papers.embedding_task` records how each paper was indexed and `QUERY_TASK_FOR_PASSAGE_TASK` picks the matching query task; papers indexed before this change stay on `text-matching` for both sides until re-indexed, and an unknown stored value resolves to legacy. Re-indexing (`retry_paper_processing`) is the upgrade path and is user-initiated because it spends credits.
+- Search is cosine distance via pgvector (`<=>`) over `research_paper_chunks`, including the keyword section-boost pass. Analytical queries go through `AiService.chat` with retrieved context and a GLM-5.2 then Groq compound model cascade.
+- Billing is one flat charge per user operation (see [ai-token-economy.md](ai-token-economy.md)); `_generate_embeddings()` is the single charging point.
+
+## Testing guidance
+
+- Mock providers in tests; test prompt construction separately from transport.
+- Test missing-key and provider-failure behaviour, routing JSON parsing with fail-open search, and summarization fallback so failed providers do not poison memory.
+- Test Gemini payload/response parsing, action-plan validation, missing-info handling, and confirmed local execution.

@@ -26,10 +26,11 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  transition: padding 0.3s ease;
 }
 
-.lp-header.is-scrolled .lp-nav { padding-top: 12px; padding-bottom: 12px; }
+/* Deliberately NO padding change on scroll: resizing a sticky header inside the
+   scroll container moves the content under the scroll position, which flips
+   `is-scrolled` back and forth (visible as the navbar shaking). */
 
 .lp-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
 .lp-logo-icon { display: flex; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }

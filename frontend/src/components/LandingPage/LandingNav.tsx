@@ -15,7 +15,12 @@ export function LandingNav() {
   // dark→light header flip would never fire (SCHOLARDOCX-0215).
   useEffect(() => {
     const scroller = (headerRef.current?.closest(".lp-container") as HTMLElement | null) ?? null;
-    const onScroll = () => setScrolled((scroller?.scrollTop ?? window.scrollY) > 8);
+    // Hysteresis (on past 24px, off below 4px) so hovering around one scroll
+    // position can never flip the state back and forth.
+    const onScroll = () => {
+      const top = scroller?.scrollTop ?? window.scrollY;
+      setScrolled((prev) => (prev ? top > 4 : top > 24));
+    };
     onScroll();
     const target: HTMLElement | Window = scroller ?? window;
     target.addEventListener("scroll", onScroll, { passive: true });

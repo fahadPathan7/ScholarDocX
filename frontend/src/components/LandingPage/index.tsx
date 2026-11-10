@@ -11,6 +11,7 @@ import { FaqSection } from "./FaqSection";
 import { ClosingCta } from "./ClosingCta";
 import { LandingFooter } from "./LandingFooter";
 import "./landing-shared.css";
+import "./landing-theme.css";
 
 /**
  * Public landing page for unauthenticated visitors.

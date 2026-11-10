@@ -265,20 +265,25 @@ interactive, and polished without becoming decorative marketing UI.
 - The Whiteboard view allows deleting any whiteboard, including the final active board. When no whiteboards remain, the component cleanly resets drawing state and transitions to the `wb-empty-state` screen ('No whiteboards yet') with a CTA to create a new whiteboard.
 - The Admin Panel Settings tab (`SettingsTab.tsx`) Registration card uses a split-pane footer layout with a subtle slate-50 background, a border-t divider, an uppercase tracking-wider label for the Mode select dropdown (custom border and focus ring styled cleanly instead of raw inputs), and a soft emerald action button with an inline `Trash2` icon for the manual account cleanup trigger.
 - **Suspended Account View (`SplashScreen.tsx` & `LoginPage.tsx`)**: When a suspended user (`user_suspended` / `user_blocked`) attempts to log in on `LoginPage.tsx`, the primary informative "Account Suspended" modal ("Your account has been suspended from ScholarDocX. If you think this was a mistake, please contact an administrator.") renders first with a **Contact Admin** button and a **Close** button. Clicking **Contact Admin** opens the appeal message textarea form modal (`maxLength={500}`, `POST /auth/contact-admin`), with a **Cancel** button to return to the info notice.
-- **Landing page aurora theme (SCHOLARDOCX-0215)**: the public landing page
-  (`frontend/src/components/LandingPage/`) runs a dark→light→dark arc — a
-  deep ink-teal hero canopy (`#051a17→#123f36`, drifting glow orbs via
-  `lp-aurora-drift`, `.lp-grid-texture` grid horizon) fading into the light
-  body, with a dark closing CTA and dark footer bookending the page. Rules:
-  the sticky header rests in dark glass and flips to light glass on scroll —
-  its scroll listener attaches to `.lp-container` (the page scrolls inside
-  that element, NOT the window; a `window.scrollY` listener never fires
-  there). The "How It Works" section was removed by owner request (do not
-  re-add it or its `#how` nav link). The footer credits the product owner:
-  "Designed & built by Fahad Pathan". Pricing display defaults come from
-  `plan-defaults.ts` and zero-priced payloads are never rendered
-  (SCHOLARDOCX-0214: backend seed prices are `"0"`; see
-  `isPricingConfigured` / `withConfiguredPricing`).
+- **Landing page "Scholar's Study" theme (SCHOLARDOCX-0223, supersedes the
+  0215 dark aurora)**: the public landing page
+  (`frontend/src/components/LandingPage/`) is an ivory-paper / ink-navy / gold
+  editorial system. Tokens are scoped to `.lp-container` in
+  `landing-shared.css` (`--lp-ink #0e1b33`, `--lp-ivory #fbf7ef`,
+  `--lp-blue #1f3a8a`, `--lp-gold #c58a1b`, `--lp-serif` = Fraunces) and also
+  remap local `--ui-*` so the in-app teal system is untouched. Display type is
+  serif (hero, section titles, prices, stats); emphasised words use italic
+  blue with a gold underline (`.lp-hero-title em`, `.lp-section-title span`).
+  `landing-theme.css` is imported last and holds cross-section overrides
+  (serif headings, paper surfaces, mobile overflow guards — global `main` is a
+  flex container, so section children need `min-width: 0`). Hero = ruled-paper
+  backdrop + framed product plate; closing CTA is the only dark block (ink +
+  gold). Header: transparent paper at rest, frosted on scroll; the scroll
+  listener attaches to `.lp-container` (the page scrolls inside it, NOT the
+  window). "How It Works" was removed by owner request (do not re-add it or
+  `#how`). Footer credits "Designed & built by Fahad Pathan". Pricing display
+  defaults come from `plan-defaults.ts`; zero-priced payloads are never
+  rendered (SCHOLARDOCX-0214). No infrastructure jargon in landing copy.
 - **Alignment conventions (SCHOLARDOCX-0213)**: system-wide UI alignment audit
   fixed the drift below and added shared primitives — reuse them instead of
   inline styles or new one-off variants:

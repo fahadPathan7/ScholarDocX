@@ -1,226 +1,112 @@
-/* Landing page header + navigation (sticky, blur, scroll-shrink, mobile menu).
-   SCHOLARDOCX-0215: dark glass while resting over the aurora hero, flipping
-   to the light glass once the page scrolls (`.is-scrolled`). */
+/* Landing header — ivory paper bar with ink type (SCHOLARDOCX-0223).
+   Transparent at rest, frosted paper once the page scrolls (`.is-scrolled`). */
 
 .lp-header {
   position: sticky;
   top: 0;
   z-index: 100;
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  background: rgba(5, 26, 22, 0.42);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  transition: padding 0.3s ease, background 0.3s ease, box-shadow 0.3s ease,
-    border-color 0.3s ease;
+  background: rgba(251, 247, 239, 0.55);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .lp-header.is-scrolled {
-  background: rgba(255, 255, 252, 0.9);
-  border-bottom-color: rgba(35, 58, 55, 0.1);
-  box-shadow: 0 6px 28px rgba(24, 37, 35, 0.07);
+  background: rgba(251, 247, 239, 0.92);
+  border-bottom-color: var(--lp-line);
+  box-shadow: 0 8px 30px -12px rgba(14, 27, 51, 0.18);
 }
 
 .lp-nav {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 22px 32px;
+  padding: 18px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: nowrap;
   gap: 16px;
   transition: padding 0.3s ease;
 }
 
-.lp-header.is-scrolled .lp-nav {
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
+.lp-header.is-scrolled .lp-nav { padding-top: 12px; padding-bottom: 12px; }
 
-/* ---------- Logo ---------- */
-.lp-logo {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-  flex-shrink: 0;
-}
-
-.lp-logo:hover { opacity: 0.88; }
-
-.lp-logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.lp-logo:hover .lp-logo-icon {
-  transform: translateY(-1px) scale(1.04);
-}
+.lp-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.lp-logo-icon { display: flex; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.lp-logo:hover .lp-logo-icon { transform: rotate(-8deg) scale(1.06); }
 
 .lp-logo-word {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #f2f8f4;
-  transition: color 0.3s ease;
+  font-family: var(--lp-serif);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--lp-ink);
 }
 
-/* Light word once the header flips to the light glass */
-.lp-header.is-scrolled .lp-logo-word {
-  color: var(--ui-ink);
-}
-
-.lp-logo-word::after {
-  content: "";
-  display: inline-block;
-}
-
-/* ---------- Nav links ----------
-   Explicit flex-direction: row because the global stylesheets
-   (styles.css + visual-refresh.css) declare `nav { flex-direction: column }`
-   for the workspace sidebar. Our <nav className="lp-nav-links"> would otherwise
-   stack its links vertically and blow up the header height. */
-.lp-nav-links {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 30px;
-  flex-shrink: 0;
-}
+.lp-nav-links { display: flex; flex-direction: row; align-items: center; gap: 4px; }
 
 .lp-nav-link {
   position: relative;
-  color: rgba(226, 238, 233, 0.82);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--lp-ink-soft);
   text-decoration: none;
-  font-size: 14.5px;
-  font-weight: 500;
-  padding: 6px 2px;
-  transition: color 0.2s ease;
-}
-
-.lp-header.is-scrolled .lp-nav-link {
-  color: var(--ui-ink-soft);
-}
-
-.lp-nav-link::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, #7dd8c0, #4f9dbe);
-  border-radius: 2px;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.lp-nav-link:hover { color: #9fe8d2; }
-.lp-header.is-scrolled .lp-nav-link:hover { color: var(--ui-primary); }
-.lp-nav-link:hover::after { transform: scaleX(1); }
-
-/* ---------- Actions ---------- */
-.lp-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  flex-wrap: nowrap;
-}
-
-.lp-btn-login {
-  color: rgba(226, 238, 233, 0.88);
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 9px 16px;
   border-radius: 9999px;
-  font-size: 14.5px;
-  font-weight: 650;
-  cursor: pointer;
-  text-decoration: none;
   transition: color 0.2s ease, background 0.2s ease;
 }
 
-.lp-header.is-scrolled .lp-btn-login {
-  color: var(--ui-ink-soft);
-}
+.lp-nav-link:hover { color: var(--lp-ink); background: rgba(14, 27, 51, 0.06); }
 
-.lp-btn-login:hover {
-  color: #9fe8d2;
-  background: rgba(255, 255, 255, 0.08);
-}
+.lp-nav-actions { display: flex; align-items: center; gap: 10px; }
 
-.lp-header.is-scrolled .lp-btn-login:hover {
-  color: var(--ui-primary);
-  background: rgba(52, 127, 120, 0.07);
+.lp-btn-login {
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-ink);
+  text-decoration: none;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
 }
+.lp-btn-login:hover { background: rgba(14, 27, 51, 0.07); }
 
 .lp-btn-signup {
-  background: linear-gradient(135deg, var(--ui-primary) 0%, var(--ui-primary-2) 100%);
-  color: white;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 9999px;
-  font-size: 14.5px;
+  padding: 10px 20px;
+  font-size: 14px;
   font-weight: 650;
-  cursor: pointer;
+  color: #fff8e8;
+  background: var(--lp-ink);
+  border-radius: 9999px;
   text-decoration: none;
-  box-shadow:
-    0 8px 20px rgba(52, 127, 120, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 6px 16px -6px rgba(14, 27, 51, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
-
 .lp-btn-signup:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 12px 26px rgba(52, 127, 120, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+  background: #172b52;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 10px 22px -8px rgba(14, 27, 51, 0.6);
 }
 
-/* ---------- Hamburger (mobile only) ---------- */
 .lp-nav-burger {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-  color: #eef6f2;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--lp-line);
+  background: var(--lp-paper);
+  color: var(--lp-ink);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.lp-header.is-scrolled .lp-nav-burger {
-  border-color: rgba(35, 58, 55, 0.1);
-  background: rgba(255, 255, 252, 0.7);
-  color: var(--ui-ink);
-}
-
-.lp-nav-burger:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #9fe8d2;
-}
-
-.lp-header.is-scrolled .lp-nav-burger:hover {
-  background: rgba(52, 127, 120, 0.07);
-  color: var(--ui-primary);
-}
-
-/* ---------- Mobile slide-down panel ---------- */
-.lp-mobile-menu { display: none; }
-.lp-mobile-backdrop { display: none; }
+.lp-mobile-menu, .lp-mobile-backdrop { display: none; }
 
 @media (max-width: 1024px) {
-  .lp-nav-links,
-  .lp-nav-actions { display: none; }
+  .lp-nav-links, .lp-nav-actions { display: none; }
   .lp-nav-burger { display: inline-flex; }
+  .lp-nav { padding: 14px 20px; }
 
   .lp-mobile-menu {
     display: flex;
@@ -228,84 +114,43 @@
     gap: 4px;
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
-    /* Dark glass panel — matches the aurora brand wherever it opens */
-    background: rgba(6, 26, 22, 0.96);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 12px 24px 20px;
-    transform: translateY(-8px);
+    left: 12px;
+    right: 12px;
+    padding: 14px;
+    background: var(--lp-paper);
+    border: 1px solid var(--lp-line);
+    border-radius: 18px;
+    box-shadow: 0 24px 48px -16px rgba(14, 27, 51, 0.35);
     opacity: 0;
+    transform: translateY(-8px);
     pointer-events: none;
-    transition: transform 0.25s ease, opacity 0.25s ease;
-    box-shadow: 0 16px 32px rgba(4, 18, 15, 0.35);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    z-index: 102;
   }
-
-  .lp-mobile-menu.is-open {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .lp-mobile-menu.is-open { opacity: 1; transform: none; pointer-events: auto; }
 
   .lp-mobile-link {
-    color: #e4efe9;
-    text-decoration: none;
-    font-size: 15px;
+    padding: 13px 14px;
+    font-size: 16px;
     font-weight: 600;
-    padding: 12px 8px;
-    border-radius: 8px;
-    transition: background 0.2s ease, color 0.2s ease;
+    color: var(--lp-ink);
+    text-decoration: none;
+    border-radius: 12px;
   }
+  .lp-mobile-link:hover { background: var(--lp-cream); }
 
-  .lp-mobile-link:hover {
-    background: rgba(125, 216, 192, 0.1);
-    color: #9fe8d2;
-  }
-
-  .lp-mobile-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  /* Keep login legible inside the dark panel even when the header is in its
-     scrolled (light) mode — this selector ties on specificity with the
-     scrolled rule above and wins by source order. */
-  .lp-mobile-menu .lp-mobile-actions .lp-btn-login {
-    color: #e4efe9;
-  }
-
-  .lp-mobile-menu .lp-mobile-actions .lp-btn-login:hover {
-    color: #9fe8d2;
-    background: rgba(255, 255, 255, 0.08);
-  }
-
+  .lp-mobile-actions { display: flex; gap: 10px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--lp-line); }
   .lp-mobile-actions .lp-btn-login,
-  .lp-mobile-actions .lp-btn-signup {
-    text-align: center;
-    padding: 12px 18px;
-    font-size: 15px;
-  }
+  .lp-mobile-actions .lp-btn-signup { flex: 1; text-align: center; border: 1px solid var(--lp-line); }
+  .lp-mobile-actions .lp-btn-signup { border-color: var(--lp-ink); }
 
   .lp-mobile-backdrop {
     display: block;
     position: fixed;
     inset: 0;
-    top: 100%;
-    background: rgba(24, 37, 35, 0.25);
-    border: none;
-    cursor: pointer;
-    z-index: -1;
-    animation: lp-fade-in 0.2s ease;
+    z-index: 101;
+    background: rgba(14, 27, 51, 0.28);
+    border: 0;
+    cursor: default;
   }
-}
-
-@media (max-width: 380px) {
-  .lp-logo-word { font-size: 18px; }
-  .lp-logo-icon { width: 32px; height: 32px; }
 }

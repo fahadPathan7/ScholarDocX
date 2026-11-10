@@ -19,8 +19,8 @@
   height: 400px;
   background: radial-gradient(
     ellipse at center,
-    rgba(13, 148, 136, 0.07) 0%,
-    rgba(2, 132, 199, 0.05) 50%,
+    rgba(31, 58, 138, 0.07) 0%,
+    rgba(53, 82, 184, 0.05) 50%,
     transparent 100%
   );
   filter: blur(70px);
@@ -34,9 +34,9 @@
   gap: 8px;
   padding: 6px 14px;
   border-radius: 9999px;
-  background: rgba(13, 148, 136, 0.08);
-  border: 1px solid rgba(13, 148, 136, 0.2);
-  color: var(--ui-teal, #0d9488);
+  background: rgba(31, 58, 138, 0.08);
+  border: 1px solid rgba(31, 58, 138, 0.2);
+  color: var(--ui-teal, #1f3a8a);
   font-size: 0.8125rem;
   font-weight: 600;
   margin-bottom: 16px;
@@ -56,7 +56,7 @@
 .lp-bento-card {
   position: relative;
   background: rgba(255, 255, 255, 0.75);
-  border: 1.5px solid var(--ui-border, #e2e8f0);
+  border: 1.5px solid var(--ui-border, #e6dcc6);
   border-radius: 20px;
   padding: 28px;
   display: flex;
@@ -71,7 +71,7 @@
 
 .lp-bento-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 32px -8px rgba(14, 27, 51, 0.08);
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -129,7 +129,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f5f9;
+  background: #f4ecdb;
   color: #334155;
   transition: all 0.25s ease;
 }
@@ -158,9 +158,9 @@
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 9999px;
-  background: rgba(13, 148, 136, 0.1);
-  color: #0d9488;
-  border: 1px solid rgba(13, 148, 136, 0.25);
+  background: rgba(31, 58, 138, 0.1);
+  color: #1f3a8a;
+  border: 1px solid rgba(31, 58, 138, 0.25);
   white-space: nowrap;
 }
 
@@ -169,7 +169,7 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 6px;
-  background: #f1f5f9;
+  background: #f4ecdb;
   color: #475569;
   white-space: nowrap;
 }
@@ -183,7 +183,7 @@
 .lp-bento-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: var(--ui-ink, #0f172a);
+  color: var(--ui-ink, #0e1b33);
   margin-bottom: 8px;
   letter-spacing: -0.01em;
 }
@@ -212,15 +212,15 @@
   font-size: 0.75rem;
   font-weight: 600;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e6dcc6;
   color: #334155;
 }
 
 /* Accent Variations */
 /* Cyan Accent (Research Expert) */
-.bento-cyan { border-color: rgba(2, 132, 199, 0.2); }
-.bento-cyan:hover { border-color: rgba(2, 132, 199, 0.5); }
-.bento-cyan .lp-bento-icon-box { background: #e0f2fe; color: #0284c7; }
+.bento-cyan { border-color: rgba(53, 82, 184, 0.2); }
+.bento-cyan:hover { border-color: rgba(53, 82, 184, 0.5); }
+.bento-cyan .lp-bento-icon-box { background: #e6ebfa; color: #3552b8; }
 
 /* Emerald Accent (Advisor Atlas) */
 .bento-emerald { border-color: rgba(5, 150, 105, 0.2); }
@@ -245,10 +245,10 @@
 .bento-rose .lp-bento-icon-box { background: #ffe4e6; color: #be123c; }
 
 /* Sky Accent (Vault) */
-.bento-sky .lp-bento-icon-box { background: #e0f2fe; color: #0369a1; }
+.bento-sky .lp-bento-icon-box { background: #e6ebfa; color: #1f3a8a; }
 
 /* Slate Accent (Security) */
-.bento-slate .lp-bento-icon-box { background: #f1f5f9; color: #334155; }
+.bento-slate .lp-bento-icon-box { background: #f4ecdb; color: #334155; }
 
 /* -------------------------------------------------------------------------- */
 /* Responsive Breakpoints                                                    */

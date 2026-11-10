@@ -100,7 +100,7 @@ const BENTO_FEATURES: BentoFeature[] = [
     Icon: Lock,
     category: "DATA PROTECTION",
     title: "Security & Privacy",
-    body: "Rest easy knowing your documents and application data are protected with strict access controls and Row-Level Security.",
+    body: "Rest easy knowing your documents and application data are protected with strict, account-level access controls.",
     accentClass: "bento-slate",
     gridSpan: "span-4",
     metaPill: "100% Isolated Data",

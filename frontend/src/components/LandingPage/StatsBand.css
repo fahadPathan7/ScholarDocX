@@ -1,79 +1,47 @@
-/* Capability stats band — honest product counters (no fabricated user numbers). */
-
-/* Glass band floating between the dark hero canopy and the light body.
-   Negative top margin pulls it up into the hero's fade for a layered look. */
-.lp-stats-band {
-  max-width: 1100px;
-  margin: -84px auto 0;
-  padding: 0 24px;
-  position: relative;
-  z-index: 3;
-}
+/* Capability stats band — honest product counters (SCHOLARDOCX-0223 editorial). */
+.lp-stats-band { max-width: 1100px; margin: 24px auto 0; padding: 0 24px; position: relative; z-index: 3; }
 
 .lp-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 252, 0.66) 100%);
-  border: 1px solid rgba(35, 58, 55, 0.09);
-  border-radius: 22px;
-  padding: 32px 24px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow:
-    0 24px 48px rgba(10, 34, 29, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  background: var(--lp-paper);
+  border: 1px solid var(--lp-line-strong);
+  border-radius: 20px;
+  box-shadow: 0 1px 0 #fff inset, 0 24px 48px -28px rgba(14, 27, 51, 0.3);
 }
 
 .lp-stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 6px;
+  padding: 30px 18px;
   text-align: center;
-  padding: 8px 10px;
   position: relative;
 }
-
-/* Subtle divider between items on desktop */
-.lp-stat-item:not(:last-child)::after {
+.lp-stat-item + .lp-stat-item::before {
   content: "";
   position: absolute;
-  right: -8px;
-  top: 20%;
-  bottom: 20%;
+  left: 0; top: 24%; bottom: 24%;
   width: 1px;
-  background: rgba(35, 58, 55, 0.08);
+  background: var(--lp-line-strong);
 }
 
 .lp-stat-value {
-  font-size: clamp(30px, 4vw, 42px);
-  font-weight: 850;
+  font-family: var(--lp-serif);
+  font-size: clamp(36px, 4.5vw, 52px);
+  font-weight: 600;
   line-height: 1;
-  background: linear-gradient(135deg, var(--ui-primary) 0%, var(--ui-accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 10px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  color: var(--lp-blue);
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
-.lp-stat-label {
-  font-size: 12.5px;
-  color: var(--ui-ink-soft);
-  line-height: 1.45;
-  max-width: 180px;
-  font-weight: 500;
-}
+.lp-stat-label { font-size: 13px; line-height: 1.4; color: var(--lp-muted); max-width: 170px; }
 
-@media (max-width: 720px) {
-  .lp-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 22px 12px;
-    padding: 24px 16px;
-  }
-  .lp-stat-item:nth-child(2)::after { display: none; }
-}
-
-@media (max-width: 380px) {
-  .lp-stats-grid { grid-template-columns: 1fr; }
-  .lp-stat-item:not(:last-child)::after { display: none; }
+@media (max-width: 760px) {
+  .lp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .lp-stat-item:nth-child(3)::before { display: none; }
+  .lp-stat-item:nth-child(n + 3) { border-top: 1px solid var(--lp-line); }
+  .lp-stat-item { padding: 24px 12px; }
 }

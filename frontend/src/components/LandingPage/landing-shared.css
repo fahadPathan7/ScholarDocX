@@ -2,27 +2,53 @@
    Imported once by index.tsx so all sections share the same motion language.
    Relies on design tokens defined in visual-refresh.css (--ui-*). */
 
+/* ---------- Theme tokens: "Scholar's Study" (SCHOLARDOCX-0223) ----------
+   Scoped to the landing page. Local --ui-* overrides recolor every section
+   that still reads the shared tokens, without touching the in-app teal. */
+.lp-container {
+  --lp-ink: #0e1b33;
+  --lp-ink-soft: #3d4a63;
+  --lp-muted: #6b7388;
+  --lp-cream: #f4ecdb;
+  --lp-ivory: #fbf7ef;
+  --lp-paper: #fffdf8;
+  --lp-line: #e6dcc6;
+  --lp-line-strong: #d5c7a8;
+  --lp-blue: #1f3a8a;
+  --lp-blue-2: #3552b8;
+  --lp-gold: #c58a1b;
+  --lp-gold-soft: #f3dfa8;
+  --lp-crimson: #9b2f35;
+  --lp-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  --ui-ink: var(--lp-ink);
+  --ui-ink-soft: var(--lp-ink-soft);
+  --ui-muted: var(--lp-muted);
+  --ui-primary: var(--lp-blue);
+  --ui-border: var(--lp-line);
+  --ui-line: var(--lp-line);
+  --ui-teal: var(--lp-blue);
+}
+
 /* ---------- Page shell ----------
    The global stylesheet locks `body` to `height: 100vh; overflow: hidden`
-   (workspace-shell behavior). That clips any taller top-level route, so the
-   landing page owns its own viewport-sized scroll surface here — mirroring
-   what `.app-shell` does for the authenticated workspace. */
+   (workspace-shell behavior). The landing page owns its own viewport-sized
+   scroll surface here, mirroring `.app-shell`. */
 .lp-container {
   height: 100vh;
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 10% 12%, rgba(52, 127, 120, 0.09) 0%, transparent 40%),
-    radial-gradient(circle at 90% 30%, rgba(99, 102, 241, 0.05) 0%, transparent 42%),
-    radial-gradient(circle at 85% 85%, rgba(71, 126, 165, 0.06) 0%, transparent 42%),
-    linear-gradient(180deg, #fbfdf9 0%, #eef5f1 45%, #f4f8f2 100%);
-  color: var(--ui-ink);
+  background-color: var(--lp-ivory);
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(243, 223, 168, 0.55) 0%, transparent 70%),
+    radial-gradient(circle at 92% 38%, rgba(31, 58, 138, 0.05) 0%, transparent 38%);
+  color: var(--lp-ink);
   font-family: var(--font-body);
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Override global workspace `main` styles which restrict height to 100vh and hide overflow */
 .lp-container main {
   height: auto;
   min-height: auto;
@@ -32,43 +58,57 @@
   max-width: 100%;
 }
 
-.lp-container svg {
-  max-width: 100%;
-  overflow: hidden;
-}
+.lp-container svg { max-width: 100%; overflow: hidden; }
 
+.lp-container ::selection { background: var(--lp-gold-soft); color: var(--lp-ink); }
 
 /* ---------- Section titles ---------- */
-/* Gradient ink treatment shared by every section header, so Features /
-   Pricing / FAQ read as one system (SCHOLARDOCX-0215). */
 .lp-section-title {
-  font-size: clamp(26px, 3.4vw, 34px);
-  font-weight: 800;
+  font-family: var(--lp-serif);
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 600;
+  font-variation-settings: "opsz" 72;
+  line-height: 1.12;
   text-align: center;
-  margin-bottom: 12px;
-  letter-spacing: -0.015em;
-  color: var(--ui-ink);
+  margin-bottom: 14px;
+  letter-spacing: -0.022em;
+  color: var(--lp-ink);
   text-wrap: balance;
 }
 
-.lp-section-title span {
-  background: linear-gradient(120deg, var(--ui-primary, #347f78) 10%, #4f9dbe 90%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: var(--ui-primary, #347f78);
+/* Emphasised words: italic serif with a hand-drawn gold underline */
+.lp-section-title span,
+.lp-hero-title em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--lp-blue);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  background-image: linear-gradient(transparent 82%, var(--lp-gold-soft) 82%, var(--lp-gold-soft) 94%, transparent 94%);
 }
 
 .lp-section-subtitle {
-  font-size: 15px;
-  color: var(--ui-muted);
+  font-size: 16px;
+  color: var(--lp-muted);
   text-align: center;
-  margin-bottom: 50px;
-  max-width: 540px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
+  margin: 0 auto 52px;
+  max-width: 560px;
+  line-height: 1.65;
   text-wrap: pretty;
+}
+
+/* ---------- Eyebrow chips used by section headers (restyled) ---------- */
+.lp-features-top-chip,
+.lp-pillars-tag,
+.lp-faq-top-chip {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: var(--lp-gold) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase;
 }
 
 /* ---------- Scroll-reveal system ---------- */
@@ -96,19 +136,16 @@
   z-index: 0;
 }
 
-/* ---------- Fine grid texture (hero / closing banner backdrop) ---------- */
-/* Reads as a subtle "graph paper" horizon behind dark sections. */
+/* ---------- Ruled-paper texture (hero / closing backdrop) ---------- */
 .lp-grid-texture {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
+  background-image: linear-gradient(rgba(31, 58, 138, 0.07) 1px, transparent 1px);
+  background-size: 100% 36px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 20%, black 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 20%, black 0%, transparent 75%);
 }
 
 /* ---------- Keyframes ---------- */

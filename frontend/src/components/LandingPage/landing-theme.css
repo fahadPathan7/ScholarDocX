@@ -1,0 +1,45 @@
+/* Section theme layer — serif display type + paper surfaces (SCHOLARDOCX-0223).
+   Imported last by index.tsx so it wins over the per-section stylesheets. */
+
+.lp-pillar-headline,
+.lp-bento-title,
+.lp-pricing-price,
+.lp-pricing-card h3,
+.lp-faq-question span:not(.lp-faq-cat-tag) {
+  font-family: var(--lp-serif);
+  letter-spacing: -0.018em;
+}
+
+.lp-bento-card,
+.lp-pricing-card,
+.lp-faq-item,
+.lp-pillar-stage,
+.lp-mock-card {
+  background: var(--lp-paper);
+  border-color: var(--lp-line-strong);
+}
+
+.lp-bento-card:hover { border-color: var(--lp-gold); }
+
+.lp-pricing-toggle-btn.active,
+.lp-pillar-nav-btn.active {
+  border-color: var(--lp-blue);
+}
+
+.lp-pillar-btn-primary {
+  background: var(--lp-ink);
+  color: #fff8e8;
+  box-shadow: 0 2px 0 var(--lp-gold), 0 12px 24px -12px rgba(14, 27, 51, 0.5);
+}
+
+.lp-pillars-ambient-glow,
+.lp-features-ambient-glow { opacity: 0.55; }
+
+/* FAQ weights tuned for the serif */
+.lp-faq-question span:not(.lp-faq-cat-tag) { font-weight: 600; font-size: 17px; }
+
+/* Global `main` is a flex container; stop wide children (game tiles) from
+   forcing the section past the viewport on phones. */
+.lp-container main > section { min-width: 0; max-width: 100%; }
+.lp-pillars-section { box-sizing: border-box; width: 100%; max-width: 1200px; }
+.lp-pillar-stage, .lp-pillar-stage > *, .lp-pillar-preview-col { min-width: 0; }

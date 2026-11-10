@@ -14,7 +14,7 @@ type Stat = {
 const STATS: Stat[] = [
   { value: 6, suffix: "", label: "Core tools in one workspace" },
   { value: 4, suffix: "", label: "Flexible plan tiers" },
-  { value: 100, suffix: "%", label: "Data isolated via Row-Level Security" },
+  { value: 100, suffix: "%", label: "Of your data kept private to you" },
   { value: 0, suffix: "", label: "Data shared with third parties" },
 ];
 

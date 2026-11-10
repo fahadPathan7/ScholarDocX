@@ -1,114 +1,67 @@
-/* Landing page hero section — deep-space aurora canopy (SCHOLARDOCX-0215).
-   Dark ink-teal gradient with drifting glow orbs and a fine grid texture,
-   fading into the light page body below. Continuous with the in-app
-   TopBar/DeepSpaceBanner brand. */
+/* Landing hero — ivory paper, ink serif headline, gold accents (SCHOLARDOCX-0223). */
 
 .lp-hero-section {
   position: relative;
   width: 100%;
-  padding: 96px 24px 120px;
+  padding: 72px 24px 56px;
   text-align: center;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% -8%, rgba(125, 216, 192, 0.16) 0%, transparent 60%),
-    radial-gradient(ellipse 45% 40% at 82% 18%, rgba(99, 102, 241, 0.16) 0%, transparent 62%),
-    radial-gradient(ellipse 50% 45% at 14% 26%, rgba(47, 125, 120, 0.28) 0%, transparent 64%),
-    linear-gradient(178deg, #051a17 0%, #07231e 44%, #0b2f28 78%, #123f36 100%);
-  color: #eef6f2;
-}
-
-/* Bottom fade into the light page body */
-.lp-hero-section::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 130px;
-  background: linear-gradient(180deg, rgba(238, 245, 241, 0) 0%, #eef5f1 92%);
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Drifting aurora orbs. Centered via margins (not translateX) so the
-   lp-aurora-drift keyframes own the transform without fighting positioning. */
-.lp-hero-orb-1 {
-  width: 560px;
-  height: 560px;
-  top: -140px;
-  left: 50%;
-  margin-left: -280px;
-  background: radial-gradient(circle, rgba(52, 127, 120, 0.4) 0%, transparent 65%);
-  animation: lp-aurora-drift 14s ease-in-out infinite;
-}
-
-.lp-hero-orb-2 {
-  width: 420px;
-  height: 420px;
-  bottom: 20px;
-  right: 6%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 65%);
-  animation: lp-aurora-drift 18s ease-in-out infinite reverse;
-}
-
-.lp-hero-orb-3 {
-  width: 340px;
-  height: 340px;
-  bottom: 60px;
-  left: 5%;
-  background: radial-gradient(circle, rgba(125, 216, 192, 0.18) 0%, transparent 65%);
-  animation: lp-aurora-drift 16s ease-in-out infinite;
 }
 
 .lp-hero-content {
   position: relative;
   z-index: 1;
-  max-width: 800px;
+  max-width: 880px;
   margin: 0 auto;
 }
 
 .lp-badge-announcement {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(125, 216, 192, 0.1);
-  border: 1px solid rgba(125, 216, 192, 0.28);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  color: #8fe3c9;
-  padding: 7px 15px;
+  gap: 9px;
+  background: var(--lp-paper);
+  border: 1px solid var(--lp-line-strong);
+  box-shadow: 0 1px 0 #fff inset, 0 6px 16px -8px rgba(14, 27, 51, 0.25);
+  color: var(--lp-ink-soft);
+  padding: 7px 16px 7px 12px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 650;
   letter-spacing: 0.02em;
-  margin-bottom: 26px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  margin-bottom: 30px;
 }
+.lp-badge-announcement svg { color: var(--lp-gold); }
+.lp-badge-rule { width: 1px; height: 12px; background: var(--lp-line-strong); }
 
 .lp-hero-title {
-  font-size: clamp(36px, 6vw, 60px);
-  font-weight: 850;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
-  margin-bottom: 22px;
-  color: #f4faf7;
+  font-family: var(--lp-serif);
+  font-size: clamp(40px, 7vw, 76px);
+  font-weight: 600;
+  font-variation-settings: "opsz" 72;
+  line-height: 1.04;
+  letter-spacing: -0.026em;
+  margin: 0 0 26px;
+  color: var(--lp-ink);
   text-wrap: balance;
-  text-shadow: 0 2px 30px rgba(4, 20, 17, 0.55);
 }
 
-.lp-hero-title span {
-  background: linear-gradient(115deg, #7dd8c0 0%, #4f9dbe 55%, #8ea6f6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+.lp-hero-title em {
+  display: inline;
+  padding: 0 0.04em;
+  background-image: linear-gradient(transparent 80%, var(--lp-gold-soft) 80%, var(--lp-gold-soft) 93%, transparent 93%);
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  animation: lp-underline-draw 0.9s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes lp-underline-draw { to { background-size: 100% 100%; } }
 
 .lp-hero-description {
-  font-size: 17px;
-  line-height: 1.65;
-  color: rgba(226, 238, 233, 0.78);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--lp-ink-soft);
   margin: 0 auto 38px;
-  max-width: 620px;
+  max-width: 640px;
   text-wrap: pretty;
 }
 
@@ -116,89 +69,91 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 .lp-hero-btn-primary {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #2f7d74 0%, #3aa28f 55%, #4f9dbe 100%);
-  color: #ffffff;
-  padding: 15px 30px;
+  gap: 9px;
+  background: var(--lp-ink);
+  color: #fff8e8;
+  padding: 16px 30px;
   border-radius: 9999px;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 15.5px;
+  font-weight: 650;
   text-decoration: none;
   box-shadow:
-    0 14px 34px rgba(47, 125, 116, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 2px 0 var(--lp-gold),
+    0 16px 30px -12px rgba(14, 27, 51, 0.55);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
 }
-
 .lp-hero-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 18px 42px rgba(47, 125, 116, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 3px 0 var(--lp-gold),
+    0 22px 36px -14px rgba(14, 27, 51, 0.6);
 }
-
 .lp-hero-btn-primary svg { transition: transform 0.2s ease; }
-.lp-hero-btn-primary:hover svg { transform: translateX(3px); }
+.lp-hero-btn-primary:hover svg { transform: translateX(4px); }
 
-/* Glass secondary on the dark canopy */
 .lp-hero-btn-secondary {
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.07);
-  color: #dcefe8;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 14px 28px;
+  background: var(--lp-paper);
+  color: var(--lp-ink);
+  border: 1px solid var(--lp-line-strong);
+  padding: 15px 28px;
   border-radius: 9999px;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 15.5px;
+  font-weight: 620;
   text-decoration: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
-
 .lp-hero-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.13);
-  border-color: rgba(255, 255, 255, 0.34);
+  background: #fff;
+  border-color: var(--lp-ink);
   transform: translateY(-2px);
 }
 
 .lp-hero-trust {
-  margin-top: 24px;
+  margin-top: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   font-size: 13px;
-  color: rgba(214, 231, 224, 0.6);
-  letter-spacing: 0.01em;
+  color: var(--lp-muted);
 }
+.lp-hero-trust-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--lp-gold); }
 
-/* Product mock floats over the dark canopy — glow ring + lift */
+/* Product mock sits on the paper like a framed plate */
 .lp-hero-preview {
   position: relative;
   z-index: 1;
-  margin-top: 64px;
-  filter: drop-shadow(0 30px 60px rgba(3, 16, 13, 0.55));
-}
-
-.lp-hero-preview::before {
-  content: "";
-  position: absolute;
-  inset: -12% -6%;
-  background: radial-gradient(ellipse 60% 55% at 50% 45%, rgba(125, 216, 192, 0.14) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: -1;
+  margin: 64px auto 0;
+  max-width: 1040px;
+  padding: 14px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.9), rgba(244, 236, 219, 0.7));
+  border: 1px solid var(--lp-line-strong);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 40px 80px -30px rgba(14, 27, 51, 0.35),
+    0 12px 24px -12px rgba(14, 27, 51, 0.15);
 }
 
 @media (max-width: 600px) {
-  .lp-hero-section { padding: 72px 18px 96px; }
+  .lp-hero-section { padding: 44px 16px 40px; }
+  .lp-hero-description { font-size: 16px; }
   .lp-hero-actions { flex-direction: column; gap: 12px; }
-  .lp-hero-btn-primary,
-  .lp-hero-btn-secondary { width: 100%; justify-content: center; }
-  .lp-hero-trust { font-size: 12px; }
+  .lp-hero-btn-primary, .lp-hero-btn-secondary { width: 100%; justify-content: center; }
+  .lp-hero-trust { flex-wrap: wrap; justify-content: center; gap: 8px 12px; }
+  .lp-hero-preview { margin-top: 44px; padding: 8px; border-radius: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-title em { animation: none; background-size: 100% 100%; }
 }

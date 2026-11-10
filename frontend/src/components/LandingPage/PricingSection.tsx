@@ -229,10 +229,10 @@ function PricingCard({ plan, price, period, features, index }: CardProps) {
   // Per-tier accent color: drives the icon chip, badge, and check icons so each
   // card reads as distinct while staying within the muted system palette.
   const accent: Record<TierKey, string> = {
-    free_user: "#6b7c8a",      // slate blue-grey
-    general_user: "#347f78",   // teal (primary brand)
-    pro_user: "#c77964",       // warm clay
-    max_user: "#6366f1",       // indigo (matches premium-dark)
+    free_user: "#7a8197",      // pewter
+    general_user: "#1f3a8a",   // academic blue
+    pro_user: "#9b2f35",       // oxblood
+    max_user: "#c58a1b",       // gold (premium ink card)
   };
 
   return (

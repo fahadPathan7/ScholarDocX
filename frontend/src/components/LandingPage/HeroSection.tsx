@@ -10,21 +10,19 @@ export function HeroSection() {
 
   return (
     <section className="lp-hero-section">
-      {/* Deep-space canopy dressing: grid horizon + drifting aurora orbs */}
+      {/* Ruled-paper backdrop (SCHOLARDOCX-0223) */}
       <div className="lp-grid-texture" aria-hidden="true" />
-      <div className="lp-orb lp-hero-orb-1" aria-hidden="true" />
-      <div className="lp-orb lp-hero-orb-2" aria-hidden="true" />
-      <div className="lp-orb lp-hero-orb-3" aria-hidden="true" />
 
       <div className="lp-hero-content reveal" ref={heroRef}>
         <div className="lp-badge-announcement">
-          <Sparkles size={14} />
+          <Sparkles size={13} />
+          <span className="lp-badge-rule" aria-hidden="true" />
           Privacy-First Graduate Application Portal
         </div>
 
         <h1 className="lp-hero-title">
           Organize Your Academic Applications.{" "}
-          <span>Elevate Your Profile.</span>
+          <em>Elevate Your Profile.</em>
         </h1>
 
         <p className="lp-hero-description">
@@ -44,7 +42,9 @@ export function HeroSection() {
         </div>
 
         <p className="lp-hero-trust">
-          No credit card required &nbsp;•&nbsp; Your data stays isolated
+          <span>No credit card required</span>
+          <span className="lp-hero-trust-dot" aria-hidden="true" />
+          <span>Your data stays isolated</span>
         </p>
       </div>
 

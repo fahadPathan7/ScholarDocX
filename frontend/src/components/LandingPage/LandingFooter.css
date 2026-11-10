@@ -1,51 +1,7 @@
-/* Landing page footer — dark ink bookend that closes the aurora theme
-   (dark hero → light body → dark footer). */
-
-.lp-footer {
-  position: relative;
-  overflow: hidden;
-  padding: 56px 24px 48px;
-  text-align: center;
-  background:
-    radial-gradient(ellipse 60% 80% at 50% 120%, rgba(47, 125, 116, 0.35) 0%, transparent 62%),
-    radial-gradient(circle at 12% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
-    linear-gradient(180deg, #07231e 0%, #051a17 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  color: rgba(214, 231, 224, 0.66);
-}
-
-.lp-footer-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-.lp-footer-logo {
-  font-weight: 800;
-  color: #f2f8f4;
-  margin-bottom: 12px;
-  display: inline-block;
-  font-size: 19px;
-  letter-spacing: -0.02em;
-}
-
-.lp-footer-copy {
-  font-size: 12.5px;
-  margin: 0 0 6px;
-}
-
-/* Owner credit — quiet but discoverable, with a mint accent on the name */
-.lp-footer-credit {
-  font-size: 12.5px;
-  margin: 0;
-  color: rgba(214, 231, 224, 0.55);
-}
-
-.lp-footer-credit span {
-  font-weight: 700;
-  background: linear-gradient(115deg, #7dd8c0 0%, #4f9dbe 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+/* Landing footer — quiet ivory colophon (SCHOLARDOCX-0223). */
+.lp-footer { padding: 40px 24px 48px; text-align: center; border-top: 1px solid var(--lp-line-strong); background: var(--lp-cream); }
+.lp-footer-content { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lp-footer-logo { font-family: var(--lp-serif); font-size: 26px; font-weight: 650; letter-spacing: -0.02em; color: var(--lp-ink); }
+.lp-footer-copy { font-size: 13px; color: var(--lp-muted); margin: 0; }
+.lp-footer-credit { font-size: 13px; color: var(--lp-ink-soft); margin: 0; padding-top: 12px; border-top: 1px solid var(--lp-line-strong); }
+.lp-footer-credit span { font-family: var(--lp-serif); font-style: italic; font-weight: 600; color: var(--lp-blue); }

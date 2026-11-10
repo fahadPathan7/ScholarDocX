@@ -1,7 +1,7 @@
 /* Pricing section — 4 tiers, monthly/quarterly toggle, popular + premium-dark. */
 
 .lp-pricing-section {
-  background: rgba(52, 127, 120, 0.02);
+  background: rgba(31, 58, 138, 0.02);
   border-top: 1px solid rgba(35, 58, 55, 0.05);
   border-bottom: 1px solid rgba(35, 58, 55, 0.05);
   padding: 88px 24px;
@@ -52,7 +52,7 @@
   font-size: 11px;
   font-weight: 700;
   color: #2b6d67;
-  background: rgba(52, 127, 120, 0.12);
+  background: rgba(31, 58, 138, 0.12);
   border-radius: 9999px;
   letter-spacing: 0.01em;
 }
@@ -100,7 +100,7 @@
 
 .lp-pricing-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(52, 127, 120, 0.25);
+  border-color: rgba(31, 58, 138, 0.25);
   box-shadow: var(--ui-shadow);
 }
 
@@ -115,9 +115,9 @@
 }
 
 .lp-pricing-card.premium-dark {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #0e1b33 0%, #1e293b 100%);
   color: white;
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(197, 138, 27, 0.25);
 }
 
 .lp-pricing-card.premium-dark h3,
@@ -134,7 +134,7 @@
 .lp-pricing-card-glow {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(52, 127, 120, 0.1) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 0%, rgba(31, 58, 138, 0.1) 0%, transparent 60%);
   pointer-events: none;
 }
 

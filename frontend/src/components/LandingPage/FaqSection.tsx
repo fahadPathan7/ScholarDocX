@@ -14,7 +14,7 @@ const FAQS: QA[] = [
   {
     category: "SECURITY & PRIVACY",
     q: "Is my data private?",
-    a: "Yes. Privacy is our top priority. We use strict access controls within our cloud boundaries, ensuring each user's workspace and documents are isolated using Row-Level Security. Your research notes, CVs, and uploaded PDFs are never exposed or shared with third parties.",
+    a: "Yes. Privacy is our top priority. We use strict access controls within our cloud boundaries, ensuring each user's workspace and documents are fully isolated from everyone else's. Your research notes, CVs, and uploaded PDFs are never exposed or shared with third parties.",
   },
   {
     category: "CORE POWER TOOLS",

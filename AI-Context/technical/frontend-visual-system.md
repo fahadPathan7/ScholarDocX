@@ -23,6 +23,10 @@ interactive, and polished without becoming decorative marketing UI.
 - Prefer low-saturation, eye-soothing canvas and surface colors for planning
   screens. Avoid bright warm accents, heavy gradients, and visible background
   patterns that compete with work content.
+- **Never clip content (SCHOLARDOCX-0227)**: `.tab-container` is the default scroll
+  owner; page roots must grow to content or scroll themselves, and the sidebar
+  scrolls on short screens (see the "Never clip page content" block at the end
+  of `visual-refresh.css`).
 - The app shell, left navigation, header, and floating side panels should remain
   fixed within the viewport. Scroll should be delegated to content sections,
   section bodies, sheet tables, chat/message bodies, and notification lists.

@@ -8,15 +8,15 @@ This document defines the non-negotiable responsive design rules and architectur
 
 | Breakpoint Threshold | Shell & Layout Mode | Sidebar Nav Strategy | Net Content Width | Layout Strategy for About & Page Views |
 |----------------------|---------------------|----------------------|-------------------|----------------------------------------|
-| **> 1450px** | Widescreen / Desktop | Persistent Left Sidebar (`280px`) | > 1170px | Multi-column side-by-side desktop grid |
-| **≤ 1450px** (incl. 1200px/1440px laptop views) | Laptop / Split Screen / Tablet / Mobile | Off-Canvas Drawer (`≡` 3-bar icon, `z-index: 1080`) | 100% of viewport width | Single-Column Linear Stack with full vertical scrolling (`overflow-y: auto !important`) |
+| **> 1100px** | Widescreen / Desktop | Persistent Left Sidebar (`280px`) | > 1170px | Multi-column side-by-side desktop grid |
+| **≤ 1100px** (tablets, small windows, phones) | Laptop / Split Screen / Tablet / Mobile | Off-Canvas Drawer (`≡` 3-bar icon, `z-index: 1080`) | 100% of viewport width | Single-Column Linear Stack with full vertical scrolling (`overflow-y: auto !important`) |
 
-> **Rule 1: System-Wide Sidebar Drawer Breakpoint Set to 1450px**
-> On all screen widths **≤ 1450px** (including 1200px/1440px laptop/split-screen views), the sidebar converts into an off-canvas drawer controlled by the TopBar hamburger button (`≡`). Main content receives **100% of the viewport width** so page views never experience squished content columns.
+> **Rule 1: System-Wide Sidebar Drawer Breakpoint Set to 1100px (lowered from 1450px, SCHOLARDOCX-0225)**
+> On all screen widths **≤ 1100px** (tablets, narrow split-screen windows, phones; MacBook and other laptop widths of ~1280px+ keep the persistent sidebar), the sidebar converts into an off-canvas drawer controlled by the TopBar hamburger button (`≡`). Main content receives **100% of the viewport width** so page views never experience squished content columns.
 
 ### Canonical Device Tiers (SCHOLARDOCX-0171)
 
-Below the 1450px drawer threshold, density/visual refinements use a **fixed
+Below the 1100px drawer threshold, density/visual refinements use a **fixed
 4-tier device cascade**. Every component that adds mobile styles MUST use these
 exact `max-width` values (the upper-bound inclusive of each tier's range) so
 tiers never overlap and the cascade is predictable.
@@ -52,7 +52,7 @@ touched.)
 
 ## 3. Overlay Drawers & Modal Horizontal Scrolling Architecture
 
-- **Advisor Atlas Off-Canvas Drawer (≤ 1450px)**: The **Research History** sidebar opens **OVER** the workspace content (`position: absolute; z-index: 500; width: 280px`) so `.atlas-main` stays **100% full-width** at all times without horizontal column squeezing.
+- **Advisor Atlas Off-Canvas Drawer (≤ 1100px)**: The **Research History** sidebar opens **OVER** the workspace content (`position: absolute; z-index: 500; width: 280px`) so `.atlas-main` stays **100% full-width** at all times without horizontal column squeezing.
 - **Admin & Settings Modals Horizontal Scrolling**: All modal panels containing wide tables or configuration inputs (`PlanPricingTable`, `ModelPricingTab`, `.pricing-modal-panel`) enforce `max-width: 95vw !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch;` and `min-width: 640px` on internal tables so inputs and column headers never collide on smaller screens.
 
 ### Modal Mobile Responsiveness (≤768px)
@@ -102,12 +102,12 @@ canonical rules below are the **single source of truth** — do not reintroduce
 - **Inline style gotcha:** `ProfileView.tsx` sets an inline
   `gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)'` on `.profile-layout`.
   Any CSS that wants to collapse it MUST use `!important`.
-- **Canonical collapse (`responsive.css` section 14):** at **≤ 1450px**
+- **Canonical collapse (`responsive.css` section 14):** at **≤ 1100px**
   `.profile-page` and `.profile-layout` become `display: flex !important;
   flex-direction: column !important; grid-template-columns: 1fr !important`.
   This matches the shell-wide sidebar-drawer breakpoint so Profile never
   stays 2-column while the rest of the app is in mobile mode.
-- **Above 1450px:** the inline 2-column style applies (2 equal columns).
+- **Above 1100px:** the inline 2-column style applies (2 equal columns).
   There is NO 3-column Profile layout — a legacy `visual-refresh.css` rule
   that forced 3 columns was removed because the JSX only renders 2 children
   (it created an empty third column).
@@ -126,7 +126,7 @@ canonical rules below are the **single source of truth** — do not reintroduce
 
 ### About (`AboutView.tsx`, `.about-page`, `.about-hero`)
 
-- **Layout:** desktop (> 1450px) is a 12-column grid; ≤ 1450px collapses to a
+- **Layout:** desktop (> 1100px) is a 12-column grid; ≤ 1100px collapses to a
   single-column flex stack (handled in `about-refresh.css`).
 - **Hero connection map (`.about-map`):** the map is decorative
   (`aria-hidden="true"`). Its `.about-map-node` children are absolutely
@@ -142,11 +142,11 @@ canonical rules below are the **single source of truth** — do not reintroduce
 
 ## 5. Verification Checklist for AI Agents
 
-- [ ] Test viewports at `320`, `374`, `375`, `479`, `480`, `767`, `768`, `1023`, `1024`, `1450`, `1600` (covers every canonical tier boundary plus the 1450px drawer threshold).
-- [ ] Confirm sidebar converts to drawer mode at ≤ 1450px (`useIsMobile()` in `useMediaQuery.ts`).
-- [ ] Confirm `.about-page` uses single-column stacked layout with full vertical scroll on viewports ≤ 1450px.
-- [ ] Confirm `.profile-layout` collapses to a single column at ≤ 1450px and is 2-column above (no empty 3rd column).
-- [ ] Confirm `.about-map` is hidden at ≤ 1023px (Tablet tier — no horizontal overflow on the About hero).
+- [ ] Test viewports at `320`, `374`, `375`, `479`, `480`, `767`, `768`, `1023`, `1024`, `1100`, `1600` (covers every canonical tier boundary plus the 1100px drawer threshold).
+- [ ] Confirm sidebar converts to drawer mode at ≤ 1100px (`useIsMobile()` in `useMediaQuery.ts`).
+- [ ] Confirm the About page (`.ab-page`, `about-page.css`) uses auto-fit grids and has no horizontal overflow.
+- [ ] Confirm `.profile-layout` collapses to a single column at ≤ 1100px and is 2-column above (no empty 3rd column).
+- [ ] (About map removed in SCHOLARDOCX-0226.)
 - [ ] Confirm the canonical device tiers fire at their boundaries: Tablet ≤1023, Large Mobile ≤767, Mobile ≤479, Small Mobile ≤374.
 - [ ] Confirm Advisor Atlas Research History drawer opens OVER content with high `z-index: 500`.
 - [ ] Confirm Admin settings modals support horizontal left-right scrolling without column collision.

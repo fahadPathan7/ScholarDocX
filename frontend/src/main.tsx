@@ -6,6 +6,7 @@ import "./styles.css";
 import "./visual-refresh.css";
 import "./documents-refresh.css";
 import "./about-refresh.css";
+import "./about-page.css";
 import "./sheet-table-polish.css";
 import "./cell-formatting.css";
 import "./responsive.css";

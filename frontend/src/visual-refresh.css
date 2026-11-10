@@ -2032,7 +2032,7 @@ main {
    renders TWO `.profile-meta-col` children, so the 3-col rule produced an empty
    third column and misaligned cards on wide screens. Removed in
    SCHOLARDOCX-0171. The canonical Profile layout now lives in responsive.css
-   section 14 (1-col at <= 1450px, 2-col above via the inline style on
+   section 14 (1-col at <= 1100px, 2-col above via the inline style on
    `.profile-layout` in ProfileView.tsx). Do not reintroduce a 3-col rule. */
 
 @media (max-width: 760px) {
@@ -2274,4 +2274,50 @@ main {
   pointer-events: none;
   display: none;
   font-family: var(--font-sans, sans-serif);
+}
+/* Profile hero: size to content so the name / badges are never clipped
+   (SCHOLARDOCX-0226). The wrapper was shrinking inside the flex column. */
+.profile-hero-wrapper { flex: 0 0 auto; height: auto; overflow: visible; }
+.profile-hero-bg-anim { border-radius: inherit; overflow: hidden; }
+.profile-hero.glass-panel { height: auto; flex-wrap: wrap; row-gap: 12px; }
+.profile-hero-text { min-width: 0; flex: 1 1 220px; }
+
+/* ---------------------------------------------------------------------------
+   Never clip page content (SCHOLARDOCX-0227).
+   The old rule gave every page root `min-height: 0; overflow: hidden`, so a
+   page taller than the viewport was silently cut off (Profile's Logout button
+   was unreachable on a laptop). Page roots must now either scroll themselves
+   or let the tab container scroll.
+   --------------------------------------------------------------------------- */
+
+/* Flowing pages with no inner scroller: grow to content; `.tab-container`
+   (overflow-y: scroll) owns the scrollbar. */
+.profile-page {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+/* Pages that manage inner scrollers: if their own content still exceeds the
+   available height, scroll instead of clipping. */
+.page-grid,
+.project-home,
+.project-detail,
+.sticky-notes-view {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Dashboard rows fill the viewport when there is room, but never shrink below
+   their content: on short screens the page scrolls instead of cutting cards. */
+.page-grid.dashboard-grid {
+  grid-template-rows: repeat(3, minmax(min-content, 1fr));
+}
+
+/* Sidebar: the nav must stay reachable on short screens — scroll, don't clip. */
+.sidebar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(233, 244, 239, 0.25) transparent;
 }

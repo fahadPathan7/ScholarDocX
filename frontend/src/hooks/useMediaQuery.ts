@@ -30,4 +30,4 @@ export function useMediaQuery(query: string): boolean {
 }
 
 /** Convenience breakpoint helpers aligned to the app's responsive scale. */
-export const useIsMobile = () => useMediaQuery("(max-width: 1450px)");
+export const useIsMobile = () => useMediaQuery("(max-width: 1100px)");

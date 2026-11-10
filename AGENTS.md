@@ -127,6 +127,11 @@ unless the user explicitly asks — see [CODE_RULES.md](AI-Context/CODE_RULES.md
 These are recurring regressions. Violating them breaks the visual system and
 must be caught before opening a PR.
 
+**Content must stay reachable (SCHOLARDOCX-0227):** never put `overflow: hidden`
+(with `min-height: 0`) on a page root that has no inner scroller — content
+taller than the screen must scroll (the tab container or the root itself), not
+be cut off. Check new pages at ~1280×600 and 390×700.
+
 ### Modal backdrop blur (regressed 3+ times — read before touching modals)
 
 **Intended look:** blur covers the full `.main-content` work surface (breadcrumbs,

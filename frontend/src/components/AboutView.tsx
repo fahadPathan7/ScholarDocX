@@ -1,7 +1,6 @@
 import {
   Bot,
   BookOpen,
-  CalendarDays,
   CalendarCheck,
   Database,
   ExternalLink,
@@ -13,13 +12,11 @@ import {
   MessageCircle,
   PencilLine,
   Route,
-  Send,
   ShieldCheck,
   Sparkles,
   Trash2,
   UserCheck,
   X,
-  Zap,
   Bell,
   Clock,
   ChevronRight
@@ -117,211 +114,95 @@ export function AboutView() {
 
   return (
     <>
-      <div className="about-page">
-      <section className="about-hero">
-        <div className="about-hero-copy">
-          <div className="about-hero-title">
-            <div className="about-hero-icon">
-              <GraduationCap size={30} />
-            </div>
-            <div>
-              <p className="eyebrow">Secure personal workspace application workspace</p>
-              <h2>ScholarDocX</h2>
-            </div>
-          </div>
-          <p>
-            Turn your university application chaos into a clear, focused, winning journey.
-          </p>
-        </div>
-
-        <div className="about-map" aria-hidden="true">
-          <svg
-            className="about-map-connections"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* Path 1: Projects -> Emails -> Applications -> Deadlines */}
-            <path
-              id="path1"
-              d="M 16 17 C 28 17, 34 41, 46 41 C 58 41, 60 55, 70 55 C 80 55, 75 73, 63 73"
-              fill="none"
-              stroke="rgba(79, 128, 118, 0.25)"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-              strokeDasharray="5 5"
-            />
-            
-            {/* Path 2: Outreach -> Universities -> Documents */}
-            <path
-              id="path2"
-              d="M 16 47 C 28 47, 34 13, 46 13 C 58 13, 60 25, 73 25"
-              fill="none"
-              stroke="rgba(79, 128, 118, 0.25)"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-              strokeDasharray="5 5"
-            />
-            
-            {/* Path 3: Notes -> Deadlines */}
-            <path
-              id="path3"
-              d="M 28 75 C 40 75, 50 73, 63 73"
-              fill="none"
-              stroke="rgba(79, 128, 118, 0.15)"
-              strokeWidth="2"
-              vectorEffect="non-scaling-stroke"
-              strokeDasharray="5 5"
-            />
-
-            {/* Moving Ball 1 */}
-            <path
-              d="M 0,0 L 0.01,0"
-              stroke="#4e9786"
-              strokeWidth="7"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-              filter="url(#glow)"
-            >
-              <animateMotion dur="10s" repeatCount="indefinite" calcMode="linear">
-                <mpath href="#path1" />
-              </animateMotion>
-            </path>
-            
-            {/* Moving Ball 2 */}
-            <path
-              d="M 0,0 L 0.01,0"
-              stroke="#4e9786"
-              strokeWidth="7"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-              filter="url(#glow)"
-            >
-              <animateMotion dur="8s" repeatCount="indefinite" calcMode="linear">
-                <mpath href="#path2" />
-              </animateMotion>
-            </path>
-          </svg>
-          {[
-            { title: "Projects", icon: Route, x: "8%", y: "14%", float: "floatA" },
-            { title: "Universities", icon: GraduationCap, x: "38%", y: "10%", float: "floatB" },
-            { title: "Documents", icon: FileText, x: "65%", y: "22%", float: "floatC" },
-            { title: "Outreach", icon: Send, x: "8%", y: "44%", float: "floatB" },
-            { title: "Emails", icon: Mail, x: "38%", y: "38%", float: "floatA" },
-            { title: "Applications", icon: Zap, x: "62%", y: "52%", float: "floatC" },
-            { title: "Notes", icon: MessageCircle, x: "20%", y: "72%", float: "floatA" },
-            { title: "Deadlines", icon: CalendarDays, x: "55%", y: "70%", float: "floatB" },
-          ].map((card, index) => (
-            <div
-              key={card.title}
-              className="about-map-node"
-              style={
-                {
-                  "--x": card.x,
-                  "--y": card.y,
-                  "--float": card.float,
-                  "--delay": `${index * -0.6}s`,
-                } as React.CSSProperties
-              }
-            >
-              <card.icon size={16} />
-              <span>{card.title}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="about-flow-panel">
-        <div className="about-ai-guide-head">
-          <div className="about-card-icon project">
-            <Route size={18} />
-          </div>
-          <div>
-            <p className="eyebrow">Planning flow</p>
-            <h3>Application Journey</h3>
-          </div>
-        </div>
-        <div className="about-flow-list">
-          {flowItems.map(({ icon: Icon, title }) => (
-            <div className="about-flow-step" key={title}>
-              <Icon size={16} />
-              <strong>{title}</strong>
-            </div>
-          ))}
-        </div>
-        <div className="about-panel-footer">
-          <a
-            className="about-support-button"
-            href={getEmailComposeUrl()}
-            onClick={handleContactClick}
-            rel="noreferrer"
-          >
-            <Mail size={14} />
-            Contact Support
-            <ExternalLink size={14} />
-          </a>
-        </div>
-      </section>
-
-      <div className="about-grid">
-        {featureCards.map(({ icon: Icon, tone, title, copy }) => (
-          <div className="about-card" key={title}>
-            <div className={`about-card-icon ${tone}`}>
-              <Icon size={20} />
-            </div>
-            <div>
-              <strong>{title}</strong>
-              <p>{copy}</p>
+      <div className="ab-page">
+        <section className="ab-hero">
+          <div className="ab-hero-copy">
+            <p className="ab-eyebrow">
+              <GraduationCap size={14} /> Secure personal workspace
+            </p>
+            <h2>ScholarDocX</h2>
+            <p className="ab-lede">
+              Turn your university application chaos into a clear, focused, winning journey.
+            </p>
+            <div className="ab-hero-actions">
+              <a
+                className="ab-btn ab-btn-primary"
+                href={getEmailComposeUrl()}
+                onClick={handleContactClick}
+                rel="noreferrer"
+              >
+                <Mail size={15} />
+                Contact Support
+                <ExternalLink size={13} />
+              </a>
+              <button
+                type="button"
+                className="ab-btn ab-btn-ghost"
+                onClick={() => setShowModelsModal(true)}
+              >
+                <Bot size={15} />
+                Explore AI Models
+                <ChevronRight size={14} />
+              </button>
             </div>
           </div>
-        ))}
+
+          <ul className="ab-principles">
+            {featureCards.map(({ icon: Icon, tone, title, copy }) => (
+              <li className="ab-principle" key={title}>
+                <span className={`ab-icon ab-tone-${tone}`}>
+                  <Icon size={18} />
+                </span>
+                <div>
+                  <strong>{title}</strong>
+                  <p>{copy}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="ab-section">
+          <header className="ab-section-head">
+            <p className="ab-eyebrow">
+              <Route size={14} /> Planning flow
+            </p>
+            <h3>Your application journey</h3>
+          </header>
+          <ol className="ab-steps">
+            {flowItems.map(({ icon: Icon, title }, index) => (
+              <li className="ab-step" key={title}>
+                <span className="ab-step-num">{index + 1}</span>
+                <Icon size={18} className="ab-step-icon" />
+                <strong>{title}</strong>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="ab-section ab-lumi">
+          <header className="ab-section-head">
+            <p className="ab-eyebrow">
+              <Sparkles size={14} /> Agentic AI
+            </p>
+            <h3>Meet Lumi, your assistant</h3>
+          </header>
+          <ul className="ab-lumi-grid">
+            {aiGuideItems.map(({ icon: Icon, title }) => (
+              <li className="ab-lumi-item" key={title}>
+                <Icon size={17} />
+                <span>{title}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <p className="ab-footnote">
+          ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning
+          <br />
+          All system dates and deadlines follow UTC, not local timezone.
+        </p>
       </div>
-
-      <section className="about-ai-guide">
-        <div className="about-ai-guide-head">
-          <div className="about-card-icon ai">
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <p className="eyebrow">Agentic AI</p>
-            <h3>Lumi Assistant</h3>
-          </div>
-        </div>
-
-        <div className="about-ai-guide-grid">
-          {aiGuideItems.map(({ icon: Icon, title }) => (
-            <div className="about-ai-guide-item" key={title}>
-              <Icon size={16} />
-              <strong>{title}</strong>
-            </div>
-          ))}
-        </div>
-        <div className="about-panel-footer">
-          <button
-            className="about-support-button"
-            onClick={() => setShowModelsModal(true)}
-          >
-            <Bot size={14} />
-            Explore AI Models
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      </section>
-
-
-      <p className="about-footer">
-        ScholarDocX · Secure personal workspace · Privacy-first · Built for academic planning<br/>
-        All system dates and deadlines follow UTC, not local timezone.
-      </p>
 
       {showModelsModal && (
         <Modal onClose={() => setShowModelsModal(false)}>
@@ -382,7 +263,6 @@ export function AboutView() {
           </div>
         </Modal>
       )}
-    </div>
-  </>
+    </>
   );
 }

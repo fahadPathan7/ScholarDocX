@@ -2961,10 +2961,13 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   max-height: 65vh;
 }
 
+/* Sized against the work surface (the backdrop sits inside .main-content),
+   not the viewport, so it never hugs the sidebar or runs off the bottom edge
+   (SCHOLARDOCX-0228). */
 .modal-panel.calendar-modal-panel {
-  width: min(1180px, 94vw);
-  max-width: 94vw;
-  max-height: 80vh;
+  width: min(1080px, calc(100% - 64px));
+  max-width: calc(100% - 64px);
+  max-height: calc(100% - 28px);
 }
 
 .modal-panel.column-form,
@@ -3393,7 +3396,7 @@ td.collapsed-cell {
 }
 
 /* Profile layout base. The actual column count is set inline on `.profile-layout`
-   in ProfileView.tsx (2 columns) and collapsed to 1 column at <= 1450px by the
+   in ProfileView.tsx (2 columns) and collapsed to 1 column at <= 1100px by the
    canonical rule in responsive.css section 14. The `grid-template-columns`
    below is a legacy fallback only (it is overridden by the inline style) and is
    kept for resilience. Do NOT add `.profile-layout { grid-template-columns }`
@@ -3915,7 +3918,7 @@ td.collapsed-cell {
    they lacked !important and were always beaten by the inline
    gridTemplateColumns on `.profile-layout` in ProfileView.tsx. They are removed
    to prevent future drift. The canonical Profile collapse (1 column at
-   <= 1450px) now lives in responsive.css section 14. Only the form-card and
+   <= 1100px) now lives in responsive.css section 14. Only the form-card and
    field-row rules below are still meaningful (they affect the edit-identity
    modal form, not the main layout grid). */
 @media (max-width: 1200px) {

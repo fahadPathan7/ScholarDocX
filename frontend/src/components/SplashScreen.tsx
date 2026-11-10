@@ -202,9 +202,6 @@ export function SplashScreen({ message }: { message: string }) {
                   <div className="splash-loader">
                     <div className="splash-loader-bar" />
                   </div>
-                  <p className="splash-message-secondary">
-                    The first load after a period of inactivity may take up to a minute while the server wakes up.
-                  </p>
                 </div>
               )}
 

@@ -102,6 +102,15 @@ export function NoteToolbar({
           `margin-left: auto` and knocked it back to the left. */}
       <div className="sticky-toolbar-row filters">
         <div className="sticky-color-filter" role="group" aria-label="Filter by colour">
+          <button
+            type="button"
+            className={filter.color === null ? "sticky-tag chip selected" : "sticky-tag chip"}
+            onClick={() => onFilter({ ...filter, color: null })}
+            aria-pressed={filter.color === null}
+            title="Show notes of every colour"
+          >
+            All
+          </button>
           {NOTE_COLORS.map((color) => {
             const on = filter.color === color.key;
             return (

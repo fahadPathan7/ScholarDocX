@@ -227,12 +227,13 @@
   padding: 18px;
   position: relative;
   transition: transform 160ms ease;
+  -webkit-font-smoothing: antialiased;
   font-family: 'Caveat', cursive;
   font-size: 20px;
 }
 
 .sticky-card:hover {
-  transform: translateY(-2px) rotate(0deg);
+  transform: translateY(-2px);
 }
 
 .sticky-card::before {
@@ -265,10 +266,13 @@
 .sticky-card.color-rose { background: #f3c8c8; }
 .sticky-card.color-lilac { background: #ddd0f2; }
 .sticky-card.color-sand { background: #eadcc4; }
-.sticky-card.tilt-0 { transform: rotate(1deg); }
-.sticky-card.tilt-1 { transform: rotate(-2deg); }
-.sticky-card.tilt-2 { transform: rotate(1.5deg); }
-.sticky-card.tilt-3 { transform: rotate(-1deg); }
+/* No rotate() on the card: a rotated layer is rasterised without pixel-snapped
+   text, which made every note's text and icons look blurry. The tilt classes are
+   kept (NoteCard still emits them) but only vary the washi tape angle. */
+.sticky-card.tilt-0::before { transform: translateX(-50%) rotate(1deg); }
+.sticky-card.tilt-1::before { transform: translateX(-50%) rotate(-2deg); }
+.sticky-card.tilt-2::before { transform: translateX(-50%) rotate(1.5deg); }
+.sticky-card.tilt-3::before { transform: translateX(-50%) rotate(-1deg); }
 
 .sticky-card-head {
   align-items: flex-start;

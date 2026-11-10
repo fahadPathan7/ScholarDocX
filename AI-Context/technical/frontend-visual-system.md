@@ -291,6 +291,15 @@ interactive, and polished without becoming decorative marketing UI.
   `#how`). Footer credits "Designed & built by Fahad Pathan". Pricing display
   defaults come from `plan-defaults.ts`; zero-priced payloads are never
   rendered (SCHOLARDOCX-0214). No infrastructure jargon in landing copy.
+- **In-app brand alignment (SCHOLARDOCX-0230)**: `frontend/src/app-brand.css`
+  (imported last in `main.tsx`) warms the workspace to the landing page's
+  identity without replacing the teal system: ivory canvas tokens
+  (`--ui-canvas #f6f1e6`, warm `--ui-line`), serif display face
+  (`--font-display` = Fraunces) for h1/h2, section titles and the sidebar
+  wordmark, gold accent (`--ui-gold #c58a1b`) for the active-nav marker and the
+  Pro plan badge. Teal buttons/links and the dark-green sidebar are unchanged.
+  Put further brand-level tweaks in that file rather than editing tokens in
+  `visual-refresh.css`.
 - **Alignment conventions (SCHOLARDOCX-0213)**: system-wide UI alignment audit
   fixed the drift below and added shared primitives — reuse them instead of
   inline styles or new one-off variants:

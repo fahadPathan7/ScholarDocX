@@ -1,0 +1,59 @@
+/* Dashboard polish (SCHOLARDOCX-0242). Scoped to `.dashboard-grid`; tokens from tools-polish.css (--tp-*). */
+
+.main-content .dashboard-grid .section {
+  background: var(--tp-paper, #fffdf8);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 18px;
+  box-shadow: var(--tp-shadow, 0 1px 2px rgba(60, 44, 14, 0.08), 0 16px 30px -18px rgba(60, 44, 14, 0.35));
+}
+.main-content .dashboard-grid .section-head { border-bottom-color: var(--tp-line, rgba(88, 68, 32, 0.2)); }
+.main-content .dashboard-grid .section-head h2,
+.main-content .dashboard-grid .section-head h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: var(--tp-ink, #14262a);
+}
+.main-content .dashboard-grid .section-head .eyebrow {
+  color: var(--tp-teal-deep, #1f5f58);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+/* metric tiles */
+.main-content .dashboard-snapshot .metric-card {
+  background: linear-gradient(180deg, #fffefb, #f6efdc);
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 8px 16px -12px rgba(60, 44, 14, 0.35);
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+.main-content .dashboard-snapshot .metric-card:hover { transform: translateY(-2px); border-color: var(--tp-teal, #2f7d74); }
+.main-content .dashboard-snapshot .metric-card span { color: var(--tp-muted, #4f6466); font-weight: 600; }
+.main-content .dashboard-snapshot .metric-card strong {
+  color: var(--tp-ink, #14262a);
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 650;
+}
+.main-content .dashboard-snapshot .metric-card strong.metric-at-cap { color: #a13636; }
+
+/* calendar summary, event rows, empty states */
+.main-content .dashboard-grid .project-calendar-summary {
+  background: linear-gradient(135deg, #e3f2ed, #d6ebe3);
+  border: 1px solid rgba(47, 125, 116, 0.35);
+  border-radius: 14px;
+  color: var(--tp-ink, #14262a);
+}
+.main-content .dashboard-grid .upcoming-event {
+  background: #fff;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 12px;
+  box-shadow: 0 6px 12px -10px rgba(60, 44, 14, 0.4);
+}
+.main-content .dashboard-grid .empty {
+  background: var(--tp-paper-2, #faf5e9);
+  border: 1.5px dashed var(--tp-line-strong, rgba(88, 68, 32, 0.32));
+  border-radius: 12px;
+  color: var(--tp-ink-soft, #2c4244);
+}

@@ -300,6 +300,12 @@ interactive, and polished without becoming decorative marketing UI.
   Pro plan badge. Teal buttons/links and the dark-green sidebar are unchanged.
   Put further brand-level tweaks in that file rather than editing tokens in
   `visual-refresh.css`.
+- **Auth slow-start toast (SCHOLARDOCX-0231)**: Login, Register (and the
+  Google button) no longer render an inline "first load may take a minute" note
+  under the submit button. `SlowStartToast` (`components/SlowStartToast.tsx`,
+  styles `.auth-toast` in `LoginPage.css`) shows a bottom-centered toast while a
+  request is in flight and dismisses itself after 6s, re-arming on the next
+  submit. The splash screen's own wake-up tip is unchanged.
 - **Alignment conventions (SCHOLARDOCX-0213)**: system-wide UI alignment audit
   fixed the drift below and added shared primitives — reuse them instead of
   inline styles or new one-off variants:

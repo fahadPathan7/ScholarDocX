@@ -1,4 +1,3 @@
-import { AdminPortal } from "./AdminPortal";
 import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../../lib/api";
 import { hasRole, formatRoleName } from "../../lib/auth";
@@ -416,9 +415,8 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
       )}
 
       {selectedRole && (
-        <AdminPortal>
-          <div className="absolute inset-0 z-50 flex items-start justify-center pt-6 sm:pt-12 p-4 backdrop-blur-[10px] overflow-y-auto" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setSelectedRole(null)}>
-            <div className="modal-panel shadow-2xl flex flex-col mx-4 overflow-x-auto" style={{ width: '900px', maxWidth: '95vw', maxHeight: '85vh', padding: '0' }} onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setSelectedRole(null)}>
+            <div className="modal-panel shadow-2xl flex flex-col mx-4 overflow-x-auto" style={{ width: '900px', maxWidth: '95vw', maxHeight: 'calc(100% - 28px)', padding: '0' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Role Limits</p>
@@ -518,13 +516,11 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                 </button>
               </div>
             </div>
-          </div>
-        </AdminPortal>
+        </Modal>
       )}
 
       {editingLimit && (
-        <AdminPortal>
-          <div className="absolute inset-0 z-[60] flex items-start justify-center pt-24 backdrop-blur-[10px]" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setEditingLimit(null)}>
+        <Modal onClose={() => setEditingLimit(null)} zIndex={1060}>
             <form className="modal-panel shadow-2xl" onClick={(event) => event.stopPropagation()} onSubmit={handleSave}>
               <div className="modal-header">
                 <div>
@@ -599,13 +595,11 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                 </button>
               </div>
             </form>
-          </div>
-        </AdminPortal>
+        </Modal>
       )}
 
       {showInfo && (
-        <AdminPortal>
-          <div className="absolute inset-0 z-[70] flex items-start justify-center pt-24 backdrop-blur-[10px]" style={{ background: 'rgba(30, 41, 37, 0.22)' }} onClick={() => setShowInfo(false)}>
+        <Modal onClose={() => setShowInfo(false)} zIndex={1060}>
             <div className="bg-white rounded-2xl shadow-2xl w-full mx-4" style={{ width: '600px', maxWidth: '95vw' }} onClick={(e) => e.stopPropagation()}>
               <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
                 <div>
@@ -656,8 +650,7 @@ export function RoleLimitsTab({ onLimitsUpdated }: { onLimitsUpdated?: () => voi
                 </button>
               </div>
             </div>
-          </div>
-        </AdminPortal>
+        </Modal>
       )}
     </div>
   );

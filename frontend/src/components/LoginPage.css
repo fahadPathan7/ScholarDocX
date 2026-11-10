@@ -193,7 +193,6 @@
 }
 
 .auth-form.auth-form-horizontal .auth-submit,
-.auth-form.auth-form-horizontal .auth-loading-note,
 .auth-form.auth-form-horizontal .auth-divider,
 .auth-form.auth-form-horizontal .auth-google-wrapper {
   grid-column: 1 / -1;
@@ -604,12 +603,36 @@
   to { transform: rotate(360deg); }
 }
 
-.auth-loading-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ui-text-muted, #6b7280);
-  text-align: center;
+/* Slow-start toast: brief, self-dismissing heads-up while a request is in
+   flight (replaces the old inline note under the submit buttons). */
+.auth-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: #0e1b33;
+  color: #fff8e8;
+  font-size: 13.5px;
+  line-height: 1.45;
+  box-shadow: 0 18px 40px -12px rgba(14, 27, 51, 0.55);
+  animation: auth-toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.auth-toast svg { flex: none; color: #f3dfa8; }
+
+@keyframes auth-toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-toast { animation: none; }
 }
 
 /* Generic inline spinner for auth submit buttons (Log In, Create Account,

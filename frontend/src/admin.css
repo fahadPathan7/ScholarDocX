@@ -982,3 +982,15 @@
   border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 4px;
 }
+/* Admin page containment (SCHOLARDOCX-0233): nothing inside the admin page may
+   be wider than the page's padded content box, so the right-hand 24px gutter
+   always shows (wide tables scroll inside their own wrappers). */
+#admin-view-root {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#admin-view-root > * {
+  min-width: 0;
+  max-width: 100%;
+}

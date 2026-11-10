@@ -7,6 +7,7 @@ import type { User } from "../lib/auth";
 import { useAuth } from "../contexts/AuthContext";
 import { PasswordField } from "./PasswordField";
 import { GoogleAuthButton } from "./GoogleAuthButton";
+import { SlowStartToast } from "./SlowStartToast";
 import "./LoginPage.css";
 
 export function LoginPage() {
@@ -178,6 +179,7 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
+      <SlowStartToast show={loading || inviteLoading || forgotLoading} />
       <div className="auth-card">
         {/* Back to home + back navigation row */}
         <div className="auth-topnav">
@@ -241,11 +243,6 @@ export function LoginPage() {
             <button type="submit" disabled={inviteLoading} className="auth-submit">
               {inviteLoading ? (<><span className="auth-spinner" aria-hidden="true" />Submitting…</>) : "Submit Request"}
             </button>
-            {inviteLoading && (
-              <p className="auth-loading-note">
-                The first load after a period of inactivity may take up to a minute while the server wakes up.
-              </p>
-            )}
             <div className="auth-switch-row">
               <button type="button" onClick={() => setShowInviteRequest(false)} className="auth-link-btn muted">Back to login</button>
               <span className="auth-switch-sep">•</span>
@@ -293,11 +290,6 @@ export function LoginPage() {
               <button type="submit" disabled={forgotLoading} className="auth-submit">
                 {forgotLoading ? (<><span className="auth-spinner" aria-hidden="true" />Submitting…</>) : "Submit Request"}
               </button>
-              {forgotLoading && (
-                <p className="auth-loading-note">
-                  The first load after a period of inactivity may take up to a minute while the server wakes up.
-                </p>
-              )}
               <div className="auth-switch-row">
                 <button type="button" onClick={() => setShowForgotPassword(false)} className="auth-link-btn muted">Back to login</button>
                 <span className="auth-switch-sep">•</span>
@@ -366,11 +358,6 @@ export function LoginPage() {
               <button type="submit" disabled={loading} className="auth-submit">
                 {loading ? (<><span className="auth-spinner" aria-hidden="true" />Logging in…</>) : "Log In"}
               </button>
-              {loading && (
-                <p className="auth-loading-note">
-                  The first load after a period of inactivity may take up to a minute while the server wakes up.
-                </p>
-              )}
 
               <div className="auth-divider">
                 <span>or</span>

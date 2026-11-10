@@ -4,6 +4,7 @@ import { UserPlus, ArrowLeft, Ticket } from "lucide-react";
 import { api } from "../lib/api";
 import { PasswordField } from "./PasswordField";
 import { GoogleAuthButton } from "./GoogleAuthButton";
+import { SlowStartToast } from "./SlowStartToast";
 import "./LoginPage.css";
 
 // SCHOLARDOCX-0169: registration is simplified to two paths:
@@ -56,6 +57,7 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <SlowStartToast show={loading} />
       <div className="auth-card auth-card-wide">
         <div className="auth-topnav">
           <Link to="/" className="auth-back-home">
@@ -149,11 +151,6 @@ export function RegisterPage() {
           <button type="submit" disabled={loading} className="auth-submit">
             {loading ? (<><span className="auth-spinner" aria-hidden="true" />Registering…</>) : "Create Account"}
           </button>
-          {loading && (
-            <p className="auth-loading-note">
-              The first load after a period of inactivity may take up to a minute while the server wakes up.
-            </p>
-          )}
 
           <div className="auth-divider"><span>or</span></div>
           <GoogleAuthButton label="Sign up with Google" />

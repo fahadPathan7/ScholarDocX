@@ -1,8 +1,7 @@
 import { X, Zap, Coins } from "lucide-react";
 import { useUsage } from "../contexts/UsageContext";
 import { useTokenEconomy } from "../contexts/TokenEconomyContext";
-import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { Modal } from "./Modal";
 
 const USAGE_LABELS: Record<string, string> = {
   news_searches_per_day: "Daily Scholarship Hunts",
@@ -17,28 +16,15 @@ const PERMISSION_LABELS: Record<string, string> = {
   admin_manage_token_requests: "Manage Credit Purchase Requests",
 };
 
-function ModalPortal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-  const root = document.getElementById("root") || document.body;
-  return createPortal(children, root);
-}
-
 export function UsageModal({ onClose }: { onClose: () => void }) {
   const { usageData } = useUsage();
   const { balance } = useTokenEconomy();
 
   return (
-    <ModalPortal>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-[10px]"
-        style={{ background: "rgba(30, 41, 37, 0.22)" }}
-        onClick={onClose}
-      >
+      <Modal onClose={onClose}>
         <div
           className="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-[960px] overflow-hidden"
-          style={{ maxHeight: "80vh" }}
+          style={{ maxHeight: "calc(100% - 28px)" }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
@@ -232,7 +218,6 @@ export function UsageModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </div>
-      </div>
-    </ModalPortal>
+      </Modal>
   );
 }

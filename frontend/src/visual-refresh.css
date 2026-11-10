@@ -2292,7 +2292,7 @@ main {
 
 /* Flowing pages with no inner scroller: grow to content; `.tab-container`
    (overflow-y: scroll) owns the scrollbar. */
-.profile-page {
+.profile-page:not(#admin-view-root) {
   flex: 0 0 auto;
   min-height: auto;
   overflow: visible;
@@ -2320,4 +2320,20 @@ main {
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(233, 244, 239, 0.25) transparent;
+}
+
+/* Safety net for every main-content modal (SCHOLARDOCX-0229): a panel taller
+   than the work surface scrolls inside the backdrop instead of running off the
+   bottom of the screen. */
+.modal-backdrop-main {
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+/* Panels are sized against the work surface, never the browser window: many
+   older panel classes use `vw`/`vh` caps that ignore the 280px sidebar and so
+   slid under it or past the right edge. */
+.modal-backdrop-main > .modal-panel {
+  max-width: calc(100% - 32px) !important;
 }

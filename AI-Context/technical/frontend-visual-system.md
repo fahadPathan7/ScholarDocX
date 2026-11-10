@@ -118,7 +118,7 @@ interactive, and polished without becoming decorative marketing UI.
      must be a direct child of `.main-content` (`position: relative`).
   2. **CSS positioning** — `.modal-backdrop-main` uses `position: absolute;
      inset: 0` so it fills `.main-content` only. The base `.modal-backdrop`
-     class is `position: fixed` (for `scope="body"` modals in `App.tsx`);
+     class is `position: fixed` (only for `scope="body"`, which in-app modals must not use — SCHOLARDOCX-0229);
      `.modal-backdrop-main` overrides that — do not merge or remove the override.
 
   **Why agents regress this (do not repeat)**
@@ -183,8 +183,8 @@ interactive, and polished without becoming decorative marketing UI.
   ```
 
   **Migration status:** every main-content modal now uses `<Modal>`
-  (SCHOLARDOCX-0217 migrated the last inline backdrops — the App.tsx global
-  modals via `scope="body"`, `AboutView` models dialog, and
+  (SCHOLARDOCX-0217 migrated the last inline backdrops — the App.tsx document
+  modals (now default `scope="main"`), `AboutView` models dialog, and
   `AddToTrackerModal`). The only remaining non-`<Modal>` backdrop is
   `LoginPage.tsx`'s `auth-modal-backdrop` — a pre-login, full-viewport dialog
   where there is no sidebar/TopBar to keep sharp; leave it unless the auth

@@ -11,6 +11,7 @@ import { AiTokenWidget } from "./AiTokenWidget";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
 import { useAuth } from "../contexts/AuthContext";
+import { Modal } from "./Modal";
 import { UsageModal } from "./UsageModal";
 import { getPlanDaysRemaining, getUserPlanStatus } from "../lib/auth";
 
@@ -614,6 +615,7 @@ export function ProfileView({
 
       <div className="profile-page-logout-row">
         <button className="profile-save-button profile-logout-button" type="button" onClick={handleLogout}>
+          <LogOut size={16} />
           Logout
         </button>
       </div>
@@ -623,7 +625,7 @@ export function ProfileView({
       )}
 
       {showPasswordModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowPasswordModal(false)}>
+        <Modal onClose={() => setShowPasswordModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200/60" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2 text-slate-800 font-semibold">
@@ -723,12 +725,12 @@ export function ProfileView({
               </form>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
 
       {showIdentityModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowIdentityModal(false)}>
+        <Modal onClose={() => setShowIdentityModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200/60" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2 text-slate-800 font-semibold">
@@ -812,11 +814,11 @@ export function ProfileView({
               </form>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showAvatarModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowAvatarModal(false)}>
+        <Modal onClose={() => setShowAvatarModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200/60" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2 text-slate-800 font-semibold">
@@ -882,12 +884,12 @@ export function ProfileView({
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showNotificationsModal && (
-        <div className="absolute inset-0 z-50 flex items-start justify-center pt-20 pb-16 backdrop-blur-sm" style={{ background: 'rgba(30, 41, 37, 0.4)' }} onClick={() => setShowNotificationsModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl flex flex-col w-full mx-4" style={{ width: "960px", maxWidth: "94vw", maxHeight: "calc(100vh - 14rem)" }} onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setShowNotificationsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl flex flex-col w-full mx-4" style={{ width: "960px", maxWidth: "calc(100% - 32px)", maxHeight: "calc(100% - 28px)" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-slate-200 shrink-0 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Bell className="w-5 h-5 text-indigo-500" />
@@ -958,7 +960,7 @@ export function ProfileView({
               <button onClick={() => setShowNotificationsModal(false)} className="px-5 py-2.5 text-sm font-medium text-white bg-slate-600 rounded-lg hover:bg-slate-700 transition-colors">Close</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

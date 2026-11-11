@@ -92,7 +92,7 @@ export function GoogleAuthButton({ label }: { label: string }) {
           </>
         )}
       </button>
-      <SlowStartToast show={status === "connecting"} />
+      <SlowStartToast show={status === "connecting"} inline />
     </div>
   );
 }

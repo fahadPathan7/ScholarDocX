@@ -626,6 +626,19 @@
 }
 .auth-toast svg { flex: none; color: #f3dfa8; }
 
+/* Inline variant: sits in the flow under its trigger instead of floating over the card. */
+.auth-toast.auth-toast-inline {
+  position: static;
+  transform: none;
+  max-width: none;
+  margin-top: 12px;
+  animation: auth-toast-inline-in 0.3s ease-out;
+}
+@keyframes auth-toast-inline-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
 @keyframes auth-toast-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
   to { opacity: 1; transform: translate(-50%, 0); }

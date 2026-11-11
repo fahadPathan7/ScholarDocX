@@ -10,7 +10,7 @@ import { Hourglass } from "lucide-react";
  * and the request is still running, the text switches to "almost there".
  * Resets the next time `show` goes false → true.
  */
-export function SlowStartToast({ show, countdownSeconds = 30 }: { show: boolean; countdownSeconds?: number }) {
+export function SlowStartToast({ show, countdownSeconds = 30, inline = false }: { show: boolean; countdownSeconds?: number; inline?: boolean }) {
   const [remaining, setRemaining] = useState(countdownSeconds);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function SlowStartToast({ show, countdownSeconds = 30 }: { show: boolean;
   if (!show) return null;
 
   return (
-    <div className="auth-toast" role="status" aria-live="polite">
+    <div className={inline ? "auth-toast auth-toast-inline" : "auth-toast"} role="status" aria-live="polite">
       <Hourglass size={16} aria-hidden="true" />
       <span>
         {remaining > 0

@@ -48,13 +48,21 @@ Routing and synthesis prompts stay separate. Provider-error and local-fallback r
 - After a completed session has at least four messages the frontend asks `/ai/summarize` for a rolling summary (under 600 tokens, preserving intent and durable decisions); the next request carries `[Conversation Summary So Far]` and `[Last Turn]`. Failed summaries are ignored so provider errors never become memory. Summarization is user-billed even though users do not trigger it explicitly.
 - Drafting receives only the required text and metadata; suggestions are shown separately from the original, and the user accepts, edits, or discards.
 
-## Agentic actions (plan, confirm, execute)
+## Agentic actions (tool loop, confirm, execute)
 
-1. The frontend sends a mutation-looking request to `/ai/actions/plan` (gates: `can_use_agents` and the planner provider's `can_use_<provider>`).
-2. The planner returns `no_action`, `needs_info`, or `needs_confirmation`. Only Confirm calls `/ai/actions/execute`, which checks `can_use_agents` as a boolean and enforces the same role limits as the manual routes for create actions (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`, `records_per_sheet`, `total_sticky_notes`).
-3. Execution uses `Store` methods; provider output is never executable code. All actions are local database mutations: no emails, submissions, external uploads, or overwriting document versions. Admin actions are structurally impossible (no admin action type; the planner prompt refuses them). Agent tasks are always user-initiated; there are no background agent runs.
+1. The frontend sends a workspace request to `/ai/actions/plan` (gates: `can_use_agents` and the provider's `can_use_<provider>`). It also routes there any reply to an agent turn (`follow_up: true`, which skips the backend's action-word gate) and sends the last 10 turns as structured `history` (SCHOLARDOCX-0255).
+2. **Tool loop** (`ai_agent.run_agent_turn`, first choice when a provider is configured): up to `MAX_AGENT_STEPS` (5) tool-calling model calls via `AiService.chat_with_tools` (OpenAI-compatible; Gemini via its OpenAI-compatible endpoint), each one billed like `chat`. Two tools:
+   - `run_read_action`: one catalog READ action, normalized and executed immediately; bounded results (`serialize_results_for_analysis`) go back to the model. A write sent here is refused.
+   - `propose_changes`: the only route to a write. Normalized with the planner's normalizers; missing fields go back to the model as a tool error. A valid proposal ends the turn as `needs_confirmation` (Confirm/Cancel). Writes never run inside the loop.
+   A text reply ends the turn as `answered`. If the first call fails (e.g. a model that rejects `tools`), the single-shot planner below runs instead.
+3. **Single-shot planner** (fallback): returns `no_action`, `needs_info`, or `needs_confirmation`; with no provider at all, the regex heuristic plan.
+4. Only Confirm calls `/ai/actions/execute`, which checks `can_use_agents` as a boolean and enforces the same role limits as the manual routes for create actions (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`, `records_per_sheet`, `total_sticky_notes`).
+5. Execution uses `Store` methods; provider output is never executable code. All actions are local database mutations: no emails, submissions, external uploads, or overwriting document versions. Admin actions are structurally impossible (no admin action type; the prompts refuse them). Agent tasks are always user-initiated; there are no background agent runs.
+6. Plain chat (`/ai/chat`) has no tools; its system prompt forbids claiming any workspace change.
 
-Structure: `ai_actions.py` (orchestration, planner prompt, heuristic fallback), `ai_actions_catalog.py` (action registry), `ai_actions_workspace.py` and `ai_actions_execute.py` (sheet-workspace normalizers and executors), `ai_actions_records.py` (spec-driven create/update/delete/list for record domains; foreign keys are resolved by name, never by provider-supplied ids), `ai_actions_read.py` (read and analysis helpers), `ai_actions_analyze.py` (post-execution analysis).
+`add_rows` accepts blank rows (`rows: [{}]` or `count`) and `insert_after_row` (1-based); before SCHOLARDOCX-0255 an empty row was reported as missing `row_values`, so "add an empty row" could never be planned. The action catalog shown to every model is `ai_actions.ACTION_EXAMPLES_TEXT`.
+
+Structure: `ai_actions.py` (orchestration, planner prompt, heuristic fallback), `ai_agent.py` (tool loop), `ai_actions_catalog.py` (action registry), `ai_actions_workspace.py` and `ai_actions_execute.py` (sheet-workspace normalizers and executors), `ai_actions_records.py` (spec-driven create/update/delete/list for record domains; foreign keys are resolved by name, never by provider-supplied ids), `ai_actions_read.py` (read and analysis helpers), `ai_actions_analyze.py` (post-execution analysis).
 
 Behaviours worth keeping: later actions in a plan inherit `project_ref` / `sheet_ref` from earlier ones; column keys, project and sheet names resolve case-insensitively with a substring fallback; pin/dashboard actions use the real schema fields; `filter_rows_by_value` resolves the column semantically via `find_best_column`.
 

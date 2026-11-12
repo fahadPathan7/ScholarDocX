@@ -114,8 +114,16 @@ def normalize_workspace_action(
 
     if action_type == "add_rows":
         rows = raw_action.get("rows") if isinstance(raw_action.get("rows"), list) else []
+        # SCHOLARDOCX-0255: an empty dict is a legitimate *blank* row. Dropping
+        # it (and then reporting row_values missing) made "add an empty row"
+        # impossible, so the planner kept asking the user for values.
         clean_rows = [clean_row(row) for row in rows if isinstance(row, dict)]
-        clean_rows = [row for row in clean_rows if row]
+        try:
+            count = int(raw_action.get("count") or 0)
+        except (TypeError, ValueError):
+            count = 0
+        if not clean_rows and count > 0:
+            clean_rows = [{} for _ in range(min(count, 50))]
         sh_ref = sheet_ref(raw_action, previous_actions)
         proj_ref = project_ref(raw_action, previous_actions)
         missing = []
@@ -128,6 +136,13 @@ def normalize_workspace_action(
         if missing:
             return {"type": action_type, "missing": missing}
         action = {"type": action_type, "rows": clean_rows}
+        # 1-based row number to insert after ("after row 4" -> 4; 0 = top).
+        insert_after = raw_action.get("insert_after_row")
+        try:
+            if insert_after is not None and str(insert_after).strip() != "":
+                action["insert_after_row"] = max(0, int(insert_after))
+        except (TypeError, ValueError):
+            pass
         action.update(proj_ref)
         action.update(sh_ref)
         return action

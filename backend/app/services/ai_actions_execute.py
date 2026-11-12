@@ -216,13 +216,25 @@ def execute_add_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
         for col in columns
         if not (isinstance(col, dict) and col.get("type") == "group")
     ]
-    new_rows = [row_for_columns(row, column_names) for row in action["rows"]]
-    new_rows = [row for row in new_rows if row]
+    # A blank row is a row of empty cells, not nothing (SCHOLARDOCX-0255).
+    new_rows = [
+        row_for_columns(row, column_names) if row else {name: "" for name in column_names}
+        for row in action["rows"]
+    ]
+    # A row whose keys matched no column is still dropped (it would be blank
+    # by accident, not by request).
+    new_rows = [
+        row for row, requested in zip(new_rows, action["rows"]) if row or not requested
+    ]
     per_sheet_limit = svc.limit_for("records_per_sheet")
     if per_sheet_limit != -1 and len(rows) + len(new_rows) > per_sheet_limit:
         svc.raise_limit(f"Limit exceeded for records_per_sheet. Your plan allows {per_sheet_limit}.")
     svc.enforce("total_records", len(new_rows))
-    rows.extend(new_rows)
+    insert_after = action.get("insert_after_row")
+    if isinstance(insert_after, int) and 0 <= insert_after < len(rows):
+        rows[insert_after:insert_after] = new_rows
+    else:
+        rows.extend(new_rows)
     updated = svc.store.update_record(
         "project_pages",
         page["id"],

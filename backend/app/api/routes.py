@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.compat import safe_parse_datetime, safe_parse_date, safe_json_loads
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
@@ -123,11 +123,20 @@ class SummarizePayload(BaseModel):
     model: Optional[str] = None
 
 
+class AiChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(default="", max_length=8000)
+
+
 class AiActionPlanPayload(BaseModel):
     message: str
     context: str = ""
     model: Optional[str] = None
     message_count: Optional[int] = Field(default=None, ge=0)
+    # SCHOLARDOCX-0255: recent turns for the agent tool loop, and whether this
+    # message answers an agent turn (skips the action-word gate).
+    history: list[AiChatTurn] = Field(default_factory=list, max_length=20)
+    follow_up: bool = False
 
 
 def _session_message_count(payload) -> int:
@@ -811,6 +820,8 @@ async def ai_action_plan(
     return await AiActionService(settings, store).plan(
         payload.message, payload.context, payload.model,
         user=current_user, session=store.db,
+        history=[turn.model_dump() for turn in payload.history],
+        follow_up=payload.follow_up,
     )
 
 

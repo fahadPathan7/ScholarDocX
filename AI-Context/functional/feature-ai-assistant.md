@@ -127,6 +127,15 @@ Excluded on purpose:
 
 Agentic action rules:
 
+- The agent works in a tool loop (SCHOLARDOCX-0255): it looks things up itself
+  (reads run automatically within the turn) and prepares every change as a list
+  the user confirms. Replies to an agent turn stay with the agent, so short
+  follow-ups like "empty is fine" or "row 5" keep working. Missing cell values
+  stay empty instead of being demanded: "add a blank row after row 4" is a
+  valid request.
+- The assistant never says a change was made unless it was executed after the
+  user confirmed it.
+
 - The assistant must not mutate local data immediately from a chat message.
 - The backend first returns an action plan for review (for both READ and WRITE operations).
 - The UI must show a confirmation control before execution.

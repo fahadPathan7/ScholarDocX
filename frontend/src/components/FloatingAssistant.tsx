@@ -29,7 +29,9 @@ type Message = {
   imageUrl?: string;
   attachments?: { name: string; type: string }[];
   actionPlan?: ActionPlan;
-  actionState?: "pending" | "running" | "done" | "cancelled" | "error";
+  // "superseded": the user sent a new request instead of answering this
+  // card, so it can no longer be confirmed (nothing was changed).
+  actionState?: "pending" | "running" | "done" | "cancelled" | "error" | "superseded";
   /** Set on failed chat/research bubbles so the last one can offer a
    *  "Try again" action that replays the exact request. */
   retryRequest?: { path: string; payload: RecordMap };
@@ -48,7 +50,8 @@ type ChatSession = {
 };
 
 type ActionPlan = {
-  status: "no_action" | "needs_info" | "needs_confirmation";
+  // "answered": the agent replied in text after using its tools (SCHOLARDOCX-0255).
+  status: "no_action" | "needs_info" | "needs_confirmation" | "answered";
   message?: string;
   missing?: string[];
   actions?: RecordMap[];
@@ -650,7 +653,15 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
       timestamp: Date.now()
     };
 
-    const updatedMessages = [...currentSession.messages, userMessage];
+    // A new request replaces any card still waiting for Confirm/Cancel.
+    // Otherwise an old card stays clickable after the conversation has moved
+    // on, and confirming it would run a plan the user has walked away from.
+    const updatedMessages = [
+      ...currentSession.messages.map((m) =>
+        m.actionState === "pending" ? { ...m, actionState: "superseded" as const } : m,
+      ),
+      userMessage,
+    ];
     setCurrentSession(prev => ({ ...prev, messages: updatedMessages }));
     setInput("");
     setLoading(true);
@@ -664,13 +675,55 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     try {
       let response: RecordMap;
 
-      if (forceAction || looksLikeWorkspaceAction(userMessage.content)) {
+      // SCHOLARDOCX-0255: a reply to an agent turn ("empty is fine",
+      // "confirm", "row 5") has no action words of its own. It used to fall
+      // through to plain chat, which then claimed the change was made. Keep
+      // the conversation with the agent instead.
+      const lastAssistant = [...currentSession.messages].reverse().find((m) => m.role === "assistant");
+      const isAgentFollowUp = Boolean(lastAssistant?.mode?.startsWith("agentic"));
+
+      if (forceAction || isAgentFollowUp || looksLikeWorkspaceAction(userMessage.content)) {
         try {
           const actionPlan = await api.post<ActionPlan>("/ai/actions/plan", {
             message: userMessage.content,
             context: memoryContext,
-            model: backgroundModel || selectedModel || undefined
+            model: backgroundModel || selectedModel || undefined,
+            follow_up: isAgentFollowUp,
+            // Recent turns as structured history so the agent can resolve
+            // "it", "that sheet", "the empty one" without guessing.
+            history: currentSession.messages
+              .filter((m) => (m.role === "user" || m.role === "assistant") && m.content)
+              .slice(-10)
+              .map((m) => {
+                // A proposal the user never confirmed must not read to the
+                // agent as something that happened.
+                const unconfirmed =
+                  m.actionPlan?.status === "needs_confirmation" &&
+                  m.actionState !== "done" && m.actionState !== "running";
+                const note = unconfirmed ? "\n[Proposal not confirmed; nothing was changed.]" : "";
+                return { role: m.role, content: m.content.slice(0, 2000) + note };
+              }),
           });
+
+          if (actionPlan.status === "answered") {
+            const assistantMessage: Message = {
+              role: "assistant",
+              content: actionPlan.message || "Done.",
+              timestamp: Date.now(),
+              mode: "agentic-answer",
+            };
+            const finalMessages = [...updatedMessages, assistantMessage];
+            const firstUserMessage = finalMessages.find(m => m.role === "user");
+            const titleStr = firstUserMessage ? firstUserMessage.content : finalMessages[0]?.content || "";
+            const title = titleStr.slice(0, 50) + (titleStr.length > 50 ? "..." : "");
+            setCurrentSession(prev => ({
+              ...prev,
+              messages: finalMessages,
+              title: title || "New Chat"
+            }));
+            refreshUsage();
+            return;
+          }
 
           if (actionPlan.status === "needs_info" || actionPlan.status === "needs_confirmation") {
             // Auto-execute READ-only plans (get/count/show) without confirmation
@@ -1210,7 +1263,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                       </ul>
                     </div>
                   )}
-                  {message.actionPlan?.status === "needs_confirmation" && message.actionState !== "done" && message.actionState !== "cancelled" && (
+                  {message.actionPlan?.status === "needs_confirmation" && message.actionState === "superseded" && (
+                    <div className="message-sources" style={{ borderTop: "1px solid rgba(47, 109, 122, 0.18)", paddingTop: "8px", opacity: 0.75 }}>
+                      <small>Not run. You sent a new request instead, so nothing was changed.</small>
+                    </div>
+                  )}
+                  {message.actionPlan?.status === "needs_confirmation" && message.actionState !== "done" && message.actionState !== "cancelled" && message.actionState !== "superseded" && (
                     <div
                       className="message-sources"
                       style={{

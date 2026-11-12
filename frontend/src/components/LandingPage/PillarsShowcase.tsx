@@ -190,7 +190,7 @@ function ResearchExpertPreview() {
         </div>
         <div className="lp-mock-title">
           <FileText size={13} />
-          Quantum_GNN_2025.pdf
+          <span className="lp-mock-title-text">Quantum_GNN_2025.pdf</span>
         </div>
         <span className="lp-mock-status-pill cyan">Paper Loaded</span>
       </div>

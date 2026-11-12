@@ -120,8 +120,9 @@
 }
 
 .lp-hero-trust {
-  margin-top: 26px;
-  display: inline-flex;
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
   align-items: center;
   gap: 12px;
   font-size: 13px;
@@ -160,10 +161,14 @@
 
 /* "New: MCP" link under the hero buttons */
 .lp-hero-mcp-link {
-  display: inline-flex;
+  /* Its own centred row, so it never sits against the trust line below. */
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: 10px;
-  margin-top: 22px;
+  margin: 30px auto 0;
   padding: 8px 16px 8px 8px;
   border-radius: 9999px;
   background: var(--lp-ink, #0e1b33);
@@ -184,4 +189,8 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .lp-hero-mcp-link { font-size: 13px; text-align: left; margin-top: 24px; }
 }

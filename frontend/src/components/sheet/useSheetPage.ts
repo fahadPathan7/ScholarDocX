@@ -15,6 +15,7 @@ import { parseTSV } from "./sheetPaste";
 import { formatCSV } from "./sheetCsv";
 import { useSheetPreferences } from "./useSheetPreferences";
 import { useBulkCellEdits } from "./useBulkCellEdits";
+import { useColumnQuickEdits } from "./useColumnQuickEdits";
 import type { FormatRule } from "./sheetInsights";
 
 export interface UseSheetPageParams {
@@ -644,8 +645,12 @@ export function useSheetPage({
     const nextRows = [...rows, {}];
     setRows(nextRows);
     record({ columns, rows: nextRows });
-    await notify("record_create", { project_id: String(selectedProjectId) });
-    await persistPage(columns, nextRows, true);
+    // Not awaited: the row is already on screen, and the caller opens an
+    // editor in it. Waiting on two round trips made "click an empty row,
+    // start typing" lag. persistPage reports its own failures, and the write
+    // queue keeps this save ahead of the cell edit that follows.
+    void Promise.resolve(notify("record_create", { project_id: String(selectedProjectId) })).catch(() => {});
+    void persistPage(columns, nextRows, true);
     return nextRows.length - 1;
   };
 
@@ -1045,6 +1050,14 @@ export function useSheetPage({
     setRows, record, persistPage, onToast, showConfirm,
   });
 
+  // Header-level column edits: rename in place, add a letter, retype, delete.
+  const columnQuickEdits = useColumnQuickEdits({
+    columns, rows, selectedPageId,
+    setColumns, setRows, record, persistPage, onToast, showConfirm,
+    sortState, setSortState, filters, setFilters, groupBy, setGroupBy,
+    focusedCell, setFocusedCell,
+  });
+
   const bulkDuplicate = async () => {
     if (selectedRows.size === 0) return;
     if (!(await ensureRowCapacity(selectedRows.size))) return;
@@ -1123,6 +1136,9 @@ export function useSheetPage({
     // Presentation preferences (localStorage, per person)
     ...preferences,
     formatRules, setFormatRules,
+
+    // Direct column edits from the grid header (one undo step each)
+    ...columnQuickEdits,
 
     // Bulk cell edits (one undo step each)
     fillDownSelection,

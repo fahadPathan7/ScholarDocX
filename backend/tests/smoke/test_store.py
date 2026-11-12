@@ -288,12 +288,54 @@ def test_project_page_json_and_notifications(tmp_path):
         store.db.close()
 
 
+def test_create_sheet_is_blank_by_default(tmp_path):
+    """SCHOLARDOCX-0259: no template asked for means lettered columns, no rows."""
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Housing search"})
+
+        result = store.create_sheet_with_defaults(project["id"], "Flats")
+
+        page_cols_raw = result["page"]["columns_json"]
+        page_cols = json.loads(page_cols_raw) if isinstance(page_cols_raw, str) else page_cols_raw
+        assert [c["name"] for c in page_cols] == ["A", "B", "C", "D", "E"]
+        assert all(c["type"] == "text" for c in page_cols)
+        assert result["page"]["rows"] == []
+        assert not project.get("degree_type")
+    finally:
+        store.db.close()
+
+
+def test_create_sheet_with_supplied_columns(tmp_path):
+    store, connection = make_store(tmp_path)
+    try:
+        project = store.create_record("projects", {"name": "Reading list"})
+
+        result = store.create_sheet_with_defaults(
+            project["id"],
+            "Papers",
+            columns=[
+                {"name": "Title", "type": "text", "width": 220},
+                {"name": "Read", "type": "bool"},
+                {"name": "Stage", "type": "select", "options": ["Queued", "Done"]},
+            ],
+        )
+
+        page_cols_raw = result["page"]["columns_json"]
+        page_cols = json.loads(page_cols_raw) if isinstance(page_cols_raw, str) else page_cols_raw
+        assert [c["name"] for c in page_cols] == ["Title", "Read", "Stage"]
+        assert page_cols[0]["width"] == 220
+        assert page_cols[2]["options"] == ["Queued", "Done"]
+    finally:
+        store.db.close()
+
+
 def test_create_sheet_with_single_default_table(tmp_path):
     store, connection = make_store(tmp_path)
     try:
         project = store.create_record("projects", {"name": "USA MS", "degree_type": "masters"})
 
-        result = store.create_sheet_with_defaults(project["id"], "Fall shortlist")
+        result = store.create_sheet_with_defaults(project["id"], "Fall shortlist", template="application")
         summary = store.project_summary(project["id"])
 
         assert result["sheet"]["name"] == "Fall shortlist"

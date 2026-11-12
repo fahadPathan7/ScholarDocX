@@ -1,14 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
-import { ChevronLeft, Edit, LayoutDashboard, Lightbulb, Pin, Plus, Trash2, X } from "lucide-react";
-import { Field } from "./Field";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { ChevronLeft } from "lucide-react";
 import { Modal } from "./Modal";
 
-import { PinActions } from "./PinActions";
 import { Section } from "./Section";
-import { EmailConfigModal, EmailConfig } from "./EmailConfigModal";
+import { EmailConfigModal } from "./EmailConfigModal";
 import { ProjectDashboard } from "./ProjectDashboard";
-import { api, createRecord, listRecords, RecordMap, notify } from "../lib/api";
-import { formatLongDate } from "../lib/date";
+import { api, listRecords, RecordMap, notify } from "../lib/api";
 import { useDialog } from "./DialogProvider";
 import { useUsage } from "../contexts/UsageContext";
 
@@ -16,8 +13,15 @@ import { useUsage } from "../contexts/UsageContext";
 export type { ColumnType, ColumnDef, ProjectNavigationTarget } from "./sheet/sheetModel";
 export { GROUP_COLORS, SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
 
+/* Projects root + sheet list (SCHOLARDOCX-0259) */
+import { ProjectsHome } from "./projects/ProjectsHome";
+import { ProjectSheetsSection } from "./projects/ProjectSheetsSection";
+import type { SheetStart } from "./projects/CreateSheetModal";
+
 /* Sheet sub-components */
-import { SHEET_TEMPLATES, saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
+import { saveCustomTemplate, getCustomTemplates } from "./sheet/sheetModel";
+import { nextSheetName } from "./sheet/sheetColumns";
+import { SheetTabsBar } from "./sheet/SheetTabsBar";
 import type { SheetPage, ProjectNavigationTarget, DateColorConfig } from "./sheet/sheetModel";
 import { useSheetPage } from "./sheet/useSheetPage";
 import { SheetToolbar, SheetToolbarActions } from "./sheet/SheetToolbar";
@@ -55,7 +59,7 @@ export function ProjectWorkspace({
   fullScreenMode?: boolean;
   refreshTrigger?: number;
 }) {
-  const { showAlert, showConfirm, showPrompt } = useDialog();
+  const { showPrompt } = useDialog();
   const { usageData } = useUsage();
 
   // Per-project sheet limit and per-sheet row limit from the user's role limits
@@ -67,21 +71,8 @@ export function ProjectWorkspace({
   const [summary, setSummary] = useState<RecordMap | null>(null);
   const [selectedSheetId, setSelectedSheetId] = useState(navigationTarget?.sheetId ? String(navigationTarget.sheetId) : "");
   const [selectedPageId, setSelectedPageId] = useState(navigationTarget?.pageId ? String(navigationTarget.pageId) : "");
-  const [projectForm, setProjectForm] = useState({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
-  const [sheetName, setSheetName] = useState("");
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
   const [customTemplates, setCustomTemplates] = useState(() => getCustomTemplates());
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
-
-  /* Edit project/sheet state */
-  const [editingProject, setEditingProject] = useState<RecordMap | null>(null);
-  const [editProjectForm, setEditProjectForm] = useState({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
-  const [editingSheet, setEditingSheet] = useState<RecordMap | null>(null);
-  const [editSheetName, setEditSheetName] = useState("");
-  const [message, setMessage] = useState("");
   const [focusedRowIndex, setFocusedRowIndex] = useState<number | null>(null);
   const [lastHandledToken, setLastHandledToken] = useState<number | null>(null);
   const [projectSheetCounts, setProjectSheetCounts] = useState<Record<string, number>>({});
@@ -256,6 +247,8 @@ export function ProjectWorkspace({
 
       { id: "rules", section: "Format", label: "Colour rules…", keywords: "conditional formatting highlight",
         run: () => setShowFormatRules(true) },
+      { id: "add-column", section: "Format", label: "Add column", keywords: "new field letter",
+        run: () => { void sheet.quickAddColumn(); } },
       { id: "columns", section: "Format", label: "Edit columns…", run: () => sheet.openEditColumns() },
       { id: "date-colors", section: "Format", label: "Deadline colours…", run: () => setShowDateColorConfig(true) },
 
@@ -405,9 +398,10 @@ export function ProjectWorkspace({
     return () => window.removeEventListener("paste", handleGlobalPaste);
   }, [selectedPageId, sheet.handlePaste]);
 
-  // Lock main scroll when any modal is open
+  // Lock main scroll while a sheet modal is open. (The project and sheet-list
+  // modals lock it themselves, in ProjectsHome / ProjectSheetsSection.)
   useEffect(() => {
-    const anyModalOpen = sheet.showEditColumns || sheet.showColumnForm || sheet.showRecordForm || showCreateProject || showCreateSheet || !!editingProject || !!editingSheet || peekRowIndex !== null;
+    const anyModalOpen = sheet.showEditColumns || sheet.showColumnForm || sheet.showRecordForm || peekRowIndex !== null;
     const mainEl = document.querySelector("main");
     if (mainEl) {
       mainEl.style.overflow = anyModalOpen ? "hidden" : "";
@@ -415,7 +409,7 @@ export function ProjectWorkspace({
     return () => {
       if (mainEl) mainEl.style.overflow = "";
     };
-  }, [sheet.showEditColumns, sheet.showColumnForm, sheet.showRecordForm, showCreateProject, showCreateSheet, editingProject, editingSheet]);
+  }, [sheet.showEditColumns, sheet.showColumnForm, sheet.showRecordForm, peekRowIndex]);
 
   useEffect(() => {
     if (!navigationTarget || !summary || navigationTarget.token === lastHandledToken) return;
@@ -446,174 +440,63 @@ export function ProjectWorkspace({
   }, [focusedRowIndex, selectedSheetId]);
 
   /* ---------------------------------------------------------------- */
-  /*  Project CRUD                                                     */
+  /*  Sheet create / rename (shared by the sheet list and the tabs)    */
   /* ---------------------------------------------------------------- */
 
-  const createProject = async (event: FormEvent) => {
-    event.preventDefault();
-    if (isCreatingProject) return;
-    
-    setIsCreatingProject(true);
-    try {
-      const project = await createRecord<RecordMap>("projects", projectForm);
-      await notify("project_create", { project_id: project.id, projectName: project.name, projectId: String(project.id) });
-      setProjectForm({ name: "", degree_type: "phd", intake_term: "", status: "Active", description: "" });
-      onToast?.("Project created.");
-      setShowCreateProject(false);
-      await refreshProjects();
-    } catch (error) {
-      console.error("Error creating project:", error);
-      onToast?.("Failed to create project. Please try again.");
-    } finally {
-      setIsCreatingProject(false);
-    }
-  };
+  /** Create a sheet and open it. Resolves false if it was not created. */
+  const createSheet = async (name: string, start: SheetStart): Promise<boolean> => {
+    if (!selectedProjectId || isCreatingSheet) return false;
 
-  const startEditProject = (project: RecordMap) => {
-    setEditingProject(project);
-    setEditProjectForm({
-      name: project.name || "",
-      degree_type: project.degree_type || "phd",
-      intake_term: project.intake_term || "",
-      status: project.status || "Active",
-      description: project.description || ""
-    });
-  };
-
-  const saveProjectEdit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingProject) return;
-    try {
-      await api.patch(`/projects/${editingProject.id}`, { data: editProjectForm });
-      onToast?.("Project updated.");
-      setEditingProject(null);
-      await refreshProjects();
-    } catch (err) {
-      console.error(err);
-      onToast?.("Failed to update project.");
-    }
-  };
-
-  const createSheet = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selectedProjectId || isCreatingSheet) return;
-    
     setIsCreatingSheet(true);
     try {
-      const cleanName = sheetName.trim() || "Application sheet";
-
-      // 1. Create the sheet (creates a page with default columns in backend)
-      const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, { name: cleanName });
-
-      // 2. If a template is selected, immediately patch the new page with template columns
-      if (selectedTemplateId !== "default") {
-        const template = SHEET_TEMPLATES.find(t => t.id === selectedTemplateId) || customTemplates.find(t => t.id === selectedTemplateId);
-        if (template && result.page?.id) {
-          await api.patch(`/project_pages/${result.page.id}`, {
-            data: { columns_json: template.columns, rows_json: [] }
-          });
-        }
-      }
-
+      // One request: the starting columns travel with the create call, so a
+      // template sheet never exists half-made between a POST and a PATCH.
+      const result = await api.post<RecordMap>(`/projects/${selectedProjectId}/sheets`, {
+        name: name.trim() || "Untitled sheet",
+        template: start.kind === "application" ? "application" : "blank",
+        ...(start.kind === "columns" ? { columns: start.columns } : {}),
+      });
       await notify("sheet_create", { project_id: String(selectedProjectId), sheetName: result.sheet.name, sheetId: String(result.sheet.id) });
       onToast?.(`Sheet created: ${result.sheet.name}.`);
-      setSheetName("");
-      setSelectedTemplateId("default");
-      setShowCreateSheet(false);
       const data = await api.get<RecordMap>(`/projects/${selectedProjectId}/meta?include_calendar=true`);
       setSummary(data);
+      // Straight into the new sheet.
+      sheet.setShowRecordForm(false);
+      sheet.setShowColumnForm(false);
+      setSelectedSheetId(String(result.sheet.id));
+      setSelectedPageId(result.page?.id ? String(result.page.id) : "");
+      setProjectSheetCounts((current) => ({
+        ...current,
+        [String(selectedProjectId)]: (data.sheets || []).length,
+      }));
+      return true;
     } catch (error) {
       console.error("Error creating sheet:", error);
       onToast?.("Failed to create sheet. Please try again.");
+      return false;
     } finally {
       setIsCreatingSheet(false);
     }
   };
 
-  const startEditSheet = (sheet: RecordMap) => {
-    setEditingSheet(sheet);
-    setEditSheetName(sheet.name || "");
-  };
-
-  const saveSheetEdit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingSheet) return;
-    const cleanName = editSheetName.trim() || "Application sheet";
+  /** Rename a sheet and its page together. Resolves false on failure. */
+  const renameSheet = async (sheetItem: RecordMap, name: string): Promise<boolean> => {
+    const cleanName = name.trim();
+    if (!cleanName) return false;
     try {
-      await api.patch(`/project_sheets/${editingSheet.id}`, { data: { name: cleanName } });
-
-      const pageToUpdate = pages.find((p) => String(p.sheet_id) === String(editingSheet.id));
+      await api.patch(`/project_sheets/${sheetItem.id}`, { data: { name: cleanName } });
+      const pageToUpdate = pages.find((p) => String(p.sheet_id) === String(sheetItem.id));
       if (pageToUpdate) {
         await api.patch(`/project_pages/${pageToUpdate.id}`, { data: { name: cleanName } });
       }
-
-      onToast?.("Sheet updated.");
-      setEditingSheet(null);
+      onToast?.("Sheet renamed.");
       await refreshSummary();
+      return true;
     } catch (err) {
       console.error(err);
-      onToast?.("Failed to update sheet.");
+      onToast?.("Failed to rename sheet.");
+      return false;
     }
-  };
-
-  const deleteProject = async (id: string) => {
-    const confirmed = await showConfirm("Are you sure you want to delete this project? This will permanently delete all sheets, pages, and records in it.", "Delete Campaign");
-    if (!confirmed) return;
-    try {
-      await api.delete(`/projects/${id}`);
-      const deletedProjectName = projects.find((p) => String(p.id) === id)?.name;
-      await notify("project_delete", { project_id: id, projectId: id, projectName: deletedProjectName });
-      onToast?.("Project deleted.");
-      await refreshProjects();
-    } catch (error) {
-      console.error("Delete project error:", error);
-      onToast?.("Failed to delete project.");
-    }
-  };
-
-  const deleteSheet = async (id: string) => {
-    const confirmed = await showConfirm("Are you sure you want to delete this sheet? This will permanently delete all records in it.", "Delete Sheet");
-    if (!confirmed) return;
-    try {
-      await api.delete(`/project_sheets/${id}`);
-      const deletedSheetName = sheets.find((s: RecordMap) => String(s.id) === id)?.name;
-      await notify("sheet_delete", { project_id: String(selectedProjectId), sheetId: id, sheetName: deletedSheetName });
-      onToast?.("Sheet deleted.");
-      await refreshSummary();
-    } catch (error) {
-      console.error("Delete sheet error:", error);
-      onToast?.("Failed to delete sheet.");
-    }
-  };
-
-  const updateProjectPin = async (project: RecordMap, data: RecordMap) => {
-    await api.patch(`/projects/${project.id}`, { data });
-    if (data.is_pinned !== undefined || data.pinned_to_dashboard !== undefined) {
-      await notify("project_pin", {
-        project_id: project.id,
-        projectName: project.name,
-        actionLabel: data.pinned_to_dashboard !== undefined
-          ? (data.pinned_to_dashboard ? "added to dashboard" : "removed from dashboard")
-          : (data.is_pinned ? "pinned" : "unpinned")
-      });
-    }
-    await refreshProjects();
-    await onChanged?.();
-  };
-
-  const updateSheetPin = async (sheetItem: RecordMap, data: RecordMap) => {
-    await api.patch(`/project_sheets/${sheetItem.id}`, { data });
-    if (data.is_pinned !== undefined || data.pinned_to_dashboard !== undefined) {
-      await notify("sheet_pin", {
-        project_id: sheetItem.project_id,
-        sheetName: sheetItem.name,
-        actionLabel: data.pinned_to_dashboard !== undefined
-          ? (data.pinned_to_dashboard ? "added to dashboard" : "removed from dashboard")
-          : (data.is_pinned ? "pinned" : "unpinned")
-      });
-    }
-    await refreshSummary();
-    await onChanged?.();
   };
 
   const openSheet = (sheetItem: RecordMap) => {
@@ -622,206 +505,31 @@ export function ProjectWorkspace({
     setSelectedPageId(page ? String(page.id) : "");
     sheet.setShowRecordForm(false);
     sheet.setShowColumnForm(false);
-    setMessage("");
   };
 
-  const getSheetPage = (sheetItem: RecordMap) => pages.find((page) => String(page.sheet_id) === String(sheetItem.id));
+  // Record count per sheet id, from the lightweight page stubs.
+  const sheetRowCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    pages.forEach((page) => { counts[String(page.sheet_id)] = Number(page.row_count) || 0; });
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summary]);
 
   /* ================================================================ */
   /*  Render: Project list (no project selected)                      */
   /* ================================================================ */
 
-  const formatDegreeType = (type: string | undefined | null) => {
-    if (!type) return "Degree TBD";
-    if (type.toLowerCase() === "phd") return "PhD";
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
-  const groupedProjects = projects.reduce<Record<string, RecordMap[]>>((acc, project) => {
-    const type = (project.degree_type || "uncategorized").toLowerCase();
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(project);
-    return acc;
-  }, {});
-
-  const projectGroupKeys = Object.keys(groupedProjects).sort((a, b) => {
-    const order: Record<string, number> = {
-      phd: 1,
-      masters: 2,
-      bachelors: 3,
-      uncategorized: 99
-    };
-    const valA = order[a.toLowerCase()] || 50;
-    const valB = order[b.toLowerCase()] || 50;
-
-    if (valA !== valB) {
-      return valA - valB;
-    }
-    return a.localeCompare(b);
-  });
-
   if (!selectedProjectId && !fullScreenMode) {
     return (
-      <div className="project-home">
-        {showCreateProject ? (
-          <Modal onClose={() => setShowCreateProject(false)}>
-            <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createProject}>
-              <div className="modal-header">
-                <div>
-                  <p className="eyebrow">Application campaign</p>
-                  <h2>Create Project</h2>
-                </div>
-                <button className="icon-button" type="button" onClick={() => setShowCreateProject(false)} title="Close form">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content form-grid">
-                <Field label="Project name" name="name" value={projectForm.name} required onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
-                <Field label="Degree type" name="degree_type" value={projectForm.degree_type} options={["Bachelors", "Masters", "PhD"]} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
-                <Field label="Intake term" name="intake_term" value={projectForm.intake_term} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
-                <Field label="Status" name="status" value={projectForm.status} options={["Active", "Paused", "Complete"]} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
-                <Field label="Description" name="description" value={projectForm.description} rows={3} onChange={(name, value) => setProjectForm({ ...projectForm, [name]: value })} />
-              </div>
-              <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateProject(false)} disabled={isCreatingProject}>Cancel</button>
-                <button className="primary" type="submit" disabled={isCreatingProject}>
-                  <Plus size={16} /> {isCreatingProject ? "Creating..." : "Create project"}
-                </button>
-              </div>
-            </form>
-          </Modal>
-        ) : null}
-
-        {editingProject ? (
-          <Modal onClose={() => setEditingProject(null)}>
-            <form className="modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveProjectEdit}>
-              <div className="modal-header">
-                <div>
-                  <p className="eyebrow">Campaign details</p>
-                  <h2>Edit Project</h2>
-                </div>
-                <button className="icon-button" type="button" onClick={() => setEditingProject(null)} title="Close form">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content form-grid">
-                <Field label="Project name" name="name" value={editProjectForm.name} required onChange={(name, value) => setEditProjectForm({ ...editProjectForm, [name]: value })} />
-                <Field label="Degree type" name="degree_type" value={editProjectForm.degree_type} options={["Bachelors", "Masters", "PhD"]} onChange={(name, value) => setEditProjectForm({ ...editProjectForm, [name]: value })} />
-                <Field label="Intake term" name="intake_term" value={editProjectForm.intake_term} onChange={(name, value) => setEditProjectForm({ ...editProjectForm, [name]: value })} />
-                <Field label="Status" name="status" value={editProjectForm.status} options={["Active", "Paused", "Complete"]} onChange={(name, value) => setEditProjectForm({ ...editProjectForm, [name]: value })} />
-                <Field label="Description" name="description" value={editProjectForm.description} rows={3} onChange={(name, value) => setEditProjectForm({ ...editProjectForm, [name]: value })} />
-              </div>
-              <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setEditingProject(null)}>Cancel</button>
-                <button className="primary" type="submit">Save changes</button>
-              </div>
-            </form>
-          </Modal>
-        ) : null}
-
-        <Section
-          title="Projects"
-          eyebrow={`${projects.length} total`}
-          action={
-            !showCreateProject ? (
-              <button className="primary" onClick={() => setShowCreateProject(true)}>
-                <Plus size={16} /> New Project
-              </button>
-            ) : null
-          }
-        >
-          <div className="project-group-list">
-            {projectGroupKeys.map((degreeType) => (
-              <div className="project-group" key={degreeType}>
-                <h3 className="project-group-title">
-                  {degreeType === "uncategorized"
-                    ? "Other Programs"
-                    : `${formatDegreeType(degreeType)} Programs`}
-                </h3>
-                <div className="project-card-grid">
-                  {groupedProjects[degreeType].map((project) => (
-                    <article className={`project-card degree-${String(project.degree_type || "other").toLowerCase().replace(/[^a-z]/g, "")}`} key={project.id}>
-                      <div className="project-card-header">
-                        <div className="project-card-title-row">
-                          <strong>{project.name}</strong>
-                          {(() => {
-                            const count = projectSheetCounts[String(project.id)];
-                            const used = count !== undefined ? count : 0;
-                            const isLoading = count === undefined;
-                            const max = sheetsPerProjectLimit;
-                            const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
-                            const isNear = pct >= 80;
-                            const isFull = pct >= 100;
-                            return (
-                              <div className={`project-quota-wrap${isLoading ? " loading" : ""}`}>
-                                <span className={`project-sheet-count${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}${isLoading ? ' quota-loading' : ''}`}>
-                                  {isLoading ? '...' : max > 0 ? `${used} / ${max}` : used}
-                                </span>
-                                {max > 0 && (
-                                  <div className="quota-bar" title={isLoading ? "Loading..." : `${used} of ${max} sheets used`}>
-                                    <div
-                                      className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}${isLoading ? ' loading' : ''}`}
-                                      style={{ width: isLoading ? '30%' : `${pct}%` }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        <span className="project-card-meta">
-                          <span className="project-chip project-chip-degree">{formatDegreeType(project.degree_type)}</span>
-                          <span className="project-card-intake">{project.intake_term || "Intake TBD"}</span>
-                          <span className={`project-chip project-chip-status status-${String(project.status || "").toLowerCase()}`}>{project.status}</span>
-                          <span className="project-card-created">Created {formatLongDate(project.created_at)}</span>
-                        </span>
-                        {project.description ? <p className="project-card-desc">{project.description}</p> : null}
-                      </div>
-                      <div className="project-card-actions">
-                        <div className="project-card-pins">
-                          <button
-                            className={`pin-button${project.is_pinned ? " active" : ""}`}
-                            type="button"
-                            onClick={() => updateProjectPin(project, { is_pinned: !project.is_pinned })}
-                            title={project.is_pinned ? "Unpin from this view" : "Pin to this view"}
-                          >
-                            <Pin size={15} />
-                          </button>
-                          <button
-                            className={`pin-button dashboard-pin${project.pinned_to_dashboard ? " active" : ""}`}
-                            type="button"
-                            onClick={() => updateProjectPin(project, { pinned_to_dashboard: !project.pinned_to_dashboard })}
-                            title={project.pinned_to_dashboard ? "Remove from dashboard" : "Add to dashboard"}
-                          >
-                            <LayoutDashboard size={15} />
-                          </button>
-                        </div>
-                        <div className="project-card-main-actions">
-                          <button className="primary" onClick={() => setSelectedProjectId(String(project.id))}>Open</button>
-                          <button
-                            className="secondary"
-                            onClick={() => startEditProject(project)}
-                            title="Edit project"
-                          >
-                            <Edit size={15} />
-                          </button>
-                          <button
-                            className="secondary danger"
-                            onClick={() => deleteProject(project.id)}
-                            title="Delete project"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      </div>
+      <ProjectsHome
+        projects={projects}
+        sheetCounts={projectSheetCounts}
+        sheetsPerProjectLimit={sheetsPerProjectLimit}
+        onOpenProject={setSelectedProjectId}
+        refreshProjects={refreshProjects}
+        onChanged={onChanged}
+        onToast={onToast}
+      />
     );
   }
 
@@ -1090,6 +798,15 @@ export function ProjectWorkspace({
               onCellStyle={sheet.saveCellStyle}
               onCellClearFormatting={sheet.clearCellFormatting}
               onRowStyle={sheet.saveRowStyle}
+              columnActions={{
+                nameProblem: sheet.columnNameProblem,
+                onRename: sheet.renameColumnInline,
+                onInsert: sheet.quickAddColumn,
+                onSetType: sheet.setColumnType,
+                onHide: sheet.toggleColumnVisibility,
+                onDelete: sheet.deleteColumnDirect,
+              }}
+              onQuickAddColumn={() => sheet.quickAddColumn()}
             />
             <SheetFooter
               columns={sheet.columns}
@@ -1098,6 +815,19 @@ export function ProjectWorkspace({
               fullScreenMode={fullScreenMode}
               recordsPerSheetLimit={recordsPerSheetLimit}
             />
+            {!fullScreenMode ? (
+              <SheetTabsBar
+                sheets={sheets}
+                activeSheetId={selectedSheetId}
+                rowCounts={{ ...sheetRowCounts, [selectedSheetId]: sheet.rows.length }}
+                isCreating={isCreatingSheet}
+                onOpen={openSheet}
+                onCreate={() => {
+                  void createSheet(nextSheetName(sheets.map((item: RecordMap) => String(item.name || ""))), { kind: "blank" });
+                }}
+                onRename={renameSheet}
+              />
+            ) : null}
 
             {showDateColorConfig && (
               <DateColorConfigModal
@@ -1263,187 +993,20 @@ export function ProjectWorkspace({
         onReminderChanged={() => refreshSummary()}
       />
 
-      <Section
-        title="Sheets"
-        eyebrow="Create and open spreadsheet-style trackers"
-        action={
-          <button className="primary" type="button" onClick={() => setShowCreateSheet(true)}>
-            <Plus size={16} /> Create sheet
-          </button>
-        }
-      >
-        {showCreateSheet ? (
-          <Modal onClose={() => setShowCreateSheet(false)}>
-            <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={createSheet}>
-              <div className="modal-header">
-                <div>
-                  <h2>Create Sheet</h2>
-                  <p className="eyebrow" style={{ marginTop: '4px' }}>Choose a template to get started with pre-configured columns</p>
-                </div>
-                <button className="icon-button" type="button" onClick={() => setShowCreateSheet(false)} title="Close form">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content stacked">
-                <div className="form-grid">
-                  <Field 
-                    label="Sheet name" 
-                    name="sheet_name" 
-                    value={sheetName} 
-                    required 
-                    placeholder="e.g., My Applications"
-                    onChange={(_, value) => {
-                      setSheetName(value);
-                      if (selectedTemplateId === "default") {
-                        const lower = value.toLowerCase();
-                        if (lower.includes("professor") || lower.includes("outreach") || lower.includes("faculty")) {
-                          setSelectedTemplateId("prof_outreach");
-                        } else if (lower.includes("university") || lower.includes("program") || lower.includes("shortlist")) {
-                          setSelectedTemplateId("univ_shortlist");
-                        } else if (lower.includes("scholarship") || lower.includes("funding")) {
-                          setSelectedTemplateId("scholarship_tracker");
-                        } else if (lower.includes("document") || lower.includes("checklist") || lower.includes("todo")) {
-                          setSelectedTemplateId("doc_checklist");
-                        }
-                      }
-                    }} 
-                  />
-                  <Field
-                    label="Template"
-                    name="template_id"
-                    value={selectedTemplateId}
-                    options={[
-                      { value: "default", label: "Default App Tracker" },
-                      { label: "--- Standard Templates ---", value: "", disabled: true },
-                      ...SHEET_TEMPLATES.map(t => ({ value: t.id, label: t.name })),
-                      ...(customTemplates.length > 0 ? [{ label: "--- Custom Templates ---", value: "", disabled: true }] : []),
-                      ...customTemplates.map(t => ({ value: t.id, label: t.name }))
-                    ]}
-                    onChange={(_, value) => setSelectedTemplateId(value)}
-                  />
-                </div>
-                <div className="modal-callout modal-callout--plain">
-                  <p>
-                    {selectedTemplateId === "default"
-                      ? "Basic application tracker with University, Program, Status, Deadline, and Notes."
-                      : (SHEET_TEMPLATES.find(t => t.id === selectedTemplateId)?.description ||
-                          customTemplates.find(t => t.id === selectedTemplateId)?.description)
-                    }
-                  </p>
-                </div>
-                <div className="modal-callout is-tip">
-                  {/* Lucide icon, not the 💡 emoji — it rendered in the system
-                     emoji font at a different optical size than every other
-                     icon in the app. */}
-                  <Lightbulb size={16} />
-                  <p>
-                    You can add, remove, or modify columns anytime after creating the sheet.
-                  </p>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setShowCreateSheet(false)} disabled={isCreatingSheet}>Cancel</button>
-                <button className="primary" type="submit" disabled={isCreatingSheet}>
-                  <Plus size={16} /> {isCreatingSheet ? "Creating..." : "Create sheet"}
-                </button>
-              </div>
-            </form>
-          </Modal>
-        ) : null}
-
-        {editingSheet ? (
-          <Modal onClose={() => setEditingSheet(null)}>
-            <form className="modal-panel small-modal-panel" onClick={(event) => event.stopPropagation()} onSubmit={saveSheetEdit}>
-              <div className="modal-header">
-                <h2>Edit columns</h2>
-                <button className="icon-button" type="button" onClick={() => setEditingSheet(null)} title="Close form">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="modal-content">
-                <Field label="Sheet name" name="sheet_name" value={editSheetName} required onChange={(_, value) => setEditSheetName(value)} />
-              </div>
-              <div className="modal-footer">
-                <button className="secondary" type="button" onClick={() => setEditingSheet(null)}>Cancel</button>
-                <button className="primary" type="submit">Save changes</button>
-              </div>
-            </form>
-          </Modal>
-        ) : null}
-
-        <div className="sheet-card-grid">
-          {sheets.map((sheetItem: RecordMap) => (
-            <article className="sheet-card" key={sheetItem.id}>
-              <div className="sheet-card-header">
-                <div className="sheet-card-title-row">
-                  <strong>{sheetItem.name}</strong>
-                  {(() => {
-                    const used = (getSheetPage(sheetItem)?.row_count as number) || 0;
-                    const max = recordsPerSheetLimit;
-                    const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : -1;
-                    const isNear = pct >= 80;
-                    const isFull = pct >= 100;
-                    return (
-                      <div className="sheet-quota-wrap">
-                        <span className={`sheet-record-count${isFull ? ' quota-full' : isNear ? ' quota-near' : ''}`}>
-                          {max > 0 ? `${used} / ${max}` : used}
-                        </span>
-                        {max > 0 && (
-                          <div className="quota-bar" title={`${used} of ${max} records used`}>
-                            <div
-                              className={`quota-bar-fill${isFull ? ' full' : isNear ? ' near' : ''}`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                  }
-                </div>
-                <span className="sheet-card-meta">
-                  Created {formatLongDate(sheetItem.created_at)}
-                </span>
-              </div>
-              <div className="sheet-card-actions">
-                <div className="sheet-card-pins">
-                  <button
-                    className={`pin-button${sheetItem.is_pinned ? " active" : ""}`}
-                    type="button"
-                    onClick={() => updateSheetPin(sheetItem, { is_pinned: !sheetItem.is_pinned })}
-                    title={sheetItem.is_pinned ? "Unpin from this view" : "Pin to this view"}
-                  >
-                    <Pin size={15} />
-                  </button>
-                  <button
-                    className={`pin-button dashboard-pin${sheetItem.pinned_to_dashboard ? " active" : ""}`}
-                    type="button"
-                    onClick={() => {
-                      updateSheetPin(sheetItem, { pinned_to_dashboard: !sheetItem.pinned_to_dashboard });
-                    }}
-                    title={sheetItem.pinned_to_dashboard ? "Remove from dashboard" : "Add to dashboard"}
-                  >
-                    <LayoutDashboard size={15} />
-                  </button>
-                </div>
-                <div className="sheet-card-main-actions">
-                  <button className="primary" onClick={() => openSheet(sheetItem)}>Open</button>
-                  <button
-                    className="secondary"
-                    onClick={() => startEditSheet(sheetItem)}
-                    title="Edit sheet"
-                  >
-                    <Edit size={15} />
-                  </button>
-                  <button className="secondary danger" onClick={() => deleteSheet(sheetItem.id)} title="Delete sheet">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </Section>
+      <ProjectSheetsSection
+        projectId={selectedProjectId}
+        sheets={sheets}
+        rowCounts={sheetRowCounts}
+        recordsPerSheetLimit={recordsPerSheetLimit}
+        customTemplates={customTemplates}
+        isCreatingSheet={isCreatingSheet}
+        onCreateSheet={createSheet}
+        onRenameSheet={renameSheet}
+        onOpenSheet={openSheet}
+        refreshSummary={() => refreshSummary()}
+        onChanged={onChanged}
+        onToast={onToast}
+      />
     </div>
   );
 }

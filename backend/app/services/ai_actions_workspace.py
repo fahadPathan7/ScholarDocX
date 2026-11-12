@@ -33,7 +33,11 @@ def clean_row(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def normalize_degree(value: Any) -> str:
+    """Normalize a degree label. Empty stays empty: a project no longer has
+    to be a degree application (SCHOLARDOCX-0259)."""
     lowered = clean(value).lower()
+    if not lowered:
+        return ""
     if lowered in {"bachelor", "bachelors", "undergrad", "undergraduate"}:
         return "bachelors"
     if lowered in {"master", "masters", "ms", "msc"}:

@@ -223,7 +223,8 @@ def execution_message(results: list[dict[str, Any]]) -> str:
         elif result["type"] == "get_projects":
             lines = ["Here are your projects:"]
             for project in result.get("projects", []):
-                lines.append(f"- **{project.get('name')}** ({project.get('degree_type', 'phd')}, {project.get('status', 'Active')})")
+                details = ", ".join(part for part in (project.get("degree_type"), project.get("status") or "Active") if part)
+                lines.append(f"- **{project.get('name')}** ({details})")
             lines.append(f"\nTotal: **{result.get('count', 0)}** projects")
         elif result["type"] == "get_sheets":
             lines = [f"Sheets in **{result.get('project', {}).get('name')}**:"]

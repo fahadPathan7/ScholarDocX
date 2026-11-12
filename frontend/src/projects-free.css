@@ -1,0 +1,285 @@
+/* Free-form projects and the sheet start gallery (SCHOLARDOCX-0259).
+   Loaded after projects-polish.css; same --tp-* tokens. */
+
+/* ---- Section header actions ---- */
+.project-home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.project-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 12px;
+  background: #fffefb;
+  color: var(--tp-muted, #4f6466);
+}
+
+.project-search:focus-within {
+  border-color: var(--tp-teal, #2f7d74);
+  box-shadow: 0 0 0 3px rgba(47, 125, 116, 0.16);
+}
+
+.project-search input {
+  width: 180px;
+  border: none;
+  background: transparent;
+  color: var(--tp-ink, #14262a);
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+/* ---- Project card: colour identity instead of a degree label ---- */
+.main-content .project-card.project-card--free::before {
+  background: var(--project-accent, #2f7d74);
+}
+
+.main-content .project-card.project-card--free:hover {
+  border-color: var(--project-accent, #2f7d74);
+}
+
+.project-card-open {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-card-open:focus-visible,
+.sheet-card-open:focus-visible {
+  outline: 2px solid var(--tp-teal, #2f7d74);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.project-monogram {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--project-accent, #2f7d74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 16px -10px var(--project-accent, #2f7d74);
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.project-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.main-content .project-card-title strong {
+  color: var(--tp-ink, #14262a);
+  font-family: var(--font-display, inherit);
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  /* Up to two lines, then an ellipsis: project names are free text now. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* Two unbreakable facts that sit on one line when there is room and stack
+   when there is not, instead of a date cut off mid-way. */
+.project-card-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  color: var(--tp-muted, #4f6466);
+  font-size: 0.8rem;
+}
+.project-card-sub > span { white-space: nowrap; }
+.project-card-sub > span + span::before { content: "·"; margin-right: 8px; }
+
+.main-content .project-card--free .quota-bar { width: 100%; }
+
+/* ---- Sheet card: the name opens the sheet ---- */
+.sheet-card-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-card-open strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Empty states ---- */
+.project-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 6px;
+  padding: 48px 24px;
+  border: 1px dashed rgba(88, 68, 32, 0.3);
+  border-radius: 16px;
+  background: #fffefb;
+  color: var(--tp-muted, #4f6466);
+  text-align: center;
+}
+
+.project-empty-state strong {
+  color: var(--tp-ink, #14262a);
+  font-family: var(--font-display, inherit);
+  font-size: 1.1rem;
+}
+
+.project-empty-state p {
+  max-width: 52ch;
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.project-empty-state .project-home-actions { justify-content: center; }
+
+/* ---- Create sheet: start gallery ---- */
+/* Two classes so this beats `.modal-panel { width: 600px }` whatever order
+   the stylesheets are bundled in. */
+.modal-panel.create-sheet-panel {
+  width: min(760px, 94vw);
+  max-width: min(760px, 94vw);
+}
+
+.sheet-start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.sheet-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--tp-line, rgba(88, 68, 32, 0.2));
+  border-radius: 12px;
+  background: #fffefb;
+  color: var(--tp-ink, #14262a);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.sheet-start-card:hover {
+  border-color: var(--tp-teal, #2f7d74);
+  transform: translateY(-1px);
+}
+
+.sheet-start-card:focus-visible {
+  outline: 2px solid var(--tp-teal, #2f7d74);
+  outline-offset: 2px;
+}
+
+.sheet-start-card.is-selected {
+  border-color: var(--tp-teal, #2f7d74);
+  background: #f3faf7;
+  box-shadow: 0 0 0 2px rgba(47, 125, 116, 0.28), 0 10px 20px -14px rgba(31, 95, 88, 0.5);
+}
+
+.sheet-start-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sheet-start-head strong { font-size: 0.95rem; font-weight: 650; }
+
+.sheet-start-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--tp-teal-wash, #e3f2ed);
+  color: var(--tp-teal-deep, #1f5f58);
+}
+
+.sheet-start-card.is-selected .sheet-start-icon {
+  background: var(--tp-teal, #2f7d74);
+  color: #ffffff;
+}
+
+.sheet-start-desc {
+  color: var(--tp-muted, #4f6466);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/* A strip of header cells: what the first row of the sheet will look like. */
+.sheet-start-preview {
+  display: flex;
+  margin-top: auto;
+  overflow: hidden;
+  border: 1px solid rgba(35, 58, 55, 0.16);
+  border-radius: 7px;
+}
+
+.sheet-start-col {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 6px;
+  overflow: hidden;
+  background: #34514a;
+  color: #eef4ee;
+  font-size: 10.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-start-col + .sheet-start-col { box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.14); }
+.sheet-start-col.is-more { flex: 0 0 auto; background: #2b443f; color: #b9cdc5; }
+
+@media (max-width: 640px) {
+  .project-home-actions { justify-content: flex-start; }
+  .project-search { flex: 1 1 100%; }
+  .project-search input { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-start-card { transition: none; }
+  .sheet-start-card:hover { transform: none; }
+}
+
+.main-content .sheet-card-title-row .sheet-quota-wrap { flex: 0 0 auto; }

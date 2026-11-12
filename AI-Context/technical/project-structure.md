@@ -38,6 +38,15 @@ frontend/
         sheetCsv.ts          (parseDelimited/CSV format, shared by paste)
         sheetPaste.ts        (quoted TSV parse/format for clipboard)
         useSheetPage.ts      (page state, persistence, CRUD, bulk ops)
+        sheetColumns.ts      (lettered columns, rename/insert/retype/remove)
+        useColumnQuickEdits.ts (header-level column edits, one undo step each)
+        ColumnHeaderCell.tsx (header: sort, inline rename, column menu)
+        SheetTabsBar.tsx     (the project's sheets as tabs under the grid)
+      projects/
+        ProjectsHome.tsx          (Projects root: cards, create/edit)
+        ProjectSheetsSection.tsx  (sheet cards inside a project)
+        CreateSheetModal.tsx      (name + blank/template gallery)
+        projectIdentity.ts        (stable colour + monogram per project)
         SheetTable.tsx       (grid orchestrator, keyboard flow)
         SheetTableRow.tsx    (memoized row)
         InlineCellEditor.tsx (in-cell editor, commit-and-move)
@@ -74,7 +83,7 @@ backend/
                  # admin.py, ai_tokens.py, dependencies.py, ...
     core/        # config.py (Settings incl. polar_*), compat.py
     db/          # models.py (SQLAlchemy), connection.py (init + migrations), schema.py (seed SQL)
-    services/    # store.py, ai_tokens.py (grant_purchased), admin.py, mcp_server.py + connected_apps.py (connected apps), ...
+    services/    # store.py, sheet_templates.py (starting columns for a new sheet), ai_tokens.py (grant_purchased), admin.py, mcp_server.py + connected_apps.py (connected apps), ...
   tests/
 
 workspace/

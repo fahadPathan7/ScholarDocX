@@ -161,7 +161,11 @@ class AiActionExecutePayload(BaseModel):
 
 
 class SheetPayload(BaseModel):
-    name: str = "Application sheet"
+    name: str = "Untitled sheet"
+    # SCHOLARDOCX-0259: a sheet starts blank (lettered columns) unless the
+    # client asks for the application tracker or sends its own columns.
+    template: str = "blank"
+    columns: list[dict] | None = None
 
 
 class CategoryPayload(BaseModel):
@@ -250,9 +254,22 @@ def create_project_sheet(
         if current_sheet_count >= limit_count:
             raise UsageLimitExceeded(f"Limit exceeded for sheets_per_project. Your plan allows {limit_count}.")
             
+    # Validate the starting columns before any quota is spent, so a bad
+    # request costs the user nothing.
+    from app.services.sheet_templates import SHEET_TEMPLATES, clean_sheet_columns
+    if payload.template not in SHEET_TEMPLATES:
+        raise HTTPException(status_code=422, detail="Unknown sheet template.")
+    columns = None
+    if payload.columns is not None:
+        try:
+            columns = clean_sheet_columns(payload.columns)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    name = payload.name.strip() or "Untitled sheet"
+
     check_and_increment_limit(current_user, "total_sheets", 1, store.db)
     try:
-        return store.create_sheet_with_defaults(project_id, payload.name)
+        return store.create_sheet_with_defaults(project_id, name, template=payload.template, columns=columns)
     except LookupError as exc:
         # Give the sheet quota back if the project lookup/creation failed.
         check_and_increment_limit(current_user, "total_sheets", -1, store.db)

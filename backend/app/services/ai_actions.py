@@ -149,7 +149,7 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
 
     "SUPPORTED ACTIONS:\n\n"
     "CREATE:\n"
-    "  create_project — {project: {name, degree_type, intake_term, status, description}}\n"
+    "  create_project — {project: {name, status, description, intake_term?, degree_type?}} (degree_type only when the user names a degree: bachelors|masters|phd)\n"
     "  create_sheet   — {project_name, sheet: {name}}\n"
     "  add_rows       — {project_name, sheet_name, rows: [{col: val, ...}]}\n"
     "  create_sticky_note — {note: {title, body, color, is_checklist, checklist_items: []}}\n\n"
@@ -920,7 +920,10 @@ class AiActionService:
             return "bachelors"
         if "master" in lowered or " ms" in lowered or "msc" in lowered:
             return "masters"
-        return "phd"
+        if "phd" in lowered or "ph.d" in lowered or "doctora" in lowered:
+            return "phd"
+        # No degree mentioned: a free-form project (SCHOLARDOCX-0259).
+        return ""
 
     def _extract_project_name(self, message: str) -> str:
         # Try to extract project name with various patterns

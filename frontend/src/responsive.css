@@ -255,12 +255,13 @@
     border-bottom: 1px solid rgba(47, 109, 122, 0.22) !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
+    height: 64px !important;
   }
 
   /* Offset the content below the fixed navbar (mobile topbar ≈ 50px:
      8px padding + 34px icon button + 8px padding). */
   .main-content {
-    padding-top: 50px !important;
+    padding-top: 66px !important;
   }
 
   .main-head::before {
@@ -1330,5 +1331,97 @@ svg {
     height: 34px !important;
     min-height: 34px !important;
     padding: 0 !important;
+  }
+}
+
+/* ============================================================================
+   Phone polish: aligned hero/action rows, tab headers, splash brand overflow
+   ========================================================================= */
+@media (max-width: 700px) {
+  /* Advisor Atlas hero: actions row spans full width, no stray indent */
+  .atlas-hero .atlas-hero-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+    margin-left: 0 !important;
+    gap: 8px;
+  }
+  .atlas-hero .atlas-new-search {
+    white-space: nowrap;
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+  .atlas-hero .atlas-mode-toggle {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+  .atlas-hero .atlas-mode-toggle button {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 8px 6px;
+    font-size: 0.72rem;
+  }
+
+  /* Scholarship Hunt launcher header: title and history button on one line */
+  .deep-hunt-launcher-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .deep-hunt-launcher-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .deep-hunt-launcher-title svg {
+    flex: 0 0 auto;
+  }
+  .deep-hunt-history-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .news-subnav-tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .news-subnav-tab {
+    flex: 0 0 auto;
+    justify-content: center;
+    min-width: 44px;
+  }
+}
+
+/* Splash screen: keep the brand inside narrow screens */
+@media (max-width: 600px) {
+  .splash-brand-horizontal {
+    gap: 12px;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .splash-icon {
+    width: 72px;
+    height: 72px;
+    padding: 4px;
+  }
+  .splash-icon .splash-logo-mark {
+    width: 60px;
+    height: 60px;
+  }
+  .splash-brand-text-left {
+    min-width: 0;
+  }
+  .splash-brand-text-left h1 {
+    font-size: 28px;
+  }
+  .splash-tagline {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    white-space: normal;
+  }
+  .splash-container-horizontal {
+    box-sizing: border-box;
+    padding: 0 16px;
   }
 }

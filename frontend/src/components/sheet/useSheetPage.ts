@@ -10,6 +10,7 @@ import { useDialog } from "../DialogProvider";
 import { EmailConfig } from "../EmailConfigModal";
 import { SortState, ColumnFilter, SheetView, applyViewState, nextSortDirection } from "./sheetFilters";
 import { useUndoRedo } from "./sheetUndo";
+import { createSheetWriteQueue } from "./sheetWriteQueue";
 import { parseTSV } from "./sheetPaste";
 import { formatCSV } from "./sheetCsv";
 import { useSheetPreferences } from "./useSheetPreferences";
@@ -180,6 +181,21 @@ export function useSheetPage({
   const contentSignature = (cols: ColumnDef[], rws: Record<string, string>[]) =>
     JSON.stringify({ c: cols, r: rws });
 
+  /* Serialized sheet writes — see sheetWriteQueue.ts for why. */
+  const writeQueueRef = useRef(createSheetWriteQueue<SheetPage>());
+  const pendingWritesRef = { get current() { return writeQueueRef.current.pending; } };
+
+  const patchSheetData = (
+    pageId: string,
+    nextColumns: ColumnDef[],
+    nextRows: Record<string, string>[],
+  ): Promise<SheetPage> =>
+    writeQueueRef.current.run(() =>
+      api.patch<SheetPage>(`/project_pages/${pageId}`, {
+        data: { columns_json: nextColumns, rows_json: nextRows },
+      }),
+    );
+
   useEffect(() => {
     if (!selectedPage) {
       setColumns([]);
@@ -197,6 +213,7 @@ export function useSheetPage({
       // Different sheet: load everything fresh
       loadedPageIdRef.current = selectedPageId;
       lastSyncedRef.current = incoming;
+      writeQueueRef.current.reset();
       setColumns(migratedCols);
       setRows(rawRows);
       resetHistory({ columns: migratedCols, rows: rawRows });
@@ -220,6 +237,10 @@ export function useSheetPage({
 
     // Same sheet refreshed: skip our own persisted echo entirely
     if (incoming === lastSyncedRef.current) return;
+
+    // Not an external change, just a snapshot taken before our latest edit:
+    // a write is still in flight, or the snapshot predates our last write.
+    if (writeQueueRef.current.isStale(selectedPage.updated_at)) return;
 
     // External change (agent action, another tab): sync data, keep the view
     lastSyncedRef.current = incoming;
@@ -298,13 +319,14 @@ export function useSheetPage({
   /*  Persist helpers                                                  */
   /* ---------------------------------------------------------------- */
 
-  const persistPage = async (nextColumns: ColumnDef[], nextRows: Record<string, string>[], silent = false) => {    if (!selectedPageId || isSaving) return;
+  const persistPage = async (nextColumns: ColumnDef[], nextRows: Record<string, string>[], silent = false) => {
+    // No `isSaving` early return: it silently dropped row/column/undo saves
+    // made while another save was in flight. Writes are queued instead.
+    if (!selectedPageId) return;
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(nextColumns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: nextColumns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, nextColumns, nextRows);
       if (!silent) {
         onToast?.("Saved.");
       }
@@ -313,7 +335,7 @@ export function useSheetPage({
       if (!silent) onToast?.("Save failed. Please try again.");
       console.error("Save error:", error);
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -331,7 +353,7 @@ export function useSheetPage({
       console.error(error);
       onToast?.("Failed to save email config.");
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -649,9 +671,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
       onToast?.("Cell saved.");
       await refreshMeta();
@@ -661,7 +681,7 @@ export function useSheetPage({
       onToast?.("Cell save failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -679,9 +699,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -689,7 +707,7 @@ export function useSheetPage({
       onToast?.("Style change failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -704,9 +722,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -714,7 +730,7 @@ export function useSheetPage({
       onToast?.("Clear formatting failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -729,9 +745,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -739,7 +753,7 @@ export function useSheetPage({
       onToast?.("Style change failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -758,9 +772,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -768,7 +780,7 @@ export function useSheetPage({
       onToast?.("Style change failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -783,9 +795,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -793,7 +803,7 @@ export function useSheetPage({
       onToast?.("Clear formatting failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -812,9 +822,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -822,7 +830,7 @@ export function useSheetPage({
       onToast?.("Clear formatting failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 
@@ -840,9 +848,7 @@ export function useSheetPage({
     setIsSaving(true);
     lastSyncedRef.current = contentSignature(columns, nextRows);
     try {
-      await api.patch(`/project_pages/${selectedPageId}`, {
-        data: { columns_json: columns, rows_json: nextRows }
-      });
+      await patchSheetData(selectedPageId, columns, nextRows);
       record({ columns, rows: nextRows });
     } catch (error) {
       setRows(rows);
@@ -850,7 +856,7 @@ export function useSheetPage({
       onToast?.("Row style change failed. Please try again.");
       throw error;
     } finally {
-      setIsSaving(false);
+      setIsSaving(pendingWritesRef.current > 0);
     }
   };
 

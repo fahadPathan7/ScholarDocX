@@ -16,6 +16,7 @@ import {
   LEGACY_CHAT_STORAGE_KEY,
   MODEL_OPTIONS,
   MODEL_PROVIDER_FEATURES,
+  normalizeStoredModel,
   type ModelOption,
 } from "../lib/assistantModels";
 import { useAiModels } from "../hooks/useAiModels";
@@ -186,10 +187,10 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     return val ? parseInt(val, 10) : 300;
   });
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem("scholarDocX_selectedModel") || "gemini:gemini-2.5-flash";
+    return normalizeStoredModel(localStorage.getItem("scholarDocX_selectedModel")) || "gemini:gemini-3.5-flash-lite";
   });
   const [backgroundModel, setBackgroundModel] = useState<string>(() => {
-    return localStorage.getItem("scholarDocX_backgroundModel") || "gemini:gemini-2.5-flash-lite";
+    return normalizeStoredModel(localStorage.getItem("scholarDocX_backgroundModel")) || "gemini:gemini-3.5-flash-lite";
   });
 
   const [executingActionIndex, setExecutingActionIndex] = useState<number | null>(null);

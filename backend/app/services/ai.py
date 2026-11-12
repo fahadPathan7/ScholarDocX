@@ -14,7 +14,13 @@ logger.setLevel(logging.INFO)
 
 
 DEFAULT_GLM_MODELS = ["GLM-5.3", "GLM-5.2", "GLM-5.1", "GLM-5", "GLM-5-Turbo", "GLM-4.7"]
-DEFAULT_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+DEFAULT_GEMINI_MODELS = ["gemini-3.5-flash-lite"]
+# Retired Gemini ids still sent by older browsers (saved model choice). They are
+# served by the current model so a stale client never hits a removed model.
+LEGACY_GEMINI_MODEL_ALIASES = {
+    "gemini-2.5-flash": "gemini-3.5-flash-lite",
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+}
 DEFAULT_GROQ_MODELS = [
     "openai/gpt-oss-120b",
     "groq/compound",
@@ -25,7 +31,7 @@ DEFAULT_GROQ_MODELS = [
 ]
 DEFAULT_MISTRAL_MODELS = ["mistral-large-latest", "mistral-medium-3-5", "devstral-2512"]
 GLM_FAST_MODEL = "GLM-4.7"
-GEMINI_FAST_MODEL = "gemini-2.5-flash-lite"
+GEMINI_FAST_MODEL = "gemini-3.5-flash-lite"
 GROQ_FAST_MODEL = "openai/gpt-oss-20b"
 MISTRAL_FAST_MODEL = "devstral-2512"
 PROVIDER_FAILURE_MODES = {"local-fallback", "provider-error"}
@@ -614,7 +620,7 @@ class AiService:
                 from app.auth.limits import UsageLimitExceeded
                 row = self._billing_session.execute(
                     text("SELECT is_active FROM ai_models WHERE (provider || ':' || model_id) = :m OR model_id = :m"),
-                    {"m": model_choice}
+                    {"m": f"{provider}:{model_name}"}
                 ).fetchone()
                 if row and not row[0]:
                     raise UsageLimitExceeded("Admin has restricted this model use try another model.")
@@ -649,6 +655,13 @@ class AiService:
     # (pre-flight pricing must not guess a different provider).
     @staticmethod
     def _parse_model_choice(model: str) -> tuple[str, str]:
+        provider, model_name = AiService._parse_raw_model_choice(model)
+        if provider == "gemini":
+            model_name = LEGACY_GEMINI_MODEL_ALIASES.get(model_name, model_name)
+        return provider, model_name
+
+    @staticmethod
+    def _parse_raw_model_choice(model: str) -> tuple[str, str]:
         if ":" in model:
             provider, model_name = model.split(":", 1)
             provider = provider.strip().lower()

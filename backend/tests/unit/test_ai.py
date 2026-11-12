@@ -44,7 +44,7 @@ async def test_summarize_memory_returns_empty_when_glm_key_missing():
     settings.gemini_api_key = ""
     service = AiService(settings)
 
-    response = await service.summarize_memory("User: shortlist MIT\nAssistant: noted", model="gemini:gemini-2.5-flash-lite")
+    response = await service.summarize_memory("User: shortlist MIT\nAssistant: noted", model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "local-fallback"
     assert response["answer"] == ""
@@ -68,7 +68,7 @@ async def test_summarize_memory_drops_provider_error(monkeypatch):
 
     monkeypatch.setattr(service, "chat", fake_chat)
 
-    response = await service.summarize_memory("User: shortlist MIT\nAssistant: noted", model="gemini:gemini-2.5-flash-lite")
+    response = await service.summarize_memory("User: shortlist MIT\nAssistant: noted", model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "provider-error"
     assert response["answer"] == ""
@@ -112,7 +112,7 @@ async def test_research_invalid_routing_defaults_to_search(monkeypatch):
     monkeypatch.setattr(service, "chat", fake_chat)
     monkeypatch.setattr(service, "_tavily_search", fake_tavily_search)
 
-    response = await service.research("Check MIT EECS admissions deadline", background_model="gemini:gemini-2.5-flash-lite")
+    response = await service.research("Check MIT EECS admissions deadline", background_model="gemini:gemini-3.5-flash-lite")
 
     assert tavily_queries == ["Check MIT EECS admissions deadline"]
     assert response["mode"] == "tavily+glm"
@@ -151,7 +151,7 @@ async def test_research_no_search_uses_direct_chat(monkeypatch):
     monkeypatch.setattr(service, "chat", fake_chat)
     monkeypatch.setattr(service, "_tavily_search", fail_tavily_search)
 
-    response = await service.research("Summarize the last answer", "[Last Turn]\nUser: ...", background_model="gemini:gemini-2.5-flash-lite")
+    response = await service.research("Summarize the last answer", "[Last Turn]\nUser: ...", background_model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "glm-direct"
     assert response["search_performed"] is False
@@ -183,7 +183,7 @@ async def test_research_provider_error_mode_is_preserved(monkeypatch):
 
     monkeypatch.setattr(service, "chat", fake_chat)
 
-    response = await service.research("Summarize the last answer", "[Last Turn]\nUser: ...", background_model="gemini:gemini-2.5-flash-lite")
+    response = await service.research("Summarize the last answer", "[Last Turn]\nUser: ...", background_model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "provider-error"
     assert response["search_performed"] is False
@@ -206,15 +206,15 @@ async def test_chat_uses_gemini_when_only_gemini_key_configured(monkeypatch):
 
     monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)
 
-    response = await service.chat("Review this SOP", model="gemini:gemini-2.5-flash-lite", max_tokens=64)
+    response = await service.chat("Review this SOP", model="gemini:gemini-3.5-flash-lite", max_tokens=64)
 
-    assert response["mode"] == "gemini-gemini-2.5-flash-lite"
+    assert response["mode"] == "gemini-gemini-3.5-flash-lite"
     assert response["answer"] == "Gemini answer"
     assert response["external_call_made"] is True
     assert response["usage"] == {"input_tokens": 12, "output_tokens": 8}
-    assert response["model_id"] == "gemini-2.5-flash-lite"
+    assert response["model_id"] == "gemini-3.5-flash-lite"
     assert response["provider"] == "gemini"
-    assert calls[0][0] == "gemini-2.5-flash-lite"
+    assert calls[0][0] == "gemini-3.5-flash-lite"
     assert calls[0][3] == 64
 
 
@@ -234,7 +234,7 @@ async def test_chat_uses_explicit_internal_operation_label(monkeypatch, capsys):
 
     await service.chat(
         "Analyze professor evidence",
-        model="gemini:gemini-2.5-flash-lite",
+        model="gemini:gemini-3.5-flash-lite",
         override_system_prompt="Return JSON.",
         request_label="Advisor Atlas · Final Synthesis",
     )
@@ -273,8 +273,8 @@ async def test_auto_chat_falls_back_to_gemini_after_glm_rate_limit(monkeypatch):
 
     response = await service.chat("Reply briefly")
 
-    assert response["mode"] == "gemini-gemini-2.5-flash-lite"
-    assert response["answer"] == "Fallback via gemini-2.5-flash-lite"
+    assert response["mode"] == "gemini-gemini-3.5-flash-lite"
+    assert response["answer"] == "Fallback via gemini-3.5-flash-lite"
 
 
 @pytest.mark.asyncio
@@ -286,7 +286,7 @@ async def test_explicit_gemini_model_without_key_returns_local_fallback():
     settings.mistral_api_key = ""
     service = AiService(settings)
 
-    response = await service.chat("Review this SOP", model="gemini:gemini-2.5-flash-lite")
+    response = await service.chat("Review this SOP", model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "local-fallback"
     assert response["external_call_made"] is False
@@ -315,9 +315,30 @@ async def test_gemini_provider_error_is_clear(monkeypatch):
 
     monkeypatch.setattr(service, "_chat_with_gemini", fake_gemini)
 
-    response = await service.chat("Review this SOP", model="gemini:gemini-2.5-flash-lite")
+    response = await service.chat("Review this SOP", model="gemini:gemini-3.5-flash-lite")
 
     assert response["mode"] == "provider-error"
     assert response["external_call_made"] is True
     assert "GEMINI API error" in response["answer"]
     assert "API key not valid" in response["answer"]
+
+
+@pytest.mark.parametrize(
+    "saved",
+    [
+        "gemini:gemini-2.5-flash",
+        "gemini:gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+    ],
+)
+def test_retired_gemini_models_resolve_to_current_model(saved):
+    # Older browsers still send the removed Gemini 2.5 ids; they must be served
+    # by Gemini 3.5 Flash-Lite instead of failing.
+    assert AiService._parse_model_choice(saved) == ("gemini", "gemini-3.5-flash-lite")
+
+
+def test_current_gemini_and_other_providers_are_not_remapped():
+    assert AiService._parse_model_choice("gemini:gemini-3.5-flash-lite") == ("gemini", "gemini-3.5-flash-lite")
+    assert AiService._parse_model_choice("groq:openai/gpt-oss-120b") == ("groq", "openai/gpt-oss-120b")
+    assert AiService._parse_model_choice("GLM-5.3") == ("glm", "GLM-5.3")

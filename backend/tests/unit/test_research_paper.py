@@ -280,7 +280,7 @@ async def test_analyze_paper_with_mocked_ai(db_session):
                 mock_ai_instance = MagicMock()
                 mock_ai_instance.chat = AsyncMock(
                     return_value={
-                        "mode": "gemini-2.5-flash",
+                        "mode": "gemini-3.5-flash-lite",
                         "answer": "The paper demonstrates state-of-the-art translation performance.",
                         "usage": {"input_tokens": 120, "output_tokens": 30},
                     }

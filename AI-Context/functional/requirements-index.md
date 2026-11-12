@@ -178,3 +178,15 @@ for the complete workflow and requirements.
 - FR-10.10: The system enforces user-scoped data boundary (users cannot view or analyze other users' research papers).
 - FR-10.11: Uploads enforce monthly quota limits (`research_papers_per_month`), and queries check token balance (`ensure_can_spend`) failing with HTTP 402 if credits are zero.
 
+## FR-11: Connected Apps (External AI Clients)
+
+Implemented, SCHOLARDOCX-0258 (decision BD-014). Design in [technical/mcp-server.md](../technical/mcp-server.md).
+
+- FR-11.1: A user whose role has the `can_use_mcp` limit can create up to 5 connected apps, each with a name, a scope (*Can read* or *Can read and suggest changes*) and an expiry (30 / 90 / 365 days, default 90). The access key is shown once.
+- FR-11.2: The user sees each connection's name, scope, last use and expiry, and can revoke it at any time; revocation applies to the next request.
+- FR-11.3: A connected app reads the workspace through a fixed set of read tools. Results are bounded and never contain file contents, download links or credentials.
+- FR-11.4: With the suggest scope, an app can submit changes that appear as *Suggested changes* attributed to the connection; nothing changes until the user confirms. Suggestions expire after 7 days; at most 20 are pending per user.
+- FR-11.5: Confirming runs the stored suggestion with the user's own role limits and shows the result.
+- FR-11.6: A key stops working when the account's sessions are revoked (password change, admin reset, suspension, admin revocation) or when the role no longer has `can_use_mcp`.
+- FR-11.7: Setup instructions for supported clients are shown in the app, in plain language.
+- FR-11.8: Connected apps are shown as a plan feature on the landing pricing cards, the in-app plan comparison and the landing features section, from live role limits.

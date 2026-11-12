@@ -104,6 +104,33 @@ export function InfoTab ({ refreshTrigger }: { refreshTrigger?: number }) {
             </thead>
             <tbody>
               <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Connected apps (access keys)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    5 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Creating another is rejected until one is removed.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Suggested changes waiting (Connected apps)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    20 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. New suggestions are refused until the user approves or dismisses some; they expire after 7 days.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">Suggested changes history (Connected apps)</td>
+                <td className="px-4 py-3">
+                  <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">
+                    50 per user
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-500">Fixed limit, not admin-configurable. Approved, dismissed, failed and expired suggestions: the newest evicts the oldest.</td>
+              </tr>
+              <tr className="border-b border-slate-100 hover:bg-slate-50/70 transition-colors">
                 <td className="px-4 py-3 font-medium text-slate-800">Opportunity Library (Scholarship Hunt)</td>
                 <td className="px-4 py-3">
                   <span className="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-semibold text-xs">

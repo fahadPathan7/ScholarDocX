@@ -182,3 +182,7 @@ Before sending sensitive context to external AI providers, the UI should make it
 - AI should not auto-send emails.
 - AI should not overwrite user documents without confirmation.
 - AI should not execute workspace mutations without explicit confirmation.
+
+## Connected Apps (FR-11)
+
+Users can connect an external AI app (Claude Code, Cursor, VS Code) from their profile. It can read the workspace and suggest changes; suggestions appear under *Suggested changes* and run only when the user confirms. Access is the `can_use_mcp` plan feature. See [technical/mcp-server.md](../technical/mcp-server.md).

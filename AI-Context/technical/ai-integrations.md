@@ -59,6 +59,7 @@ Routing and synthesis prompts stay separate. Provider-error and local-fallback r
 4. Only Confirm calls `/ai/actions/execute`, which checks `can_use_agents` as a boolean and enforces the same role limits as the manual routes for create actions (`total_projects`, `total_sheets`, `sheets_per_project`, `total_records`, `records_per_sheet`, `total_sticky_notes`).
 5. Execution uses `Store` methods; provider output is never executable code. All actions are local database mutations: no emails, submissions, external uploads, or overwriting document versions. Admin actions are structurally impossible (no admin action type; the prompts refuse them). Agent tasks are always user-initiated; there are no background agent runs.
 6. Plain chat (`/ai/chat`) has no tools; its system prompt forbids claiming any workspace change.
+7. **Connected apps** (SCHOLARDOCX-0258): an external AI app the user connects can call a typed subset of the same read actions and queue suggestions over a remote MCP endpoint. It makes no provider call and writes nothing until the user confirms in the app. Still no background agent runs by ScholarDocX itself. See [mcp-server.md](mcp-server.md).
 
 `add_rows` accepts blank rows (`rows: [{}]` or `count`) and `insert_after_row` (1-based); before SCHOLARDOCX-0255 an empty row was reported as missing `row_values`, so "add an empty row" could never be planned. The action catalog shown to every model is `ai_actions.ACTION_EXAMPLES_TEXT`.
 

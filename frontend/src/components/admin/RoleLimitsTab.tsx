@@ -86,6 +86,11 @@ export function RoleLimitsTab({ onLimitsUpdated, refreshTrigger }: { onLimitsUpd
 
   // Feature information for the info modal
   const featureInfo: Record<string, { description: string; resetInfo: string; example: string }> = {
+    can_use_mcp: {
+      description: "Controls whether a user can create access keys that let an AI app they use (like Claude Code or Cursor) read their workspace and suggest changes.",
+      resetInfo: "This is a permission setting, not a consumable limit. It does not reset.",
+      example: "When enabled, the user can connect an app from their profile; every suggested change still needs their approval. Turning it off stops existing connections on their next request."
+    },
     can_use_agents: {
       description: "Controls whether a user can access AI agentic features like automated project creation, data retrieval operations, and advanced AI workflows.",
       resetInfo: "This is a permission setting, not a consumable limit. It does not reset.",
@@ -206,6 +211,12 @@ export function RoleLimitsTab({ onLimitsUpdated, refreshTrigger }: { onLimitsUpd
       name: "AI Agent Capabilities",
       features: [
         { key: "can_use_agents", label: "Can Use AI Agents", description: "Controls whether users can access AI agentic features like automated project creation, data retrieval operations, and advanced AI workflows." }
+      ]
+    },
+    {
+      name: "Connected Apps",
+      features: [
+        { key: "can_use_mcp", label: "Can Connect AI Apps", description: "Controls whether users can connect an AI app they use (like Claude) to read their workspace and suggest changes they approve. Applies through the user's plan role (basic, pro, max); admin roles have no access of their own, so an admin needs one of those plan roles too." }
       ]
     },
     {

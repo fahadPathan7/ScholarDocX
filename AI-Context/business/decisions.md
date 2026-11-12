@@ -335,6 +335,20 @@ carry history.
 Rationale: the same rules were restated in several files and had drifted; shorter entry files cost
 fewer tokens on every task and leave nothing to contradict.
 
+## BD-014: Users May Connect Their Own AI App To Their Workspace (SCHOLARDOCX-0258)
+
+Status: Accepted
+
+Decision: a user whose plan includes `can_use_mcp` (basic, pro, max; off for free and for admin
+roles) can create revocable access keys that let an external AI app (Claude Code, Cursor, VS Code)
+read their own workspace and *suggest* changes. Every suggestion waits for the user's confirmation
+inside ScholarDocX. ScholarDocX makes no provider call on this path, so it costs no AI credits.
+
+Rationale: users who already pay for an AI client can use it on their data. The privacy cost is
+that the user's external client and its model see the data a key may read; it is user-directed,
+opt-in per connection, read-only by default, revocable, and never includes file contents or
+credentials. Deletes, bulk edits and record-domain writes are not reachable in v1.
+
 ## Pending Decisions
 
 - Whether SMTP support ships or Gmail/Outlook compose links stay the only outreach path.

@@ -14,7 +14,7 @@ const FAQS: QA[] = [
   {
     category: "SECURITY & PRIVACY",
     q: "Is my data private?",
-    a: "Yes. Privacy is our top priority. We use strict access controls within our cloud boundaries, ensuring each user's workspace and documents are fully isolated from everyone else's. Your research notes, CVs, and uploaded PDFs are never exposed or shared with third parties.",
+    a: "Yes. Privacy is our top priority. We use strict access controls within our cloud boundaries, ensuring each user's workspace and documents are fully isolated from everyone else's. Your research notes, CVs, and uploaded PDFs are never exposed or shared with third parties. The one exception is your own choice: if you connect an AI app of your own, that app can see what you allow it to read, and you can remove its access at any time.",
   },
   {
     category: "CORE POWER TOOLS",
@@ -25,6 +25,11 @@ const FAQS: QA[] = [
     category: "AI ASSISTANT",
     q: "How does the AI assistant help with my applications?",
     a: "Our contextual AI assistant helps you draft personalized outreach emails to professors, synthesize complex academic literature, and refine your statement of purpose based on your specific research interests and target programs.",
+  },
+  {
+    category: "BRING YOUR OWN AI",
+    q: "Can I use my own AI app, like Claude or Cursor, with ScholarDocX?",
+    a: "Yes, on the Basic, Pro and Max plans. Connect an AI app you already use from your profile. It can read your projects, sheets and deadlines and suggest changes, and nothing is changed until you approve it in ScholarDocX. Deleting data and bulk edits are not available to connected apps. Access keys expire, are read-only unless you allow suggestions, and can be removed instantly. It uses your own AI app, so it costs no ScholarDocX AI credits.",
   },
   {
     category: "PROGRAM MANAGEMENT",

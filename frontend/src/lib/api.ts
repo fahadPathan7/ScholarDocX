@@ -291,8 +291,19 @@ export async function retryResearchPaper(paperId: string): Promise<ResearchPaper
   return api.post<ResearchPaper>(`/research/papers/${paperId}/retry`, {});
 }
 
-export async function analyzeResearchPaper(paperId: string, prompt: string, topK: number = 10): Promise<PaperAnalysisResult> {
-  return api.post<PaperAnalysisResult>(`/research/papers/${paperId}/analyze`, { prompt, top_k: topK });
+export async function analyzeResearchPaper(
+  paperId: string,
+  prompt: string,
+  topK: number = 10,
+  promptId?: string,
+): Promise<PaperAnalysisResult> {
+  // prompt_id lets the backend run a predefined analysis with its own focused
+  // passage search (SCHOLARDOCX-0253); omitted for custom questions.
+  return api.post<PaperAnalysisResult>(`/research/papers/${paperId}/analyze`, {
+    prompt,
+    top_k: topK,
+    ...(promptId ? { prompt_id: promptId } : {}),
+  });
 }
 
 // ---- Saved analysis outputs (max 10 per paper) --------------------------------

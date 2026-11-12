@@ -950,3 +950,69 @@ def _seed_brave_pricing(session) -> None:
         )
     )
     session.commit()
+
+
+def test_agent_tool_calling_step_charges_the_user(tmp_path, monkeypatch):
+    """SCHOLARDOCX-0255: every agent tool-loop step is a billed provider call."""
+    import asyncio
+
+    import app.services.ai as ai_module
+    from app.services.ai import AiService
+
+    settings = make_settings(tmp_path)
+    settings.glm_api_key = "test-key"
+    user = make_user(settings, ["pro_user"])
+    session = get_session(settings)
+    try:
+        ai_service = AiService(settings, user=user, session=session)
+        ai_tokens.grant_purchased(
+            str(user["id"]), 100_000, session=session, source="test_grant"
+        )
+
+        class _FakeResponse:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "choices": [{"message": {"content": "", "tool_calls": [
+                        {"id": "c1", "type": "function", "function": {
+                            "name": "run_read_action",
+                            "arguments": '{"action": {"type": "get_projects"}}',
+                        }},
+                    ]}}],
+                    "usage": {"prompt_tokens": 4000, "completion_tokens": 300},
+                }
+
+        class _FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **k):
+                return _FakeResponse()
+
+        monkeypatch.setattr(ai_module.httpx, "AsyncClient", _FakeClient)
+        count_sql = text(
+            "SELECT COUNT(*) FROM ai_token_ledger WHERE user_id = :u AND tokens_delta < 0"
+        )
+        before = session.execute(count_sql, {"u": user["id"]}).scalar()
+
+        result = asyncio.new_event_loop().run_until_complete(
+            ai_service.chat_with_tools(
+                [{"role": "system", "content": "s"}, {"role": "user", "content": "u"}],
+                tools=[],
+                model="glm:GLM-5.3",
+            )
+        )
+
+        after = session.execute(count_sql, {"u": user["id"]}).scalar()
+        assert result["tool_calls"][0]["name"] == "run_read_action"
+        assert after > before, "agent tool-calling step made a provider call for free"
+    finally:
+        session.close()

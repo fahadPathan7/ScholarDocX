@@ -242,48 +242,35 @@ async def test_candidate_refresh_always_uses_deep_pipeline(tmp_path, monkeypatch
 
 @pytest.mark.asyncio
 async def test_crawler_preserves_per_host_delay_under_concurrency(monkeypatch):
-    crawler = PublicCrawler()
+    # Uses a unique host: per-host politeness is process-wide (SCHOLARDOCX-0251).
+    host = f"delay-{uuid.uuid4().hex[:8]}.example.edu"
     request_times: list[float] = []
+
+    def handler(request):
+        request_times.append(asyncio.get_running_loop().time())
+        return crawler_module.httpx.Response(
+            200,
+            headers={"content-type": "text/html"},
+            content=b"<html><title>ok</title><body>Ada Scholar</body></html>",
+        )
 
     async def allow_robots(url):
         return True
 
-    class FakeResponse:
-        is_redirect = False
-        headers = {"content-type": "text/html"}
-        content = b"<html><title>ok</title><body>Ada Scholar</body></html>"
-        encoding = "utf-8"
-        url = "https://example.edu/page"
+    async def public_ip(hostname, port):
+        return "93.184.216.34"
 
-        def raise_for_status(self):
-            return None
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, traceback):
-            return False
-
-        async def get(self, url):
-            request_times.append(asyncio.get_running_loop().time())
-            return FakeResponse()
-
-    monkeypatch.setattr(crawler, "_robots_allowed", allow_robots)
-    monkeypatch.setattr(crawler_module.httpx, "AsyncClient", FakeClient)
-    monkeypatch.setattr(
-        crawler_module,
-        "_validate_public_host",
-        lambda hostname: None,
+    crawler = PublicCrawler(
+        transport_factory=lambda: crawler_module.httpx.MockTransport(handler)
     )
+    monkeypatch.setattr(crawler, "_robots_allowed", allow_robots)
+    monkeypatch.setattr(crawler_module, "_resolve_public_ip", public_ip)
 
     await asyncio.gather(
-        crawler.fetch("https://example.edu/page-one"),
-        crawler.fetch("https://example.edu/page-two"),
+        crawler.fetch(f"https://{host}/page-one"),
+        crawler.fetch(f"https://{host}/page-two"),
     )
+    await crawler.aclose()
 
     assert len(request_times) == 2
     assert abs(request_times[1] - request_times[0]) >= 0.4

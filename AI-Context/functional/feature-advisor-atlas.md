@@ -11,7 +11,7 @@ deeply investigates one professor. It turns public evidence into a transparent
 research-fit funnel, semester-aware opportunity outlook, and granular dossier.
 
 Advisor Atlas runs its structured extraction, fit analysis, and synthesis on
-the GLM provider, using GLM-5.2 as the default model (overridable via the
+the GLM provider, using GLM-5.3 as the default model (overridable via the
 `ADVISOR_ATLAS_GLM_MODEL` setting). The vision pass uses
 `ADVISOR_ATLAS_VISION_MODEL` (default GLM-4.6V).
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-DEFAULT_GLM_MODELS = ["GLM-5.2", "GLM-5.1", "GLM-5", "GLM-5-Turbo", "GLM-4.7"]
+DEFAULT_GLM_MODELS = ["GLM-5.3", "GLM-5.2", "GLM-5.1", "GLM-5", "GLM-5-Turbo", "GLM-4.7"]
 DEFAULT_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 DEFAULT_GROQ_MODELS = [
     "openai/gpt-oss-120b",
@@ -75,6 +75,10 @@ SCHOLARDOCX_SYSTEM_PROMPT = (
     "- Keep responses short and conversational.\n"
     "- Use markdown formatting where helpful.\n"
     "- Do NOT invent or hallucinate data about the user's workspace; if you don't know, ask.\n"
+    "- In this mode you cannot read or change the user's workspace. NEVER say you created, added, "
+    "updated, deleted, or saved anything (projects, sheets, rows, notes, reminders). If the user asks "
+    "for a change, tell them to describe it (for example 'add a blank row to sheet X') so the "
+    "workspace assistant can prepare it for their confirmation.\n"
     "- If the user asks for factual or external information, you have access to "
     "an automatic real-time web search tool that the system runs for you when needed; acknowledge this "
     "capability if asked. The current System Time is injected at the end of this prompt; you MUST use it to "
@@ -750,6 +754,105 @@ class AiService:
         parts = candidates[0].get("content", {}).get("parts", [])
         text_parts = [part.get("text", "") for part in parts if part.get("text")]
         return "\n".join(text_parts).strip() or "No response from AI"
+
+    # ------------------------------------------------------------------
+    # Tool calling (SCHOLARDOCX-0255)
+    # ------------------------------------------------------------------
+
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        model: str = None,
+        max_tokens: int = 1500,
+        request_label: str = "agent_step",
+    ) -> dict:
+        """One tool-calling completion, billed like ``chat``.
+
+        Returns ``{"mode", "content", "tool_calls", "usage", "provider",
+        "model_id"}``. ``mode`` is ``"provider-error"`` on any HTTP failure
+        (including a model that rejects ``tools``) so callers can fall back;
+        it never raises for provider problems. OutOfTokens still propagates.
+        """
+        candidates = self._candidate_models(model)
+        if not candidates:
+            return {"mode": "local-fallback", "content": "", "tool_calls": [], "usage": {}}
+        candidate = candidates[0]
+        provider, model_name = candidate["provider"], candidate["model"]
+
+        if self._billing_user is not None and self._billing_session is not None:
+            self.can_spend()
+
+        # OpenAI-compatible chat-completions endpoint per provider; Gemini's
+        # OpenAI-compatible surface accepts the same tools schema.
+        if provider == "groq":
+            url, api_key = self.settings.groq_base_url, self.settings.groq_api_key
+        elif provider == "mistral":
+            url, api_key = self.settings.mistral_base_url, self.settings.mistral_api_key
+        elif provider == "gemini":
+            url = f"{self.settings.gemini_base_url.rstrip('/')}/openai/chat/completions"
+            api_key = self.settings.gemini_api_key
+        else:
+            url, api_key = self.settings.glm_base_url, self.settings.glm_api_key
+        current_time = datetime.now(timezone.utc).strftime("%A, %B %d, %Y %I:%M %p %Z")
+        payload_messages = [dict(item) for item in messages]
+        if payload_messages and payload_messages[0].get("role") == "system":
+            payload_messages[0]["content"] = f"{payload_messages[0]['content']}\n\nSystem Time: {current_time}"
+        payload = {
+            "model": model_name,
+            "messages": payload_messages,
+            "tools": tools,
+            "tool_choice": "auto",
+            "temperature": 0.2,
+            "max_tokens": max_tokens,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=90) as client:
+                response = await client.post(
+                    url,
+                    json=payload,
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                )
+                response.raise_for_status()
+            data = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("Tool-calling request to %s:%s failed: %s", provider, model_name, exc)
+            return {"mode": "provider-error", "content": "", "tool_calls": [], "usage": {}}
+
+        usage = self._extract_openai_usage(data)
+        # Charge before parsing: the provider billed us whether or not the
+        # body is usable (billing contract, step 3).
+        if self._billing_user is not None and self._billing_session is not None:
+            charge_result = self.charge_tokens(
+                model_id=model_name,
+                provider=provider,
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
+                source=request_label,
+            )
+            if charge_result is not None:
+                usage["credits_charged"] = charge_result.get("charged", 0)
+
+        message = ((data.get("choices") or [{}])[0] or {}).get("message") or {}
+        tool_calls = []
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            if function.get("name"):
+                tool_calls.append(
+                    {
+                        "id": call.get("id") or f"call_{len(tool_calls)}",
+                        "name": function["name"],
+                        "arguments": function.get("arguments") or "{}",
+                    }
+                )
+        return {
+            "mode": f"{provider}-{model_name}",
+            "content": message.get("content") or "",
+            "tool_calls": tool_calls,
+            "usage": usage,
+            "provider": provider,
+            "model_id": model_name,
+        }
 
     def _extract_openai_usage(self, data: dict) -> dict:
         """Pull input/output token counts from an OpenAI-compatible response.

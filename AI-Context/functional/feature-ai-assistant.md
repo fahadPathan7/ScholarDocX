@@ -8,9 +8,9 @@ The AI assistant helps with research, summarization, drafting, and review while 
 
 ## Providers
 
-- GLM AI API: chat, completion, summarization, drafting. GLM-5.2 is the latest
-  selectable model in the assistant picker; GLM-5.1, GLM-5, GLM-5-Turbo, and
-  GLM-4.7 remain available.
+- GLM AI API: chat, completion, summarization, drafting. GLM-5.3 is the latest
+  selectable model in the assistant picker (SCHOLARDOCX-0252); GLM-5.2, GLM-5.1,
+  GLM-5, GLM-5-Turbo, and GLM-4.7 remain available.
 
 - Tavily API: real-time web search and research context.
 
@@ -126,6 +126,15 @@ Excluded on purpose:
   external side effects.
 
 Agentic action rules:
+
+- The agent works in a tool loop (SCHOLARDOCX-0255): it looks things up itself
+  (reads run automatically within the turn) and prepares every change as a list
+  the user confirms. Replies to an agent turn stay with the agent, so short
+  follow-ups like "empty is fine" or "row 5" keep working. Missing cell values
+  stay empty instead of being demanded: "add a blank row after row 4" is a
+  valid request.
+- The assistant never says a change was made unless it was executed after the
+  user confirmed it.
 
 - The assistant must not mutate local data immediately from a chat message.
 - The backend first returns an action plan for review (for both READ and WRITE operations).

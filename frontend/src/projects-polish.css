@@ -220,3 +220,30 @@
 .main-content .project-card-main-actions,
 .main-content .sheet-card-main-actions { gap: 10px; }
 .main-content .project-quota-wrap { gap: 6px; }
+
+/* Sheet card action row: one aligned line (pins left, Open/Edit/Delete right).
+   The shared wrap rule let Delete drop to a second line in narrow cards. */
+.main-content .sheet-card-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.main-content .sheet-card-pins,
+.main-content .sheet-card-main-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.main-content .sheet-card-pins .pin-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.main-content .sheet-card-main-actions button {
+  height: 32px;
+  min-height: 32px;
+  box-sizing: border-box;
+}
+.main-content .sheet-card-main-actions .secondary {
+  width: 32px;
+  padding: 0;
+}

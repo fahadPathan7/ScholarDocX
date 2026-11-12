@@ -262,6 +262,80 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
 )
 
 
+# Action catalog shown to models (legacy planner and the SCHOLARDOCX-0255
+# agent tool loop). One source of truth for argument shapes.
+ACTION_EXAMPLES_TEXT = (
+    "ACTION EXAMPLES (CREATE/UPDATE/DELETE):\n"
+    '{"type":"create_project","project":{"name":"Canada PhD 2027","degree_type":"phd","intake_term":"Fall 2027","status":"Active","description":""}}\n'
+    '{"type":"create_sheet","project_name":"Canada PhD 2027","sheet":{"name":"Professor Shortlist"}}\n'
+    '{"type":"add_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","rows":[{"University name":"MIT","Professor name":"Dr. Smith","Status":"Researching"}]}\n'
+    '{"type":"update_project","project_name":"Canada PhD 2027","updates":{"status":"Completed"}}\n'
+    '{"type":"rename_project","project_name":"Canada PhD 2027","new_name":"Canada PhD 2028"}\n'
+    '{"type":"rename_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Name","new_name":"New Name"}\n'
+    '{"type":"delete_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Sheet"}\n'
+    '{"type":"clear_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist"}\n'
+    '{"type":"duplicate_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","new_name":"Copy of Professor Shortlist"}\n'
+    '{"type":"bulk_update_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","filter_column":"Status","filter_value":"Researching","updates":{"Status":"Ready"}}\n'
+    '{"type":"add_column","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column":{"name":"Response Date","type":"date"}}\n'
+    '{"type":"pin_project","project_name":"Canada PhD 2027","pin_type":"dashboard"}\n'
+    '{"type":"unpin_project","project_name":"Canada PhD 2027","pin_type":"dashboard"}\n'
+    '{"type":"create_sticky_note","note":{"title":"Todo","body":"Finish SOP","color":"sun","is_checklist":false}}\n'
+    '{"type":"update_sticky_note","note_title":"Todo","updates":{"body":"Updated body"}}\n'
+    '{"type":"delete_sticky_note","note_title":"Todo"}\n\n'
+    "ACTION EXAMPLES (ID-BASED TARGETING — prefer these when the user "
+    "supplies project_id/sheet_id, because names can collide):\n"
+    '{"type":"add_column","project_id":"<id>","sheet_id":"<id>","column":{"name":"Priority","type":"number"}}\n'
+    '{"type":"add_rows","project_id":"<id>","sheet_id":"<id>","rows":[{"University name":"MIT","Status":"Applied"}]}\n'
+    '{"type":"add_rows","project_id":"<id>","sheet_id":"<id>","rows":[{}],"insert_after_row":4}  (one BLANK row after row 4; rows:[{}] = empty row, no values needed)\n'
+    '{"type":"update_row","project_id":"<id>","sheet_id":"<id>","row_index":0,"updates":{"Status":"Offer"}}\n'
+    '{"type":"bulk_update_rows","project_id":"<id>","sheet_id":"<id>","filter_column":"Status","filter_value":"Applied","updates":{"Stage":"In Progress"}}\n'
+    '{"type":"get_rows","project_id":"<id>","sheet_id":"<id>"}\n'
+    '{"type":"filter_rows","project_id":"<id>","sheet_id":"<id>","column_query":"Status","operator":"is_not_empty"}\n'
+    '{"type":"analyze_sheet","project_id":"<id>","sheet_id":"<id>","focus_column":"Deadline"}\n\n'
+    "ACTION EXAMPLES (READ — Basic):\n"
+    '{"type":"get_projects"}\n'
+    '{"type":"get_sheets","project_name":"Canada PhD 2027"}\n'
+    '{"type":"get_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist"}\n'
+    '{"type":"get_project_summary","project_name":"Canada PhD 2027"}\n'
+    '{"type":"count_items","item_type":"sheets","project_name":"Canada PhD 2027"}\n\n'
+    "ACTION EXAMPLES (READ — Smart / Analytical):\n"
+    '{"type":"search_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","query":"MIT"}\n'
+    '{"type":"filter_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Applied","operator":"is_true"}\n'
+    '{"type":"filter_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Status","value":"Accepted","operator":"equals"}\n'
+    '{"type":"analyze_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","focus_column":"Deadline"}\n'
+    '{"type":"analyze_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","focus_column":"Deadline","days_ahead":10}\n'
+    '{"type":"get_deadlines","project_name":"Canada PhD 2027","days_ahead":10}\n'
+    '{"type":"get_overdue_rows","project_name":"Canada PhD 2027"}\n'
+    '{"type":"get_column_values","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Status"}\n'
+    '{"type":"get_sticky_notes"}\n'
+    '{"type":"get_dashboard"}\n'
+    '{"type":"get_notifications","project_name":"Canada PhD 2027"}\n\n'
+    "ACTION EXAMPLES (RECORD DOMAINS):\n"
+    '{"type":"create_document","title":"My MIT SOP","document_type":"sop"}\n'
+    '{"type":"update_document","title":"My MIT SOP","updates":{"title":"MIT SOP Final"}}\n'
+    '{"type":"delete_document","title":"Old SOP"}\n'
+    '{"type":"list_documents"}\n'
+    '{"type":"add_document_version","document_title":"My MIT SOP","content":"Full SOP text...","version_label":"v2"}\n'
+    '{"type":"create_email_template","name":"Cold outreach","subject_template":"Prospective PhD student — {{topic}}","body_template":"Dear Professor {{name}}, ..."}\n'
+    '{"type":"create_email_draft","subject":"Prospective PhD student","body":"Dear Prof. Chen, ...","recipient_email":"chen@mit.edu","professor_name":"Prof. Chen"}\n'
+    '{"type":"create_reminder","title":"Email Prof. Chen","due_at":"2026-07-05","notes":"Follow up on SOP feedback"}\n'
+    '{"type":"complete_reminder","title":"Email Prof. Chen"}\n'
+    '{"type":"get_due_reminders","days_ahead":7}\n'
+    '{"type":"create_deadline","title":"MIT application","due_at":"2026-12-15","deadline_type":"application"}\n'
+    '{"type":"complete_deadline","title":"MIT application"}\n'
+    '{"type":"create_university","name":"MIT","country":"USA","region":"Massachusetts"}\n'
+    '{"type":"create_program","name":"PhD Computer Science","university_name":"MIT","degree_type":"phd"}\n'
+    '{"type":"create_professor","name":"Prof. Chen","university_name":"MIT","email":"chen@mit.edu","research_interests":"ML systems"}\n'
+    '{"type":"create_application","university_name":"MIT","program_name":"PhD Computer Science","status":"Preparing","intake_term":"Fall 2027"}\n'
+    '{"type":"update_application","university_name":"MIT","updates":{"status":"Submitted"}}\n'
+    '{"type":"create_research_note","title":"Chen lab funding","content":"Lab has NSF grant through 2028.","professor_name":"Prof. Chen"}\n'
+    '{"type":"log_outreach","recipient_email":"chen@mit.edu","subject":"Prospective PhD student","follow_up_days":5}\n'
+    '{"type":"update_outreach_log","subject":"Prospective PhD student","updates":{"response_status":"Replied"}}\n'
+    '{"type":"list_outreach_logs"}\n'
+    '{"type":"mark_notifications_read"}\n\n'
+)
+
+
 class AiActionService:
     def __init__(self, settings: Settings, store: Store) -> None:
         self.settings = settings
@@ -269,7 +343,17 @@ class AiActionService:
         self.user: dict | None = None
         self.session = None
 
-    async def plan(self, message: str, context: str = "", model: str = None, *, user: dict = None, session=None) -> dict:
+    async def plan(
+        self,
+        message: str,
+        context: str = "",
+        model: str = None,
+        *,
+        user: dict = None,
+        session=None,
+        history: list[dict] | None = None,
+        follow_up: bool = False,
+    ) -> dict:
         if ADMIN_TASK_RE.search(message):
             return {
                 "status": "needs_info",
@@ -277,8 +361,29 @@ class AiActionService:
                 "missing": ["supported_action"],
                 "actions": [],
             }
-        if not self._looks_like_action_request(message):
+        # A follow-up to an agent turn ("empty is fine", "confirm", "row 5")
+        # carries no action words of its own; the regex gate used to send it
+        # to plain chat, which then claimed the change was made (SCHOLARDOCX-0255).
+        if not follow_up and not self._looks_like_action_request(message):
             return self._no_action()
+
+        if self.settings.chat_provider_configured:
+            # Tool loop first: reads run inside the turn, writes come back as a
+            # confirmable plan. None means the provider/model could not do tool
+            # calling, so the single-shot planner below takes over.
+            from app.services.ai_agent import run_agent_turn
+
+            agent_result = await run_agent_turn(
+                self,
+                message,
+                history=history or [],
+                context=context,
+                model=model,
+                user=user,
+                session=session,
+            )
+            if agent_result is not None:
+                return agent_result
 
         fallback_plan = self._heuristic_plan(message)
         if self.settings.chat_provider_configured:
@@ -420,73 +525,7 @@ class AiActionService:
             '  "missing": ["field_names"],\n'
             '  "actions": [ACTION_OBJECTS]\n'
             "}\n\n"
-            "ACTION EXAMPLES (CREATE/UPDATE/DELETE):\n"
-            '{"type":"create_project","project":{"name":"Canada PhD 2027","degree_type":"phd","intake_term":"Fall 2027","status":"Active","description":""}}\n'
-            '{"type":"create_sheet","project_name":"Canada PhD 2027","sheet":{"name":"Professor Shortlist"}}\n'
-            '{"type":"add_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","rows":[{"University name":"MIT","Professor name":"Dr. Smith","Status":"Researching"}]}\n'
-            '{"type":"update_project","project_name":"Canada PhD 2027","updates":{"status":"Completed"}}\n'
-            '{"type":"rename_project","project_name":"Canada PhD 2027","new_name":"Canada PhD 2028"}\n'
-            '{"type":"rename_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Name","new_name":"New Name"}\n'
-            '{"type":"delete_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Sheet"}\n'
-            '{"type":"clear_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist"}\n'
-            '{"type":"duplicate_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","new_name":"Copy of Professor Shortlist"}\n'
-            '{"type":"bulk_update_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","filter_column":"Status","filter_value":"Researching","updates":{"Status":"Ready"}}\n'
-            '{"type":"add_column","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column":{"name":"Response Date","type":"date"}}\n'
-            '{"type":"pin_project","project_name":"Canada PhD 2027","pin_type":"dashboard"}\n'
-            '{"type":"unpin_project","project_name":"Canada PhD 2027","pin_type":"dashboard"}\n'
-            '{"type":"create_sticky_note","note":{"title":"Todo","body":"Finish SOP","color":"sun","is_checklist":false}}\n'
-            '{"type":"update_sticky_note","note_title":"Todo","updates":{"body":"Updated body"}}\n'
-            '{"type":"delete_sticky_note","note_title":"Todo"}\n\n'
-            "ACTION EXAMPLES (ID-BASED TARGETING — prefer these when the user "
-            "supplies project_id/sheet_id, because names can collide):\n"
-            '{"type":"add_column","project_id":"<id>","sheet_id":"<id>","column":{"name":"Priority","type":"number"}}\n'
-            '{"type":"add_rows","project_id":"<id>","sheet_id":"<id>","rows":[{"University name":"MIT","Status":"Applied"}]}\n'
-            '{"type":"update_row","project_id":"<id>","sheet_id":"<id>","row_index":0,"updates":{"Status":"Offer"}}\n'
-            '{"type":"bulk_update_rows","project_id":"<id>","sheet_id":"<id>","filter_column":"Status","filter_value":"Applied","updates":{"Stage":"In Progress"}}\n'
-            '{"type":"get_rows","project_id":"<id>","sheet_id":"<id>"}\n'
-            '{"type":"filter_rows","project_id":"<id>","sheet_id":"<id>","column_query":"Status","operator":"is_not_empty"}\n'
-            '{"type":"analyze_sheet","project_id":"<id>","sheet_id":"<id>","focus_column":"Deadline"}\n\n'
-            "ACTION EXAMPLES (READ — Basic):\n"
-            '{"type":"get_projects"}\n'
-            '{"type":"get_sheets","project_name":"Canada PhD 2027"}\n'
-            '{"type":"get_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist"}\n'
-            '{"type":"get_project_summary","project_name":"Canada PhD 2027"}\n'
-            '{"type":"count_items","item_type":"sheets","project_name":"Canada PhD 2027"}\n\n'
-            "ACTION EXAMPLES (READ — Smart / Analytical):\n"
-            '{"type":"search_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","query":"MIT"}\n'
-            '{"type":"filter_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Applied","operator":"is_true"}\n'
-            '{"type":"filter_rows","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Status","value":"Accepted","operator":"equals"}\n'
-            '{"type":"analyze_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","focus_column":"Deadline"}\n'
-            '{"type":"analyze_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","focus_column":"Deadline","days_ahead":10}\n'
-            '{"type":"get_deadlines","project_name":"Canada PhD 2027","days_ahead":10}\n'
-            '{"type":"get_overdue_rows","project_name":"Canada PhD 2027"}\n'
-            '{"type":"get_column_values","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","column_query":"Status"}\n'
-            '{"type":"get_sticky_notes"}\n'
-            '{"type":"get_dashboard"}\n'
-            '{"type":"get_notifications","project_name":"Canada PhD 2027"}\n\n'
-            "ACTION EXAMPLES (RECORD DOMAINS):\n"
-            '{"type":"create_document","title":"My MIT SOP","document_type":"sop"}\n'
-            '{"type":"update_document","title":"My MIT SOP","updates":{"title":"MIT SOP Final"}}\n'
-            '{"type":"delete_document","title":"Old SOP"}\n'
-            '{"type":"list_documents"}\n'
-            '{"type":"add_document_version","document_title":"My MIT SOP","content":"Full SOP text...","version_label":"v2"}\n'
-            '{"type":"create_email_template","name":"Cold outreach","subject_template":"Prospective PhD student — {{topic}}","body_template":"Dear Professor {{name}}, ..."}\n'
-            '{"type":"create_email_draft","subject":"Prospective PhD student","body":"Dear Prof. Chen, ...","recipient_email":"chen@mit.edu","professor_name":"Prof. Chen"}\n'
-            '{"type":"create_reminder","title":"Email Prof. Chen","due_at":"2026-07-05","notes":"Follow up on SOP feedback"}\n'
-            '{"type":"complete_reminder","title":"Email Prof. Chen"}\n'
-            '{"type":"get_due_reminders","days_ahead":7}\n'
-            '{"type":"create_deadline","title":"MIT application","due_at":"2026-12-15","deadline_type":"application"}\n'
-            '{"type":"complete_deadline","title":"MIT application"}\n'
-            '{"type":"create_university","name":"MIT","country":"USA","region":"Massachusetts"}\n'
-            '{"type":"create_program","name":"PhD Computer Science","university_name":"MIT","degree_type":"phd"}\n'
-            '{"type":"create_professor","name":"Prof. Chen","university_name":"MIT","email":"chen@mit.edu","research_interests":"ML systems"}\n'
-            '{"type":"create_application","university_name":"MIT","program_name":"PhD Computer Science","status":"Preparing","intake_term":"Fall 2027"}\n'
-            '{"type":"update_application","university_name":"MIT","updates":{"status":"Submitted"}}\n'
-            '{"type":"create_research_note","title":"Chen lab funding","content":"Lab has NSF grant through 2028.","professor_name":"Prof. Chen"}\n'
-            '{"type":"log_outreach","recipient_email":"chen@mit.edu","subject":"Prospective PhD student","follow_up_days":5}\n'
-            '{"type":"update_outreach_log","subject":"Prospective PhD student","updates":{"response_status":"Replied"}}\n'
-            '{"type":"list_outreach_logs"}\n'
-            '{"type":"mark_notifications_read"}\n\n'
+            f"{ACTION_EXAMPLES_TEXT}"
             "PARSING RULES:\n"
             "1. Extract names EXACTLY as user states them (preserve case, spacing, punctuation)\n"
             "2. When user says 'create a sheet inside X project named Y' → project_name=X, sheet.name=Y\n"

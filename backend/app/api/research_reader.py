@@ -5,7 +5,9 @@ Thin controller layer mapping endpoints to ResearchPaperService.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -15,7 +17,8 @@ from app.api.dependencies import get_store
 from app.auth.dependencies import get_current_user
 from app.auth.rate_limit import rate_limiter, user_identity
 from app.core.config import Settings, get_settings
-from app.services.research_paper_service import PREDEFINED_PROMPTS, ResearchPaperService
+from app.services.research_paper_constants import public_prompt_catalog
+from app.services.research_paper_service import ResearchPaperService
 from app.services.store import Store
 
 router = APIRouter(prefix="/research", tags=["Research Expert"])
@@ -24,20 +27,38 @@ router = APIRouter(prefix="/research", tags=["Research Expert"])
 class AnalyzePaperPayload(BaseModel):
     prompt: str = Field(min_length=3, max_length=1000)
     top_k: Optional[int] = Field(default=10, ge=1, le=16)
+    # Set when the user picked a predefined analysis; the backend then runs the
+    # canonical prompt with its own retrieval settings (SCHOLARDOCX-0253).
+    prompt_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class SaveAnalysisPayload(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
     answer: str = Field(min_length=1, max_length=200000)
-    sources: list[dict[str, Any]] = Field(default_factory=list)
+    # Analyses retrieve at most 16 passages; the cap stops an arbitrary
+    # client from storing an unbounded list (SCHOLARDOCX-0253).
+    sources: list[dict[str, Any]] = Field(default_factory=list, max_length=32)
     model_used: Optional[str] = Field(default=None, max_length=200)
     charged_credits: Optional[int] = Field(default=0, ge=0)
 
 
+def _inline_disposition(filename: str) -> str:
+    """`Content-Disposition` that survives any filename (SCHOLARDOCX-0253).
+
+    Headers are latin-1, so a raw "Müller.pdf" or "论文.pdf" raised a 500, and
+    a quote in the name broke the header. Send an ASCII fallback plus the exact
+    name as RFC 5987 `filename*`, which browsers prefer.
+    """
+    ascii_name = re.sub(r'[^\x20-\x7e]|["\\]', "", filename).strip()
+    if not ascii_name or ascii_name.startswith("."):
+        ascii_name = "paper.pdf"
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
 @router.get("/prompts")
 def get_research_prompts() -> list[dict[str, Any]]:
-    """Return catalog of 13 predefined research analysis prompts."""
-    return PREDEFINED_PROMPTS
+    """Return the catalog of predefined research analysis prompts."""
+    return public_prompt_catalog()
 
 
 @router.post("/papers/upload")
@@ -107,7 +128,7 @@ def view_research_paper_pdf(
     return Response(
         content=content,
         media_type=media_type,
-        headers={"Content-Disposition": f'inline; filename="{display_name}"'},
+        headers={"Content-Disposition": _inline_disposition(display_name)},
     )
 
 
@@ -147,7 +168,9 @@ async def analyze_research_paper(
     """Analyze a research paper using vector similarity search + LLM generation."""
     rate_limiter.check_and_record("research_paper_analyze", user_identity(current_user))
     service = ResearchPaperService(settings, store.db, current_user)
-    return await service.analyze_paper(paper_id, payload.prompt, top_k=payload.top_k or 10)
+    return await service.analyze_paper(
+        paper_id, payload.prompt, top_k=payload.top_k or 10, prompt_id=payload.prompt_id
+    )
 
 
 @router.get("/papers/{paper_id}/analyses")

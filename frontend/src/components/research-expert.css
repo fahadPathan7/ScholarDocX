@@ -1518,11 +1518,41 @@
 
 /* Responsive */
 @media (max-width: 900px) {
-  .expert-workspace-grid {
-    grid-template-columns: 1fr;
-  }
+  .expert-workspace-grid,
   .expert-workspace-grid.sidebar-collapsed {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .expert-workspace-grid > *,
+  .expert-sidebar,
+  .paper-card-item {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .research-expert-container {
+    padding: 12px;
+    gap: 14px;
+    overflow-x: hidden;
+  }
+  .expert-header-bar {
+    padding: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .expert-header-meta {
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+  }
+  .expert-header-meta .quota-pill,
+  .expert-header-meta .upload-paper-btn {
+    flex: 1 1 160px;
+    min-width: 0;
+    justify-content: center;
+    white-space: normal;
+  }
+  .paper-card-item * {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .expert-header-bar {
     flex-direction: column;

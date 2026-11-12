@@ -81,6 +81,22 @@ LEXICAL_WEIGHT = 0.30
 _WORD = re.compile(r"[a-z0-9]+")
 
 
+def _has_phrase(text: str, phrase: str) -> bool:
+    """Whole-word match (SCHOLARDOCX-0253).
+
+    Substring matching misrouted ordinary questions: "preference" contains
+    "reference" (so a DPO question pulled the whole bibliography), "stable"
+    contains "table", "account" contains "count", "excited" contains "cited".
+    """
+    return re.search(
+        rf"(?<![a-z0-9]){re.escape(phrase.strip())}(?![a-z0-9])", text
+    ) is not None
+
+
+def _has_any(text: str, phrases) -> bool:
+    return any(_has_phrase(text, phrase) for phrase in phrases)
+
+
 def query_terms(query: str) -> set[str]:
     """Content words worth matching literally."""
     return {
@@ -154,10 +170,14 @@ def relevance_label(score: float, best: float, worst: float) -> str:
 # These do not need a model to answer at all. The numbering is a pattern, so
 # the inventory is counted across every passage and handed over as fact.
 
+# Count-shaped phrasing only. "every", "each", "overall" and "how much" were
+# dropped in SCHOLARDOCX-0253: "explain each result in Table 2" or "the overall
+# accuracy" are passage questions, and treating them as aggregates replaced the
+# relevant passages with a document-wide count the user never asked for.
 AGGREGATE_CUES = (
-    "how many", "how much", "number of", "count", "total", "all of the",
-    "list all", "list the", "list every", "every ", " each ", "overall",
-    "altogether", "in total", "complete list", "full list", "enumerate",
+    "how many", "number of", "count", "total", "all of the", "all the",
+    "list all", "list the", "list every", "altogether", "in total",
+    "complete list", "full list", "enumerate",
 )
 
 # target -> (question words, numbering pattern, plural noun for the note)
@@ -203,10 +223,10 @@ def detect_inventory_target(query: str) -> str | None:
     about a passage, not about the document.
     """
     lowered = (query or "").lower()
-    if not any(cue in lowered for cue in AGGREGATE_CUES):
+    if not _has_any(lowered, AGGREGATE_CUES):
         return None
     for target, (words, _pattern, _noun) in INVENTORY_TARGETS.items():
-        if any(word in lowered for word in words):
+        if _has_any(lowered, words):
             return target
     return None
 
@@ -345,8 +365,7 @@ def is_reference_chunk(chunk_text: str) -> bool:
 
 def wants_reference_section(query: str) -> bool:
     """Does this question need the bibliography retrieved as a unit?"""
-    lowered = (query or "").lower()
-    return any(term in lowered for term in REFERENCE_QUERY_TERMS)
+    return _has_any((query or "").lower(), REFERENCE_QUERY_TERMS)
 
 
 def section_terms_for(query: str) -> list[str]:
@@ -354,7 +373,12 @@ def section_terms_for(query: str) -> list[str]:
     lowered = (query or "").lower()
     terms: list[str] = []
     for triggers, section_words in SECTION_TERM_MAP:
-        if any(trigger in lowered for trigger in triggers):
+        # Prefix match: "limitation" must still fire for "limitations",
+        # "method" for "methods", without "risk" firing on "asterisk".
+        if any(
+            re.search(rf"(?<![a-z0-9]){re.escape(trigger)}", lowered)
+            for trigger in triggers
+        ):
             terms.extend(section_words)
     return terms
 

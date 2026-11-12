@@ -632,3 +632,43 @@ def has_conflicting_seasons(
         for aliases in SEASON_ALIASES.values()
         for alias in aliases
     )
+
+
+
+# ── Scholarship Hunt pre-crawl filters (SCHOLARDOCX-0256) ─────────────────────
+#
+# The Hunt filters on search snippets (title + ~150 chars) before crawling. A
+# snippet rarely says everything, so these reject only an explicit
+# contradiction; "not mentioned" is left for extraction and relevance scoring.
+
+ALL_FIELDS_RE = re.compile(
+    r"\b(?:all|any|every|most)\s+(?:fields?|disciplines?|subjects?|areas?\s+of\s+study|"
+    r"study\s+areas?|programmes?|programs?)\b|\bopen\s+to\s+all\b|\bregardless\s+of\s+(?:field|discipline)\b",
+    re.IGNORECASE,
+)
+
+
+def conflicts_with_destinations(
+    article: Dict[str, Any],
+    destinations: Optional[List[str]],
+) -> bool:
+    """True only when the text names another known destination and none of
+    the selected ones. Silence about destination is not a conflict."""
+    if not destinations or matches_destinations(article, destinations):
+        return False
+    selected = {d.strip().casefold() for d in destinations}
+    return any(
+        other not in selected and matches_destinations(article, [other])
+        for other in DESTINATION_RULES
+    )
+
+
+def conflicts_with_fields(
+    article: Dict[str, Any],
+    fields: Optional[List[str]],
+) -> bool:
+    """Like ``has_conflicting_fields`` but an "open to all fields" page never
+    conflicts, even when its snippet lists other disciplines as examples."""
+    if ALL_FIELDS_RE.search(_article_text(article)):
+        return False
+    return has_conflicting_fields(article, fields)

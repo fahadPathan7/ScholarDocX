@@ -664,3 +664,14 @@
 }
 
 
+
+/* Compact auth screens on phones */
+@media (max-width: 640px) {
+  .auth-page { padding: 12px 10px; align-items: flex-start; }
+  .auth-card, .auth-card.auth-card-wide { padding: 18px 14px; border-radius: 18px; }
+  .auth-logo-mark { width: 40px; height: 40px; margin-bottom: 10px; }
+  .auth-title { font-size: 19px; margin-bottom: 4px; }
+  .auth-subtitle { font-size: 12.5px; }
+  .auth-input { padding: 9px 11px; font-size: 13.5px; border-radius: 10px; }
+  .auth-submit { padding: 10px 14px; font-size: 13.5px; }
+}

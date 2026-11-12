@@ -62,3 +62,14 @@
   top: -7px;
   box-shadow: 0 2px 4px rgba(120, 40, 28, 0.3);
 }
+
+/* Mobile menu button now lives outside .top-actions (far left of the bar);
+   keep the same paper-chip look. */
+.topbar .nav-toggle-mobile {
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #fffefa, #f8f2e4);
+  border: 1px solid rgba(88, 68, 32, 0.2);
+  color: #2c4244;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(60, 44, 14, 0.1);
+}
+.topbar .nav-toggle-mobile svg { stroke-width: 1.7; }

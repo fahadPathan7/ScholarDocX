@@ -219,13 +219,17 @@ class AdvisorAtlasService:
         finally:
             if billing_session is not None:
                 billing_session.close()
+            await self.crawler.aclose()
 
     async def refresh_candidate(self, candidate_id: str, user_id: str) -> dict[str, Any]:
         candidate = self.repository.get_candidate(candidate_id, user_id)
         run = self.repository.get_run(candidate["run_id"], user_id, include_candidates=False)
         # A refresh is an explicit, token-metered user action: always use the
         # full deep pipeline regardless of the run mode.
-        await self._process_candidate(run, user_id, candidate, [], deep=True)
+        try:
+            await self._process_candidate(run, user_id, candidate, [], deep=True)
+        finally:
+            await self.crawler.aclose()
         return self.repository.get_candidate(candidate_id, user_id)
 
     async def _deep_research_discovery(

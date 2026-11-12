@@ -156,3 +156,12 @@ Tests:
 cd backend
 pytest
 ```
+
+## Analytics
+
+Google Tag Manager (`GTM-P5SJXF45`, GA4 configured inside the container) is the
+only analytics, approved by the owner in SCHOLARDOCX-0257. It is free, loads in
+production builds only, and is wired in `frontend/src/lib/analytics.ts`
+(`VITE_GTM_ID` overrides the id; empty disables it). Privacy rules for it live
+in [security-privacy.md](security-privacy.md).
+

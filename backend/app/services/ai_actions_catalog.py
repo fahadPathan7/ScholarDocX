@@ -62,7 +62,16 @@ def describe_actions(actions: list[dict[str, Any]]) -> list[str]:
         elif action["type"] == "create_sheet":
             descriptions.append(f"Create sheet: {action['sheet']['name']}")
         elif action["type"] == "add_rows":
-            descriptions.append(f"Add {len(action['rows'])} row(s) to {action.get('sheet_name', 'the sheet')}")
+            blank = all(not row for row in action["rows"])
+            where = (
+                f" after row {action['insert_after_row']}"
+                if isinstance(action.get("insert_after_row"), int)
+                else ""
+            )
+            descriptions.append(
+                f"Add {len(action['rows'])} {'blank ' if blank else ''}row(s){where} to "
+                f"{action.get('sheet_name') or 'the sheet'}"
+            )
         elif action["type"] == "create_sticky_note":
             descriptions.append(f"Create sticky note: {action['note']['title']}")
         # UPDATE

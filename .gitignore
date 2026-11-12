@@ -57,3 +57,5 @@ frontend/audit-*.mjs
 workspace/
 **/workspace/
 .claude/settings.local.json
+
+/.ck-*

@@ -70,6 +70,7 @@ import { AdminView } from "./components/AdminView";
 import { PlanComparisonView } from "./components/PlanComparisonView";
 import { BuyTokensView } from "./components/BuyTokensView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
+import { AnalyticsConsentBanner } from "./components/AnalyticsConsentBanner";
 import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
 import { StickyNotesView } from "./components/sticky/StickyNotesView";
@@ -570,6 +571,7 @@ export function App() {
   return (
     <div className={navCollapsed ? "app-shell nav-collapsed" : "app-shell"}>
       <GlobalErrorAlerts />
+      <AnalyticsConsentBanner />
       <aside className={`sidebar${mobileNavOpen && isMobile ? " sidebar-open" : ""}`}>
         <div className="brand logoCardPremium">
           <ScholarDocXMark />
@@ -616,6 +618,16 @@ export function App() {
         <div className="main-head" style={{ zIndex: 1000 }}>
           <DeepSpaceBanner />
           <header className="topbar" style={{ position: 'relative', zIndex: 1001 }}>
+            {isMobile && (
+              <button
+                className="icon-button nav-toggle-button nav-toggle-mobile"
+                onClick={() => setMobileNavOpen((v) => !v)}
+                title="Open navigation"
+                aria-label="Open navigation"
+              >
+                <Menu size={18} />
+              </button>
+            )}
             <div className="banner-content">
               <p className="eyebrow">
                 Your Academic Journey Companion
@@ -632,14 +644,16 @@ export function App() {
               <h1>Built for the scholars who refuse to settle.</h1>
             </div>
             <div className="top-actions">
-              <button
-                className="icon-button nav-toggle-button"
-                onClick={() => (isMobile ? setMobileNavOpen((v) => !v) : setNavCollapsed((value) => !value))}
-                title={isMobile ? "Open navigation" : "Collapse navigation"}
-                aria-label={isMobile ? "Open navigation" : "Collapse navigation"}
-              >
-                {isMobile ? <Menu size={18} /> : navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-              </button>
+              {!isMobile && (
+                <button
+                  className="icon-button nav-toggle-button"
+                  onClick={() => setNavCollapsed((value) => !value)}
+                  title="Collapse navigation"
+                  aria-label="Collapse navigation"
+                >
+                  {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+                </button>
+              )}
               <button className={`icon-button ${isRefreshing ? "refreshing" : ""}`} onClick={refreshActiveTab} title="Refresh data" disabled={isRefreshing}>
                 <RefreshCw size={18} className={isRefreshing ? "icon-spin" : ""} />
               </button>

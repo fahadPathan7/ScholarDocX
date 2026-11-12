@@ -38,11 +38,12 @@ import json
 import logging
 import math
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
+from fastapi import HTTPException
 
 from app.core.config import Settings
 from app.db.legacy_db import legacy_session
@@ -58,8 +59,8 @@ from app.services.news_service import (
     _is_stale_cycle,
 )
 from app.services.news_filter_rules import (
-    matches_destinations,
-    has_conflicting_fields,
+    conflicts_with_destinations,
+    conflicts_with_fields,
 )
 from app.services.scholarship_catalog import normalize_url
 from app.services.scholarship_extraction import scholarship_extraction_service
@@ -73,8 +74,12 @@ STAGES = ["planning", "searching", "crawling", "extracting", "completed"]
 # 8 results = 16 raw hits, of which ~12 survive hard filters and feed the
 # crawl/extract cap. Every scanned source now has a real chance of being
 # vetted, and per-pass dup-billing is halved vs the 4-pass config.
-SEARCH_PASSES = 2
-MAX_RESULTS_PER_PASS = 8
+# SCHOLARDOCX-0256 (owner decision): the planner writes 3-4 deliberately
+# different queries, but only the first 2 were searched. 4 x 4 uses every
+# query at the same 16-hit worst case (same cost), trading depth on one
+# phrasing for breadth across phrasings.
+SEARCH_PASSES = 4
+MAX_RESULTS_PER_PASS = 4
 MAX_CRAWL_PAGES = 12
 MAX_EXTRACTIONS = 12
 
@@ -417,6 +422,75 @@ def _fallback_queries(run: dict[str, Any]) -> list[str]:
     return queries[:SEARCH_PASSES]
 
 
+# Words that mark the part of a page worth extracting from.
+_FOCUS_TERMS_RE = re.compile(
+    r"deadline|closing date|apply by|application|eligib|requirement|criteria|"
+    r"stipend|tuition|funding|covers|benefit|allowance|award|amount|nationalit|"
+    r"who can apply|how to apply|intake|selection",
+    re.IGNORECASE,
+)
+EXTRACTION_HEAD_CHARS = 2000
+EXTRACTION_TEXT_LIMIT = 8000
+_FOCUS_WINDOW = 600
+
+
+def focused_excerpt(text: str, limit: int = EXTRACTION_TEXT_LIMIT) -> str:
+    """Page head plus windows around deadline/eligibility/funding wording.
+
+    SCHOLARDOCX-0256: extraction used to see the first 6,000 characters, which
+    on most sites is navigation and boilerplate, so a deadline further down
+    the page was missed and the opportunity rejected for "no deadline or
+    funding signal". Short pages are returned whole.
+    """
+    text = text or ""
+    if len(text) <= limit:
+        return text
+    spans: list[tuple[int, int]] = [(0, EXTRACTION_HEAD_CHARS)]
+    for match in _FOCUS_TERMS_RE.finditer(text, EXTRACTION_HEAD_CHARS):
+        start = max(0, match.start() - _FOCUS_WINDOW // 3)
+        end = min(len(text), match.start() + _FOCUS_WINDOW)
+        if start <= spans[-1][1]:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], end))
+        else:
+            spans.append((start, end))
+    parts: list[str] = []
+    used = 0
+    for start, end in spans:
+        piece = text[start:end]
+        if used + len(piece) > limit:
+            piece = piece[: max(0, limit - used)]
+        if piece:
+            parts.append(piece)
+            used += len(piece) + 5
+        if used >= limit:
+            break
+    return " … ".join(parts)
+
+
+def _parse_deadline(value: Any) -> date | None:
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def all_deadlines_passed(extracted: dict[str, Any], today: date) -> bool:
+    """True when every stated deadline is a real date before ``today``.
+
+    Free-text deadlines ("rolling", "varies by university") or any future /
+    unparseable date keep the opportunity: only a fully expired one is dropped.
+    """
+    deadlines = extracted.get("deadlines") or []
+    dates = []
+    for item in deadlines:
+        raw = item.get("date") if isinstance(item, dict) else item
+        parsed = _parse_deadline(raw)
+        if parsed is None:
+            return False
+        dates.append(parsed)
+    return bool(dates) and all(d < today for d in dates)
+
+
 def _is_acceptable(extracted: dict[str, Any], relevance_score: float = 1.0) -> bool:
     """Well-formedness gate + relevance precondition (SCHOLARDOCX-0173).
 
@@ -595,9 +669,14 @@ class ScholarshipDeepHuntService:
                     continue
                 if _is_stale_cycle(article, today):
                     continue
-                if selected_destinations and not matches_destinations(article, selected_destinations):
+                # SCHOLARDOCX-0256: a snippet is ~150 characters. Reject only an
+                # explicit contradiction (another country named and none of
+                # the selected ones; other disciplines named without "open to
+                # all fields"). Not mentioning the country is not a reason to
+                # drop an official page before reading it.
+                if selected_destinations and conflicts_with_destinations(article, selected_destinations):
                     continue
-                if selected_fields and has_conflicting_fields(article, selected_fields):
+                if selected_fields and conflicts_with_fields(article, selected_fields):
                     continue
                 filtered[canon] = item
             total_filtered = len(filtered)
@@ -645,7 +724,11 @@ class ScholarshipDeepHuntService:
                     return
                 try:
                     page = await self.crawler.fetch(item["url"])
-                    crawled_pages[canonicalize_url(page["url"])] = page
+                    # Keyed by the SEARCH url, which is what the extraction
+                    # loop looks up. Keying by page["url"] (post-redirect)
+                    # missed every redirected page, and extraction silently
+                    # fell back to the 3,000-char snippet (SCHOLARDOCX-0256).
+                    crawled_pages[canonicalize_url(item["url"])] = page
                 except (httpx.HTTPError, PermissionError, ValueError) as exc:
                     logger.info("Scholarship Hunt crawl skipped for %s: %s", item["url"], exc)
                 self.repository.update_run(
@@ -685,7 +768,7 @@ class ScholarshipDeepHuntService:
                 if page:
                     source_url = page["url"]
                     source_title = page["title"] or item.get("title", "")
-                    source_snippet = (page["text"] or "")[:6000]
+                    source_snippet = focused_excerpt(page["text"] or "")
                 else:
                     source_url = item["url"]
                     source_title = item.get("title", "")
@@ -729,6 +812,14 @@ class ScholarshipDeepHuntService:
                     ai_service=self.ai_service,
                     field_synonyms=field_synonyms,
                     degree_level=run.get("degree_level"),
+                    # SCHOLARDOCX-0256: the judge used to see only the free-text
+                    # goal, not what the user picked in the form.
+                    filters={
+                        "degree_level": run.get("degree_level"),
+                        "destinations": selected_destinations,
+                        "field_of_study": run.get("fields_of_study"),
+                        "intake_term": run.get("intake_term"),
+                    },
                 )
             # Map scores back onto the full extracted_items list (non-well-formed
             # items get 0 so they fail the relevance floor below).
@@ -752,6 +843,17 @@ class ScholarshipDeepHuntService:
                 source_url = entry["source_url"]
                 relevance = score_by_url.get(source_url, 0.0)
                 if not _is_acceptable(extracted, relevance_score=relevance):
+                    continue
+                # SCHOLARDOCX-0256: checks that need the full page, not the
+                # snippet — stated destinations that contradict the selection,
+                # and an opportunity whose every deadline has already passed.
+                stated = extracted.get("destination_countries") or []
+                if selected_destinations and stated and conflicts_with_destinations(
+                    {"title": "", "description": "; ".join(map(str, stated)), "content": "", "link": ""},
+                    selected_destinations,
+                ):
+                    continue
+                if all_deadlines_passed(extracted, today):
                     continue
                 key = _dedup_key(extracted["canonical_name"])
                 candidate = {**entry, "relevance": relevance}
@@ -822,6 +924,7 @@ class ScholarshipDeepHuntService:
         finally:
             if billing_session is not None:
                 billing_session.close()
+            await self.crawler.aclose()
 
     async def _brave_search(self, query: str, max_results: int) -> list[dict[str, Any]]:
         """Run one Brave web-search pass and return pipeline-shaped items.
@@ -834,8 +937,12 @@ class ScholarshipDeepHuntService:
         if not self.brave.configured:
             return []
         try:
-            response = await self.brave.search(query, count=max_results, freshness="py")
-        except httpx.HTTPError as exc:
+            # No recency filter: official programme pages are long-lived and
+            # "past year" hid them; stale cycles are filtered downstream.
+            response = await self.brave.search(query, count=max_results, freshness=None)
+        except (httpx.HTTPError, HTTPException) as exc:
+            # BraveSearchService raises HTTPException(502) on provider errors;
+            # one failed pass must not fail the whole run (SCHOLARDOCX-0256).
             logger.info("Scholarship Hunt Brave search failed: %s", exc)
             return []
         items: list[dict[str, Any]] = []

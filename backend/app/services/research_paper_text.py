@@ -48,6 +48,9 @@ class PaperTextMixin:
         """Clean and normalize extracted PDF text, repairing broken vertical line wrap artifacts."""
         if not raw_text:
             return ""
+        # PostgreSQL text columns reject NUL; pdfplumber emits it for some
+        # fonts, which failed the whole upload (SCHOLARDOCX-0253).
+        raw_text = raw_text.replace("\x00", "")
 
         lines = raw_text.split("\n")
         cleaned_lines: list[str] = []
@@ -97,10 +100,15 @@ class PaperTextMixin:
             # Extract basic PDF metadata if present
             meta = pdf.metadata or {}
             if meta.get("Author"):
-                authors = str(meta.get("Author")).strip()
+                authors = str(meta.get("Author")).replace("\x00", "").strip() or None
 
             for i, page in enumerate(pdf.pages):
-                page_text = page.extract_text()
+                try:
+                    page_text = page.extract_text()
+                except Exception as exc:
+                    # One malformed page must not fail the whole paper.
+                    logger.warning("Skipping unreadable PDF page %s: %s", i + 1, exc)
+                    continue
                 if page_text and page_text.strip():
                     cleaned_page = self._clean_pdf_text(page_text.strip())
                     extracted_pages.append(f"--- Page {i + 1} ---\n{cleaned_page}")
@@ -179,7 +187,7 @@ class PaperTextMixin:
             logger.warning("Header superscript cleaning failed: %s", exc)
             return ""
 
-        return "\n\n".join(parts)
+        return "\n\n".join(parts).replace("\x00", "")
 
     def _chunk_text(
         self,

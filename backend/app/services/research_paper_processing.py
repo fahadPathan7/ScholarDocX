@@ -4,6 +4,7 @@ byte-identical. All billing calls moved verbatim (guard-verified)."""
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import math
@@ -128,7 +129,11 @@ class PaperProcessingMixin:
 
         # Extract text & generate embeddings
         try:
-            text_content, authors = self._extract_text_from_pdf(file_bytes)
+            # pdfplumber is synchronous CPU work; in an async handler it would
+            # stall every other request on this worker (SCHOLARDOCX-0253).
+            text_content, authors = await asyncio.to_thread(
+                self._extract_text_from_pdf, file_bytes
+            )
             if not text_content.strip():
                 # Status is set by the handler below, which owns every failure path.
                 raise HTTPException(
@@ -141,7 +146,7 @@ class PaperProcessingMixin:
             # Extract publication metadata (Title, Authors, Journal/Conf, Year, Volume/Pages, DOI).
             # Feed a superscript-cleaned header so affiliation markers (superscript
             # a/b/c/1/2) don't get glued onto author surnames (e.g. "Das" -> "Dasa").
-            header_text = self._extract_clean_header_text(file_bytes)
+            header_text = await asyncio.to_thread(self._extract_clean_header_text, file_bytes)
             meta = await self._extract_paper_metadata(header_text or text_content, filename)
             if meta.get("title"):
                 paper.title = meta["title"]
@@ -222,7 +227,7 @@ class PaperProcessingMixin:
                 detail="We couldn't process this paper. Please try again.",
             ) from exc
 
-    def _mark_paper_error(self, paper_id: str) -> None:
+    def _mark_paper_error(self, paper_id: str, restore_status: Optional[str] = None) -> None:
         """Flag a paper as failed, surviving a poisoned session.
 
         The failure may itself have been a database error, leaving the session
@@ -238,7 +243,9 @@ class PaperProcessingMixin:
                 .first()
             )
             if paper is not None:
-                paper.status = "error"
+                # A failed re-index of a paper that was ready keeps it ready:
+                # its old chunks were never touched (see retry_paper_processing).
+                paper.status = "ready" if restore_status == "ready" else "error"
                 self.db.commit()
         except Exception as err:  # pragma: no cover - defensive
             logger.error("Could not mark paper %s as error: %s", paper_id, err)
@@ -258,16 +265,17 @@ class PaperProcessingMixin:
         if not paper:
             raise HTTPException(status_code=404, detail="Research paper not found.")
 
+        # SCHOLARDOCX-0253: retry is also the "upgrade search" path for a paper
+        # that is ready but indexed with the legacy task. The old code deleted
+        # its chunks first, so a failed upgrade (no credits, provider down)
+        # left a working paper with no index. Now the new vectors are built
+        # first and swapped in with one commit; on failure a paper that was
+        # ready stays ready.
+        previous_status = paper.status
         paper.status = "processing"
         self.db.commit()
 
         try:
-            # Delete any existing chunks before re-indexing
-            self.db.query(ResearchPaperChunks).filter(
-                ResearchPaperChunks.paper_id == paper_id
-            ).delete()
-            self.db.commit()
-
             text_content = paper.content_text or ""
             authors = paper.authors
 
@@ -279,9 +287,13 @@ class PaperProcessingMixin:
                     .first()
                 )
                 if sf and sf.relative_path:
-                    file_bytes = self._read_stored_file_bytes(sf.relative_path)
+                    file_bytes = await asyncio.to_thread(
+                        self._read_stored_file_bytes, sf.relative_path
+                    )
                     if file_bytes:
-                        extracted, extracted_authors = self._extract_text_from_pdf(file_bytes)
+                        extracted, extracted_authors = await asyncio.to_thread(
+                            self._extract_text_from_pdf, file_bytes
+                        )
                         if extracted and extracted.strip():
                             text_content = extracted
                         if extracted_authors and not authors:
@@ -293,12 +305,7 @@ class PaperProcessingMixin:
                     detail="Could not extract readable text from PDF. The document may be scanned or empty.",
                 )
 
-            paper.content_text = text_content
-            if authors:
-                paper.authors = authors
-
             chunks = self._chunk_text(text_content)
-            paper.chunk_count = len(chunks)
 
             # Pre-flight check token balance before calling Jina AI API
             ai_tokens.ensure_can_spend(self.user, self.db, min_tokens=1)
@@ -310,6 +317,16 @@ class PaperProcessingMixin:
             embeddings, input_tokens = await self._generate_embeddings(
                 chunks, charge_source="jina_embedding_retry", task=EMBEDDING_TASK_PASSAGE
             )
+
+            # Swap: old chunks out, new chunks in, one commit.
+            self.db.query(ResearchPaperChunks).filter(
+                ResearchPaperChunks.paper_id == paper_id
+            ).delete()
+
+            paper.content_text = text_content
+            if authors:
+                paper.authors = authors
+            paper.chunk_count = len(chunks)
             # A retry re-indexes from scratch, so it is also the upgrade path
             # for a paper still on the legacy symmetric task.
             paper.embedding_task = EMBEDDING_TASK_PASSAGE
@@ -332,11 +349,11 @@ class PaperProcessingMixin:
             return self.get_paper_details(paper_id)
 
         except HTTPException:
-            self._mark_paper_error(paper_id)
+            self._mark_paper_error(paper_id, restore_status=previous_status)
             raise
         except Exception as exc:
             logger.error("Failed retry processing paper %s: %s", paper_id, exc, exc_info=True)
-            self._mark_paper_error(paper_id)
+            self._mark_paper_error(paper_id, restore_status=previous_status)
             raise HTTPException(
                 status_code=500,
                 detail="We couldn't process this paper. Please try again.",
@@ -418,10 +435,14 @@ class PaperProcessingMixin:
         operation is never billed by two layers (SCHOLARDOCX-0180).
         """
         api_key = self.settings.jina_api_key
+        # SCHOLARDOCX-0253: these messages reach the UI, so they never name the
+        # provider, the environment, or an HTTP code (AGENTS.md hard rule).
+        # The specifics go to the log.
         if not api_key:
+            logger.error("Embedding provider key is not configured (JINA_API_KEY).")
             raise HTTPException(
                 status_code=503,
-                detail="JINA_API_KEY is not configured in the environment (.env). Cannot generate paper embeddings.",
+                detail="Paper search is not available right now. Please try again later.",
             )
 
         url = self.settings.jina_base_url
@@ -454,15 +475,20 @@ class PaperProcessingMixin:
                 except Exception as exc:
                     logger.error("Jina AI connection error: %s", exc)
                     raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed connecting to Jina AI Embeddings API: {str(exc)}",
+                        status_code=503,
+                        detail="We couldn't reach paper search. Please try again in a moment.",
                     ) from exc
 
                 if resp.status_code != 200:
-                    logger.error("Jina AI API error %s: %s", resp.status_code, resp.text)
+                    logger.error("Jina AI API error %s: %s", resp.status_code, resp.text[:500])
+                    busy = resp.status_code in (429, 503)
                     raise HTTPException(
-                        status_code=500,
-                        detail=f"Jina AI Embedding API Error ({resp.status_code}): {resp.text}",
+                        status_code=503 if busy else 502,
+                        detail=(
+                            "Paper search is busy right now. Please try again in a moment."
+                            if busy
+                            else "Paper search failed. Please try again."
+                        ),
                     )
 
                 data = resp.json()
@@ -470,16 +496,22 @@ class PaperProcessingMixin:
                 for item in items:
                     vec = item.get("embedding", [])
                     if len(vec) != EMBEDDING_DIMENSIONS:
+                        logger.error(
+                            "Jina AI returned %s dims, expected %s", len(vec), EMBEDDING_DIMENSIONS
+                        )
                         raise HTTPException(
-                            status_code=500,
-                            detail=f"Invalid embedding dimension returned by Jina AI (expected {EMBEDDING_DIMENSIONS}, got {len(vec)}).",
+                            status_code=502,
+                            detail="Paper search returned an unexpected result. Please try again.",
                         )
                     all_embeddings.append(vec)
 
         if len(all_embeddings) != len(text_chunks):
+            logger.error(
+                "Jina AI returned %s of %s embeddings", len(all_embeddings), len(text_chunks)
+            )
             raise HTTPException(
-                status_code=500,
-                detail=f"Jina AI returned incomplete embeddings ({len(all_embeddings)} / {len(text_chunks)}).",
+                status_code=502,
+                detail="Paper search returned an unexpected result. Please try again.",
             )
 
         if charge_source:

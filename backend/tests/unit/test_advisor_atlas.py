@@ -780,12 +780,18 @@ async def test_advisor_vision_does_not_set_fixed_output_token_limit(monkeypatch)
 
     result = await analyze_visual_source(
         FakeAiService(),  # type: ignore
-        {"url": "https://example.edu/recruiting.png"},
+        {
+            "url": "https://example.edu/recruiting.png",
+            "data_url": "data:image/png;base64,iVBORw0KGgo=",
+        },
         "Ada Scholar",
     )
 
     assert result is not None
     assert "max_tokens" not in captured_payload
+    # SCHOLARDOCX-0251: the provider receives the validated bytes, never the URL.
+    image_part = captured_payload["messages"][0]["content"][0]
+    assert image_part["image_url"]["url"] == "data:image/png;base64,iVBORw0KGgo="
 
 
 def test_repository_persists_dossier_publications_and_save(tmp_path):

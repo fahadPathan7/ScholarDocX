@@ -128,12 +128,10 @@ def test_relevance_off_topic_score_below_floor():
     assert 0.1 < RELEVANCE_FLOOR
 
 
-def test_relevance_heuristic_scores_broad_umbrella_program_below_floor():
-    # SCHOLARDOCX-0177: a field overlap buried in a 5+ field umbrella listing
-    # (e.g. a generic Erasmus Mundus program covering nearly every discipline)
-    # must score under RELEVANCE_FLOOR even though the goal's field
-    # technically appears in the list — it is not the close, field-specific
-    # match a normal overlap signals.
+def test_relevance_heuristic_keeps_umbrella_program_but_ranks_it_lower():
+    # SCHOLARDOCX-0256 (owner decision, reverses the 0177 reject): an umbrella
+    # programme that covers the goal's field is a real option applicants apply
+    # to, so it stays above RELEVANCE_FLOOR — but below a field-specific match.
     f = DeepHuntRelevanceFilter(settings=_no_openrouter_settings())
     scores = f._heuristic_scores(
         [
@@ -152,8 +150,8 @@ def test_relevance_heuristic_scores_broad_umbrella_program_below_floor():
         field_synonyms=["computer science", "cs", "cse"],
         degree_level=None,
     )
-    assert scores == [pytest.approx(0.2)]
-    assert scores[0] < RELEVANCE_FLOOR
+    assert scores == [pytest.approx(0.5)]
+    assert RELEVANCE_FLOOR <= scores[0] < 0.7
 
 
 def test_relevance_heuristic_still_rewards_specific_field_match():

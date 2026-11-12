@@ -20,6 +20,7 @@ import "./games-polish.css";
 import "./admin-polish.css";
 import "./header-actions-polish.css";
 import { migrateLegacyStorageKeys } from "./lib/migrateStorageKeys";
+import { installPageViewTracking } from "./lib/analytics";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { UsageProvider } from "./contexts/UsageContext";
@@ -35,6 +36,9 @@ import { FullScreenSheet } from "./components/FullScreenSheet";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 migrateLegacyStorageKeys();
+// Google Analytics via GTM (SCHOLARDOCX-0257): production only, and never on
+// a URL carrying a login token or ids (see lib/analytics.ts).
+installPageViewTracking();
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

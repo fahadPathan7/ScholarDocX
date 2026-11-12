@@ -5,6 +5,8 @@ export type ModelOption = {
   providerLabel: string;
   value: string;
   label: string;
+  /** Priced provider rows that are not chat models (OpenRouter helper, Jina embeddings). */
+  nonChat?: boolean;
 };
 
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
@@ -46,6 +48,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { provider: "glm", providerLabel: "GLM", value: "GLM-4.7", label: "GLM-4.7" },
   { provider: "glm", providerLabel: "GLM", value: "GLM-4.6V", label: "GLM-4.6V (Vision)" },
 ];
+
+/** Providers that appear in the model list for pricing only, with the group name to show. */
+export const NON_CHAT_PROVIDER_LABELS: Record<string, string> = {
+  openrouter: "OpenRouter",
+  jina: "Jina",
+};
 
 export const MODEL_PROVIDER_FEATURES = {
   gemini: "can_use_gemini",

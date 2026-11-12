@@ -171,3 +171,22 @@ def test_a_user_cannot_revoke_another_users_key(env):
     created, raw = apps.create_app(session, owner, "x", "read", 30)
     assert apps.delete_app(session, other["id"], created["id"]) is False
     assert apps.authenticate_key(session, raw).user["id"] == owner["id"]
+
+
+# --- direct-write permission (read_write) -----------------------------------
+
+def test_direct_write_scope_is_a_known_scope_and_needs_an_acknowledgement(env):
+    from pydantic import ValidationError
+
+    from app.api.connected_apps import CreateAppPayload
+
+    assert "read_write" in apps.SCOPES
+    with pytest.raises(ValidationError):
+        CreateAppPayload(name="x", scope="read_write")  # no acknowledgement
+    assert CreateAppPayload(name="x", scope="read_write", acknowledge_direct=True).scope == "read_write"
+    assert CreateAppPayload(name="x", scope="read_suggest").acknowledge_direct is False
+
+    _, session, new_user = env
+    created, raw = apps.create_app(session, new_user(["pro_user"]), "Direct", "read_write", 30)
+    assert created["scope"] == "read_write"
+    assert apps.authenticate_key(session, raw).scope == "read_write"

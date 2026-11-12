@@ -162,3 +162,59 @@ def test_stored_plan_cannot_be_altered_by_the_client(env):
     assert stored["actions"][0]["project"]["name"] == "Stored Plan"
     import inspect
     assert list(inspect.signature(apps.confirm_suggestion).parameters) == ["session", "service", "user", "suggestion_id"]
+
+
+# --- notifications (default on, user can switch off) --------------------------
+
+def _notifications(session, user_id):
+    return session.execute(
+        text("SELECT title, body, preference_key FROM notifications WHERE user_id = :u AND preference_key = 'connected_app_activity'"),
+        {"u": user_id},
+    ).all()
+
+
+def test_notification_default_is_on():
+    from app.core.notifications import DEFAULT_NOTIFICATION_SETTINGS, is_notification_enabled
+
+    assert DEFAULT_NOTIFICATION_SETTINGS["connected_app_activity"] is True
+    assert is_notification_enabled(None, "connected_app_activity") is True
+    assert is_notification_enabled({"connected_app_activity": False}, "connected_app_activity") is False
+
+
+def test_new_suggestion_notifies_the_owner_with_where_to_review(env):
+    _, session, new_user = env
+    user = new_user()
+    apps.create_suggestion(session, _principal(session, user), "Create a project", _plan())
+    [row] = _notifications(session, user["id"])
+    assert "Claude Code" in row.title and "suggested a change" in row.title
+    assert "Review suggested changes" in row.body
+
+
+def test_turning_the_category_off_suppresses_the_notification(env, monkeypatch):
+    _, session, new_user = env
+    user = new_user()
+    monkeypatch.setattr(apps, "is_notification_enabled", lambda raw, key: False)
+    apps.create_suggestion(session, _principal(session, user), "x", _plan())
+    assert _notifications(session, user["id"]) == []
+    assert len(apps.list_suggestions(session, user["id"], "pending")) == 1  # the suggestion itself is unaffected
+
+
+def test_a_notification_failure_never_breaks_the_suggestion(env, monkeypatch):
+    _, session, new_user = env
+    user = new_user()
+
+    def boom(raw, key):
+        raise RuntimeError("settings unreadable")
+
+    monkeypatch.setattr(apps, "is_notification_enabled", boom)
+    apps.create_suggestion(session, _principal(session, user), "x", _plan())
+    assert len(apps.list_suggestions(session, user["id"], "pending")) == 1
+
+
+def test_direct_apply_notifies_after_success_only(env):
+    settings, session, new_user = env
+    user = new_user()
+    principal = _principal(session, user, "read_write")
+    apps.apply_directly(session, _service(settings, session, user), principal, "Create a project", _plan("Direct One"))
+    [row] = _notifications(session, user["id"])
+    assert "made a change" in row.title

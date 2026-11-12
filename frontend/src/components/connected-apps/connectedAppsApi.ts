@@ -1,6 +1,6 @@
 import { api } from "../../lib/api";
 
-export type ConnectedAppScope = "read" | "read_suggest";
+export type ConnectedAppScope = "read" | "read_suggest" | "read_write";
 
 export interface ConnectedApp {
   id: string;
@@ -33,11 +33,17 @@ export interface Suggestion {
 
 export const listConnectedApps = () => api.get<ConnectedAppsResponse>("/connected-apps");
 
-export const createConnectedApp = (name: string, scope: ConnectedAppScope, expiresInDays: number) =>
+export const createConnectedApp = (
+  name: string,
+  scope: ConnectedAppScope,
+  expiresInDays: number,
+  acknowledgeDirect = false,
+) =>
   api.post<{ app: ConnectedApp; key: string }>("/connected-apps", {
     name,
     scope,
     expires_in_days: expiresInDays,
+    acknowledge_direct: acknowledgeDirect,
   });
 
 export const revokeConnectedApp = (id: string) => api.delete<null>(`/connected-apps/${id}`);

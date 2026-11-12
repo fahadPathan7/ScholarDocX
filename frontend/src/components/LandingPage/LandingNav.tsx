@@ -58,6 +58,7 @@ export function LandingNav() {
 
         <nav className="lp-nav-links">
           <a href="#featured-tools" className="lp-nav-link">Featured Tools</a>
+          <a href="#mcp" className="lp-nav-link">MCP</a>
           <a href="#features" className="lp-nav-link">Features</a>
           <a href="#pricing" className="lp-nav-link">Pricing</a>
           <a href="#faq" className="lp-nav-link">FAQ</a>
@@ -86,6 +87,7 @@ export function LandingNav() {
         className={`lp-mobile-menu${menuOpen ? " is-open" : ""}`}
       >
         <a href="#featured-tools" className="lp-mobile-link" onClick={closeMobile}>Featured Tools</a>
+        <a href="#mcp" className="lp-mobile-link" onClick={closeMobile}>MCP</a>
         <a href="#features" className="lp-mobile-link" onClick={closeMobile}>Features</a>
         <a href="#pricing" className="lp-mobile-link" onClick={closeMobile}>Pricing</a>
         <a href="#faq" className="lp-mobile-link" onClick={closeMobile}>FAQ</a>

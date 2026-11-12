@@ -6,7 +6,7 @@ import {
   notificationPreferenceTabs,
   normalizeNotificationSettings
 } from "../config/notificationLabels";
-import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown, Star, Leaf } from "lucide-react";
+import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown, Star, Leaf, Plug } from "lucide-react";
 import { AiTokenWidget } from "./AiTokenWidget";
 import { ConnectedAppsCard } from "./connected-apps/ConnectedAppsCard";
 import { api, RecordMap } from "../lib/api";
@@ -958,7 +958,7 @@ export function ProfileView({
                 })}
               </div>
               {(notificationPreferenceTabs.find((tab) => tab.id === activeNotificationTab)?.categories || []).map((category) => {
-                const iconMap: Record<string, any> = { Route, FileText, Database, PencilLine, MessageCircle, Bell };
+                const iconMap: Record<string, any> = { Route, FileText, Database, PencilLine, MessageCircle, Bell, Plug };
                 const IconComponent = iconMap[category.icon] || FileText;
                 const selectableKeys = category.settings.filter((setting) => !isNotificationSettingLocked(setting.key));
                 const allSelected = selectableKeys.length > 0 && selectableKeys.every((s) => notificationSettings[s.key]);

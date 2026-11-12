@@ -9,7 +9,6 @@ import {
   Award,
   CheckCircle2,
   Zap,
-  Plug,
   type LucideProps,
 } from "lucide-react";
 import { useReveal } from "./useReveal";
@@ -53,18 +52,6 @@ const BENTO_FEATURES: BentoFeature[] = [
     gridSpan: "span-5",
     metaPill: "Spreadsheet Grid",
     highlights: ["Conditional Date Color", "CSV Import / Export"],
-  },
-  {
-    id: "connected-apps",
-    Icon: Plug,
-    category: "BRING YOUR OWN AI · NEW",
-    title: "Work With Claude, Cursor or VS Code",
-    body: "Connect the AI app you already pay for to your own workspace. Ask it what is due this month, which professors have not replied, or to add a row for a new program. It reads your data and suggests changes; nothing happens until you approve it in ScholarDocX, and it costs no AI credits.",
-    accentClass: "bento-indigo",
-    gridSpan: "span-12",
-    badge: "New",
-    metaPill: "You Stay In Control",
-    highlights: ["Read-only by default", "You approve every change", "Revoke access anytime", "Basic, Pro and Max plans"],
   },
   {
     id: "ai-assistant",

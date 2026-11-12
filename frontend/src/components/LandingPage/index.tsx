@@ -5,6 +5,7 @@ import { LandingNav } from "./LandingNav";
 import { HeroSection } from "./HeroSection";
 import { StatsBand } from "./StatsBand";
 import { PillarsShowcase } from "./PillarsShowcase";
+import { McpSection } from "./McpSection";
 import { FeaturesSection } from "./FeaturesSection";
 import { PricingSection } from "./PricingSection";
 import { FaqSection } from "./FaqSection";
@@ -39,6 +40,7 @@ export function LandingPage() {
         <HeroSection />
         <StatsBand />
         <PillarsShowcase />
+        <McpSection />
         <FeaturesSection />
         <PricingSection />
         <FaqSection />

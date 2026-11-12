@@ -9,6 +9,7 @@ import { useRef, useState } from "react";
 import {
   ArrowRight,
   Sparkles,
+  Bot,
   Search,
   Calendar,
   AlertCircle,
@@ -100,7 +101,20 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
   };
   for (const p of prompts) grouped[p.group].push(p);
 
-  const triggerStyle: React.CSSProperties = { ...btnStyle, color: "var(--ui-primary)" };
+  // Prominent on purpose: this is the main way into the AI Agent, so it is larger
+  // and filled instead of matching the small toolbar buttons around it.
+  const triggerStyle: React.CSSProperties = {
+    ...btnStyle,
+    fontSize: "13px",
+    fontWeight: 600,
+    padding: "6px 16px",
+    minHeight: "34px",
+    gap: "6px",
+    color: "#ffffff",
+    background: "var(--ui-primary)",
+    border: "1px solid var(--ui-primary)",
+    boxShadow: "0 2px 8px rgba(31, 79, 90, 0.28)",
+  };
 
   return (
     <div className="ask-ai-menu-container" style={{ position: "relative" }}>
@@ -109,9 +123,9 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
         className={`secondary ${open ? "active" : ""}`}
         onClick={() => setOpen((v) => !v)}
         style={triggerStyle}
-        title="Ask AI to analyze, fill, or transform this sheet"
+        title="Open the AI Agent to analyze, fill, or transform this sheet"
       >
-        <Sparkles size={12} /> Ask AI
+        <Bot size={15} /> AI Agent
       </button>
 
       {open && (
@@ -152,7 +166,7 @@ export function AskAiMenu({ ctx, onPick, btnStyle }: Props) {
               }}
             >
               <Sparkles size={14} style={{ color: "var(--ui-primary)" }} />
-              Ask AI about "{ctx.sheetName}"
+              AI Agent for "{ctx.sheetName}"
             </div>
             <div style={{ fontSize: "11px", color: "var(--ui-muted)" }}>
               {ctx.rowCount} row{ctx.rowCount !== 1 ? "s" : ""} · {ctx.columns.length} column{ctx.columns.length !== 1 ? "s" : ""}

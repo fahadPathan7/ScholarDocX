@@ -112,7 +112,7 @@ sequenceDiagram
 
 ## Connect your own AI app
 
-**Use the AI you already pay for on your own application data.** Basic, Pro and Max users can connect an AI app (Claude Code, Cursor, VS Code) to their workspace through a remote [MCP](https://modelcontextprotocol.io) server. The app can read projects, sheets, rows and deadlines and **suggest** changes; nothing changes until you confirm in ScholarDocX. ScholarDocX makes no model call on this path, so it uses none of your AI credits.
+**Use the AI you already pay for on your own application data.** Basic, Pro and Max users can connect an AI app (Claude Code, Cursor, VS Code) to their workspace through a remote [MCP](https://modelcontextprotocol.io) server. The app can read projects, sheets, rows and deadlines and **suggest** changes; by default nothing changes until you confirm in ScholarDocX. ScholarDocX makes no model call on this path, so it uses none of your AI credits.
 
 Things you can ask once connected:
 
@@ -120,14 +120,14 @@ Things you can ask once connected:
 - *"Which rows in my Professor Shortlist have no reply yet?"*
 - *"Add a row for TU Munich, MSc Informatics, deadline 15 January."* The app proposes it, you click Confirm in ScholarDocX.
 
-1. Profile → **Connected apps** → **Connect an app**. Choose *Can read* or *Can read and suggest changes* and copy the access key (shown once).
+1. Profile → **Connected apps** → **Connect an app**. Choose *Can read*, *Can read and suggest changes*, or (for apps with their own safeguards, after an explicit acknowledgement) *Can read and make changes directly*, and copy the access key (shown once).
 2. Add it to your app, for example in Claude Code:
 
 ```bash
 claude mcp add --transport http scholardocx <backend-url>/mcp --header "Authorization: Bearer <access key>"
 ```
 
-Cursor and VS Code take the same URL and header in their MCP settings file; the app shows ready-made snippets.
+Cursor and VS Code take the same URL and header in their MCP settings file; the app shows ready-made snippets. When an app suggests a change you get a notification (on by default, switchable in Notification Settings), and **Review suggested changes** on your profile shows what is waiting.
 
 **Tools** (typed, static): `list_projects`, `list_sheets`, `get_rows`, `search_rows`, `filter_rows`, `get_deadlines`, `get_overdue_rows`, `get_dashboard`, and `propose_changes`.
 
@@ -135,7 +135,7 @@ Cursor and VS Code take the same URL and header in their MCP settings file; the 
 
 - Access keys are separate from login sessions: random, only a hash is stored, header-only, expiring, revocable, capped at 5 per user, and killed by the same `token_version` bump as "log out everywhere".
 - A session token is refused at `/mcp` and an access key is refused everywhere else.
-- Writes are only *suggestions*, stored on the server and run by id when you confirm, with your own plan limits. Deletes, bulk edits, documents and outreach records are not reachable.
+- By default writes are only *suggestions*, stored on the server and run by id when you confirm, with your own plan limits. A key can instead be given *direct write* permission, which needs an explicit acknowledgement and is never the default. Either way deletes, bulk edits, documents and outreach records are not reachable.
 - Rows can contain pasted text, so tool results are labelled as data, and a hostile row can at worst create a suggestion you dismiss.
 - Per-key rate limits, `Origin` checks, and logs that never contain keys or arguments. Design notes: [AI-Context/technical/mcp-server.md](AI-Context/technical/mcp-server.md).
 

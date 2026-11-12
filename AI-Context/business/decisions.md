@@ -348,6 +348,9 @@ Rationale: users who already pay for an AI client can use it on their data. The 
 that the user's external client and its model see the data a key may read; it is user-directed,
 opt-in per connection, read-only by default, revocable, and never includes file contents or
 credentials. Deletes, bulk edits and record-domain writes are not reachable in v1.
+Owner addition: a key may be given a direct-write scope (no per-change approval) for users whose AI
+app has its own safeguards; it needs an explicit acknowledgement, is never the default, and keeps
+the same allow-list and plan limits.
 
 ## Pending Decisions
 

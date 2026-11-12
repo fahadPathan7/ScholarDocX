@@ -3,9 +3,13 @@ import type { ConnectedAppScope } from "./connectedAppsApi";
 /** User-facing words for connected apps. Kept together so a test can lint them. */
 export const CONNECTED_APPS_COPY = {
   title: "Connected apps",
-  hint: "Let an AI app you use, like Claude, read your workspace and suggest changes. Nothing changes until you approve it here.",
+  hint: "Let an AI app you use, like Claude, read your workspace and suggest changes. By default nothing changes until you approve it here.",
   readLabel: "Can read",
   suggestLabel: "Can read and suggest changes",
+  directLabel: "Can read and make changes directly",
+  directHint: "It can also change your workspace without asking you first. Use this only if your AI app has its own safeguards that you control. Deleting and bulk edits are still blocked.",
+  directAck: "I understand this app can change my workspace without my approval.",
+  reviewTitle: "Review suggested changes",
   keyLabel: "Access key",
   keyWarning: "Copy this access key now. For your safety it is shown only once.",
   suggestedTitle: "Suggested changes",
@@ -21,6 +25,7 @@ export const EXPIRY_LABELS: Record<number, string> = {
 };
 
 export function scopeLabel(scope: ConnectedAppScope): string {
+  if (scope === "read_write") return CONNECTED_APPS_COPY.directLabel;
   return scope === "read_suggest" ? CONNECTED_APPS_COPY.suggestLabel : CONNECTED_APPS_COPY.readLabel;
 }
 

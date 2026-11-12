@@ -231,7 +231,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
     { key: "ai_tokens_per_month", label: "Monthly AI Credits", icon: Coins, format: (v: number) => v === -1 ? "Unlimited" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}` },
     { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", icon: Package, boolean: true },
     { key: "can_use_agents", label: "AI Agents Usage", icon: Bot, boolean: true },
-    { key: "can_use_mcp", label: "Connected AI Apps", icon: Plug, boolean: true },
+    { key: "can_use_mcp", label: "MCP Connect", icon: Plug, boolean: true },
     { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", icon: Compass, boolean: true },
     { key: "can_use_advisor_atlas", label: "Advisor Atlas", icon: Map, boolean: true },
     { key: "can_use_research_reader", label: "Research Expert", icon: BookOpen, boolean: true },

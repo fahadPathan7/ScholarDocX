@@ -58,6 +58,35 @@
 }
 .main-content .profile-page:not(#admin-view-root) .profile-action-chevron { color: var(--tp-teal-deep, #1f5f58); }
 
+/* Primary call-to-action: the plans row is the main upgrade path. */
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary {
+  background: linear-gradient(135deg, #3a9086, #1f5f58);
+  border-color: #1f5f58;
+  color: #fff;
+  box-shadow: 0 10px 20px -10px rgba(31, 95, 88, 0.7);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary:hover {
+  background: linear-gradient(135deg, #43a095, #256b63);
+  border-color: #1f5f58;
+  box-shadow: 0 12px 22px -10px rgba(31, 95, 88, 0.8);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary svg,
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary:hover .profile-action-chevron { color: #fff; }
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary[data-tone="warning"] {
+  background: linear-gradient(135deg, #d9921f, #b06a0b);
+  border-color: #b06a0b;
+  box-shadow: 0 10px 20px -10px rgba(176, 106, 11, 0.7);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary[data-tone="expired"] {
+  background: linear-gradient(135deg, #d4565a, #a8323a);
+  border-color: #a8323a;
+  box-shadow: 0 10px 20px -10px rgba(168, 50, 58, 0.7);
+}
+.main-content .profile-page:not(#admin-view-root) .profile-action-row--primary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
 /* ---- Logout ---- */
 .main-content .profile-page:not(#admin-view-root) .profile-logout-button {
   background: linear-gradient(135deg, #b44a45, #8f302c);

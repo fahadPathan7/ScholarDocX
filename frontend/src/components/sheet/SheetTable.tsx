@@ -3,9 +3,9 @@
 /* ------------------------------------------------------------------ */
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { ArrowUp, ArrowDown, Filter, X, Plus } from "lucide-react";
-import { ColumnTypeIcon } from "./ColumnTypeIcon";
-import { alignFor, DENSITIES, TYPE_LABELS, type Density } from "./sheetGrid";
+import { Filter, X, Plus } from "lucide-react";
+import { ColumnHeaderCell, type ColumnHeaderActions } from "./ColumnHeaderCell";
+import { DENSITIES, type Density } from "./sheetGrid";
 import { formattingForRow, type FormatRule } from "./sheetInsights";
 import type { ColumnDef, DateColorConfig, CellStyle } from "./sheetModel";
 import type { RecordMap } from "../../lib/api";
@@ -14,10 +14,16 @@ import { FilterMenuContent } from "./FilterMenu";
 import { SheetTableRow, RowCallbacks } from "./SheetTableRow";
 import type { CommitDirection } from "./InlineCellEditor";
 import { formatTSV } from "./sheetPaste";
+import "./sheet-columns.css";
 
 /* ------------------------------------------------------------------ */
 /*  RenderColumn type for group/data column layout                     */
 /* ------------------------------------------------------------------ */
+
+/** Empty rows always shown under the data, and the row count a short sheet
+ *  is padded up to. */
+const GHOST_ROWS_MIN = 3;
+const GHOST_ROWS_FILL = 12;
 
 export type RenderColumn =
   | { type: 'data'; col: ColumnDef; originalIndex: number; groupName?: string }
@@ -115,7 +121,13 @@ export function SheetTable({
   formatRules,
   now,
   onOpenColumnStats,
+  columnActions,
+  onQuickAddColumn,
 }: {
+  /** Header-level column edits. Omit for a header that only sorts/filters. */
+  columnActions?: ColumnHeaderActions;
+  /** Append the next lettered column; resolves to its name. */
+  onQuickAddColumn?: () => Promise<string | null>;
   density: Density;
   formatRules: FormatRule[];
   /** One clock for the whole render — see StickyNotesView for the same
@@ -278,6 +290,63 @@ export function SheetTable({
 
   const [editingCell, setEditingCell] = useState<{ rowIndex: number, colName: string, seed?: string } | null>(null);
   const [modalCell, setModalCell] = useState<{ rowIndex: number, colName: string } | null>(null);
+
+  /* -------------------- header rename + ghost rows -------------------- */
+
+  // Name of the column whose header is in rename mode.
+  const [renamingColumn, setRenamingColumn] = useState<string | null>(null);
+  const [addingColumn, setAddingColumn] = useState(false);
+  const ghostBusyRef = useRef(false);
+
+  const addColumnAndRename = async () => {
+    if (!onQuickAddColumn || addingColumn) return;
+    setAddingColumn(true);
+    try {
+      const name = await onQuickAddColumn();
+      // Straight into rename: "+" then type the real name, or Enter to keep
+      // the letter.
+      if (name) setRenamingColumn(name);
+    } finally {
+      setAddingColumn(false);
+    }
+  };
+
+  // Empty rows drawn under the data so a sheet reads as a grid you can type
+  // into. They are not records: clicking one creates the record. Hidden
+  // while a filter, search or grouping is narrowing the view, where "the
+  // next empty row" has no clear meaning.
+  const ghostRowCount =
+    onQuickAddRow && visibleDataCols.length > 0 && !groupBy && filters.length === 0 && !searchQuery
+      ? Math.max(GHOST_ROWS_MIN, GHOST_ROWS_FILL - viewRows.length)
+      : 0;
+
+  const startGhostRow = async (colName: string) => {
+    if (!onQuickAddRow || ghostBusyRef.current) return;
+    ghostBusyRef.current = true;
+    try {
+      const newIndex = await onQuickAddRow();
+      if (newIndex === null) return;
+      onFocusedCellChange({ rowIndex: newIndex, colName });
+      const colDef = visibleDataCols.find((c) => c.col.name === colName)?.col;
+      if (colDef?.type === "file") setModalCell({ rowIndex: newIndex, colName });
+      else setEditingCell({ rowIndex: newIndex, colName });
+    } finally {
+      ghostBusyRef.current = false;
+    }
+  };
+
+  // An inserted column opens in rename mode, like one added with "+".
+  const headerActions = useMemo<ColumnHeaderActions | undefined>(() => {
+    if (!columnActions) return undefined;
+    return {
+      ...columnActions,
+      onInsert: async (anchor, side) => {
+        const name = await columnActions.onInsert(anchor, side);
+        if (name) setRenamingColumn(name);
+        return name;
+      },
+    };
+  }, [columnActions]);
 
   const refocusGrid = useCallback(() => {
     containerRef.current?.focus({ preventScroll: true });
@@ -512,7 +581,7 @@ export function SheetTable({
         </div>
       )}
 
-      <table className="sheet-table grouped-table" style={fullScreenMode ? { fontSize: '11px' } : {}}>
+      <table className={`sheet-table grouped-table${onQuickAddColumn ? " has-add-column" : ""}`} style={fullScreenMode ? { fontSize: '11px' } : {}}>
         <thead>
           <tr>
             <th className="row-index-header" style={{ textAlign: 'center', padding: '0' }}>
@@ -548,126 +617,116 @@ export function SheetTable({
                   </th>
                 );
               } else {
-                const isSorted = sortState.column === rCol.col.name;
-                const sortDir = isSorted ? sortState.direction : "off";
-                const isFiltered = filters.some(f => f.column === rCol.col.name);
-                const isDragged = draggedIndex === rCol.originalIndex;
-                const isDragOver = dragOverIndex === rCol.originalIndex;
+                const colName = rCol.col.name;
+                const isSorted = sortState.column === colName;
+                const isFiltered = filters.some(f => f.column === colName);
+                const dataPos = visibleDataCols.findIndex((c) => c.originalIndex === rCol.originalIndex);
 
                 return (
-                  <th
-                    key={`col-${rCol.col.name}-${cIndex}`}
-                    className={`${rCol.groupName ? "group-child-cell" : ""} ${isDragged ? "dragging" : ""} ${isDragOver ? "drag-over" : ""} align-${alignFor(rCol.col.type)} ${firstDataColIndex === cIndex ? "is-first-data-col" : ""}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, rCol.originalIndex)}
-                    onDragOver={(e) => handleDragOver(e, rCol.originalIndex)}
-                    onDrop={(e) => handleDrop(e, rCol.originalIndex)}
-                    onDragEnd={handleDragEnd}
-                    style={{
-                      width: rCol.col.width ? `${rCol.col.width}px` : "150px",
-                      position: "relative",
-                      zIndex: activeFilterMenu === rCol.col.name ? 100 : 1,
-                      ...(fullScreenMode ? { padding: '4px 6px', fontSize: '11px' } : {})
+                  <ColumnHeaderCell
+                    key={`col-${colName}-${cIndex}`}
+                    col={rCol.col}
+                    groupName={rCol.groupName}
+                    groupColor={groupColor}
+                    isFirstDataCol={firstDataColIndex === cIndex}
+                    sortDir={isSorted ? sortState.direction : "off"}
+                    isDragged={draggedIndex === rCol.originalIndex}
+                    isDragOver={dragOverIndex === rCol.originalIndex}
+                    raised={activeFilterMenu === colName}
+                    fullScreenMode={fullScreenMode}
+                    dragHandlers={{
+                      onDragStart: (e) => handleDragStart(e, rCol.originalIndex),
+                      onDragOver: (e) => handleDragOver(e, rCol.originalIndex),
+                      onDrop: (e) => handleDrop(e, rCol.originalIndex),
+                      onDragEnd: handleDragEnd,
                     }}
-                  >
-                    <div className="column-head-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'center', width: '100%', height: '100%', minHeight: '38px', gap: '3px' }}>
-
-                      {rCol.groupName && (
-                        <span className="group-parent-indicator" style={{ color: groupColor, borderColor: groupColor, opacity: 0.9, alignSelf: 'flex-start' }}>
-                          {rCol.groupName}
-                        </span>
-                      )}
-
-                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '4px', minWidth: 0 }}>
-                        <div
-                          className="column-head-text"
-                          onClick={() => onToggleSort(rCol.col.name)}
-                          style={{ cursor: 'pointer', flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
-                          title="Sort (click to cycle)"
+                    onToggleSort={onToggleSort}
+                    onOpenColumnStats={onOpenColumnStats}
+                    onResizeStart={(e) => onResizeColumn(e, rCol.originalIndex)}
+                    actions={headerActions}
+                    isRenaming={renamingColumn === colName}
+                    onStartRename={() => setRenamingColumn(colName)}
+                    onStopRename={(advance) => {
+                      // Tab walks the header: A, then B, then C.
+                      const next = advance ? visibleDataCols[dataPos + 1] : undefined;
+                      setRenamingColumn(next ? next.col.name : null);
+                      if (!next) refocusGrid();
+                    }}
+                    filterSlot={(
+                      <div className="column-filter-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
+                        <button
+                          className={`icon-button ${isFiltered ? 'active-filter' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); setActiveFilterMenu(activeFilterMenu === colName ? null : colName); }}
+                          title={`Filter ${colName}`}
+                          style={{
+                            padding: '2px',
+                            color: isFiltered ? 'var(--primary)' : 'var(--text-secondary)',
+                            opacity: isFiltered ? 1 : 0.6,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
                         >
-                          {/* The type was previously invisible: a date column
-                              and a text column looked identical until you
-                              tried to edit one. */}
-                          <button
-                            type="button"
-                            className="column-stats-trigger"
-                            title={`${TYPE_LABELS[rCol.col.type]} column — click for a summary`}
-                            aria-label={`Summary of ${rCol.col.name}`}
-                            onClick={(event) => { event.stopPropagation(); onOpenColumnStats(rCol.col.name); }}
-                          >
-                            <ColumnTypeIcon type={rCol.col.type} />
-                          </button>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rCol.col.name}</span>
-                          {sortDir === "asc" && <ArrowUp size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
-                          {sortDir === "desc" && <ArrowDown size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
-                        </div>
+                          <Filter size={14} />
+                        </button>
 
-                        <div className="column-filter-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
-                          <button
-                            className={`icon-button ${isFiltered ? 'active-filter' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); setActiveFilterMenu(activeFilterMenu === rCol.col.name ? null : rCol.col.name); }}
-                            title={`Filter ${rCol.col.name}`}
+                        {activeFilterMenu === colName && (
+                          <div
+                            ref={filterMenuRef}
+                            className="filter-popup-menu"
                             style={{
-                              padding: '2px',
-                              color: isFiltered ? 'var(--primary)' : 'var(--text-secondary)',
-                              opacity: isFiltered ? 1 : 0.6,
+                              position: 'absolute',
+                              top: '100%',
+                              left: cIndex < 3 ? 0 : 'auto',
+                              right: cIndex >= 3 ? 0 : 'auto',
+                              marginTop: '4px',
+                              backgroundColor: 'var(--ui-paper-strong)',
+                              border: '1px solid var(--ui-line)',
+                              color: 'var(--ui-ink)',
+                              textAlign: 'left',
+                              fontWeight: 'normal',
+                              borderRadius: '6px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              padding: '12px',
+                              zIndex: 9999,
+                              width: '240px',
                               display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              flexDirection: 'column',
+                              gap: '8px',
+                              cursor: 'default'
                             }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Filter size={14} />
-                          </button>
-
-                          {activeFilterMenu === rCol.col.name && (
-                            <div
-                              ref={filterMenuRef}
-                              className="filter-popup-menu"
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: cIndex < 3 ? 0 : 'auto',
-                                right: cIndex >= 3 ? 0 : 'auto',
-                                marginTop: '4px',
-                                backgroundColor: 'var(--ui-paper-strong)',
-                                border: '1px solid var(--ui-line)',
-                                color: 'var(--ui-ink)',
-                                textAlign: 'left',
-                                fontWeight: 'normal',
-                                borderRadius: '6px',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                padding: '12px',
-                                zIndex: 9999,
-                                width: '240px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '8px',
-                                cursor: 'default'
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <FilterMenuContent
-                                col={rCol.col}
-                                currentFilter={filters.find(f => f.column === rCol.col.name)}
-                                valueOptions={filterValueOptions}
-                                onApply={(f) => { onAddFilter(f); setActiveFilterMenu(null); }}
-                                onClear={() => { onRemoveFilter(rCol.col.name); setActiveFilterMenu(null); }}
-                                onClose={() => setActiveFilterMenu(null)}
-                              />
-                            </div>
-                          )}
-                        </div>
+                            <FilterMenuContent
+                              col={rCol.col}
+                              currentFilter={filters.find(f => f.column === colName)}
+                              valueOptions={filterValueOptions}
+                              onApply={(f) => { onAddFilter(f); setActiveFilterMenu(null); }}
+                              onClear={() => { onRemoveFilter(colName); setActiveFilterMenu(null); }}
+                              onClose={() => setActiveFilterMenu(null)}
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
-
-                    <div
-                      className="col-resize-handle"
-                      onMouseDown={(e) => onResizeColumn(e, rCol.originalIndex)}
-                    />
-                  </th>
+                    )}
+                  />
                 );
               }
             })}
+            {onQuickAddColumn ? (
+              <th className="add-column-header">
+                <button
+                  type="button"
+                  className="add-column-btn"
+                  title="Add a column"
+                  aria-label="Add a column"
+                  disabled={addingColumn}
+                  onClick={addColumnAndRename}
+                >
+                  <Plus size={15} />
+                </button>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -729,13 +788,34 @@ export function SheetTable({
                     searchQuery={searchQuery}
                     dateColorConfig={dateColorConfig}
                     formatting={formatRules.length ? formattingForRow(formatRules, row, now) : undefined}
+                    hasTrailingCell={!!onQuickAddColumn}
                     callbacks={rowCallbacks}
                   />
                 </React.Fragment>
               );
             });
           })()}
-          {onQuickAddRow && columns.length > 0 ? (
+          {Array.from({ length: ghostRowCount }, (_, ghostIndex) => (
+            <tr key={`ghost-${ghostIndex}`} className="sheet-table-row ghost-row">
+              <td className="row-header ghost-row-header" style={{ height: 'var(--sheet-row-height)', textAlign: 'center' }}>
+                <span className="row-index-number">{rows.length + ghostIndex + 1}</span>
+              </td>
+              {renderColumns.map((rCol, cIndex) =>
+                rCol.type === 'group-control' ? (
+                  <td key={`ghost-ctrl-${cIndex}`} className="group-control-cell" />
+                ) : (
+                  <td
+                    key={`ghost-cell-${cIndex}`}
+                    className={`data-cell ghost-cell ${firstDataColIndex === cIndex ? "is-first-data-col" : ""}`}
+                    title="Click to start a new row"
+                    onClick={() => startGhostRow(rCol.col.name)}
+                  />
+                ),
+              )}
+              {onQuickAddColumn ? <td className="add-column-filler" /> : null}
+            </tr>
+          ))}
+          {onQuickAddRow && columns.length > 0 && ghostRowCount === 0 ? (
             <tr className="quick-add-row">
               <td colSpan={renderColumns.length + 2} style={{ padding: 0 }}>
                 <button

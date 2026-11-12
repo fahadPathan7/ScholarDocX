@@ -44,6 +44,10 @@ page host on port 8000 (production uses the same origin), which avoids `localhos
 
 ## Contracts worth knowing
 
+- **Sheet creation** (SCHOLARDOCX-0259): `POST /projects/{id}/sheets` takes `name`, optional `template`
+  (`blank` default, or `application`) and optional `columns` (validated starting columns, which win
+  over `template`). Invalid input is a 422 before any quota is counted. Column logic lives in
+  `backend/app/services/sheet_templates.py`.
 - **Projects**: `GET /projects/{id}/meta` is the default open-project call (page stubs and aggregates
   only, no rows; `include_calendar=false` skips the calendar scan). `GET /project_pages/{id}` returns
   one fully decoded sheet. `/summary` is heavy and only for legacy/AI paths.

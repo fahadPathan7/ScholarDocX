@@ -193,8 +193,17 @@ export const SHEET_SHORTCUTS: ShortcutGroup[] = [
     ],
   },
   {
+    title: "Columns",
+    items: [
+      { keys: "Double-click a header", description: "Rename the column · Tab moves on to the next one" },
+      { keys: "+ after the last header", description: "Add the next lettered column" },
+      { keys: "▾ on a header", description: "Change type, insert, hide or delete" },
+    ],
+  },
+  {
     title: "Rows and selection",
     items: [
+      { keys: "Click an empty row", description: "Start a new record in that cell" },
       { keys: "Click a row number", description: "Select the row · Shift+click extends the selection" },
       { keys: "Selection bar", description: "Fill down, set a column, clear, duplicate or delete" },
     ],

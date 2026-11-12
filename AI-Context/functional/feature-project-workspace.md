@@ -6,6 +6,9 @@ Requirement group: FR-7
 
 Targets should be organized as projects. The Projects root screen should only help users create projects and view/open existing projects. Editing sheets and rows happens inside a selected project.
 
+A project is a free-form container (SCHOLARDOCX-0259): it needs only a name and
+can hold anything the user wants to track, not just degree applications.
+
 ## FR-7: Projects And Pages
 
 - FR-7.1: Users can create projects from the Targets area.
@@ -47,14 +50,26 @@ Targets should be organized as projects. The Projects root screen should only he
 - FR-7.18: Record form auto-saves to backend after successful submission.
 - FR-7.19: Record form supports keyboard shortcuts (Escape to close, Ctrl/Cmd+Enter to submit from textareas).
 - FR-7.20: Add Record button is disabled when sheet has no columns, with helpful empty state message.
+- FR-7.25: A project needs only a name; a description is optional. No degree
+  type is asked for, shown, or used to group the project list.
+- FR-7.26: A new sheet is blank by default: text columns named A, B, C, D, E
+  and no rows.
+- FR-7.27: Templates (application tracker, professor outreach, and so on, plus
+  the user's saved templates) are optional and picked from a gallery when
+  creating a sheet.
+- FR-7.28: Columns are renamed, added, retyped, moved, hidden and deleted
+  directly from the grid header, without opening the column editor.
+- FR-7.29: The sheets of the open project appear as tabs under the grid; a tab
+  opens its sheet, `+` creates a blank sheet, double-click renames.
 
 ## Projects Root UX
 
 The Projects root should show:
 
 - New project action that opens a floating form panel.
-- Existing project list/cards.
-- Basic project metadata.
+- Existing project cards in one grid, pinned first, with a search box once
+  there are more than a handful.
+- Basic project metadata (status, creation date, description).
 - Sheet count for each project, written with a clear label such as "3 sheets".
 - Project creation date.
 - Project pin action, plus a dashboard pin action once pinned.
@@ -196,35 +211,29 @@ The Add Record form should:
 - Show loading states during save operations to prevent double-submission.
 - Display success feedback after save completes.
 
-## Default Sheet Columns
+## Sheet Starting Points (SCHOLARDOCX-0259)
 
-Initial sheets should support columns such as:
+A new sheet starts **blank**: five text columns named A to E and no rows. The
+user renames a column by double-clicking its header, and adds the next letter
+with the `+` at the end of the header row. Below the data the grid shows a few
+empty rows; clicking one creates a record and starts typing in that cell.
 
-- University name
-- Professor name
-- University rank
-- Local rank
-- Professor email
-- Professor department
-- Professor interests
-- Google Scholar URL
-- Profile URL
-- Email subject
-- Email body
-- Attachments
-- Email provider
-- Scheduled send time
-- Email sent
-- Email sent date
-- Follow-up sent
-- Follow-up date
-- Response status
-- Response notes
-- Centrally applied
-- Application status
-- Linked documents
-- Status
-- Notes
+Templates are optional starting points, never the default:
+
+- Application tracker: university, professor, funding, email and attachment
+  columns. Its exact columns depend on the project's legacy degree value where
+  one exists (older projects), otherwise the PhD layout.
+- Professor outreach, University shortlist, Scholarship tracker, Document
+  checklist.
+- Templates the user saved from their own sheets.
+
+Column header interactions:
+
+- Click the name to sort; double-click to rename in place (Enter saves, Escape
+  cancels). Cell values and cell formatting follow the new name.
+- The header menu offers rename, change type, insert left/right, hide, summary
+  and delete.
+- An empty or duplicate name is refused with a message; nothing is saved.
 
 ## Date Color Rules
 

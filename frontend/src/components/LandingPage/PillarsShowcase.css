@@ -320,6 +320,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 10px 14px;
   background: #ffffff;
   border-bottom: 1px solid #e6dcc6;
@@ -342,13 +343,26 @@
 .lp-mock-title {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0; /* lets a long file name shrink instead of squeezing the badge */
   gap: 6px;
   font-size: 0.775rem;
   font-weight: 600;
   color: #475569;
 }
 
+.lp-mock-title svg { flex-shrink: 0; }
+.lp-mock-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lp-mock-dots { flex-shrink: 0; }
+
 .lp-mock-status-pill {
+  flex-shrink: 0;
+  white-space: nowrap; /* "Paper Loaded" must never wrap onto two lines */
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 8px;
@@ -843,4 +857,10 @@
   .lp-pillars-section {
     padding: 48px 16px;
   }
+}
+
+/* Narrow phones: the window dots are decoration, give the room to the file name */
+@media (max-width: 420px) {
+  .lp-mock-header { padding: 10px 12px; }
+  .lp-mock-dots { display: none; }
 }

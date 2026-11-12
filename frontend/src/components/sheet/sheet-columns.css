@@ -1,0 +1,351 @@
+/* ------------------------------------------------------------------ */
+/*  Direct column editing, empty rows and sheet tabs                   */
+/*  (SCHOLARDOCX-0259). Loaded by SheetTable.tsx.                      */
+/*                                                                     */
+/*  Kept out of sheet-chrome.css / sheet-table-polish.css: both were   */
+/*  already past the file-size target.                                 */
+/* ------------------------------------------------------------------ */
+
+/* ---- Header: inline rename ---- */
+
+/* Room for the pinned row-number column and the pinned "+" column when a
+   header is scrolled into view, so neither sits on top of it. */
+.sheet-table thead th.sheet-col-head {
+  scroll-margin-left: 64px;
+  scroll-margin-right: 64px;
+}
+
+.sheet-table thead th.sheet-col-head.is-renaming {
+  background: linear-gradient(180deg, #476b62 0%, #385851 55%, #304c47 100%);
+}
+
+.column-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 5px;
+  background: #fffefb;
+  color: #17201d;
+  font: inherit;
+  font-weight: 650;
+  letter-spacing: 0;
+  outline: none;
+}
+
+.column-rename-input:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(56, 163, 127, 0.55);
+}
+
+.column-rename-input.has-problem {
+  border-color: #f0a8a0;
+  box-shadow: 0 0 0 2px rgba(196, 72, 60, 0.6);
+}
+
+/* ---- Header: column menu trigger ---- */
+
+.column-menu-trigger {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #cfe0d8;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.sheet-table thead th:hover .column-menu-trigger,
+.sheet-table thead th.is-menu-open .column-menu-trigger,
+.column-menu-trigger:focus-visible {
+  opacity: 0.85;
+}
+
+.column-menu-trigger:hover,
+.sheet-table thead th.is-menu-open .column-menu-trigger {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  opacity: 1;
+}
+
+.column-menu-trigger:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+/* No hover on touch screens: keep the trigger reachable. */
+@media (hover: none) {
+  .column-menu-trigger { opacity: 0.7; }
+}
+
+/* ---- Column menu (portaled to <body>) ---- */
+
+.sheet-col-menu {
+  width: 236px;
+  padding: 6px;
+  border: 1px solid rgba(35, 58, 55, 0.18);
+  border-radius: 12px;
+  background: #fffefb;
+  box-shadow: 0 2px 4px rgba(15, 23, 20, 0.06), 0 18px 36px -12px rgba(15, 23, 20, 0.32);
+  color: #17201d;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.sheet-col-menu-item,
+.sheet-col-menu-type {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-col-menu-item svg,
+.sheet-col-menu-type svg { color: #65756d; flex: 0 0 auto; }
+
+.sheet-col-menu-item:hover,
+.sheet-col-menu-type:hover,
+.sheet-col-menu-item:focus-visible,
+.sheet-col-menu-type:focus-visible {
+  background: rgba(47, 125, 116, 0.1);
+  outline: none;
+}
+
+.sheet-col-menu-item.is-danger { color: #a4372c; }
+.sheet-col-menu-item.is-danger svg { color: #a4372c; }
+.sheet-col-menu-item.is-danger:hover,
+.sheet-col-menu-item.is-danger:focus-visible { background: rgba(196, 72, 60, 0.1); }
+
+.sheet-col-menu-label {
+  padding: 8px 9px 4px;
+  color: #70827f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sheet-col-menu-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.sheet-col-menu-type { padding: 6px 8px; font-size: 12.5px; gap: 7px; }
+.sheet-col-menu-type span:not(.column-type-icon) { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-col-menu-type.is-current { background: #e3f2ed; color: #1f5f58; font-weight: 650; }
+.sheet-col-menu-type.is-current svg { color: #1f5f58; }
+
+.sheet-col-menu-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba(35, 58, 55, 0.12);
+}
+
+/* ---- "+" column at the end of the header ---- */
+
+/* The grid is normally at least 1200px wide. With a "+" column that would
+   leave it holding hundreds of pixels of slack while pinned over real
+   columns, so here the grid is only ever as wide as its container or its
+   columns, whichever is larger. */
+.sheet-table.has-add-column {
+  min-width: 100% !important;
+}
+
+/* It has no width of its own, so it takes whatever the lettered columns
+   leave over: a short sheet reads as a grid with open space to its right
+   instead of five columns stretched across the page. */
+.sheet-table thead th.add-column-header {
+  /* Pinned to the right edge of the scroller, so on a sheet wider than the
+     screen the "+" is still in reach without scrolling to the end. */
+  position: sticky;
+  right: 0;
+  z-index: 11;
+  width: 52px;
+  min-width: 52px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, #f3f7f3 0%, #e9f0ec 100%);
+  border-bottom: 1px solid rgba(35, 58, 55, 0.18) !important;
+  box-shadow: inset 1px 0 0 rgba(35, 58, 55, 0.12);
+  text-align: left;
+}
+
+.sheet-table thead th.add-column-header:hover {
+  background: linear-gradient(180deg, #eef5f1 0%, #e1ece7 100%);
+}
+
+.add-column-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px dashed rgba(31, 95, 88, 0.5);
+  border-radius: 8px;
+  background: #fffefb;
+  color: #1f5f58;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.add-column-btn:hover:not(:disabled) {
+  background: #e3f2ed;
+  border-style: solid;
+  border-color: #2f7d74;
+  transform: scale(1.06);
+}
+
+.add-column-btn:focus-visible { outline: 2px solid #2f7d74; outline-offset: 2px; }
+.add-column-btn:disabled { opacity: 0.5; cursor: progress; }
+
+.sheet-table tbody td.add-column-filler,
+.sheet-table tbody tr:hover td.add-column-filler {
+  background: #fbfaf6;
+  border-color: transparent;
+  padding: 0;
+}
+
+/* ---- Empty ("ghost") rows under the data ---- */
+
+.sheet-table tbody tr.ghost-row td.ghost-cell {
+  background: #fdfcf9;
+  cursor: cell;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.sheet-table tbody tr.ghost-row:hover td.ghost-cell { background: #fdfcf9; }
+
+.sheet-table tbody tr.ghost-row td.ghost-cell:hover {
+  background: rgba(47, 125, 116, 0.09);
+  box-shadow: inset 0 0 0 1.5px rgba(47, 125, 116, 0.55);
+}
+
+.sheet-table tbody tr.ghost-row td.ghost-row-header {
+  color: #a9b6b1;
+  cursor: default;
+}
+
+/* ---- Sheet tabs under the grid ---- */
+
+.sheet-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 6px;
+  border: 1px solid rgba(35, 58, 55, 0.14);
+  border-radius: 12px;
+  background: #f6f2e8;
+}
+
+.sheet-tabs-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.sheet-tab {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 7px;
+  max-width: 220px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #4f6466;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.sheet-tab svg { flex: 0 0 auto; opacity: 0.7; }
+.sheet-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-tab:hover { background: rgba(255, 255, 255, 0.75); color: #17201d; }
+.sheet-tab:focus-visible { outline: 2px solid #2f7d74; outline-offset: 1px; }
+
+.sheet-tab.is-active {
+  border-color: rgba(47, 125, 116, 0.45);
+  background: #fffefb;
+  box-shadow: 0 1px 2px rgba(60, 44, 14, 0.08), inset 0 -2px 0 #2f7d74;
+  color: #1f5f58;
+  cursor: default;
+}
+
+.sheet-tab.is-active svg { opacity: 1; }
+
+.sheet-tab-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(35, 58, 55, 0.09);
+  color: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.sheet-tab.is-renaming { padding: 0 4px; cursor: text; }
+
+.sheet-tab-input {
+  width: 160px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid #2f7d74;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #17201d;
+  font: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(47, 125, 116, 0.2);
+}
+
+.sheet-tab-add {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px dashed rgba(31, 95, 88, 0.5);
+  border-radius: 8px;
+  background: #fffefb;
+  color: #1f5f58;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.sheet-tab-add:hover:not(:disabled) { background: #e3f2ed; border-style: solid; border-color: #2f7d74; }
+.sheet-tab-add:focus-visible { outline: 2px solid #2f7d74; outline-offset: 2px; }
+.sheet-tab-add:disabled { opacity: 0.5; cursor: progress; }
+
+@media (prefers-reduced-motion: reduce) {
+  .add-column-btn,
+  .column-menu-trigger,
+  .sheet-tab,
+  .sheet-tab-add,
+  .sheet-table tbody tr.ghost-row td.ghost-cell { transition: none; }
+  .add-column-btn:hover:not(:disabled) { transform: none; }
+}

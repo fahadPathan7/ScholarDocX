@@ -352,6 +352,17 @@ Owner addition: a key may be given a direct-write scope (no per-change approval)
 app has its own safeguards; it needs an explicit acknowledgement, is never the default, and keeps
 the same allow-list and plan limits.
 
+## BD-015: Projects Are Free-Form; Sheets Start Blank (SCHOLARDOCX-0259)
+
+Decision (owner, 2026-11-13): a project is a named container with no degree label, and a new
+sheet is a blank grid with lettered columns the user renames. The application tracker and the
+other layouts remain as optional templates.
+
+Rationale: applicants track far more than applications. A required Bachelors/Masters/PhD label
+and a prebuilt 30-column tracker made every other use awkward. The `projects.degree_type` column
+stays for existing rows (it still selects the application-tracker layout for them) but the UI
+no longer asks for it or shows it.
+
 ## Pending Decisions
 
 - Whether SMTP support ships or Gmail/Outlook compose links stay the only outreach path.

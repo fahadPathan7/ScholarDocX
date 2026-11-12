@@ -52,6 +52,15 @@ MODEL_MAP = {
     "calendar_reminders": calendar_models.CalendarReminders,
 }
 
+from app.services.sheet_templates import (  # noqa: F401  (re-exported)
+    SHEET_TEMPLATES,
+    application_tracker_columns,
+    blank_sheet_columns,
+    clean_sheet_columns,
+    column_letter,
+    get_columns_for_degree,
+)
+
 TABLE_COLUMNS = {
     # SCHOLARDOCX-0178: "hunt_profile_json" removed — Hunt Profile is deleted.
     # The physical column is left in place, orphaned (matches this codebase's
@@ -190,76 +199,6 @@ DEFAULT_SORT = {
     "scholarship_opportunities": "updated_at DESC",
     "calendar_reminders": "reminder_date ASC",
 }
-
-def get_columns_for_degree(degree_type: str) -> list[dict]:
-    uni_name = [{"name": "University name", "type": "text", "unique": True}]
-    uni_details = [
-        {"name": "Uni details", "type": "group", "color": "#6f42c1"},
-        {"name": "Global rank", "type": "number", "group": "Uni details"},
-        {"name": "Local rank", "type": "number", "group": "Uni details"},
-        {"name": "Program", "type": "text", "group": "Uni details"},
-        {"name": "Deadline", "type": "date", "group": "Uni details"},
-        {"name": "Application portal", "type": "url", "group": "Uni details"},
-        {"name": "Application fee", "type": "number", "group": "Uni details"},
-        {"name": "TOEFL / IELTS", "type": "text", "group": "Uni details"},
-        {"name": "SAT" if degree_type not in ["phd", "masters"] else "GRE", "type": "text", "group": "Uni details"},
-    ]
-    prof_details = [
-        {"name": "Professor name", "type": "text", "unique": True},
-        {"name": "Prof details", "type": "group", "color": "#2f6d7a"},
-        {"name": "Email", "type": "text", "group": "Prof details"},
-        {"name": "Department", "type": "text", "group": "Prof details"},
-        {"name": "Interests", "type": "text", "group": "Prof details"},
-        {"name": "Google Scholar", "type": "url", "group": "Prof details"},
-        {"name": "Portfolio", "type": "url", "group": "Prof details"},
-        {"name": "Uni profile", "type": "url", "group": "Prof details"},
-    ]
-    funding = []
-    if degree_type in ["phd", "masters"]:
-        funding = [
-            {"name": "Funding", "type": "group", "color": "#007bff"},
-            {"name": "Uni fund available", "type": "bool", "group": "Funding"},
-            {"name": "Uni fund details", "type": "text", "group": "Funding"},
-            {"name": "Prof fund available", "type": "bool", "group": "Funding"},
-            {"name": "Prof fund details", "type": "text", "group": "Funding"},
-        ]
-
-    email_group = [
-        {"name": "Email", "type": "group", "color": "#4f8a45"},
-        {"name": "Subject", "type": "text", "group": "Email"},
-        {"name": "Body", "type": "text", "group": "Email"},
-        {"name": "Scheduled time", "type": "date", "group": "Email"},
-        {"name": "Cold email sent", "type": "bool", "group": "Email"},
-        {"name": "Cold email date", "type": "date", "group": "Email"},
-        {"name": "First follow-up sent", "type": "bool", "group": "Email"},
-        {"name": "First follow-up date", "type": "date", "group": "Email"},
-        {"name": "Second follow-up sent", "type": "bool", "group": "Email"},
-        {"name": "Second follow-up date", "type": "date", "group": "Email"},
-        {"name": "Email thread link", "type": "url", "group": "Email"},
-    ]
-    scholarship = [
-        {"name": "Scholarship", "type": "group", "color": "#007bff"},
-        {"name": "Available", "type": "bool", "group": "Scholarship"},
-        {"name": "Details", "type": "text", "group": "Scholarship"},
-        {"name": "Separate app needed", "type": "bool", "group": "Scholarship"},
-        {"name": "Applied", "type": "bool", "group": "Scholarship"},
-    ]
-    status_options = ["Researching", "Ready", "Applied", "Waitlisted", "Accepted", "Rejected", "Archived"]
-    if degree_type in ["phd", "masters"]:
-        status_options = ["Researching", "Ready", "Sent", "Follow-up due", "Applied", "Waitlisted", "Accepted", "Rejected", "Archived"]
-
-    status_applied = [
-        {"name": "Status", "type": "select", "options": status_options},
-        {"name": "Applied", "type": "bool"},
-    ]
-    notes = [{"name": "Notes", "type": "text"}]
-    response = [{"name": "Response", "type": "text"}]
-
-    if degree_type in ["phd", "masters"]:
-        return uni_name + uni_details + prof_details + funding + status_applied + response + notes + email_group
-    else:
-        return uni_name + uni_details + scholarship + status_applied + notes
-
 
 class Store:
     def __init__(self, db: Session, current_user_id: str | None = None) -> None:
@@ -935,51 +874,36 @@ class Store:
             )).mappings().all()
         return {str(row["project_id"]): int(row["n"]) for row in rows}
 
-    def create_sheet_with_defaults(self, project_id: str, name: str) -> dict:
+    def _application_tracker_columns(self, project_id: str) -> list[dict]:
+        """The application tracker shaped by the project's legacy degree value.
+        Projects without one get the PhD layout, the most complete."""
         try:
-            project = self.get_record("projects", project_id)
-            degree_type = (project.get("degree_type") or "phd").lower()
+            degree_type = (self.get_record("projects", project_id).get("degree_type") or "phd").lower()
         except LookupError:
             degree_type = "phd"
+        return application_tracker_columns(degree_type)
 
-        # Build columns list dynamically based on degree type
-        columns = get_columns_for_degree(degree_type)
+    def create_sheet_with_defaults(
+        self,
+        project_id: str,
+        name: str,
+        template: str = "blank",
+        columns: list[dict] | None = None,
+    ) -> dict:
+        """Create a sheet and its single page.
 
-        columns.append({"name": "Attachments", "type": "group", "color": "#c58940", "width": 150})
-        attachments = []
-        if degree_type == "phd":
-            attachments = [
-                {"name": "CV", "type": "file", "group": "Attachments"},
-                {"name": "SOP", "type": "file", "group": "Attachments"},
-                {"name": "Research Proposal", "type": "file", "group": "Attachments"},
-                {"name": "BSc certificate", "type": "file", "group": "Attachments"},
-                {"name": "BSc transcript", "type": "file", "group": "Attachments"},
-                {"name": "MSc certificate", "type": "file", "group": "Attachments"},
-                {"name": "MSc transcript", "type": "file", "group": "Attachments"},
-                {"name": "LOR1", "type": "file", "group": "Attachments"},
-                {"name": "LOR2", "type": "file", "group": "Attachments"},
-                {"name": "LOR3", "type": "file", "group": "Attachments"},
-            ]
-        elif degree_type == "masters":
-            attachments = [
-                {"name": "CV", "type": "file", "group": "Attachments"},
-                {"name": "SOP", "type": "file", "group": "Attachments"},
-                {"name": "BSc certificate", "type": "file", "group": "Attachments"},
-                {"name": "BSc transcript", "type": "file", "group": "Attachments"},
-                {"name": "LOR1", "type": "file", "group": "Attachments"},
-                {"name": "LOR2", "type": "file", "group": "Attachments"},
-                {"name": "LOR3", "type": "file", "group": "Attachments"},
-            ]
+        Starting columns, in priority order (SCHOLARDOCX-0259):
+        ``columns`` if given (validated), else the ``application`` tracker
+        when asked for, else a blank grid of lettered columns.
+        """
+        if columns is not None:
+            columns = clean_sheet_columns(columns)
+        elif template == "application":
+            columns = self._application_tracker_columns(project_id)
+        elif template == "blank":
+            columns = blank_sheet_columns()
         else:
-            attachments = [
-                {"name": "CV", "type": "file", "group": "Attachments"},
-                {"name": "SOP", "type": "file", "group": "Attachments"},
-                {"name": "High school certificate", "type": "file", "group": "Attachments"},
-                {"name": "High school transcript", "type": "file", "group": "Attachments"},
-                {"name": "LOR1", "type": "file", "group": "Attachments"},
-                {"name": "LOR2", "type": "file", "group": "Attachments"},
-                {"name": "LOR3", "type": "file", "group": "Attachments"},
-            ]
+            raise ValueError(f"unknown sheet template: {template}")
 
         from uuid import uuid4
         sheet_obj = models.ProjectSheets(

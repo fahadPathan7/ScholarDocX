@@ -203,7 +203,7 @@ export function DashboardView({
                 <FolderOpen size={14} />
                 <div>
                   <strong>{item.name}</strong>
-                  <span>{item.degree_type ? (item.degree_type.toLowerCase() === 'phd' ? 'PhD' : item.degree_type.charAt(0).toUpperCase() + item.degree_type.slice(1)) : "Degree TBD"} · {item.sheet_count} sheets</span>
+                  <span>{item.sheet_count} {Number(item.sheet_count) === 1 ? "sheet" : "sheets"}{item.status && item.status !== "Active" ? ` · ${item.status}` : ""}</span>
                 </div>
               </>
             )}

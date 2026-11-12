@@ -13,6 +13,7 @@ import "./responsive.css";
 import "./app-brand.css";
 import "./tools-polish.css";
 import "./projects-polish.css";
+import "./projects-free.css";
 import "./dashboard-polish.css";
 import "./notes-docs-polish.css";
 import "./profile-polish.css";

@@ -60,8 +60,11 @@ export const SheetTableRow = React.memo(function SheetTableRow({
   searchQuery,
   dateColorConfig,
   formatting,
+  hasTrailingCell,
   callbacks,
 }: {
+  /** The header has a trailing "+" column; keep the grid lines continuous. */
+  hasTrailingCell?: boolean;
   row: Record<string, string>;
   rowIndex: number;
   renderColumns: RenderColumn[];
@@ -214,6 +217,7 @@ export const SheetTableRow = React.memo(function SheetTableRow({
           </td>
         );
       })}
+      {hasTrailingCell ? <td className="add-column-filler" style={{ height: cellHeight }} /> : null}
     </tr>
   );
 });

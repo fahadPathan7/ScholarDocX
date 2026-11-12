@@ -194,7 +194,11 @@ def execute_create_project(svc, action: dict[str, Any], refs: dict[str, Any]) ->
 def execute_create_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     project = resolve_project(svc.store, action, refs)
     _enforce_sheet_limits(svc, project["id"])
-    result = svc.store.create_sheet_with_defaults(project["id"], action["sheet"]["name"])
+    # Projects that still carry a degree get the application tracker Lumi's
+    # row actions were written against; free-form projects get a blank sheet
+    # (SCHOLARDOCX-0259).
+    template = "application" if (project.get("degree_type") or "").strip() else "blank"
+    result = svc.store.create_sheet_with_defaults(project["id"], action["sheet"]["name"], template=template)
     sname = (result.get("sheet", {}).get("name") or "").lower()
     if sname:
         refs["sheets"][(project["id"], sname)] = result

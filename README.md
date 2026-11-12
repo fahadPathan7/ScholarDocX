@@ -1,223 +1,301 @@
 # ScholarDocX
 
-ScholarDocX is a secure personal workspace, privacy-first higher education application management portal.
+**A private workspace for students applying to Master's and PhD programmes.** Track universities, professors and deadlines in spreadsheet-style sheets, keep documents in one vault, and use AI tools that find advisors, hunt scholarships and read research papers, with every change to your data confirmed by you first.
 
-It is designed for students and researchers applying to Bachelor's, Master's, and PhD programs who need one private workspace for applications, deadlines, documents, outreach, and AI-assisted academic research.
+Live at **[scholardocx.onrender.com](https://scholardocx.onrender.com)** · React + FastAPI + PostgreSQL (pgvector) · deployed on free tiers.
 
-## Current Status
+---
 
-The project is a cloud-deployed web application (see SCHOLARDOCX-0139). The MVP
-runs on free-tier cloud hosting: a FastAPI backend, a Postgres database, and
-cloud object storage for uploaded files.
+## Screenshots
 
-What exists:
+| | |
+|---|---|
+| ![Landing page](docs/screenshots/landing.png) **Landing** | ![Dashboard](docs/screenshots/dashboard.png) **Dashboard**: counts, pinned items, calendar, notes |
+| ![Projects](docs/screenshots/projects.png) **Projects**: one per application goal | ![Project sheets](docs/screenshots/sheet.png) **Project view**: sheets, rows, dates |
+| ![AI assistant](docs/screenshots/assistant.png) **Lumi, the AI assistant**: chat + workspace agent | ![Advisor Atlas](docs/screenshots/advisor-atlas.png) **Advisor Atlas**: find and rank professors |
+| ![Scholarship Hunt](docs/screenshots/scholarship-hunt.png) **Scholarship Hunt**: goal-driven funding search | ![Research Expert](docs/screenshots/research-expert.png) **Research Expert**: ask questions of a paper |
+| ![Sticky notes](docs/screenshots/sticky-notes.png) **Sticky notes** with checklists and due dates | |
 
-- FastAPI backend with JWT auth, Role-Based Access Control (RBAC), invite-code
-  registration, and optional Google sign-in/sign-up (SCHOLARDOCX-0169)
-- PostgreSQL-backed persistence (Supabase), with cloud object storage for media
-  and document uploads
-- Polar (polar.sh) billing integration for plan upgrades from inside the app,
-  subscription lifecycle, and webhook-reconciled activation
-- React/Vite/TypeScript frontend with Tailwind CSS
-- Dashboard, hierarchy, documents, files, outreach, reminders, and AI assistant
-- Project workspaces created from Targets/Projects
-- Projects root with create/view/open flow
-- Sheets inside each project, with default pages/tabs
-- Editable, addable, and deletable sheet rows and columns
-- Sheet-generated Add Record forms
-- Outreach, follow-up, response, central application, and document-link tracking
-  inside sheet records
-- Date-based row highlighting for due items
-- Per-project dashboard focused on dates, next moves, and counts
-- Central notifications
-- Collapsible left navigation
-- Top-right collapsible/expandable AI assistant panel
-- Advisor Atlas for evidence-backed professor discovery, fit ranking, dossiers,
-  publication reading paths, recruitment signals, comparison, and shortlists
-- Scholarship opportunities discovery and deep-hunt research
-- Profile page with plan/subscription details
-- About page for storage, AI, and email-compose details
-- Backend and frontend unit tests
+---
 
-Not included yet:
+## What's inside
 
-- SMTP email sending
-- Full rich-text editor package
-- Automatic Gmail/Outlook attachment insertion through compose links
+- **Workspace**: projects → sheets → rows with typed columns, cell formatting, CSV import, undo, a calendar fed by date columns, sticky notes, a whiteboard and a document vault.
+- **Lumi (AI assistant)**: chat with optional web search, plus a **workspace agent** that reads your data and prepares changes for you to confirm.
+- **Advisor Atlas**: maps a university's departments, finds faculty, and builds evidence-backed dossiers on research fit and openings.
+- **Scholarship Hunt**: turns a funding goal into searches, reads the pages, and returns structured opportunities.
+- **Research Expert**: upload a PDF and ask questions; answers cite the passages they came from.
+- **Accounts**: email + password with invite codes, or Google sign-in. Plans and AI credits (every AI call is metered).
 
-## Core Product Direction
+---
 
-ScholarDocX helps users manage:
+## Architecture
 
-- Degree workspaces for Bachelor's, Master's, and PhD
-- Projects for each application campaign
-- Sheets and default pages for tracking universities, professors, ranks, research fit, emails, responses, follow-ups, attachments, linked documents, dates, and status
-- Countries, regions, universities, programs, and professors
-- Application statuses and deadlines
-- SOPs, research proposals, LOR drafts, and personal statements
-- Static files such as CVs, transcripts, certificates, and test scores
-- Email templates, outreach logs, attachments, and follow-up reminders
-- GLM, Google AI Studio Gemini, Groq, Mistral, OpenRouter, and Tavily-assisted
-  research and drafting
-
-## Product Principles
-
-- Secure personal workspace data ownership
-- Privacy-first defaults
-- Zero required infrastructure cost (free-tier cloud hosting)
-- Optional external AI/search APIs (server-side keys, explicit user actions)
-- Context-first AI-DLC development
-- Small, modular files that future AI agents can understand quickly
-
-## Stack
-
-- Frontend: React/Vite/TypeScript with Tailwind CSS
-- Backend: Python FastAPI
-- Database: PostgreSQL (Supabase)
-- File storage: cloud object storage (Supabase Storage)
-- Hosting: Render (free-tier Web Service + Static Site); see `render.yaml`
-- Billing: Polar (polar.sh) for plan purchases and subscription lifecycle
-- AI integrations: GLM-5.1, GLM vision, Google AI Studio Gemini, Groq, Mistral,
-  OpenRouter, and Tavily
-
-## Local Setup
-
-The app reads its database and storage credentials from environment variables
-(see `.env.example`). For local development, point `DATABASE_URL` at a Postgres
-instance and configure the storage/AI provider keys you want to exercise.
-
-Backend:
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-# Bind 0.0.0.0 so the API is reachable from other devices on the LAN (matches the
-# frontend's `vite --host 0.0.0.0`). Without it, mobile/LAN access fails on login.
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```mermaid
+flowchart LR
+    U["Browser<br/>React + Vite SPA"] -->|"JWT (Bearer)"| API["FastAPI backend"]
+    API --> DB[("PostgreSQL + pgvector<br/>Supabase")]
+    API --> ST[("Object storage<br/>uploaded files")]
+    API --> LLM["Chat models<br/>GLM · Groq · Gemini · Mistral"]
+    API --> SRCH["Search<br/>Brave · Tavily"]
+    API --> EMB["Embeddings<br/>Jina"]
+    API --> OA["OpenAlex<br/>publications"]
+    API --> WEB["Public web<br/>(guarded crawler)"]
+    U -->|"OAuth redirect"| G["Google sign-in"]
+    G --> API
+    API --> P["Polar<br/>billing"]
 ```
 
-Frontend:
+- The browser never talks to an AI or search provider. **All provider keys live only on the server.**
+- Every user's rows are scoped by `user_id` in every query; files are opened through short-lived, file-scoped download tokens.
+- Every provider call is charged to the user who caused it, checked before the call (`can_spend`) and charged after it. A guard script (`make guard-billing`) fails if any provider call doesn't charge.
 
-```bash
-cd frontend
-npm install
-npm run dev -- --port 5173
+---
+
+## How the AI agent works
+
+The assistant is connected to the workspace through **two tools**, in a bounded tool-calling loop (at most 5 model calls per message). Reads run immediately; **writes are only ever proposed**.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Assistant panel
+    participant Agent as Agent loop (server)
+    participant Model as Chat model
+    participant WS as Workspace (DB)
+
+    User->>UI: "Add a blank row after row 4 in my sheet"
+    UI->>Agent: message + last 10 turns
+    loop up to 5 steps
+        Agent->>Model: system rules + action catalog + workspace snapshot
+        alt model calls run_read_action
+            Model-->>Agent: {type: get_rows, ...}
+            Agent->>WS: validate + execute read
+            WS-->>Agent: rows (bounded)
+        else model calls propose_changes
+            Model-->>Agent: [{type: add_rows, rows:[{}], insert_after_row:4}]
+            Agent->>Agent: validate against catalog, send errors back to the model
+            Agent-->>UI: plan + Confirm / Cancel
+        else model replies in text
+            Agent-->>UI: answer
+        end
+    end
+    User->>UI: Confirm
+    UI->>WS: execute plan (role limits re-checked)
+    WS-->>UI: real result
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+- The model only produces **JSON action objects** from a fixed catalog; they are normalized and resolved by name on the server. Model output is never executed as code.
+- Writing data takes a human click. An unanswered plan is marked *superseded* as soon as the user asks for something else.
+- If a model can't do tool calling, a single-shot planner takes over automatically.
 
-Backend health: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health).
+---
 
-## Deployment
+## How the web crawler works
 
-ScholarDocX is deployed to Render using `render.yaml` at the repo root
-(SCHOLARDOCX-0139):
+Advisor Atlas and Scholarship Hunt share one crawler, built to be polite and to never reach private networks.
 
-- **Backend** — FastAPI Web Service running uvicorn. Set `DATABASE_URL`,
-  `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_BUCKET`, and the AI/billing
-  secrets in the Render dashboard under Environment.
-- **Frontend** — Vite Static Site. Render builds it and serves `dist/`, with
-  `VITE_API_BASE_URL` injected to point at the backend.
-- **Database / storage** — Supabase Postgres pooler URL and a storage bucket
-  for media uploads.
-
-Free-tier notes: the backend Web Service sleeps after 15 min of idle. For
-Google sign-in also set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-`GOOGLE_REDIRECT_URI` (the backend callback) and `FRONTEND_ORIGIN`; without the
-client id/secret the Google button's endpoint returns 503 and email/password
-login keeps working.
-
-## Access Control (RBAC) & Admin setup
-
-The application supports Role-Based Access Control. **No default super admin is
-auto-seeded on fresh database initialization** (SCHOLARDOCX-0140 — a committed
-account with a publicly-known password hash was a security risk). Super admins
-are created explicitly via `backend/scripts/create_superadmin.py`, which prompts
-for credentials. The RBAC roles and permissions are defined in
-`backend/app/services/admin.py` and seeded by `initialize_database()`.
-
-Registration flow (two paths, both start on the free plan):
-
-1. **Invite code** — an admin generates an invite code from the Admin Dashboard
-   (or via the API). New users register with the code and get the `free_user`
-   role.
-2. **Google** (optional) — "Sign in/up with Google" runs a backend-side
-   authorization-code + PKCE flow. A new Google user gets an active free
-   account immediately; a returning user logs in directly; a Google account
-   whose verified email matches an existing user is linked to it.
-
-Paid self-registration at signup was removed (SCHOLARDOCX-0169); users upgrade
-to Basic/Pro/Max after login through the plan flow (Polar checkout).
-
-To manage users after setup: log in as a super admin to assign `pro_user` /
-`max_user` roles, generate invite codes, and adjust system limits via the
-Admin Dashboard.
-
-## Tests
-
-Backend:
-
-```bash
-cd backend
-.venv/bin/pytest
+```mermaid
+flowchart TD
+    A["URL to fetch"] --> B{"http/https?<br/>not localhost?"}
+    B -- no --> X["reject"]
+    B -- yes --> C["robots.txt check<br/>(follows redirects; 5xx = disallow)"]
+    C -- disallowed --> X
+    C -- allowed --> D["Per-host throttle<br/>0.45 s, shared across all runs"]
+    D --> E["Resolve DNS once (non-blocking)<br/>every address must be public"]
+    E -- private / CGNAT / loopback --> X
+    E -- public --> F["Connect to that pinned IP<br/>Host header + TLS name unchanged"]
+    F --> G{"redirect?"}
+    G -- yes --> B
+    G -- no --> H["Stream body, stop at size cap<br/>HTML/text 1.5 MB · images 4 MB"]
+    H --> I["Parse text, links, tables,<br/>mailto + 'name [at] uni [dot] edu' emails"]
 ```
 
-Frontend build:
+- **DNS-rebinding safe**: the address that was checked is the address that is connected to.
+- Every redirect hop is re-validated, robots-checked and throttled again.
+- Scraped text reaching a model is labelled *untrusted data, never instructions*; images are sent to the vision model as the bytes that were validated, never as a URL for the provider to fetch.
 
-```bash
-cd frontend
-npm run build
+---
+
+## How Scholarship Hunt works
+
+```mermaid
+flowchart LR
+    G["Funding goal<br/>+ degree, countries, field, intake"] --> P["Query planner<br/>4 diverse queries,<br/>acronyms expanded"]
+    P --> S["Search<br/>4 queries × 4 results"]
+    S --> F["Pre-filter on snippets<br/>drop only clear contradictions:<br/>closed, stale, other country, other field"]
+    F --> C["Crawl top pages"]
+    C --> E["Extract structured facts<br/>from the page's relevant parts"]
+    E --> R["Relevance judge<br/>sees goal + form filters"]
+    R --> D["Drop expired / wrong country,<br/>de-duplicate by programme"]
+    D --> O["Ranked opportunities<br/>save to your Library"]
 ```
 
-## AI-DLC Workflow
+- Missing facts stay empty; the extractor is told never to guess a deadline, amount or sponsor.
+- All-fields programmes (e.g. national government scholarships) are kept but ranked below field-specific ones.
+- Results live on the run until you save one; your Library holds up to 100.
 
-Before implementing a new feature or modifying an existing feature:
+---
 
-1. Read [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), and [CODE_RULES.md](AI-Context/CODE_RULES.md).
-2. Read [AI-Context/README.md](AI-Context/README.md).
-3. Read the relevant business, functional, and technical context files.
-4. Create or update a Jira task in [AI-Context/jira-tasks](AI-Context/jira-tasks).
-5. Update context before code when behavior, architecture, data, or decisions change.
-6. Implement the feature.
-7. Add or update unit tests when the feature introduces meaningful behavior.
-8. Update the Jira task with changed files, verification, and follow-ups.
+## How Advisor Atlas works
 
-## Important Rules
+```mermaid
+flowchart TD
+    I["University + research field<br/>(+ your research profile)"] --> M["Map related units<br/>departments, institutes, centres"]
+    M --> FD["Per unit: search + crawl<br/>faculty directories"]
+    FD --> CA["Candidate professors<br/>name checks, same-site links only"]
+    CA --> SC["Screen every candidate<br/>targeted search + analysis"]
+    SC --> TOP["Top 15 by fit"]
+    TOP --> DR["Deep research<br/>8 search passes, crawl profile / lab pages,<br/>publications from OpenAlex"]
+    DR --> AN["Specialist AI passes → synthesis"]
+    AN --> DO["Dossier: research fit, recent work,<br/>funding, recruitment outlook, next steps"]
+```
 
-- Google OAuth 2.0 / OpenID Connect sign-in is implemented (SCHOLARDOCX-0169) as an optional method alongside email/password. Keep it optional, request only `openid email profile`, and keep the client secret server-side.
-- Layout is not constrained by rule: pages may scroll vertically or horizontally, wrap, or fit the viewport — whatever makes the UI best. There are no mandated no-scroll, single-row, or no-wrap restrictions (the modal-backdrop pattern in AGENTS.md is the only layout-adjacent rule).
-- Gmail/Outlook compose links can prefill to, subject, and body, but cannot automatically attach files without Gmail API or Microsoft Graph integration.
-- Records and outreach live inside project sheets, not separate navigation areas.
-- Documents are uploaded and linked; ScholarDocX does not author SOPs or proposals internally.
-- Do not commit secrets or real API keys.
-- Keep source files under 1000 lines when possible.
-- A file may temporarily reach about 1150 lines during a cohesive feature, but split it before adding more work.
-- Every feature should include unit tests when it introduces business logic, data transformation, validation, persistence, integration boundaries, or file system behavior.
-- If unit tests are not needed, explain why in the Jira task.
+- A missing fact is acceptable; an invented one is not. Model output is checked against the sources it cites and reconciled with deterministic checks (name-matched emails, publication authorship, profile ownership).
+- Publications come from the OpenAlex index rather than scraping, and Google Scholar restrictions are never bypassed.
+- **Professor mode** skips discovery and runs the deep pass on one named professor.
 
-## Context Map
+---
 
-- [AI-Context/business](AI-Context/business): product vision, users, requirements, decisions, risks
-- [AI-Context/functional](AI-Context/functional): features, requirements, workflows, entity relationships
-- [AI-Context/technical](AI-Context/technical): architecture, storage, APIs, AI integrations, auth, testing
-- [AI-Context/jira-tasks](AI-Context/jira-tasks): task template, backlog, execution records
-- [AI-Context/workflows](AI-Context/workflows): AI-DLC process and handoff rules
+## Sign-in: Google OAuth
 
-## Next Recommended Tasks
+Authorization Code flow with **PKCE**; the code exchange happens on the server, so no OAuth secret ever reaches the browser.
 
-- Replace the MVP textarea document surface with a richer editor when document editing becomes central.
-- Add Google Calendar/Gmail/Drive integrations only when there is clear value (Google sign-in itself already ships).
-- Add Gmail API, Microsoft Graph, or SMTP only after web compose workflows are proven insufficient.
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant API as Backend
+    participant G as Google
 
-## Maintaining This README
+    User->>FE: "Sign in with Google"
+    FE->>API: GET /auth/google/login
+    API->>API: create state + nonce + PKCE verifier<br/>store in signed HttpOnly cookie (10 min)
+    API-->>User: redirect to Google
+    User->>G: choose account, consent
+    G-->>API: callback with code + state
+    API->>API: verify state cookie (CSRF)
+    API->>G: exchange code + PKCE verifier
+    G-->>API: id_token
+    API->>API: verify signature (JWKS), aud, iss, nonce<br/>refuse unverified emails
+    API-->>FE: redirect with app session token
+    FE->>FE: store session, go to dashboard
+```
 
-Update this README when:
+- A verified Google email that matches an existing account is linked to it; nothing else is auto-linked.
+- Only the identity is kept: no Google access or refresh tokens are stored.
 
-- The project status changes
-- The stack is finalized
-- Setup or run commands are added
-- MVP scope changes
-- Major architecture decisions are accepted
-- Authentication, AI, storage, or testing policy changes
+---
+
+## Sessions, secret rotation and "log out everywhere"
+
+Sessions are signed JWTs (HS256, algorithm pinned on decode). Each token carries the user's `token_version`, and **every request compares it with the database**.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant API as Backend
+    participant DB as users table
+
+    Note over DB: token_version = 3
+    User->>API: change password (or admin resets it)
+    API->>DB: new hash, token_version = 4
+    Note over User: Phone, laptop, old tabs<br/>still hold tokens with version 3
+    User->>API: any request with an old token
+    API->>DB: load user
+    DB-->>API: token_version = 4
+    API-->>User: 401 Token has been revoked
+```
+
+`token_version` is bumped on **password change, admin password reset, suspension and admin revocation**, so all existing sessions die at once without a token blocklist.
+
+**Secrets and rotation**
+
+- The signing secret comes only from the environment (`JWT_SECRET`); there is no fallback value. A placeholder secret that was once committed to the repo is recognised and refused.
+- **Rotating `JWT_SECRET` signs every user out at once.** That is the response to a suspected leak.
+- Provider keys (AI, search, embeddings, billing, Google OAuth) are server-side environment variables, so they can be rotated without a code change or a client release.
+- File links use separate **5-minute, single-file download tokens**, so the long-lived session token never appears in a URL.
+
+---
+
+## Keeping the AI on task (prompt injection and scope)
+
+Defences are layered, so no single prompt is the only line of defence:
+
+```mermaid
+flowchart TD
+    M["User message"] --> A{"Admin / account command?<br/>roles, plans, tokens, users, invites"}
+    A -- yes --> R["Refused before any model call"]
+    A -- no --> B["Model with fixed rules"]
+    B --> C{"Wants to change data?"}
+    C -- no --> T["Answer (scoped to higher education;<br/>off-topic answered briefly)"]
+    C -- yes --> D["Must use a catalogue action<br/>(no admin action exists to call)"]
+    D --> E["Server validates and normalizes"]
+    E --> F["User confirms"]
+    F --> G["Executed with the same role limits<br/>as the normal UI"]
+    W["Web pages · PDF text · images"] -.->|"framed as untrusted data,<br/>never instructions"| B
+```
+
+- **Commands for privileged actions go nowhere**: they are refused by pattern before the model runs, and the action catalogue simply has no admin actions for a model to call even if it tried.
+- **Content is data, not instructions**: scraped pages, paper passages and images are explicitly framed as material to analyse; text inside them that tries to change the task is ignored.
+- **No hidden side effects**: the model cannot write anything by itself. Every write is a typed action, validated on the server and confirmed by the user.
+- **No false claims**: plain chat has no workspace access and is told never to say it changed anything.
+
+---
+
+## How chat memory works
+
+```mermaid
+flowchart LR
+    subgraph EM["Each message"]
+        S["Rolling summary<br/>(≤ 200 tokens)"]
+        R["Last N exact turns<br/>(user picks N)"]
+        Q["New question"]
+    end
+    S & R & Q --> AI["Model call"]
+    AI --> ANS["Answer"]
+    ANS --> BG["Background: summarize<br/>previous summary + this turn"]
+    BG --> S
+```
+
+- After each reply, a cheap background call folds the newest turn into the **rolling summary**, keeping goals, decisions, names and deadlines and dropping small talk.
+- Each request sends the summary plus the **last N turns verbatim**, so long chats stay cheap and still remember context.
+- Chat history is stored in the browser **per user** (keyed by account), so people sharing a computer never see each other's chats.
+- With web search on, a small routing step first decides whether a live search is needed at all.
+
+---
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Frontend | React 19, TypeScript, Vite 6, Tailwind |
+| Backend | FastAPI (Python 3.13), SQLAlchemy |
+| Data | PostgreSQL + pgvector (Supabase), object storage |
+| AI | GLM, Groq, Gemini, Mistral, OpenRouter · Jina embeddings |
+| Search & data | Brave, Tavily, OpenAlex |
+| Auth & billing | JWT, Google OAuth (PKCE), Polar |
+| Hosting | Render (free tier) |
+
+## Running it locally
+
+```bash
+make setup     # backend venv + frontend packages
+make run       # FastAPI on :8000, Vite on :5173
+make test      # backend pytest + frontend vitest
+```
+
+The backend reads its configuration from `backend/.env`: at minimum `DATABASE_URL` and `JWT_SECRET`, plus whichever provider keys you want enabled (for example `GLM_API_KEY`, `BRAVE_API_KEY`, `TAVILY_API_KEY`, `JINA_API_KEY`, `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`). Features whose keys are missing fall back gracefully or show as unavailable.
+
+Backend tests run against a throwaway Postgres: `make test-db-start` (Docker).
+
+## Repository layout
+
+```
+backend/     FastAPI app: api/ (routes), services/ (features, AI, crawler), auth/, db/
+frontend/    React app: components/, lib/, contexts/
+AI-Context/  living product + technical context and task history (AI-assisted development)
+scripts/     guards: provider-call billing, context drift, CSS invariants
+```
+
+This repository is developed with an **AI-assisted workflow**: every change starts from a task in `AI-Context/jira-tasks/` and keeps the context files in `AI-Context/` current, so the reasoning behind each decision travels with the code.

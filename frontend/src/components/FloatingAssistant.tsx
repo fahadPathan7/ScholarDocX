@@ -16,6 +16,7 @@ import {
   LEGACY_CHAT_STORAGE_KEY,
   MODEL_OPTIONS,
   MODEL_PROVIDER_FEATURES,
+  NON_CHAT_PROVIDER_LABELS,
   normalizeStoredModel,
   type ModelOption,
 } from "../lib/assistantModels";
@@ -335,9 +336,14 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
           const finalDisplayName = (m.display_name && m.display_name !== m.model_id) 
             ? m.display_name 
             : fallbackName;
+          // OpenRouter and Jina rows exist for pricing only (background search
+          // helpers and embeddings). They are not chat models and must not be
+          // lumped under GLM, which is where unknown providers used to land.
+          const nonChatLabel = NON_CHAT_PROVIDER_LABELS[m.provider];
           return {
             provider: getProviderForModel(fullId),
-            providerLabel: getProviderDisplayName(getProviderForModel(fullId)),
+            providerLabel: nonChatLabel ?? getProviderDisplayName(getProviderForModel(fullId)),
+            nonChat: Boolean(nonChatLabel),
             value: fullId,
             label: finalDisplayName,
             is_active: Number(m.is_active) === 1
@@ -357,7 +363,7 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
     const provider = getProviderForModel(modelValue);
     if (!allowedProviders.has(provider)) return false;
     const modelDef = allModelOptions.find(m => m.value === modelValue);
-    if (modelDef && modelDef.is_active === false) return false;
+    if (modelDef && (modelDef.is_active === false || modelDef.nonChat)) return false;
     return true;
   }, [allowedProviders, allModelOptions]);
 
@@ -991,22 +997,22 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
 
   if (!open) {
     return (
-      <button className="ai-trigger-button" onClick={() => setOpen(true)} title="Open AI assistant">
+      <button className="ai-trigger-button" onClick={() => setOpen(true)} title="Open the AI Agent">
         <Bot size={16} />
-        <span>Ask AI</span>
+        <span>AI Agent</span>
       </button>
     );
   }
 
   return (
     <>
-      <button className="ai-trigger-button active" onClick={handleClose} title="Close AI assistant">
+      <button className="ai-trigger-button active" onClick={handleClose} title="Close the AI Agent">
         <Bot size={16} />
-        <span>Ask AI</span>
+        <span>AI Agent</span>
       </button>
       <aside className={wide ? "assistant-dock chat-dock wide" : "assistant-dock chat-dock"}>
         <div className="assistant-head">
-          <strong>AI Assistant</strong>
+          <strong>AI Agent</strong>
           <div className="chat-head-actions">
             <button className="icon-button compact" onClick={() => setShowHistory(v => !v)} title="View history">
               <History size={15} />
@@ -1092,10 +1098,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                     {options.map((option) => {
                       const noAccess = !allowedProviders.has(option.provider);
                       const inactive = option.is_active === false;
-                      const disabled = noAccess || inactive;
-                      const displayLabel = inactive 
-                        ? `${option.label} (Disabled)`
-                        : noAccess ? `${option.label} (No access)` : option.label;
+                      const disabled = option.nonChat || noAccess || inactive;
+                      const displayLabel = option.nonChat
+                        ? `${option.label} (Not a chat model)`
+                        : inactive
+                          ? `${option.label} (Disabled)`
+                          : noAccess ? `${option.label} (No access)` : option.label;
                       return (
                         <option key={option.value} value={option.value} disabled={disabled}>
                           {displayLabel}
@@ -1131,10 +1139,12 @@ export function FloatingAssistant({ onWorkspaceChanged }: { onWorkspaceChanged?:
                     {options.map((option) => {
                       const noAccess = !allowedProviders.has(option.provider);
                       const inactive = option.is_active === false;
-                      const disabled = noAccess || inactive;
-                      const displayLabel = inactive 
-                        ? `${option.label} (Disabled)`
-                        : noAccess ? `${option.label} (No access)` : option.label;
+                      const disabled = option.nonChat || noAccess || inactive;
+                      const displayLabel = option.nonChat
+                        ? `${option.label} (Not a chat model)`
+                        : inactive
+                          ? `${option.label} (Disabled)`
+                          : noAccess ? `${option.label} (No access)` : option.label;
                       return (
                         <option key={option.value} value={option.value} disabled={disabled}>
                           {displayLabel}

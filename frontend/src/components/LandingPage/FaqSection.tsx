@@ -28,8 +28,8 @@ const FAQS: QA[] = [
   },
   {
     category: "BRING YOUR OWN AI",
-    q: "Can I use my own AI app, like Claude or Cursor, with ScholarDocX?",
-    a: "Yes, on the Basic, Pro and Max plans. Connect an AI app you already use from your profile. It can read your projects, sheets and deadlines and suggest changes, and nothing is changed until you approve it in ScholarDocX. Deleting data and bulk edits are not available to connected apps. Access keys expire, are read-only unless you allow suggestions, and can be removed instantly. It uses your own AI app, so it costs no ScholarDocX AI credits.",
+    q: "What is MCP, and can I use my own AI app, like Claude or Cursor, with ScholarDocX?",
+    a: "MCP (Model Context Protocol) is the open standard that lets AI apps use your tools. ScholarDocX is an MCP server, so on the Basic, Pro and Max plans you can connect an AI app you already use from your profile. It can read your projects, sheets and deadlines and suggest changes, and by default nothing is changed until you approve it in ScholarDocX. If your AI app has its own safeguards, you can instead let it make changes directly, after an explicit confirmation. Deleting data and bulk edits are never available to connected apps. Access keys expire, are read-only unless you allow more, and can be removed instantly. It uses your own AI app, so it costs no ScholarDocX AI credits.",
   },
   {
     category: "PROGRAM MANAGEMENT",

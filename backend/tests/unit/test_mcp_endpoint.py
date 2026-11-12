@@ -4,10 +4,12 @@ Protocol/auth tests stub only the database-touching functions, so they check the
 gateway, tool schemas, scope and allow-list rules. The last group runs the real
 stack against the test Postgres.
 """
+import json
 import logging
 
 import httpx
 import pytest
+from sqlalchemy import text
 from fastapi import FastAPI
 from starlette.routing import Route
 from starlette.testclient import TestClient
@@ -84,6 +86,15 @@ def test_server_is_stateless_and_reads_use_the_key_owner(stubbed):
 def test_destructive_bulk_and_record_actions_are_refused(stubbed, action):
     make, _ = stubbed
     with make() as client:
+        result = _call(client, "propose_changes", {"summary": "x", "actions": [{"type": action}]})
+    assert result["isError"] is True
+    assert "not available to connected apps" in result["content"][0]["text"]
+
+
+@pytest.mark.parametrize("action", ["delete_project", "clear_sheet", "bulk_update_rows", "create_document"])
+def test_direct_write_keys_get_the_same_allow_list(stubbed, action):
+    make, _ = stubbed
+    with make("read_write") as client:
         result = _call(client, "propose_changes", {"summary": "x", "actions": [{"type": action}]})
     assert result["isError"] is True
     assert "not available to connected apps" in result["content"][0]["text"]
@@ -172,3 +183,20 @@ def test_real_read_and_suggestion_round_trip_makes_no_provider_call(real):
     assert len(pending) == 1 and pending[0]["app_name"] == "test"
     # Nothing was applied.
     assert not [p for p in apps.list_suggestions(session, user["id"]) if p["status"] == "confirmed"]
+
+
+def test_direct_write_key_applies_immediately_and_records_it(real):
+    client, _, user, session = real
+    _, direct_key = apps.create_app(session, {**user, "token_version": 1}, "direct", "read_write", 30)
+    result = _call(client, "propose_changes", {
+        "summary": "Create a project",
+        "actions": [{"type": "create_project", "project": {"name": "Direct Write Project"}}],
+    }, key=direct_key)
+    assert result["isError"] is False
+    assert '"status": "applied"' in result["content"][0]["text"]
+    names = [r[0] for r in session.execute(text("SELECT name FROM projects WHERE user_id = :u"), {"u": user["id"]}).all()]
+    assert "Direct Write Project" in names
+    [done] = [s for s in apps.list_suggestions(session, user["id"], "confirmed")]
+    assert done["app_name"] == "direct"
+    stored = session.execute(text("SELECT plan_json FROM connected_app_suggestions WHERE id = :i"), {"i": done["id"]}).scalar_one()
+    assert json.loads(stored)["auto_applied"] is True

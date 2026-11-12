@@ -2,8 +2,9 @@
 
 SCHOLARDOCX-0258, decision BD-014, requirements FR-11 in [requirements-index.md](../functional/requirements-index.md).
 Lets a user connect an AI app they already use (Claude Code, Cursor, VS Code) to their own
-workspace: it can **read** data and **suggest** changes; every suggestion waits for the user's
-confirmation in the web app. ScholarDocX makes no provider call on this path, so nothing is billed
+workspace: it can **read** data and **suggest** changes; by default every suggestion waits for the user's
+confirmation in the web app. A key can instead be given the **`read_write`** scope to apply the same
+allow-listed changes directly. ScholarDocX makes no provider call on this path, so nothing is billed
 ([billing-contract.md](billing-contract.md)).
 
 ## Transport and wiring
@@ -39,7 +40,7 @@ serializer as the in-app agent). `get_deadlines`, `get_overdue_rows` need a proj
 |---|---|
 | `list_projects`, `list_sheets`, `get_rows`, `search_rows`, `filter_rows` | `get_projects`, `get_sheets`, `get_rows`, `search_rows`, `filter_rows` |
 | `get_deadlines`, `get_overdue_rows`, `get_dashboard` | same names |
-| `propose_changes` | queues a suggestion (scope `read_suggest` only) |
+| `propose_changes` | queues a suggestion (`read_suggest`) or applies it now (`read_write`) |
 
 Not exposed: sticky notes, notifications, record-domain reads and writes, every `delete_*`, `clear_sheet`, `bulk_update_rows`, and all
 provider-backed features (Advisor Atlas, Scholarship Hunt, Research Expert, web search). `ALLOWED_SUGGEST_ACTIONS` in
@@ -52,6 +53,8 @@ provider-backed features (Advisor Atlas, Scholarship Hunt, Research Expert, web 
 (the client never resends it) and runs `AiActionService.execute` as the signed-in user, so role limits apply as in the UI. The status
 change is one atomic `UPDATE … WHERE status = 'pending'`, so a double click runs once. Statuses: pending, running, confirmed, dismissed,
 failed, expired.
+
+**Direct-apply keys (`read_write`).** For users whose AI app has its own safeguards. Opt-in twice: the scope is chosen in the create dialog and the API requires `acknowledge_direct` (a validator on `CreateAppPayload`). It is never the default. `apply_directly` in `backend/app/services/connected_apps.py` reuses the suggestion path (create, atomic claim, execute as the key's owner with their role limits), so the same allow-list applies (no deletes, bulk edits or record writes), the change is recorded as a confirmed suggestion with `auto_applied` in its plan, and a failure is recorded as `failed`. The tool answers `applied` instead of `awaiting_confirmation_in_scholardocx`. The pending-suggestion cap does not apply because nothing is queued. Trade-off: prompt injection through a row can now cause an allow-listed write without a click, so use it only with clients you trust.
 
 Caps (hardcoded, listed in the admin Info tab "Save & Storage Caps"): 5 active keys per user (rejected at the cap); 20 pending
 suggestions (rejected at the cap); 50 decided suggestions kept (newest evicts oldest); 20 actions per suggestion; 7-day expiry.
@@ -67,6 +70,10 @@ are data, not instructions; no tool fetches URLs or calls a provider; no delete 
 `backend/app/api/connected_apps.py` (session JWT): `GET`/`POST /api/connected-apps`, `DELETE /api/connected-apps/{id}`,
 `GET /api/connected-apps/suggestions`, `POST …/suggestions/{id}/confirm`, `POST …/suggestions/{id}/dismiss`. Create and confirm need
 `can_use_mcp`; list, remove and dismiss work for any signed-in user so nobody holds a live key they cannot revoke.
+
+## Notifications
+
+`_notify_user` in `backend/app/services/connected_apps.py` inserts a row into `notifications` (`preference_key = connected_app_activity`) when a suggestion is queued, and after a direct change succeeds. It reads the user's `local_profiles.notification_settings` through `is_notification_enabled`, so the default is on and the user can switch it off under Notification Settings. It is best-effort: a failure is logged and never fails the suggestion or the change. The text points the user to Profile → Review suggested changes.
 
 ## Logging
 

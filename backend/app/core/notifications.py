@@ -21,6 +21,8 @@ WORKSPACE_NOTIFICATION_DEFAULTS: dict[str, bool] = {
     "sticky_note_delete": True,
     "scheduled_email": True,
     "scholarship_deadline_approaching": True,
+    # SCHOLARDOCX-0258: a connected app suggested or made a change.
+    "connected_app_activity": True,
 }
 
 ADMIN_NOTIFICATION_DEFAULTS: dict[str, bool] = {

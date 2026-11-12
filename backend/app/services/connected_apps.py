@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -20,10 +21,16 @@ from sqlalchemy import text
 
 from app.auth.limits import check_and_increment_limit
 from app.auth.plan_state import apply_plan_expiry
+from app.core.notifications import is_notification_enabled
 
+logger = logging.getLogger(__name__)
+
+NOTIFICATION_PREFERENCE_KEY = "connected_app_activity"
 KEY_PREFIX = "sdx_"
 MCP_LIMIT_FEATURE = "can_use_mcp"
-SCOPES = ("read", "read_suggest")
+# read: look only. read_suggest: also queue suggestions the user confirms.
+# read_write: also apply the same allow-listed changes directly (user opted in).
+SCOPES = ("read", "read_suggest", "read_write")
 EXPIRY_CHOICES_DAYS = (30, 90, 365)
 DEFAULT_EXPIRY_DAYS = 90
 
@@ -217,14 +224,14 @@ def _expire_stale(session, user_id: str) -> None:
     )
 
 
-def create_suggestion(session, principal: Principal, summary: str, plan: dict) -> dict:
+def create_suggestion(session, principal: Principal, summary: str, plan: dict, *, enforce_pending_cap: bool = True) -> dict:
     user_id = principal.user["id"]
     _expire_stale(session, user_id)
     pending = session.execute(
         text("SELECT count(*) FROM connected_app_suggestions WHERE user_id = :u AND status = 'pending'"),
         {"u": user_id},
     ).scalar_one()
-    if pending >= MAX_PENDING_SUGGESTIONS:
+    if enforce_pending_cap and pending >= MAX_PENDING_SUGGESTIONS:
         raise ConnectedAppError(
             409, f"{MAX_PENDING_SUGGESTIONS} suggestions are already waiting for the user. Ask them to review those first."
         )
@@ -250,7 +257,57 @@ def create_suggestion(session, principal: Principal, summary: str, plan: dict) -
         {"u": user_id, "keep": MAX_DECIDED_HISTORY},
     )
     session.commit()
+    if not plan.get("auto_applied"):
+        _notify_user(
+            session, user_id,
+            f"{principal.app_name} suggested a change",
+            f"{summary[:MAX_SUMMARY_CHARS] or 'Review the suggested change.'} Open Profile, then Review suggested changes, to approve or dismiss it.",
+        )
     return {"id": sid, "expires_at": _iso(now + timedelta(days=SUGGESTION_TTL_DAYS))}
+
+
+def apply_directly(session, service, principal: Principal, summary: str, plan: dict) -> dict:
+    """``read_write`` keys: run an allow-listed plan now, without a human click.
+
+    Same executor, same allow-list, same role limits as a confirmed suggestion.
+    The change is still recorded as a suggestion (marked ``auto_applied``) so it
+    is traceable, and a failure is recorded as ``failed`` like a confirmed one.
+    """
+    created = create_suggestion(
+        session, principal, summary, {**plan, "auto_applied": True}, enforce_pending_cap=False
+    )
+    result = confirm_suggestion(session, service, principal.user, created["id"])
+    _notify_user(
+        session, principal.user["id"],
+        f"{principal.app_name} made a change",
+        f"{summary[:MAX_SUMMARY_CHARS] or 'A connected app changed your workspace.'} It was applied directly, as you allowed for this app.",
+    )
+    return result
+
+
+def _notify_user(session, user_id: str, title: str, body: str) -> None:
+    """Add a notification unless the user switched this category off (default on).
+
+    Best-effort: a notification problem must never fail the suggestion or the
+    direct change that triggered it.
+    """
+    try:
+        row = session.execute(
+            text("SELECT notification_settings FROM local_profiles WHERE user_id = :u"), {"u": user_id}
+        ).fetchone()
+        if not is_notification_enabled(row[0] if row else None, NOTIFICATION_PREFERENCE_KEY):
+            return
+        session.execute(
+            text(
+                "INSERT INTO notifications (user_id, title, body, notification_type, preference_key) "
+                "VALUES (:u, :t, :b, 'general', :k)"
+            ),
+            {"u": user_id, "t": title[:200], "b": body[:500], "k": NOTIFICATION_PREFERENCE_KEY},
+        )
+        session.commit()
+    except Exception:  # noqa: BLE001 - best effort by design
+        session.rollback()
+        logger.warning("connected-app notification could not be created")
 
 
 def _suggestion_view(row: Any) -> dict[str, Any]:

@@ -133,7 +133,7 @@ export const LANDING_FEATURES: PlanFeature[] = [
   { key: "ai_tokens_per_month", label: "Monthly AI Credits", format: formatCredits },
   { key: "can_purchase_token_packs", label: "Extra AI Credit Packs", boolean: true },
   { key: "can_use_agents", label: "AI Agents Usage", boolean: true },
-  { key: "can_use_mcp", label: "Connected AI Apps", boolean: true },
+  { key: "can_use_mcp", label: "MCP Connect", boolean: true },
   { key: "can_use_scholarship_hunt", label: "Scholarship Hunt", boolean: true },
   { key: "can_use_advisor_atlas", label: "Advisor Atlas", boolean: true },
   { key: "can_use_research_reader", label: "Research Expert", boolean: true },

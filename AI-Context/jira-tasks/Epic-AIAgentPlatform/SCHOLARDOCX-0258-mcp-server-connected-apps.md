@@ -496,6 +496,11 @@ Unit tests added or updated:
   provider call. The `refreshTrigger` rule does not apply (a modal panel in the profile, not a page or tab), but
   the panel reloads when `refreshTrigger` changes.
 
+Owner additions after review (2026-11-12):
+
+- *Review suggested changes* row with a pending count on the profile card; the modal can open on the inbox alone.
+- Third scope `read_write` (direct apply, no approval) with `acknowledge_direct`, `apply_directly`, tests, and copy/docs updated. This relaxes "writes are only suggestions" for opted-in keys; the allow-list and plan limits are unchanged.
+
 Follow-ups:
 
 - OAuth 2.1 authorization server for clients that only offer OAuth connectors (claude.ai, Claude Desktop).

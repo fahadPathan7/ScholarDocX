@@ -9,7 +9,7 @@ holding a live key they cannot revoke.
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.auth.dependencies import get_current_user, get_user_store
 from app.auth.limits import UsageLimitExceeded, check_and_increment_limit
@@ -24,8 +24,16 @@ router = APIRouter(prefix="/connected-apps", tags=["connected-apps"])
 
 class CreateAppPayload(BaseModel):
     name: str = Field(min_length=1, max_length=60)
-    scope: Literal["read", "read_suggest"] = "read"
+    scope: Literal["read", "read_suggest", "read_write"] = "read"
     expires_in_days: Literal[30, 90, 365] = apps.DEFAULT_EXPIRY_DAYS
+    # Direct writes need an explicit opt-in on top of choosing the scope.
+    acknowledge_direct: bool = False
+
+    @model_validator(mode="after")
+    def _direct_needs_acknowledgement(self):
+        if self.scope == "read_write" and not self.acknowledge_direct:
+            raise ValueError("Confirm that you understand this app can change your workspace without asking you.")
+        return self
 
 
 def _require_mcp(user: dict, store: Store) -> None:

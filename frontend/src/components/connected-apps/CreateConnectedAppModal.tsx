@@ -25,6 +25,7 @@ export function CreateConnectedAppModal({
   const [name, setName] = useState("");
   const [scope, setScope] = useState<ConnectedAppScope>("read");
   const [days, setDays] = useState(90);
+  const [ackDirect, setAckDirect] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
   const [key, setKey] = useState("");
@@ -40,10 +41,14 @@ export function CreateConnectedAppModal({
       setError("Give the app a name, for example “Claude Code”.");
       return;
     }
+    if (scope === "read_write" && !ackDirect) {
+      setError("Tick the box to confirm you understand this app can change your workspace.");
+      return;
+    }
     setIsCreating(true);
     setError("");
     try {
-      const created = await createConnectedApp(trimmed, scope, days);
+      const created = await createConnectedApp(trimmed, scope, days, ackDirect);
       setKey(created.key);
       onCreated();
     } catch (err) {
@@ -91,7 +96,7 @@ export function CreateConnectedAppModal({
             </label>
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium text-slate-700">What can it do?</legend>
-              {(["read", "read_suggest"] as ConnectedAppScope[]).map((option) => (
+              {(["read", "read_suggest", "read_write"] as ConnectedAppScope[]).map((option) => (
                 <label key={option} className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
                   <input type="radio" name="scope" checked={scope === option} onChange={() => setScope(option)} className="mt-1" />
                   <span>
@@ -99,12 +104,20 @@ export function CreateConnectedAppModal({
                     <span className="block text-xs text-slate-500">
                       {option === "read"
                         ? "It can look at your projects, sheets and deadlines."
-                        : "It can also suggest changes. You approve each one before anything happens."}
+                        : option === "read_suggest"
+                          ? "It can also suggest changes. You approve each one before anything happens."
+                          : CONNECTED_APPS_COPY.directHint}
                     </span>
                   </span>
                 </label>
               ))}
             </fieldset>
+            {scope === "read_write" && (
+              <label className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 cursor-pointer">
+                <input type="checkbox" checked={ackDirect} onChange={(e) => setAckDirect(e.target.checked)} className="mt-1" />
+                <span>{CONNECTED_APPS_COPY.directAck}</span>
+              </label>
+            )}
             <label className="block text-sm font-medium text-slate-700">
               Expires after
               <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white">
@@ -118,7 +131,7 @@ export function CreateConnectedAppModal({
               <button type="button" onClick={onClose} disabled={isCreating} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-60">
                 Cancel
               </button>
-              <button type="submit" disabled={isCreating} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-60">
+              <button type="submit" disabled={isCreating || (scope === "read_write" && !ackDirect)} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-60">
                 {isCreating ? "Creating..." : "Create access key"}
               </button>
             </div>

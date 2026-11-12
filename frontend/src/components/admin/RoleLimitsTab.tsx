@@ -216,7 +216,7 @@ export function RoleLimitsTab({ onLimitsUpdated, refreshTrigger }: { onLimitsUpd
     {
       name: "Connected Apps",
       features: [
-        { key: "can_use_mcp", label: "Can Connect AI Apps", description: "Controls whether users can connect an AI app they use (like Claude) to read their workspace and suggest changes they approve. Applies through the user's plan role (basic, pro, max); admin roles have no access of their own, so an admin needs one of those plan roles too." }
+        { key: "can_use_mcp", label: "Can Use MCP Connect", description: "Controls whether users can connect an AI app they use (like Claude) to read their workspace and suggest changes they approve. Applies through the user's plan role (basic, pro, max); admin roles have no access of their own, so an admin needs one of those plan roles too." }
       ]
     },
     {

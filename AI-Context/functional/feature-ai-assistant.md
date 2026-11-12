@@ -185,4 +185,4 @@ Before sending sensitive context to external AI providers, the UI should make it
 
 ## Connected Apps (FR-11)
 
-Users can connect an external AI app (Claude Code, Cursor, VS Code) from their profile. It can read the workspace and suggest changes; suggestions appear under *Suggested changes* and run only when the user confirms. Access is the `can_use_mcp` plan feature. See [technical/mcp-server.md](../technical/mcp-server.md).
+Users can connect an external AI app (Claude Code, Cursor, VS Code) from their profile. It can read the workspace and suggest changes; suggestions appear under *Suggested changes* (reachable from *Review suggested changes* on the profile card, with a pending count) and by default run only when the user confirms; a key can be given an explicit direct-write scope instead. Access is the `can_use_mcp` plan feature. See [technical/mcp-server.md](../technical/mcp-server.md).

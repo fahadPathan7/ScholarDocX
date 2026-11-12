@@ -189,4 +189,6 @@ Implemented, SCHOLARDOCX-0258 (decision BD-014). Design in [technical/mcp-server
 - FR-11.5: Confirming runs the stored suggestion with the user's own role limits and shows the result.
 - FR-11.6: A key stops working when the account's sessions are revoked (password change, admin reset, suspension, admin revocation) or when the role no longer has `can_use_mcp`.
 - FR-11.7: Setup instructions for supported clients are shown in the app, in plain language.
+- FR-11.9: A key may be given a *direct write* scope that applies the same allow-listed changes immediately (no approval). It requires an explicit acknowledgement, is never the default, and still blocks deletes, bulk edits and record changes. The profile card also offers *Review suggested changes* with a pending count.
+- FR-11.10: When a connected app suggests a change, or makes one directly, the user gets a notification (preference `connected_app_activity`, **on by default**, switchable in Notification Settings under *Connected Apps*). A notification problem never fails the suggestion.
 - FR-11.8: Connected apps are shown as a plan feature on the landing pricing cards, the in-app plan comparison and the landing features section, from live role limits.

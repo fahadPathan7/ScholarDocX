@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultNotificationSettings,
+  normalizeNotificationSettings,
+  workspaceNotificationCategories,
+} from "../../config/notificationLabels";
+import {
   BANNED_COPY_PATTERNS,
   CONNECTED_APPS_COPY,
   buildClaudeCodeCommand,
@@ -36,6 +41,7 @@ describe("labels", () => {
   it("names the two scopes in plain words", () => {
     expect(scopeLabel("read")).toBe("Can read");
     expect(scopeLabel("read_suggest")).toBe("Can read and suggest changes");
+    expect(scopeLabel("read_write")).toBe("Can read and make changes directly");
   });
   it("formats missing or invalid dates as Never", () => {
     expect(formatWhen(null)).toBe("Never");
@@ -50,5 +56,23 @@ describe("user-facing copy", () => {
     for (const pattern of BANNED_COPY_PATTERNS) {
       expect(text).not.toMatch(pattern);
     }
+  });
+});
+
+describe("notification setting", () => {
+  it("is on by default and appears in the notification preferences", () => {
+    expect(defaultNotificationSettings.connected_app_activity).toBe(true);
+    expect(normalizeNotificationSettings({}).connected_app_activity).toBe(true);
+    const keys = workspaceNotificationCategories.flatMap((c) => c.settings.map((s) => s.key));
+    expect(keys).toContain("connected_app_activity");
+  });
+  it("can be switched off and the choice is kept", () => {
+    expect(normalizeNotificationSettings({ connected_app_activity: false }).connected_app_activity).toBe(false);
+    expect(normalizeNotificationSettings({ connected_app_activity: "false" }).connected_app_activity).toBe(false);
+  });
+  it("uses plain wording in the settings screen", () => {
+    const setting = workspaceNotificationCategories.flatMap((c) => c.settings).find((s) => s.key === "connected_app_activity");
+    const words = `${setting?.label} ${setting?.description}`;
+    for (const pattern of BANNED_COPY_PATTERNS) expect(words).not.toMatch(pattern);
   });
 });

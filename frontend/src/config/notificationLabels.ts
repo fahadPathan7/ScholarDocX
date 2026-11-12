@@ -68,6 +68,17 @@ export const workspaceNotificationCategories: NotificationCategory[] = [
     settings: [{ key: "scheduled_email", label: "Scheduled Email Reminder" }],
   },
   {
+    title: "Connected Apps",
+    icon: "Plug",
+    settings: [
+      {
+        key: "connected_app_activity",
+        label: "Suggested or Made Changes",
+        description: "A connected AI app suggests a change for you to approve, or makes one directly.",
+      },
+    ],
+  },
+  {
     title: "Scholarship Hunt",
     icon: "Compass",
     settings: [
@@ -145,6 +156,7 @@ export const defaultNotificationSettings: Record<string, boolean> = {
   sticky_note_delete: true,
   scheduled_email: true,
   scholarship_deadline_approaching: true,
+  connected_app_activity: true,
   system: true,
   announcements: true,
   billing: true,

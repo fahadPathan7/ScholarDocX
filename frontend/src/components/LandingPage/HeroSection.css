@@ -157,3 +157,31 @@
 @media (prefers-reduced-motion: reduce) {
   .lp-hero-title em { animation: none; background-size: 100% 100%; }
 }
+
+/* "New: MCP" link under the hero buttons */
+.lp-hero-mcp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 9999px;
+  background: var(--lp-ink, #0e1b33);
+  color: #fff8e8;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 26px -12px rgba(14, 27, 51, 0.7);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.lp-hero-mcp-link:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -12px rgba(14, 27, 51, 0.8); }
+.lp-hero-mcp-new {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: #f0b84a;
+  color: #0e1b33;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

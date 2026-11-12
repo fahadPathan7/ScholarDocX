@@ -19,10 +19,15 @@ export function ConnectedAppsPanel({
   onToast,
   onViewPlans,
   refreshTrigger,
+  view = "all",
+  onSuggestionsChanged,
 }: {
   onToast?: (msg: string) => void;
   onViewPlans?: () => void;
   refreshTrigger?: number;
+  /** "suggestions" shows only the Suggested changes inbox (Review suggested changes). */
+  view?: "all" | "suggestions";
+  onSuggestionsChanged?: () => void;
 }) {
   const [data, setData] = useState<ConnectedAppsResponse | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -59,6 +64,7 @@ export function ConnectedAppsPanel({
     } finally {
       setBusyId(null);
       await load();
+      onSuggestionsChanged?.();
     }
   };
 
@@ -68,6 +74,7 @@ export function ConnectedAppsPanel({
     <div className="space-y-8">
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
 
+      {view === "all" && (
       <section>
         <div className="flex items-start justify-between gap-3 mb-3">
           <p className="text-sm text-slate-600">{CONNECTED_APPS_COPY.hint}</p>
@@ -127,6 +134,7 @@ export function ConnectedAppsPanel({
           ))}
         </ul>
       </section>
+      )}
 
       <section>
         <h3 className="text-sm font-semibold text-slate-800 mb-2">{CONNECTED_APPS_COPY.suggestedTitle}</h3>
@@ -165,7 +173,7 @@ export function ConnectedAppsPanel({
         )}
       </section>
 
-      {showCreate && data && (
+      {view === "all" && showCreate && data && (
         <CreateConnectedAppModal
           expiryChoices={data.expiry_choices_days}
           onClose={() => setShowCreate(false)}

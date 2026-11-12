@@ -616,7 +616,7 @@ export function ResearchExpertView({
     setPromptsCollapsed(true); // Collapse the tall prompt grid so the output shows near the top
 
     try {
-      const result = await analyzeResearchPaper(activePaperId, promptText.trim());
+      const result = await analyzeResearchPaper(activePaperId, promptText.trim(), 10, promptId);
       setAnalysisResult(result);
       refreshUsage();
       refreshTokenEconomy();

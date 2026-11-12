@@ -17,8 +17,7 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "mistral:mistral-large-latest": "Mistral Large",
   "mistral:mistral-medium-3-5": "Mistral Medium 3.5",
   "mistral:devstral-2512": "Devstral 2512",
-  "gemini:gemini-2.5-flash": "Gemini 2.5 Flash",
-  "gemini:gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite",
+  "gemini:gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
   "GLM-5.3": "GLM-5.3",
   "GLM-5.2": "GLM-5.2",
   "GLM-5.1": "GLM-5.1",
@@ -38,8 +37,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { provider: "mistral", providerLabel: "Mistral", value: "mistral:mistral-large-latest", label: "Mistral Large" },
   { provider: "mistral", providerLabel: "Mistral", value: "mistral:mistral-medium-3-5", label: "Mistral Medium 3.5" },
   { provider: "mistral", providerLabel: "Mistral", value: "mistral:devstral-2512", label: "Devstral 2512" },
-  { provider: "gemini", providerLabel: "Google AI Studio", value: "gemini:gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { provider: "gemini", providerLabel: "Google AI Studio", value: "gemini:gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+  { provider: "gemini", providerLabel: "Google AI Studio", value: "gemini:gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
   { provider: "glm", providerLabel: "GLM", value: "GLM-5.3", label: "GLM-5.3" },
   { provider: "glm", providerLabel: "GLM", value: "GLM-5.2", label: "GLM-5.2" },
   { provider: "glm", providerLabel: "GLM", value: "GLM-5.1", label: "GLM-5.1" },
@@ -75,6 +73,16 @@ export function getProviderDisplayName(provider: ModelProvider) {
         : "GLM";
 }
 
+// Retired model ids a browser may still have saved; map them to the current one.
+const LEGACY_MODEL_ALIASES: Record<string, string> = {
+  "gemini:gemini-2.5-flash": "gemini:gemini-3.5-flash-lite",
+  "gemini:gemini-2.5-flash-lite": "gemini:gemini-3.5-flash-lite",
+};
+
+export function normalizeStoredModel(model: string | null): string | null {
+  return model ? (LEGACY_MODEL_ALIASES[model] ?? model) : model;
+}
+
 export function getModelDisplayName(model: string) {
   return MODEL_DISPLAY_NAMES[model] || model;
 }
@@ -85,11 +93,11 @@ export function getFallbackModel(
   modelOptions: ModelOption[] = MODEL_OPTIONS,
 ) {
   const orderedFallbacks = preferred === "chat"
-    ? ["gemini:gemini-2.5-flash", "groq:openai/gpt-oss-120b", "mistral:mistral-medium-3-5", "GLM-5.1"]
-    : ["gemini:gemini-2.5-flash-lite", "groq:openai/gpt-oss-20b", "mistral:mistral-medium-3-5", "GLM-5-Turbo"];
+    ? ["gemini:gemini-3.5-flash-lite", "groq:openai/gpt-oss-120b", "mistral:mistral-medium-3-5", "GLM-5.1"]
+    : ["gemini:gemini-3.5-flash-lite", "groq:openai/gpt-oss-20b", "mistral:mistral-medium-3-5", "GLM-5-Turbo"];
   const firstAllowedExplicit = orderedFallbacks.find((value) => allowedProviders.has(getProviderForModel(value)));
   if (firstAllowedExplicit) return firstAllowedExplicit;
-  return modelOptions.find((option) => allowedProviders.has(option.provider))?.value ?? "gemini:gemini-2.5-flash";
+  return modelOptions.find((option) => allowedProviders.has(option.provider))?.value ?? "gemini:gemini-3.5-flash-lite";
 }
 
 export const LEGACY_CHAT_STORAGE_KEY = "scholardocx_chat_history";

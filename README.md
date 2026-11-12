@@ -52,6 +52,23 @@ flowchart LR
 
 ---
 
+## Agentic patterns used
+
+The AI features are built from a small set of named patterns ([Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)) rather than one big prompt. Every pattern is bounded (step, concurrency and size caps) and every model call is metered.
+
+| Pattern | Where it lives | How it is used here |
+|---|---|---|
+| **Tool-use agent** | Workspace assistant: [`ai_agent.py`](backend/app/services/ai_agent.py) · [flow](#how-the-ai-agent-works) | A loop of at most 5 model calls over a fixed catalogue of 40+ typed actions, exposed as two tools: `run_read_action` and `propose_changes`. Reads run inside the loop; model output is validated against the catalogue and never executed as code. |
+| **Routing** | [`ai.py`](backend/app/services/ai.py), [`ai_actions.py`](backend/app/services/ai_actions.py) · [scope](#keeping-the-ai-on-task-prompt-injection-and-scope) | A cheap classifier call decides whether a question needs a live web search and writes the query; if it fails, the system searches. Account and admin requests are refused by pattern before any model runs. |
+| **Prompt chaining** | Scholarship Hunt: [`scholarship_deep_hunt.py`](backend/app/services/scholarship_deep_hunt.py) · [pipeline](#how-scholarship-hunt-works) | Goal → query planner → search → snippet pre-filter → crawl → structured extraction → relevance judge → expiry and duplicate gates. Each model step feeds the next, with deterministic checks in between. |
+| **Orchestrator–workers** | Advisor Atlas: [`service.py`](backend/app/services/advisor_atlas/service.py), [`analysis.py`](backend/app/services/advisor_atlas/analysis.py) · [pipeline](#how-advisor-atlas-works) | A code-driven orchestrator decides the sub-tasks at run time (units → candidate professors) and fans out bounded parallel workers (screening ×4, deep research ×2). Each deep-research worker runs four specialist passes and a final synthesis call. |
+| **Evaluator** | Hunt's relevance judge: [`deep_hunt_query_planner.py`](backend/app/services/deep_hunt_query_planner.py) · the agent's validator · Atlas source checks | One batched judge call scores every extracted opportunity against the goal and the form filters, with a deterministic keyword fallback. The agent's validator returns errors to the model so it can fix a proposal. Atlas claims are checked against the sources they cite. |
+| **Human-in-the-loop** | Every workspace write: [`ai_agent.py`](backend/app/services/ai_agent.py), `/ai/actions/execute` in [`routes.py`](backend/app/api/routes.py) | Writes are only ever proposed. The user confirms, an unanswered plan is marked superseded when they move on, and role limits are re-checked at execution. |
+
+Each AI step has a non-AI fallback where one is possible (single-shot planner, keyword relevance match, search-by-default routing, deterministic dossier), so a provider outage degrades a result instead of failing a run.
+
+---
+
 ## How the AI agent works
 
 The assistant is connected to the workspace through **two tools**, in a bounded tool-calling loop (at most 5 model calls per message). Reads run immediately; **writes are only ever proposed**.

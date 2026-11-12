@@ -130,6 +130,7 @@ def initialize_database(database_url: str) -> None:
         conn.execute(text("DELETE FROM app_settings WHERE key = 'jwt_secret_key'"))
         _seed_role_limits(conn)
         _seed_ai_token_defaults(conn)
+        _remove_retired_gemini_models(conn)
         _migrate_yearly_to_quarterly(conn)
         _drop_legacy_ai_tokens_role_limit(conn)
         _add_pending_payment_column(conn)
@@ -581,6 +582,22 @@ def _split_sql_script(script: str) -> list[str]:
 COMPROMISED_JWT_SECRET_PREFIX = "scholar-docx-secure personal workspace"
 
 
+def _remove_retired_gemini_models(conn) -> None:
+    """Delete the retired Gemini 2.5 rows from ai_models (idempotent).
+
+    Gemini 2.5 Flash / Flash-Lite were replaced by Gemini 3.5 Flash-Lite. Runs
+    after the seed so the replacement row exists first. Nothing references
+    ai_models by foreign key; stale clients are served via
+    LEGACY_GEMINI_MODEL_ALIASES in app.services.ai.
+    """
+    conn.execute(
+        text(
+            "DELETE FROM ai_models WHERE provider = 'gemini' "
+            "AND model_id IN ('gemini-2.5-flash', 'gemini-2.5-flash-lite')"
+        )
+    )
+
+
 def _seed_ai_token_defaults(conn) -> None:
     """Seed default AI models and token packs (idempotent).
 
@@ -597,8 +614,9 @@ def _seed_ai_token_defaults(conn) -> None:
     )
 
     prices = {
-        "gemini-2.5-flash": (0.075, 0.30),
-        "gemini-2.5-flash-lite": (0.0375, 0.15),
+        # Gemini 3.5 Flash-Lite list price ($/1M in/out, output includes thinking);
+        # never seed a model at $0 (SCHOLARDOCX-0204 L4). A super_admin can edit it.
+        "gemini-3.5-flash-lite": (0.30, 2.50),
         # SCHOLARDOCX-0252: placeholder mirroring GLM-5.2 until a super_admin
         # sets the real price; never seed a GLM model at $0.
         "GLM-5.3": (2.00, 4.00),

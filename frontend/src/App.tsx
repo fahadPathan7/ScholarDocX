@@ -70,6 +70,7 @@ import { AdminView } from "./components/AdminView";
 import { PlanComparisonView } from "./components/PlanComparisonView";
 import { BuyTokensView } from "./components/BuyTokensView";
 import { GlobalErrorAlerts } from "./components/GlobalErrorAlerts";
+import { AnalyticsConsentBanner } from "./components/AnalyticsConsentBanner";
 import { hasActiveUserPlan, hasAdminRole, isAdmin, isUser } from "./lib/auth";
 import { ProjectNavigationTarget, ProjectWorkspace } from "./components/ProjectWorkspace";
 import { StickyNotesView } from "./components/sticky/StickyNotesView";
@@ -570,6 +571,7 @@ export function App() {
   return (
     <div className={navCollapsed ? "app-shell nav-collapsed" : "app-shell"}>
       <GlobalErrorAlerts />
+      <AnalyticsConsentBanner />
       <aside className={`sidebar${mobileNavOpen && isMobile ? " sidebar-open" : ""}`}>
         <div className="brand logoCardPremium">
           <ScholarDocXMark />

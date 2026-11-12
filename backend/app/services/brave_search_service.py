@@ -115,7 +115,7 @@ class BraveSearchService:
         query: str,
         *,
         count: int = MAX_BRAVE_RESULTS,
-        freshness: str = "py",
+        freshness: Optional[str] = "py",
         country: Optional[str] = None,
         search_lang: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -131,11 +131,15 @@ class BraveSearchService:
         params: Dict[str, Any] = {
             "q": full_query,
             "count": effective_count,
-            "freshness": freshness,
             "safesearch": "moderate",
             "extra_snippets": True,
             "text_decorations": False,
         }
+        # None = no recency restriction. Scholarship Hunt passes None: official
+        # programme pages are long-lived and "past year" dropped them
+        # (SCHOLARDOCX-0256); it filters stale cycles itself.
+        if freshness:
+            params["freshness"] = freshness
         if country:
             params["country"] = country
         if search_lang:
@@ -186,7 +190,7 @@ class BraveSearchService:
         query: str,
         *,
         count: int = MAX_BRAVE_RESULTS,
-        freshness: str = "py",
+        freshness: Optional[str] = "py",
         country: Optional[str] = None,
         search_lang: Optional[str] = None,
     ) -> Dict[str, Any]:

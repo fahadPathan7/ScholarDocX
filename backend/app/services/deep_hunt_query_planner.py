@@ -63,7 +63,7 @@ Rules:
 - Do not include commentary, markdown, or text outside the JSON object."""
 
 RELEVANCE_SYSTEM_PROMPT = """You judge whether each scholarship opportunity is relevant to one user's funding goal.
-You receive the user's goal and a list of extracted opportunities (name, fields of study, degree levels, destinations, funding). For EACH opportunity decide RELEVANT or OFF_TOPIC against the goal's field of study, degree level, funding requirement, and destination intent, and assign a relevance_score from 0.0 to 1.0.
+You receive the user's goal, the filters they selected (degree level, destinations, field of study, intake term; treat them as part of the goal), and a list of extracted opportunities (name, fields of study, degree levels, destinations, funding). For EACH opportunity decide RELEVANT or OFF_TOPIC against the goal's field of study, degree level, funding requirement, and destination intent, and assign a relevance_score from 0.0 to 1.0.
 
 Return only JSON matching the requested schema.
 
@@ -71,8 +71,9 @@ Rules:
 - The DECISIVE dimension is FIELD OF STUDY. An opportunity whose stated fields do not overlap the goal's field is OFF_TOPIC (score <= 0.25), even if the degree level, funding, or destination match. A generic page with no field signal and no degree signal (e.g. a directory landing page) is OFF_TOPIC.
 - If the goal expresses a degree level and the opportunity states degree levels that do not include it, mark OFF_TOPIC unless the page explicitly says the program covers that level.
 - If the goal expresses a destination and the opportunity states destinations with no overlap, that lowers the score but is not alone decisive.
-- BROAD/UMBRELLA PROGRAMS: if the goal names a specific field of study and an opportunity's fields_of_study lists five or more unrelated broad disciplines (e.g. engineering, health, law, and humanities together) with no field named as a specific track, consortium, or specialization matching the goal, mark it OFF_TOPIC (score <= 0.25) even though the goal's field technically appears somewhere in the long list. A generic umbrella program description that funds almost every discipline is not the close, field-specific match the user asked for.
-- RELEVANT means a reasonable applicant with this goal would consider applying to THIS specific opportunity, not merely that the goal's field is technically included somewhere in a long list of unrelated fields.
+- BROAD/UMBRELLA PROGRAMS (open to all or most fields, e.g. national government scholarships): if the goal's field is covered and the degree level and destination fit, mark it RELEVANT with relevance_score 0.5-0.6, so it ranks below field-specific matches but is kept. Applicants routinely apply to these. Mark it OFF_TOPIC only if the degree level or destination contradicts the goal.
+- Field-specific matches (a track, specialization, lab, or programme in the goal's field) score 0.75-1.0.
+- RELEVANT means a reasonable applicant with this goal would consider applying to THIS specific opportunity.
 - Preserve the input order in your output array.
 - Do not include commentary, markdown, or text outside the JSON object."""
 
@@ -309,6 +310,7 @@ class DeepHuntRelevanceFilter:
         ai_service: Any,
         field_synonyms: Optional[List[str]] = None,
         degree_level: Optional[str] = None,
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[float]:
         """Return one 0..1 relevance score per opportunity, in input order.
 
@@ -324,7 +326,7 @@ class DeepHuntRelevanceFilter:
             return []
         if not self.settings.openrouter_api_key:
             return self._heuristic_scores(opportunities, field_synonyms, degree_level)
-        prompt = self._build_prompt(goal, opportunities)
+        prompt = self._build_prompt(goal, opportunities, filters)
         payload = {
             "model": self.settings.openrouter_free_model,
             "messages": [
@@ -369,7 +371,12 @@ class DeepHuntRelevanceFilter:
             logger.info("Deep Hunt relevance filter fell back: %s", exc)
             return self._heuristic_scores(opportunities, field_synonyms, degree_level)
 
-    def _build_prompt(self, goal: str, opportunities: List[Dict[str, Any]]) -> str:
+    def _build_prompt(
+        self,
+        goal: str,
+        opportunities: List[Dict[str, Any]],
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> str:
         compact = [
             {
                 "index": i,
@@ -382,8 +389,12 @@ class DeepHuntRelevanceFilter:
             }
             for i, opp in enumerate(opportunities)
         ]
+        selected = {
+            key: value for key, value in (filters or {}).items() if value not in (None, "", [], {})
+        }
         return (
-            f"User funding goal: {goal}\n\n"
+            f"User funding goal: {goal}\n"
+            f"Selected filters: {json.dumps(selected, ensure_ascii=True) if selected else '(none)'}\n\n"
             f"Opportunities to judge:\n{json.dumps(compact, ensure_ascii=True)}\n\n"
             f"Return exactly {json.dumps(_RELEVANCE_SCHEMA_HINT, ensure_ascii=True)} "
             "with one entry per opportunity, in input order."
@@ -455,7 +466,10 @@ class DeepHuntRelevanceFilter:
                 scores.append(0.5)
                 continue
             if synonyms and _fields_overlap(synonyms, fields):
-                scores.append(0.2 if len(fields) >= BROAD_FIELD_LIST_SIZE else 0.7)
+                # SCHOLARDOCX-0256 (owner decision, reverses the 0177 reject):
+                # an umbrella programme that covers the field is kept but
+                # ranked below a field-specific match (0.5 vs 0.7).
+                scores.append(0.5 if len(fields) >= BROAD_FIELD_LIST_SIZE else 0.7)
             else:
                 scores.append(0.1)
         return scores

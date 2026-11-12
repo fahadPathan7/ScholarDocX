@@ -31,6 +31,15 @@ class FakeAiService:
         self.calls.append({"message": message, **kwargs})
         return self._response
 
+    # The OpenRouter fallback is billed (SCHOLARDOCX-0204): it pre-flights the
+    # balance and charges after the response, like the real AiService.
+    def can_spend(self):
+        return True
+
+    def charge_tokens(self, **kwargs):
+        self.calls.append({"charge": kwargs})
+        return None
+
 
 class FakeResponse:
     def __init__(self, data, status_code=200):

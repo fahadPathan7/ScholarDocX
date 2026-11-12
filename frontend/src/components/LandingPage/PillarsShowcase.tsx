@@ -190,7 +190,7 @@ function ResearchExpertPreview() {
         </div>
         <div className="lp-mock-title">
           <FileText size={13} />
-          Quantum_Graph_Neural_Networks_2025.pdf
+          Quantum_GNN_2025.pdf
         </div>
         <span className="lp-mock-status-pill cyan">Paper Loaded</span>
       </div>

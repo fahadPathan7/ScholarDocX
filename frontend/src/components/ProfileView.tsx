@@ -608,12 +608,12 @@ export function ProfileView({
                   </div>
                   <AiTokenWidget interactive={false} />
                 </button>
-                <button onClick={onViewPlans} className="profile-action-row" type="button">
+                <button onClick={onViewPlans} className="profile-action-row profile-action-row--primary" data-tone={planStatus} type="button">
                   <div className="profile-action-content">
-                    <Sparkles size={16} className={planCardTone.iconClass} />
+                    <Sparkles size={16} />
                     {planStatus === "expired" ? "Renew or Change Plan" : planStatus === "warning" ? "Review Renewal Options" : "View Subscription Plans"}
                   </div>
-                  <ChevronRight size={16} className={`profile-action-chevron ${planCardTone.iconClass}`} />
+                  <ChevronRight size={16} className="profile-action-chevron" />
                 </button>
                 {user?.polar_subscription_id && (
                   <button onClick={handleManagePolarPortal} className="profile-action-row" type="button">

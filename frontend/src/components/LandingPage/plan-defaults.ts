@@ -13,7 +13,7 @@
  *
  * SOURCE OF THE VALUES
  * The values below are a snapshot of the live admin-configured `app_settings`
- * (prices) and `role_limits` (per-tier feature counts) as of 2026-08-06. They
+ * (prices) and `role_limits` (per-tier feature counts) as of 2026-11-12. They
  * are NOT the backend seed defaults (which are 0/50/180); they match what
  * users actually see on the running deployment.
  *
@@ -41,9 +41,9 @@ export const STATIC_PLANS: PlansResponse = {
     ai_tokens_per_month: { limit_count: 500, reset_period: "monthly" },
     can_purchase_token_packs: { limit_count: 0, reset_period: "never" },
     can_use_agents: { limit_count: 0, reset_period: "never" },
-    can_use_scholarship_hunt: { limit_count: 0, reset_period: "never" },
-    can_use_advisor_atlas: { limit_count: 0, reset_period: "never" },
-    can_use_research_reader: { limit_count: 0, reset_period: "never" },
+    can_use_scholarship_hunt: { limit_count: 1, reset_period: "never" },
+    can_use_advisor_atlas: { limit_count: 1, reset_period: "never" },
+    can_use_research_reader: { limit_count: 1, reset_period: "never" },
     research_papers_per_month: { limit_count: 0, reset_period: "monthly" },
     max_research_papers_library: { limit_count: 0, reset_period: "never" },
     ai_messages_per_session: { limit_count: 5, reset_period: "per_session" },
@@ -59,10 +59,10 @@ export const STATIC_PLANS: PlansResponse = {
     total_documents_bytes: { limit_count: 31457280, reset_period: "never" },
     ai_tokens_per_month: { limit_count: 9000, reset_period: "monthly" },
     can_purchase_token_packs: { limit_count: 0, reset_period: "never" },
-    can_use_agents: { limit_count: 0, reset_period: "never" },
-    can_use_scholarship_hunt: { limit_count: 0, reset_period: "never" },
-    can_use_advisor_atlas: { limit_count: 0, reset_period: "never" },
-    can_use_research_reader: { limit_count: 0, reset_period: "never" },
+    can_use_agents: { limit_count: 1, reset_period: "never" },
+    can_use_scholarship_hunt: { limit_count: 1, reset_period: "never" },
+    can_use_advisor_atlas: { limit_count: 1, reset_period: "never" },
+    can_use_research_reader: { limit_count: 1, reset_period: "never" },
     research_papers_per_month: { limit_count: 0, reset_period: "monthly" },
     max_research_papers_library: { limit_count: 0, reset_period: "never" },
     ai_messages_per_session: { limit_count: 10, reset_period: "per_session" },

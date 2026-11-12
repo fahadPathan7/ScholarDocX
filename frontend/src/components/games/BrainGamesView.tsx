@@ -20,6 +20,16 @@ const GAMES: {
   Component: React.ComponentType;
 }[] = [
   {
+    key: "tictactoe",
+    name: "Tic-tac-toe",
+    blurb: "Three difficulties, up to an opponent that cannot be beaten.",
+    howTo:
+      "You are X and go first. On Unbeatable the opponent plays perfectly, and a draw "
+      + "is the best result anyone can force — that is the game, not a bug.",
+    icon: Grid3x3,
+    Component: TicTacToeGame,
+  },
+  {
     key: "sudoku",
     name: "Sudoku",
     blurb: "A full 9×9 grid with exactly one solution. Four difficulties.",
@@ -62,16 +72,6 @@ const GAMES: {
     Component: MinesweeperGame,
   },
   {
-    key: "tictactoe",
-    name: "Tic-tac-toe",
-    blurb: "Three difficulties, up to an opponent that cannot be beaten.",
-    howTo:
-      "You are X and go first. On Unbeatable the opponent plays perfectly, and a draw "
-      + "is the best result anyone can force — that is the game, not a bug.",
-    icon: Grid3x3,
-    Component: TicTacToeGame,
-  },
-  {
     key: "patternMemory",
     name: "Pattern Memory",
     blurb: "Memorize target grid tiles before they fade, then tap to recall.",
@@ -92,7 +92,7 @@ const GAMES: {
  * Sticky Notes rather than adding tables for a diversion.
  */
 export function BrainGamesView({ canUse }: { canUse: boolean }) {
-  const [active, setActive] = useState<GameKey>("sudoku");
+  const [active, setActive] = useState<GameKey>("tictactoe");
   // Nothing runs until this is true. Choosing a game should not commit you to
   // playing it — and sudoku in particular starts by generating a grid, which
   // is real work to trigger just by browsing the list.

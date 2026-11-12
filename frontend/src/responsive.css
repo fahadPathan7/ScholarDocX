@@ -1320,3 +1320,15 @@ svg {
 
 
 
+
+/* Mobile: the menu (3-bar) button sits at the far left of the top bar, before
+   the app name, so it reads as "open navigation". */
+@media (max-width: 1100px) {
+  .topbar .nav-toggle-mobile {
+    flex: 0 0 auto !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+  }
+}

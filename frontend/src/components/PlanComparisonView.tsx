@@ -366,7 +366,7 @@ export function PlanComparisonView({ onBack, onToast, refreshTrigger }: Props) {
             onCancel={handleCancelRequest}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pt-6 px-1">
+          <div className="grid grid-cols-1 gap-5 sm:gap-6 pt-6 px-1 [grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))]">
 
             {Object.keys(plans)
               .filter(role => ['free_user', 'general_user', 'pro_user', 'max_user'].includes(role))

@@ -1,6 +1,6 @@
 # ScholarDocX
 
-**A private workspace for students applying to Master's and PhD programmes.** Track universities, professors and deadlines in spreadsheet-style sheets, keep documents in one vault, and use AI tools that find advisors, hunt scholarships and read research papers, with every change to your data confirmed by you first.
+**A private workspace for students applying to Master's and PhD programmes.** Track universities, professors and deadlines in spreadsheet-style sheets, keep documents in one vault, and use AI tools that find advisors, hunt scholarships and read research papers, with every change to your data confirmed by you first. **Bring your own AI:** connect Claude Code, Cursor or VS Code to your workspace over [MCP](#connect-your-own-ai-app) and let the AI you already use read your deadlines and suggest changes.
 
 Live at **[scholardocx.onrender.com](https://scholardocx.onrender.com)** · React + FastAPI + PostgreSQL (pgvector) · deployed on free tiers.
 
@@ -25,6 +25,7 @@ Live at **[scholardocx.onrender.com](https://scholardocx.onrender.com)** · Reac
 - **Advisor Atlas**: maps a university's departments, finds faculty, and builds evidence-backed dossiers on research fit and openings.
 - **Scholarship Hunt**: turns a funding goal into searches, reads the pages, and returns structured opportunities.
 - **Research Expert**: upload a PDF and ask questions; answers cite the passages they came from.
+- **Connected apps**: connect an AI app you already use (Claude Code, Cursor, VS Code) to your workspace over MCP. It can read and *suggest* changes; you confirm each one in the app.
 - **Accounts**: email + password with invite codes, or Google sign-in. Plans and AI credits (every AI call is metered).
 
 ---
@@ -34,6 +35,7 @@ Live at **[scholardocx.onrender.com](https://scholardocx.onrender.com)** · Reac
 ```mermaid
 flowchart LR
     U["Browser<br/>React + Vite SPA"] -->|"JWT (Bearer)"| API["FastAPI backend"]
+    X["Your AI app<br/>Claude Code · Cursor"] -->|"access key · /mcp"| API
     API --> DB[("PostgreSQL + pgvector<br/>Supabase")]
     API --> ST[("Object storage<br/>uploaded files")]
     API --> LLM["Chat models<br/>GLM · Groq · Gemini · Mistral"]
@@ -58,7 +60,7 @@ The AI features are built from a small set of named patterns ([Building effectiv
 
 | Pattern | Where it lives | How it is used here |
 |---|---|---|
-| **Tool-use agent** | Workspace assistant: [`ai_agent.py`](backend/app/services/ai_agent.py) · [flow](#how-the-ai-agent-works) | A loop of at most 5 model calls over a fixed catalogue of 40+ typed actions, exposed as two tools: `run_read_action` and `propose_changes`. Reads run inside the loop; model output is validated against the catalogue and never executed as code. |
+| **Tool-use agent** | Workspace assistant: [`ai_agent.py`](backend/app/services/ai_agent.py) · [flow](#how-the-ai-agent-works) | A loop of at most 5 model calls over a fixed catalogue of 40+ typed actions, exposed as two tools: `run_read_action` and `propose_changes`. Reads run inside the loop; model output is validated against the catalogue and never executed as code. The same read/propose split is [served to external AI apps over MCP](#connect-your-own-ai-app). |
 | **Routing** | [`ai.py`](backend/app/services/ai.py), [`ai_actions.py`](backend/app/services/ai_actions.py) · [scope](#keeping-the-ai-on-task-prompt-injection-and-scope) | A cheap classifier call decides whether a question needs a live web search and writes the query; if it fails, the system searches. Account and admin requests are refused by pattern before any model runs. |
 | **Prompt chaining** | Scholarship Hunt: [`scholarship_deep_hunt.py`](backend/app/services/scholarship_deep_hunt.py) · [pipeline](#how-scholarship-hunt-works) | Goal → query planner → search → snippet pre-filter → crawl → structured extraction → relevance judge → expiry and duplicate gates. Each model step feeds the next, with deterministic checks in between. |
 | **Orchestrator–workers** | Advisor Atlas: [`service.py`](backend/app/services/advisor_atlas/service.py), [`analysis.py`](backend/app/services/advisor_atlas/analysis.py) · [pipeline](#how-advisor-atlas-works) | A code-driven orchestrator decides the sub-tasks at run time (units → candidate professors) and fans out bounded parallel workers (screening ×4, deep research ×2). Each deep-research worker runs four specialist passes and a final synthesis call. |
@@ -105,6 +107,37 @@ sequenceDiagram
 - The model only produces **JSON action objects** from a fixed catalog; they are normalized and resolved by name on the server. Model output is never executed as code.
 - Writing data takes a human click. An unanswered plan is marked *superseded* as soon as the user asks for something else.
 - If a model can't do tool calling, a single-shot planner takes over automatically.
+
+---
+
+## Connect your own AI app
+
+**Use the AI you already pay for on your own application data.** Basic, Pro and Max users can connect an AI app (Claude Code, Cursor, VS Code) to their workspace through a remote [MCP](https://modelcontextprotocol.io) server. The app can read projects, sheets, rows and deadlines and **suggest** changes; nothing changes until you confirm in ScholarDocX. ScholarDocX makes no model call on this path, so it uses none of your AI credits.
+
+Things you can ask once connected:
+
+- *"What deadlines do I have in the next 14 days across my MSc project?"*
+- *"Which rows in my Professor Shortlist have no reply yet?"*
+- *"Add a row for TU Munich, MSc Informatics, deadline 15 January."* The app proposes it, you click Confirm in ScholarDocX.
+
+1. Profile → **Connected apps** → **Connect an app**. Choose *Can read* or *Can read and suggest changes* and copy the access key (shown once).
+2. Add it to your app, for example in Claude Code:
+
+```bash
+claude mcp add --transport http scholardocx <backend-url>/mcp --header "Authorization: Bearer <access key>"
+```
+
+Cursor and VS Code take the same URL and header in their MCP settings file; the app shows ready-made snippets.
+
+**Tools** (typed, static): `list_projects`, `list_sheets`, `get_rows`, `search_rows`, `filter_rows`, `get_deadlines`, `get_overdue_rows`, `get_dashboard`, and `propose_changes`.
+
+**Security model**
+
+- Access keys are separate from login sessions: random, only a hash is stored, header-only, expiring, revocable, capped at 5 per user, and killed by the same `token_version` bump as "log out everywhere".
+- A session token is refused at `/mcp` and an access key is refused everywhere else.
+- Writes are only *suggestions*, stored on the server and run by id when you confirm, with your own plan limits. Deletes, bulk edits, documents and outreach records are not reachable.
+- Rows can contain pasted text, so tool results are labelled as data, and a hostile row can at worst create a suggestion you dismiss.
+- Per-key rate limits, `Origin` checks, and logs that never contain keys or arguments. Design notes: [AI-Context/technical/mcp-server.md](AI-Context/technical/mcp-server.md).
 
 ---
 
@@ -292,6 +325,7 @@ flowchart LR
 | AI | GLM, Groq, Gemini, Mistral, OpenRouter · Jina embeddings |
 | Search & data | Brave, Tavily, OpenAlex |
 | Auth & billing | JWT, Google OAuth (PKCE), Polar |
+| Integrations | Remote MCP server (Streamable HTTP, scoped access keys) |
 | Hosting | Render (free tier) |
 
 ## Running it locally

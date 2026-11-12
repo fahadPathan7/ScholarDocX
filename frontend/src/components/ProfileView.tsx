@@ -8,6 +8,7 @@ import {
 } from "../config/notificationLabels";
 import { Bell, Route, FileText, Database, PencilLine, MessageCircle, BellRing, Settings, ShieldCheck, User, Zap, Bot, ExternalLink, X, ChevronRight, LogOut, Edit2, Plus, Image as ImageIcon, Check, CheckCircle2, FolderOpen, Globe, Mail, Save, Sparkles, Crown, Star, Leaf } from "lucide-react";
 import { AiTokenWidget } from "./AiTokenWidget";
+import { ConnectedAppsCard } from "./connected-apps/ConnectedAppsCard";
 import { api, RecordMap } from "../lib/api";
 import { AVATAR_OPTIONS, avatarImageSrc, getAvatarById } from "../data/avatars";
 import { useAuth } from "../contexts/AuthContext";
@@ -525,6 +526,8 @@ export function ProfileView({
               </button>
             </div>
           </div>
+
+          <ConnectedAppsCard onToast={onToast} onViewPlans={onViewPlans} refreshTrigger={refreshTrigger} />
         </div>
 
         {/* Right Column */}

@@ -12,6 +12,8 @@ this file describes how identity works.
 
 ## Session handling
 
+- **Access keys for connected apps** (SCHOLARDOCX-0258) are not sessions: separate `sdx_` credential, header-only, accepted only at `/mcp`, invalidated by the same `token_version` bump. Details in [mcp-server.md](mcp-server.md).
+
 - `get_current_user` (`backend/app/auth/dependencies.py`) validates the token, loads the user from the database, enforces `is_active` (suspended accounts are refused), checks `token_version` (revocation), and applies plan expiry. **Roles come from the database row, not the token payload.** It also accepts a `token` query parameter when no `Authorization` header is present, kept for legacy file links; new code opens files through short-lived download tokens instead ([security-privacy.md](security-privacy.md)).
 - Role guards: `require_admin`, `require_super_admin`, `require_role`. The admin router is protected router-wide (`get_current_user` + `require_admin`) plus a fine-grained layer (`require_feature` / `check_and_increment_limit`) for destructive admin actions. Admins, including `super_admin`, do not short-circuit regular user role checks; to use user features an admin needs a user-tier role.
 - **JWT secret**: `JWT_SECRET` (or `JWT_SECRET_KEY`) from the environment into `settings.jwt_secret_key`. Startup deletes any legacy `app_settings.jwt_secret_key` row. `get_jwt_secret` raises HTTP 500 if the secret is missing or still a known-compromised placeholder; there is no constant fallback. The algorithm is pinned to HS256 on decode (no `alg:none` confusion). Rotating the secret signs everyone out and is the right response to any suspected compromise.

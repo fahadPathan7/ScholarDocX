@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.routing import Route
 
 from app.api.dependencies import ensure_db_initialized
 from app.api.routes import router
@@ -24,7 +25,12 @@ def create_app() -> FastAPI:
     # re-ran the entire DDL + seed pass (~160 round-trips) a second time.
     ensure_db_initialized(settings)
 
-    app = FastAPI(title="ScholarDocX API", version="0.1.0")
+    # SCHOLARDOCX-0258: each app builds its own MCP endpoint (a session manager
+    # can only run once) and runs it from the lifespan.
+    from app.services.mcp_server import MCP_PATH, build_mcp_endpoint
+
+    mcp_endpoint = build_mcp_endpoint(settings)
+    app = FastAPI(title="ScholarDocX API", version="0.1.0", lifespan=mcp_endpoint.lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -60,6 +66,10 @@ def create_app() -> FastAPI:
     app.include_router(research_reader_router, prefix="/api")
     from app.api.calendar import router as calendar_router
     app.include_router(calendar_router, prefix="/api")
+    from app.api.connected_apps import router as connected_apps_router
+    app.include_router(connected_apps_router, prefix="/api")
+    # Exact path, no Mount: a Mount would 307-redirect POST /mcp to /mcp/.
+    app.router.routes.append(Route(MCP_PATH, endpoint=mcp_endpoint.asgi))
     return app
 
 

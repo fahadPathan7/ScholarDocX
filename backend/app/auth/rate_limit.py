@@ -221,6 +221,40 @@ RATE_LIMIT_RULES: list[dict[str, Any]] = [
         "message": "Too many AI action execute requests. Please slow down.",
     },
     {
+        # SCHOLARDOCX-0258: external AI apps calling the MCP endpoint.
+        "key": "mcp_call",
+        "label": "Connected Apps — Tool Call",
+        "description": "A connected AI app calling a workspace tool (read or suggest).",
+        "method": "POST",
+        "path": "/mcp (outside /api)",
+        "max_requests": 60,
+        "window_seconds": 60,
+        "scope": "user",
+        "message": "Too many requests from your connected apps. Please slow down.",
+    },
+    {
+        "key": "mcp_auth_failure",
+        "label": "Connected Apps — Failed Key",
+        "description": "Rejected access keys on the connected-apps endpoint; blocks key guessing.",
+        "method": "POST",
+        "path": "/mcp (outside /api)",
+        "max_requests": 20,
+        "window_seconds": 300,
+        "scope": "ip",
+        "message": "Too many invalid access keys. Please try again later.",
+    },
+    {
+        "key": "connected_apps_manage",
+        "label": "Connected Apps — Create Key",
+        "description": "Create an access key for a connected app.",
+        "method": "POST",
+        "path": "/connected-apps",
+        "max_requests": 20,
+        "window_seconds": 3600,
+        "scope": "user",
+        "message": "Too many access keys created. Please try again later.",
+    },
+    {
         # Opportunity analyze runs AI extraction (scholarship_extraction) plus a
         # possible fetch; grouped with the other expensive AI calls.
         "key": "scholarship_analyze",

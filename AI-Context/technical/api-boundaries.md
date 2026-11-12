@@ -80,6 +80,8 @@ page host on port 8000 (production uses the same origin), which avoids `localhos
   their role limits plus the credit pre-flight; behaviour is described in the feature files under
   [functional](../functional) and [ai-integrations.md](ai-integrations.md).
 
+- **Connected apps** (SCHOLARDOCX-0258): `/api/connected-apps*` is the session-JWT management API (keys, suggestions); the MCP endpoint itself is `POST /mcp` outside `/api`, access-key authenticated. See [mcp-server.md](mcp-server.md).
+
 ## Delete cascade semantics
 
 Generic `DELETE /{table}/{id}` goes through `store.delete_record`. Children resolve by FK nullability

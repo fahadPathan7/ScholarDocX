@@ -14,7 +14,7 @@ export function ClosingCta() {
         <h2>Ready to organize your applications?</h2>
         <p>
           Join scholars building a focused, private, AI-assisted application
-          workflow. Start free — upgrade only when your ambitions do.
+          workflow, and bring the AI app you already use. Start free — upgrade only when your ambitions do.
         </p>
         <Link to="/register" className="lp-closing-btn">
           Start for Free

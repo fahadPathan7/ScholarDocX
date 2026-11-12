@@ -16,6 +16,7 @@ cascade delete) and is always queried scoped to the signed-in user.
 | Projects and sheets | `projects`, `project_sheets`, `project_pages`, `notifications`, `calendar_reminders`, `sheet_calendar_item_marks`, `local_profiles` | The workspace users live in: projects contain sheets; pages hold the rows |
 | Legacy hierarchy | `degree_workspaces`, `universities`, `programs`, `professors`, `applications`, `deadlines`, `research_notes`, `outreach_logs`, `email_drafts`, `email_templates`, `reminders` | Original hierarchical tracker schema; outreach and records now live inside project sheets |
 | Documents | `documents`, `document_versions`, `document_categories`, `static_files` | Uploaded files (bytes live in object storage; rows hold metadata) |
+| Connected apps | `connected_apps`, `connected_app_suggestions` | Access keys (hash only) for external AI apps and the changes they suggest ([mcp-server.md](mcp-server.md)); new tables in `connected_apps_models.py`, FKs cascade on user delete |
 | Notes and boards | `sticky_notes`, `whiteboards` | Sticky notes and whiteboards |
 | AI chat | `ai_conversations` | Assistant conversation memory |
 | Research Expert | `research_papers`, `research_paper_chunks`, `research_paper_analyses` | Uploaded papers, searchable passages, saved analyses |

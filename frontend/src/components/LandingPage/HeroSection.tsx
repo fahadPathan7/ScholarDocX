@@ -28,7 +28,8 @@ export function HeroSection() {
         <p className="lp-hero-description">
           Your complete graduate application hub. Manage universities, track
           deadlines, organize documents, and draft outreach emails with
-          privacy-first AI assistance.
+          privacy-first AI assistance. Already use Claude or Cursor? Connect
+          your own AI app to your workspace. It suggests, you approve.
         </p>
 
         <div className="lp-hero-actions">

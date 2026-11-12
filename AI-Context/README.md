@@ -47,6 +47,7 @@ Each rule has exactly one home. Link to it; do not restate it.
 | File size, modularity, testing, repo hygiene | [CODE_RULES.md](CODE_RULES.md) |
 | Agent rules, workflow, UI hard rules (modals, copy) | [AGENTS.md](../AGENTS.md) |
 | Security, privacy, data boundaries | [technical/security-privacy.md](technical/security-privacy.md) |
+| Connected apps / MCP server | [technical/mcp-server.md](technical/mcp-server.md) |
 | UI, theming, responsiveness | [technical/frontend-visual-system.md](technical/frontend-visual-system.md), [technical/responsive-design-system.md](technical/responsive-design-system.md) |
 | Process, handoff, branching | [workflows](workflows) |
 

@@ -32,6 +32,7 @@ server-side.
 - **Per-user isolation is enforced server-side.** Any handler that lists, reads, or mutates user-scoped records must inject the store through `get_user_store`, which sets `Store.current_user_id`; plain `get_store` is unscoped and leaks rows. The store scopes any table whose columns include `user_id`.
 - **Google sign-in** is optional (SCHOLARDOCX-0169): authorization-code + PKCE runs server-side, scopes are `openid email profile`, only the Google `sub`, email, name, and avatar snapshot go into `external_identities`, no refresh tokens are stored, and the client secret never reaches the frontend. A first-time Google user gets an active free account (`signup_method='google'`); auto-link to an existing user is permitted only when the Google email is verified.
 - **Forgot-password** must not allow user enumeration: `POST /auth/forgot-password` always returns HTTP 200 with the same message regardless of whether the email exists, whether a request was created, or whether a limit applied. Two silent limits (enforced by not creating a row): one pending request per user and one per client IP per hour. The IP budget is consumed before the email lookup so the limit is not a timing or enumeration oracle.
+- **Connected-app access keys** (SCHOLARDOCX-0258) are a separate credential from the session JWT: `sdx_` random keys, SHA-256 hash stored, header-only, tied to `token_version`, gated by `can_use_mcp`, accepted only at `/mcp`. A key on `/api/*` or a JWT at `/mcp` is a 401. See [mcp-server.md](mcp-server.md).
 - Remote sign-in is how users reach the hosted app; do not add paths that bypass `get_current_user` (the only anonymous routes are auth, `plans/public`, webhooks, and internal secret-gated routes).
 
 ## Polar billing security (SCHOLARDOCX-0156 / 0157)
@@ -47,13 +48,15 @@ Design: [billing-and-payments.md](billing-and-payments.md). Security points:
 
 ## Rate limiting (SCHOLARDOCX-0137)
 
-- Every IP and user rate limit lives in one registry, `RATE_LIMIT_RULES` in `backend/app/auth/rate_limit.py` (22 rules), enforced through the shared `rate_limiter`. Do not re-implement inline buckets; add a rule and call `check_and_record` (counts every hit), or `check` then `record` on a bad outcome (login and password change record only failed credentials, so legitimate use never consumes the budget). Forgot-password swallows the limit into a generic 200 to keep the anti-enumeration invariant.
+- Every IP and user rate limit lives in one registry, `RATE_LIMIT_RULES` in `backend/app/auth/rate_limit.py` (25 rules), enforced through the shared `rate_limiter`. Do not re-implement inline buckets; add a rule and call `check_and_record` (counts every hit), or `check` then `record` on a bad outcome (login and password change record only failed credentials, so legitimate use never consumes the budget). Forgot-password swallows the limit into a generic 200 to keep the anti-enumeration invariant.
 - Identity: unauthenticated endpoints (`/auth/login`, `/auth/register`, `/auth/invite-request`, `/auth/forgot-password`, `/auth/contact-admin`) key on client IP (`client_ip_from_request`); authenticated expensive endpoints key on user id (`user_identity`).
 - Limits run before plan and credit checks so they fast-fail before any spend. Covered: every AI-billing endpoint, every search or extraction endpoint (deep-hunt run, advisor-atlas run and refresh, scholarship analyze), file upload, and the auth endpoints. Deliberately not limited: plain GET reads, cheap user-scoped writes, `/auth/plans/request` (one-pending-per-user guard), and `/admin/*` (already permission gated).
 - The registry feeds the admin Info tab via `GET /admin/info/rate-limits` (permission `admin_view_info`).
 - Buckets are in memory and per process: they reset on restart and are not shared across workers, which is acceptable for a single-process deployment. `client_ip_from_request` reads `request.client.host` with no `X-Forwarded-For` handling; behind a reverse proxy that would key every user on the proxy IP (follow-up if the topology changes).
 
 ## Role limits and billing guards (SCHOLARDOCX-0111)
+
+- `can_use_mcp` (connected apps) is a permission limit: on for `general_user`, `pro_user`, `max_user`; off for `free_user` and both admin roles (admins need a user-tier role too).
 
 - Plan expiry is applied at auth time (`app/auth/plan_state.py`): `get_current_user` strips expired user-tier roles and falls back to `free_user`.
 - Count-based usage (`total_projects`, `total_sheets`, `total_records`, `total_documents_bytes`, `total_sticky_notes`, `total_whiteboards`) means current usage, not lifetime. `resync_usage_counts` (`app/auth/limits.py`) recounts from live data after route deletes (`RESYNC_FEATURES_BY_TABLE`), after every agent plan, and at startup; `total_records` counts rows inside `rows_json`.

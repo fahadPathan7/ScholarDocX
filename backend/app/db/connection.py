@@ -20,6 +20,7 @@ from app.db.models import Base
 # here (before create_all() runs below) is what makes that registration take
 # effect.
 from app.db import calendar_models  # noqa: F401
+from app.db import connected_apps_models  # noqa: F401
 
 
 def _resolve_database_url(database_url: str) -> str:

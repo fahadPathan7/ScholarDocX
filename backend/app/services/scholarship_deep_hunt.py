@@ -822,6 +822,7 @@ class ScholarshipDeepHuntService:
         finally:
             if billing_session is not None:
                 billing_session.close()
+            await self.crawler.aclose()
 
     async def _brave_search(self, query: str, max_results: int) -> list[dict[str, Any]]:
         """Run one Brave web-search pass and return pipeline-shaped items.

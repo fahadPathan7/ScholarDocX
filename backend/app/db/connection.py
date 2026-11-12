@@ -599,6 +599,9 @@ def _seed_ai_token_defaults(conn) -> None:
     prices = {
         "gemini-2.5-flash": (0.075, 0.30),
         "gemini-2.5-flash-lite": (0.0375, 0.15),
+        # SCHOLARDOCX-0252: placeholder mirroring GLM-5.2 until a super_admin
+        # sets the real price; never seed a GLM model at $0.
+        "GLM-5.3": (2.00, 4.00),
         "GLM-5.2": (2.00, 4.00),
         "GLM-5.1": (1.00, 2.00),
         "GLM-5": (1.00, 2.00),

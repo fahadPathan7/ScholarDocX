@@ -8,9 +8,9 @@ The AI assistant helps with research, summarization, drafting, and review while 
 
 ## Providers
 
-- GLM AI API: chat, completion, summarization, drafting. GLM-5.2 is the latest
-  selectable model in the assistant picker; GLM-5.1, GLM-5, GLM-5-Turbo, and
-  GLM-4.7 remain available.
+- GLM AI API: chat, completion, summarization, drafting. GLM-5.3 is the latest
+  selectable model in the assistant picker (SCHOLARDOCX-0252); GLM-5.2, GLM-5.1,
+  GLM-5, GLM-5-Turbo, and GLM-4.7 remain available.
 
 - Tavily API: real-time web search and research context.
 

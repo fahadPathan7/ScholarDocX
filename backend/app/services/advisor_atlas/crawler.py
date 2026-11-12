@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import codecs
 from html.parser import HTMLParser
 import ipaddress
 import re
 import socket
-from typing import Any
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
+import time
+from typing import Any, Callable
+from urllib.parse import parse_qsl, unquote, urlencode, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -206,7 +209,45 @@ def clean_person_name(label: str) -> str | None:
 
 def normalize_label(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
+# "jane [at] uni [dot] edu", "jane (at) uni (dot) edu" — common anti-spam forms
+# on faculty pages (SCHOLARDOCX-0251).
+OBFUSCATED_AT = re.compile(r"\s*[\[\(\{<]\s*at\s*[\]\)\}>]\s*", re.IGNORECASE)
+OBFUSCATED_DOT = re.compile(r"\s*[\[\(\{<]\s*dot\s*[\]\)\}>]\s*", re.IGNORECASE)
+
+# Link labels that say "this is a profile" without naming the person. On card
+# layouts the name sits in a heading just before the link, so the parser keeps
+# that heading as the link's context.
+GENERIC_PROFILE_LABELS = {
+    "", "view profile", "profile", "full profile", "faculty profile",
+    "see profile", "visit profile", "view full profile", "read more",
+    "learn more", "more", "more info", "details", "view details", "bio",
+    "biography", "view bio", "homepage", "home page", "website",
+    "personal website",
+}
+
+# Query parameters that never change which page is served. Everything else is
+# kept: `profile.php?id=42` and `profile.php?id=43` are different professors.
+TRACKING_PARAM_PREFIXES = ("utm_",)
+TRACKING_PARAMS = {
+    "fbclid", "gclid", "dclid", "msclkid", "yclid", "mc_cid", "mc_eid",
+    "_ga", "_gl", "igshid", "ref_src", "phpsessid", "jsessionid",
+}
+
+# Second-level labels under a two-letter country TLD ("ox.ac.uk", "unsw.edu.au")
+# whose registrable site is three labels, not two.
+_COUNTRY_SECOND_LEVELS = {"ac", "edu", "co", "gov", "org", "net", "com", "sch", "res"}
+
+MAX_REDIRECTS = 4
+MAX_ROBOTS_REDIRECTS = 5  # RFC 9309 §2.3.1.2
+MAX_ROBOTS_BYTES = 500_000
+ROBOTS_TTL_SECONDS = 3600.0
+ROBOTS_UNREACHABLE_TTL_SECONDS = 300.0
+ROBOTS_CACHE_LIMIT = 512
+HOST_DELAY_SECONDS = 0.45
+_HEADING_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "strong", "b"}
 
 
 class PageParser(HTMLParser):
@@ -216,9 +257,14 @@ class PageParser(HTMLParser):
         self._in_title = False
         self._skip_depth = 0
         self.text_parts: list[str] = []
-        self.links: list[tuple[str, str]] = []
+        # (href, label, context): context is the last heading seen before the link.
+        self.links: list[tuple[str, str, str]] = []
         self._current_href: str | None = None
         self._link_text: list[str] = []
+        self._link_context = ""
+        self._heading_depth = 0
+        self._heading_text: list[str] = []
+        self._last_heading = ""
         self._in_table_cell = False
         self._table_cell_text: list[str] = []
         self._table_row: list[str] = []
@@ -230,9 +276,14 @@ class PageParser(HTMLParser):
             self._skip_depth += 1
         if tag == "title":
             self._in_title = True
+        if tag in _HEADING_TAGS:
+            if not self._heading_depth:
+                self._heading_text = []
+            self._heading_depth += 1
         if tag == "a":
             self._current_href = attrs_dict.get("href")
             self._link_text = []
+            self._link_context = self._last_heading
         if tag == "tr":
             self._table_row = []
         if tag in {"td", "th"}:
@@ -244,9 +295,15 @@ class PageParser(HTMLParser):
             self._skip_depth -= 1
         if tag == "title":
             self._in_title = False
+        if tag in _HEADING_TAGS and self._heading_depth:
+            self._heading_depth -= 1
+            if not self._heading_depth:
+                heading = " ".join(self._heading_text).strip()
+                if heading:
+                    self._last_heading = heading
         if tag == "a" and self._current_href:
             text = " ".join(self._link_text).strip()
-            self.links.append((self._current_href, text))
+            self.links.append((self._current_href, text, self._link_context))
             self._current_href = None
             self._link_text = []
         if tag in {"td", "th"} and self._in_table_cell:
@@ -270,14 +327,27 @@ class PageParser(HTMLParser):
         self.text_parts.append(clean)
         if self._current_href is not None:
             self._link_text.append(clean)
+        if self._heading_depth:
+            self._heading_text.append(clean)
         if self._in_table_cell:
             self._table_cell_text.append(clean)
 
 
+def _is_tracking_param(key: str) -> bool:
+    lowered = key.lower()
+    return lowered in TRACKING_PARAMS or lowered.startswith(TRACKING_PARAM_PREFIXES)
+
+
 def canonicalize_url(url: str) -> str:
+    """Normalise a URL for de-duplication *and* fetching.
+
+    Content-selecting query parameters are kept (SCHOLARDOCX-0251: dropping
+    them fetched `profile.php` instead of `profile.php?id=42`); only tracking
+    parameters, fragments, and `;params` are removed. Google Scholar keeps only
+    its identity parameter so one profile has one URL.
+    """
     parsed = urlparse(url.strip())
     path = parsed.path.rstrip("/") or "/"
-    query = ""
     if "scholar.google." in parsed.netloc.lower():
         identity_query = [
             (key, value)
@@ -288,6 +358,14 @@ def canonicalize_url(url: str) -> str:
         if params_user and not identity_query:
             identity_query = [("user", params_user.group(1))]
         query = urlencode(identity_query)
+    else:
+        query = urlencode(
+            [
+                (key, value)
+                for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+                if not _is_tracking_param(key)
+            ]
+        )
     return urlunparse(
         (
             parsed.scheme.lower(),
@@ -300,31 +378,69 @@ def canonicalize_url(url: str) -> str:
     )
 
 
-def _validate_public_host(hostname: str) -> None:
-    if not hostname or hostname.lower() in {"localhost", "localhost.localdomain"}:
-        raise ValueError("Only public web hosts are allowed.")
+class UnsafeTargetError(ValueError):
+    """The host is not a public address, or could not be resolved to one.
+
+    A ValueError subclass so existing `except ValueError` call sites keep
+    skipping the source; robots handling re-raises it instead of treating the
+    site as "robots.txt unreachable".
+    """
+
+
+def _is_public_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    # `is_global` excludes private, loopback, link-local, reserved,
+    # unspecified, CGNAT (100.64/10) and documentation ranges.
+    return ip.is_global and not ip.is_multicast
+
+
+def _literal_ip(host: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
     try:
-        addresses = socket.getaddrinfo(hostname, None)
+        return ipaddress.ip_address(host.strip("[]").split("%", 1)[0])
+    except ValueError:
+        return None
+
+
+async def _resolve_public_ip(host: str, port: int) -> str:
+    """Resolve `host` once, without blocking the event loop, and return a public IP.
+
+    Every address must be public: a name that resolves to any private address
+    is rejected outright rather than filtered, so it cannot be used to probe
+    internal hosts.
+    """
+    literal = _literal_ip(host)
+    if literal is not None:
+        if not _is_public_ip(literal):
+            raise UnsafeTargetError("Private or local network sources are not allowed.")
+        return str(literal)
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(
+            host, port, type=socket.SOCK_STREAM
+        )
     except socket.gaierror as exc:
-        raise ValueError("The source host could not be resolved.") from exc
-    for address in addresses:
-        ip = ipaddress.ip_address(address[4][0])
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
-            raise ValueError("Private or local network sources are not allowed.")
+        raise UnsafeTargetError("The source host could not be resolved.") from exc
+    addresses = [ipaddress.ip_address(info[4][0].split("%", 1)[0]) for info in infos]
+    if not addresses or not all(_is_public_ip(address) for address in addresses):
+        raise UnsafeTargetError("Private or local network sources are not allowed.")
+    return str(addresses[0])
 
 
 def validate_public_url(url: str) -> str:
+    """Cheap, synchronous checks; DNS-based checks happen at connect time.
+
+    The resolved address is validated and pinned by `_PublicOnlyTransport`, so
+    there is no gap between "checked" and "connected" for DNS rebinding.
+    """
     parsed = urlparse(url.strip())
     if parsed.scheme not in {"http", "https"}:
         raise ValueError("Only HTTP and HTTPS sources are allowed.")
-    _validate_public_host(parsed.hostname or "")
+    hostname = (parsed.hostname or "").lower()
+    if not hostname or hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".localhost"):
+        raise UnsafeTargetError("Only public web hosts are allowed.")
+    literal = _literal_ip(hostname)
+    if literal is not None and not _is_public_ip(literal):
+        raise UnsafeTargetError("Private or local network sources are not allowed.")
     return canonicalize_url(url)
 
 
@@ -332,123 +448,300 @@ def is_visual_url(url: str) -> bool:
     return urlparse(url).path.lower().endswith(VISUAL_SUFFIXES)
 
 
-class PublicCrawler:
-    def __init__(self, user_agent: str = "ScholarDocX-AdvisorAtlas/1.0") -> None:
-        self.user_agent = user_agent
-        self._robots: dict[str, RobotFileParser] = {}
-        self._last_request: dict[str, float] = {}
-        self._host_locks: dict[str, asyncio.Lock] = {}
+def _site_key(host: str | None) -> str:
+    host = (host or "").lower().removeprefix("www.")
+    if _literal_ip(host) is not None:
+        return host
+    labels = [label for label in host.split(".") if label]
+    if (
+        len(labels) >= 3
+        and len(labels[-1]) == 2
+        and labels[-2] in _COUNTRY_SECOND_LEVELS
+    ):
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
 
-    def _host_lock(self, host: str) -> asyncio.Lock:
-        # Serialize requests per host so the polite per-domain delay holds even
-        # when multiple candidates are researched concurrently.
-        return self._host_locks.setdefault(host, asyncio.Lock())
+
+def _path_has_faculty_hint(path: str) -> bool:
+    # Token-prefix match, not substring: "lab" must not match "/syllabus/" and
+    # "member" must not match "/remember/". Prefix keeps plurals and joined
+    # words ("persons", "facultystaff").
+    tokens = [token for token in re.split(r"[^a-z0-9]+", path.lower()) if token]
+    return any(token.startswith(hint) for token in tokens for hint in FACULTY_HINTS)
+
+
+def _deobfuscate_emails(text: str) -> str:
+    return OBFUSCATED_DOT.sub(".", OBFUSCATED_AT.sub("@", text))
+
+
+def _mailto_emails(href: str) -> list[str]:
+    address = unquote(href.split(":", 1)[1].split("?", 1)[0])
+    return EMAIL_PATTERN.findall(address)
+
+
+def _decode(body: bytes, charset: str | None) -> str:
+    try:
+        codecs.lookup(charset or "utf-8")
+    except LookupError:
+        charset = "utf-8"
+    return body.decode(charset or "utf-8", errors="replace")
+
+
+async def _read_capped(response: httpx.Response, cap: int, message: str) -> bytes:
+    """Stream the body and stop at `cap` — never buffer an oversized response."""
+    declared = response.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > cap:
+        raise ValueError(message)
+    body = bytearray()
+    # aiter_bytes yields *decoded* bytes, so the cap also bounds gzip bombs.
+    async for chunk in response.aiter_bytes():
+        body.extend(chunk)
+        if len(body) > cap:
+            raise ValueError(message)
+    return bytes(body)
+
+
+# Process-wide politeness state, shared by every run (SCHOLARDOCX-0251): two
+# users researching the same university must not double its request rate.
+# No locks: reserving a slot is a synchronous read-modify-write, which is
+# atomic under asyncio, and avoids binding a lock to one event loop.
+_NEXT_SLOT: dict[str, float] = {}
+_ROBOTS_CACHE: dict[str, tuple[float, RobotFileParser]] = {}
+
+
+async def _throttle(host: str) -> None:
+    now = time.monotonic()
+    slot = max(now, _NEXT_SLOT.get(host, 0.0))
+    _NEXT_SLOT[host] = slot + HOST_DELAY_SECONDS
+    if len(_NEXT_SLOT) > 2048:
+        for stale in [key for key, value in _NEXT_SLOT.items() if value < now]:
+            _NEXT_SLOT.pop(stale, None)
+    if slot > now:
+        await asyncio.sleep(slot - now)
+
+
+class _PublicOnlyTransport(httpx.AsyncBaseTransport):
+    """Resolve, validate, and pin the destination IP for every request.
+
+    The request goes to the validated IP while the Host header and TLS
+    SNI/certificate hostname stay the original name, so a DNS answer that
+    changes between check and connect cannot reach a private address.
+
+    One inner transport per hostname: pooled connections are keyed by the
+    pinned IP, and a TLS connection opened for one virtual host on a shared
+    CDN address must not be reused for another.
+    """
+
+    def __init__(
+        self,
+        inner_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    ) -> None:
+        self._inner_factory = inner_factory or (lambda: httpx.AsyncHTTPTransport())
+        self._inners: dict[str, httpx.AsyncBaseTransport] = {}
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        url = request.url
+        if url.scheme not in {"http", "https"}:
+            raise ValueError("Only HTTP and HTTPS sources are allowed.")
+        host = url.host
+        port = url.port or (443 if url.scheme == "https" else 80)
+        ip = await _resolve_public_ip(host, port)
+        extensions = dict(request.extensions)
+        if url.scheme == "https":
+            extensions["sni_hostname"] = host
+        pinned = httpx.Request(
+            request.method,
+            url.copy_with(host=ip),
+            headers=request.headers,  # already carries Host: <original name>
+            stream=request.stream,
+            extensions=extensions,
+        )
+        inner = self._inners.get(host)
+        if inner is None:
+            inner = self._inners[host] = self._inner_factory()
+        return await inner.handle_async_request(pinned)
+
+    async def aclose(self) -> None:
+        inners, self._inners = list(self._inners.values()), {}
+        for inner in inners:
+            await inner.aclose()
+
+
+class PublicCrawler:
+    def __init__(
+        self,
+        user_agent: str = "ScholarDocX-AdvisorAtlas/1.0",
+        transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
+    ) -> None:
+        self.user_agent = user_agent
+        # Tests pass an httpx.MockTransport factory; it still sits behind the
+        # public-only pinning layer, so the SSRF path is exercised too.
+        self._transport_factory = transport_factory
+        self._http: httpx.AsyncClient | None = None
+
+    def _client(self) -> httpx.AsyncClient:
+        # One client per crawler (one crawler per run): connections and TLS
+        # sessions are reused across the dozens of pages a run fetches.
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                transport=_PublicOnlyTransport(self._transport_factory),
+                timeout=httpx.Timeout(18.0, connect=8.0),
+                follow_redirects=False,
+                headers={"User-Agent": self.user_agent},
+            )
+        return self._http
+
+    async def aclose(self) -> None:
+        client, self._http = self._http, None
+        if client is not None:
+            await client.aclose()
 
     async def _robots_allowed(self, url: str) -> bool:
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
-        if origin not in self._robots:
-            parser = RobotFileParser()
-            parser.set_url(f"{origin}/robots.txt")
-            try:
-                async with httpx.AsyncClient(
-                    timeout=8,
-                    follow_redirects=False,
-                    headers={"User-Agent": self.user_agent},
-                ) as client:
-                    response = await client.get(parser.url)
-                if response.status_code < 400:
-                    parser.parse(response.text.splitlines())
-                else:
-                    parser.parse([])
-            except httpx.HTTPError:
-                parser.parse([])
-            self._robots[origin] = parser
-        return self._robots[origin].can_fetch(self.user_agent, url)
+        cached = _ROBOTS_CACHE.get(origin)
+        if cached is None or cached[0] < time.monotonic():
+            parser, ttl = await self._load_robots(origin)
+            _ROBOTS_CACHE.pop(origin, None)
+            while len(_ROBOTS_CACHE) >= ROBOTS_CACHE_LIMIT:
+                _ROBOTS_CACHE.pop(next(iter(_ROBOTS_CACHE)))
+            _ROBOTS_CACHE[origin] = (time.monotonic() + ttl, parser)
+            cached = _ROBOTS_CACHE[origin]
+        return cached[1].can_fetch(self.user_agent, url)
+
+    async def _load_robots(self, origin: str) -> tuple[RobotFileParser, float]:
+        """Fetch robots.txt per RFC 9309.
+
+        Redirects are followed (each hop re-validated); 4xx means no rules
+        (allow all); 5xx or an unreachable server means complete disallow,
+        cached briefly so a transient outage does not block the site for long.
+        """
+        parser = RobotFileParser()
+        target = f"{origin}/robots.txt"
+        parser.set_url(target)
+        client = self._client()
+        try:
+            for _ in range(MAX_ROBOTS_REDIRECTS + 1):
+                await _throttle(urlparse(target).netloc)
+                async with client.stream(
+                    "GET", target, headers={"Accept": "text/plain"}, timeout=8.0
+                ) as response:
+                    if response.is_redirect:
+                        target = validate_public_url(
+                            urljoin(target, response.headers.get("location", ""))
+                        )
+                        continue
+                    if response.status_code >= 500:
+                        parser.disallow_all = True
+                        return parser, ROBOTS_UNREACHABLE_TTL_SECONDS
+                    if response.status_code >= 400:
+                        parser.allow_all = True
+                        return parser, ROBOTS_TTL_SECONDS
+                    body = await _read_capped(
+                        response, MAX_ROBOTS_BYTES, "robots.txt is too large."
+                    )
+                    parser.parse(_decode(body, "utf-8").splitlines())
+                    return parser, ROBOTS_TTL_SECONDS
+            # More than five redirects: RFC 9309 allows treating it as unavailable.
+            parser.allow_all = True
+            return parser, ROBOTS_TTL_SECONDS
+        except UnsafeTargetError:
+            # The site itself is not a public host: report that, and do not
+            # cache a robots verdict for it.
+            if urlparse(target).netloc == urlparse(origin).netloc:
+                raise
+            parser.disallow_all = True
+            return parser, ROBOTS_UNREACHABLE_TTL_SECONDS
+        except (httpx.HTTPError, ValueError):
+            parser.disallow_all = True
+            return parser, ROBOTS_UNREACHABLE_TTL_SECONDS
+
+    async def _get(
+        self,
+        url: str,
+        *,
+        accept: str,
+        allowed_types: tuple[str, ...],
+        cap: int,
+        kind: str,
+    ) -> tuple[str, str, bytes, str | None]:
+        """GET with every redirect hop validated, robots-checked, and throttled.
+
+        Returns (final_url, media_type, body, charset).
+        """
+        target = validate_public_url(url)
+        client = self._client()
+        for _ in range(MAX_REDIRECTS + 1):
+            if not await self._robots_allowed(target):
+                raise PermissionError(f"The {kind} is disallowed by robots.txt.")
+            await _throttle(urlparse(target).netloc)
+            async with client.stream("GET", target, headers={"Accept": accept}) as response:
+                if response.is_redirect:
+                    target = validate_public_url(
+                        urljoin(target, response.headers.get("location", ""))
+                    )
+                    continue
+                response.raise_for_status()
+                media_type = (
+                    response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                )
+                if media_type not in allowed_types:
+                    raise ValueError(f"Unsupported {kind} content type.")
+                body = await _read_capped(
+                    response, cap, f"The {kind} is too large to inspect safely."
+                )
+                return target, media_type, body, response.charset_encoding
+        raise ValueError(f"The {kind} redirected too many times.")
 
     async def fetch(self, url: str) -> dict[str, Any]:
-        safe_url = validate_public_url(url)
-        if not await self._robots_allowed(safe_url):
-            raise PermissionError("The source is disallowed by robots.txt.")
-        host = urlparse(safe_url).netloc
-        headers = {
-            "User-Agent": self.user_agent,
-            "Accept": "text/html,application/xhtml+xml,text/plain;q=0.8",
-        }
-        async with self._host_lock(host):
-            loop = asyncio.get_running_loop()
-            last = self._last_request.get(host, 0.0)
-            delay = max(0.0, 0.45 - (loop.time() - last))
-            if delay:
-                await asyncio.sleep(delay)
-            self._last_request[host] = loop.time()
-
-            async with httpx.AsyncClient(timeout=18, follow_redirects=False, headers=headers) as client:
-                response = await client.get(safe_url)
-                redirects = 0
-                while response.is_redirect and redirects < 4:
-                    target = urljoin(str(response.url), response.headers.get("location", ""))
-                    safe_target = validate_public_url(target)
-                    response = await client.get(safe_target)
-                    redirects += 1
-                response.raise_for_status()
-                content_type = response.headers.get("content-type", "").lower()
-                if not any(kind in content_type for kind in ALLOWED_CONTENT_TYPES):
-                    raise ValueError("Unsupported source content type.")
-                content = response.content[: MAX_PAGE_BYTES + 1]
-                if len(content) > MAX_PAGE_BYTES:
-                    raise ValueError("Source page is too large to inspect safely.")
-                text = content.decode(response.encoding or "utf-8", errors="replace")
-
+        final_url, _, body, charset = await self._get(
+            url,
+            accept="text/html,application/xhtml+xml,text/plain;q=0.8",
+            allowed_types=ALLOWED_CONTENT_TYPES,
+            cap=MAX_PAGE_BYTES,
+            kind="source",
+        )
         parser = PageParser()
-        parser.feed(text)
+        parser.feed(_decode(body, charset))
         clean_text = re.sub(r"\s+", " ", " ".join(parser.text_parts)).strip()
         links = []
-        for href, label in parser.links:
-            absolute = urljoin(safe_url, href)
-            parsed_link = urlparse(absolute)
-            if parsed_link.scheme in {"http", "https"}:
-                links.append({"url": canonicalize_url(absolute), "text": label.strip()})
+        emails = set(EMAIL_PATTERN.findall(_deobfuscate_emails(clean_text)))
+        for href, label, context in parser.links:
+            if href.strip().lower().startswith("mailto:"):
+                emails.update(_mailto_emails(href.strip()))
+                continue
+            # Resolve against the page actually served, not the pre-redirect URL.
+            absolute = urljoin(final_url, href.strip())
+            if urlparse(absolute).scheme not in {"http", "https"}:
+                continue
+            link: dict[str, Any] = {"url": canonicalize_url(absolute), "text": label.strip()}
+            if context and normalize_label(label) in GENERIC_PROFILE_LABELS:
+                link["context"] = context
+            links.append(link)
         return {
-            "url": canonicalize_url(str(response.url)),
-            "title": parser.title or urlparse(safe_url).netloc,
+            "url": final_url,
+            "title": parser.title or urlparse(final_url).netloc,
             "text": clean_text[:120_000],
             "links": links,
-            "emails": sorted(set(EMAIL_PATTERN.findall(clean_text))),
+            "emails": sorted(emails),
             "table_rows": parser.table_rows[:500],
         }
 
     async def inspect_visual(self, url: str) -> dict[str, Any]:
-        safe_url = validate_public_url(url)
-        if not await self._robots_allowed(safe_url):
-            raise PermissionError("The visual source is disallowed by robots.txt.")
-        headers = {
-            "User-Agent": self.user_agent,
-            "Accept": ",".join(ALLOWED_VISUAL_CONTENT_TYPES),
-        }
-        async with httpx.AsyncClient(timeout=18, follow_redirects=False, headers=headers) as client:
-            response = await client.get(safe_url)
-            redirects = 0
-            while response.is_redirect and redirects < 4:
-                target = urljoin(str(response.url), response.headers.get("location", ""))
-                safe_target = validate_public_url(target)
-                if not await self._robots_allowed(safe_target):
-                    raise PermissionError("The redirected visual source is disallowed by robots.txt.")
-                response = await client.get(safe_target)
-                redirects += 1
-            response.raise_for_status()
-            content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
-            if content_type not in ALLOWED_VISUAL_CONTENT_TYPES:
-                raise ValueError("Unsupported visual source content type.")
-            content_length = response.headers.get("content-length")
-            if content_length and int(content_length) > MAX_VISUAL_BYTES:
-                raise ValueError("Visual source is too large to inspect safely.")
-            if len(response.content) > MAX_VISUAL_BYTES:
-                raise ValueError("Visual source is too large to inspect safely.")
+        final_url, media_type, body, _ = await self._get(
+            url,
+            accept=",".join(ALLOWED_VISUAL_CONTENT_TYPES),
+            allowed_types=ALLOWED_VISUAL_CONTENT_TYPES,
+            cap=MAX_VISUAL_BYTES,
+            kind="visual source",
+        )
+        # The vision model gets these validated bytes, never the URL: letting the
+        # provider fetch the URL itself would bypass every check above.
         return {
-            "url": canonicalize_url(str(response.url)),
-            "content_type": content_type,
-            "size_bytes": len(response.content),
+            "url": final_url,
+            "content_type": media_type,
+            "size_bytes": len(body),
+            "data_url": f"data:{media_type};base64,{base64.b64encode(body).decode('ascii')}",
         }
 
     def faculty_candidates(
@@ -459,12 +752,24 @@ class PublicCrawler:
     ) -> list[dict[str, Any]]:
         candidates: list[dict[str, Any]] = []
         seen: set[str] = set()
-        source_host = urlparse(page["url"]).netloc
+        source = urlparse(page["url"])
+        source_site = _site_key(source.hostname)
         for link in page.get("links", []):
             label = re.sub(r"\s+", " ", link.get("text", "")).strip()
             name = clean_person_name(label)
-            path = urlparse(link["url"]).path.lower()
-            if not name or not any(hint in path for hint in FACULTY_HINTS):
+            excerpt = f"Faculty link labeled {label}"
+            context = re.sub(r"\s+", " ", link.get("context") or "").strip()
+            if not name and context and normalize_label(label) in GENERIC_PROFILE_LABELS:
+                name = clean_person_name(context)
+                excerpt = f"Faculty profile link under the heading {context}"
+            if not name:
+                continue
+            target = urlparse(link["url"])
+            # Same site only: a directory's links to news sites, Wikipedia, or
+            # partner institutions are not this unit's faculty.
+            if _site_key(target.hostname) != source_site:
+                continue
+            if not _path_has_faculty_hint(target.path):
                 continue
             key = name.lower()
             if key in seen:
@@ -473,11 +778,11 @@ class PublicCrawler:
             candidates.append(
                 {
                     "display_name": name,
-                    "institution": institution or source_host,
+                    "institution": institution or source.netloc,
                     "department": department,
                     "official_profile_url": link["url"],
                     "source_title": page.get("title"),
-                    "source_excerpt": f"Faculty link labeled {label}",
+                    "source_excerpt": excerpt,
                 }
             )
         return candidates

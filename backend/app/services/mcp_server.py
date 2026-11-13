@@ -280,8 +280,13 @@ class McpEndpoint:
             name="propose_changes",
             annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False),
             description=(
-                "Change the workspace (create or rename projects and sheets, add rows or columns, update a row, "
-                "pin to the dashboard). Depending on the key, the changes are queued for the user to confirm in "
+                "Change the workspace (create or rename projects and sheets, add or rename columns, add rows, "
+                "update a row, pin to the dashboard). A project needs only a name. A new sheet is blank with text "
+                "columns A to E unless create_sheet passes its own: "
+                '{"type":"create_sheet","project_name":"P","sheet":{"name":"S","columns":[{"name":"City","type":"text"}]}}. '
+                "Rename a column, keeping its values, with "
+                '{"type":"rename_column","project_name":"P","sheet_name":"S","column_name":"A","new_name":"City"}. '
+                "Column types: text, number, date, bool, select, url. Depending on the key, the changes are queued for the user to confirm in "
                 "ScholarDocX (status awaiting_confirmation_in_scholardocx) or applied directly (status applied). "
                 "Deletes and bulk edits are never available. 'actions' are action objects such as "
                 '{"type":"add_rows","project_name":"P","sheet_name":"S","rows":[{"University name":"MIT"}]}.'

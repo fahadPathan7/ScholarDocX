@@ -215,8 +215,9 @@ The Add Record form should:
 
 A new sheet starts **blank**: five text columns named A to E and no rows. The
 user renames a column by double-clicking its header, and adds the next letter
-with the `+` at the end of the header row. Below the data the grid shows a few
-empty rows; clicking one creates a record and starts typing in that cell.
+with the `+` at the end of the header row. Rows are added only with the `+`
+under the last row number (or Add record); the grid never draws placeholder
+rows and never creates a row from a click on empty space.
 
 Templates are optional starting points, never the default:
 
@@ -234,6 +235,10 @@ Column header interactions:
 - The header menu offers rename, change type, insert left/right, hide, summary
   and delete.
 - An empty or duplicate name is refused with a message; nothing is saved.
+
+The assistant and connected AI apps can do the same things: create a sheet
+with its own starting columns, add a column (named, or the next letter) and
+rename a column while keeping its values.
 
 ## Date Color Rules
 

@@ -49,7 +49,7 @@ ALLOWED_SUGGEST_ACTIONS = frozenset({
     "create_project", "create_sheet", "add_rows", "create_sticky_note",
     "update_project", "update_sheet", "update_row", "rename_project",
     "rename_sheet", "update_sticky_note",
-    "add_column", "add_group", "pin_project", "pin_sheet", "unpin_project",
+    "add_column", "rename_column", "add_group", "pin_project", "pin_sheet", "unpin_project",
     "unpin_sheet", "add_to_dashboard", "remove_from_dashboard", "duplicate_sheet",
 })
 

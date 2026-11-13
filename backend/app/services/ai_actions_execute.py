@@ -23,6 +23,8 @@ from app.services.ai_actions_read import (
 )
 
 
+from app.services.sheet_templates import next_letter_name, rename_column_in_sheet
+
 def resolve_project(store, action: dict[str, Any], refs: dict[str, Any]) -> dict:
     if action.get("project_id"):
         pid = str(action["project_id"])
@@ -197,8 +199,14 @@ def execute_create_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> d
     # Projects that still carry a degree get the application tracker Lumi's
     # row actions were written against; free-form projects get a blank sheet
     # (SCHOLARDOCX-0259).
-    template = "application" if (project.get("degree_type") or "").strip() else "blank"
-    result = svc.store.create_sheet_with_defaults(project["id"], action["sheet"]["name"], template=template)
+    # An explicit starting point (columns or template) wins.
+    sheet = action["sheet"]
+    template = sheet.get("template") or (
+        "application" if (project.get("degree_type") or "").strip() else "blank"
+    )
+    result = svc.store.create_sheet_with_defaults(
+        project["id"], sheet["name"], template=template, columns=sheet.get("columns")
+    )
     sname = (result.get("sheet", {}).get("name") or "").lower()
     if sname:
         refs["sheets"][(project["id"], sname)] = result
@@ -366,7 +374,10 @@ def execute_add_column(svc, action: dict[str, Any], refs: dict[str, Any]) -> dic
     columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
     rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
 
-    new_column = action.get("column", {})
+    new_column = dict(action.get("column") or {})
+    if not str(new_column.get("name") or "").strip():
+        new_column["name"] = next_letter_name(columns)
+    new_column.setdefault("type", "text")
     columns.append(new_column)
 
     column_name = new_column.get("name", "")
@@ -550,6 +561,29 @@ def execute_rename_sheet(svc, action: dict[str, Any], refs: dict[str, Any]) -> d
     svc.store.update_record("project_sheets", page["sheet_id"], {"name": new_name})
     svc.store.update_record("project_pages", page["id"], {"name": new_name})
     return {"type": "rename_sheet", "project": project, "old_name": old_name, "new_name": new_name}
+
+
+def execute_rename_column(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
+    project = resolve_project(svc.store, action, refs)
+    page = resolve_page(svc.store, project["id"], action, refs)
+    columns = page.get("columns") or safe_json_loads(page.get("columns_json"), default=[])
+    rows = page.get("rows") or safe_json_loads(page.get("rows_json"), default=[])
+    new_columns, new_rows, old_name = rename_column_in_sheet(
+        columns, rows, action["column_name"], action["new_name"]
+    )
+    updated = svc.store.update_record(
+        "project_pages", page["id"], {"columns_json": new_columns, "rows_json": new_rows}
+    )
+    if "pages" not in refs:
+        refs["pages"] = {}
+    sid = str(updated.get("sheet_id") or page.get("sheet_id") or "")
+    if sid:
+        refs["pages"][(str(project["id"]), sid)] = updated
+    refs["latest_page"] = updated
+    return {
+        "type": "rename_column", "project": project, "page": updated,
+        "old_name": old_name, "new_name": str(action["new_name"]).strip(),
+    }
 
 
 def execute_bulk_update_rows(svc, action: dict[str, Any], refs: dict[str, Any]) -> dict:
@@ -828,6 +862,7 @@ WORKSPACE_EXECUTORS = {
     "delete_sheet": execute_delete_sheet,
     "delete_row": execute_delete_row,
     "add_column": execute_add_column,
+    "rename_column": execute_rename_column,
     "add_group": execute_add_group,
     "pin_project": execute_pin_project,
     "pin_sheet": execute_pin_sheet,

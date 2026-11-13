@@ -197,6 +197,23 @@ Unit tests added or updated (written, not run, per the repo rule):
 - No `refreshTrigger` test for the new components: they take data as props and
   the refresh still runs in `ProjectWorkspace`, which owns the fetches.
 
+Revision after owner review (2026-11-13):
+
+- Placeholder rows removed. They looked like records that survived a delete,
+  and a click meant to edit a cell created a row instead. Rows are now added
+  only with a `+` under the last row number.
+- The `+` column is no longer pinned to the right edge; pinned, it covered the
+  last real column's header on a wide sheet.
+- Assistant and connected apps brought in line: `create_sheet` accepts
+  `sheet.columns` and `sheet.template`; `add_column` without a name takes the
+  next letter; new `rename_column` action (in `WORKSPACE_ACTIONS`, the
+  executors, the planner prompt, `ALLOWED_SUGGEST_ACTIONS` and the
+  `propose_changes` tool description). Shared logic: `next_letter_name` and
+  `rename_column_in_sheet` in `backend/app/services/sheet_templates.py`.
+- Tests added to `backend/tests/unit/test_blank_sheets.py` (written, not run).
+- Verified: `tsc`, `vite build`, byte-compile, `make guards`, and a headless
+  render of the grid. Not verified: a live assistant or connected-app call.
+
 Follow-ups:
 
 - Split `useSheetPage.ts` (formatting and selection are natural seams).

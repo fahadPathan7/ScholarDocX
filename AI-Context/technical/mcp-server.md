@@ -42,6 +42,10 @@ serializer as the in-app agent). `get_deadlines`, `get_overdue_rows` need a proj
 | `get_deadlines`, `get_overdue_rows`, `get_dashboard` | same names |
 | `propose_changes` | queues a suggestion (`read_suggest`) or applies it now (`read_write`) |
 
+`propose_changes` covers the sheet shape too (SCHOLARDOCX-0259): `create_sheet` may carry `sheet.columns`
+(otherwise the sheet is blank, text columns A to E), `add_column` without a name takes the next letter, and
+`rename_column` renames a column while keeping its values and cell formatting.
+
 Not exposed: sticky notes, notifications, record-domain reads and writes, every `delete_*`, `clear_sheet`, `bulk_update_rows`, and all
 provider-backed features (Advisor Atlas, Scholarship Hunt, Research Expert, web search). `ALLOWED_SUGGEST_ACTIONS` in
 `backend/app/services/connected_apps.py` is the allow-list for suggestions.

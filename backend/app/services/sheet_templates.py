@@ -5,6 +5,7 @@ application tracker or supplies its own columns. Kept out of ``store.py``,
 which is a persistence layer and was already past the file-size limit.
 """
 
+import json
 from typing import Any
 
 SHEET_TEMPLATES = ("blank", "application")
@@ -66,6 +67,79 @@ def clean_sheet_columns(raw: Any) -> list[dict]:
             column["unique"] = True
         cleaned.append(column)
     return cleaned
+
+
+def _is_group(column: Any) -> bool:
+    return isinstance(column, dict) and column.get("type") == "group"
+
+
+def _column_name(column: Any) -> str:
+    return str(column.get("name") if isinstance(column, dict) else column or "")
+
+
+def next_letter_name(columns: list) -> str:
+    """The first unused letter name, starting at the position being added
+    (a sheet whose A-E were renamed gets F next, not A)."""
+    data = [col for col in columns if not _is_group(col)]
+    taken = {_column_name(col).strip().lower() for col in data}
+    index = len(data)
+    while column_letter(index).lower() in taken:
+        index += 1
+    return column_letter(index)
+
+
+def rename_column_in_sheet(columns: list, rows: list, old_name: str, new_name: str) -> tuple[list, list, str]:
+    """Rename a data column: its definition, every row's value and every
+    row's cell formatting (``_cellStyles``). Returns the new columns, the new
+    rows and the column's exact previous name.
+
+    The column is matched exactly first, then case-insensitively, since the
+    caller is often an assistant repeating a name the user typed loosely.
+    """
+    target = str(new_name or "").strip()[:MAX_COLUMN_NAME_LENGTH]
+    wanted = str(old_name or "").strip()
+    if not target:
+        raise ValueError("The new column name cannot be empty.")
+    if target.startswith("_"):
+        raise ValueError("Column names cannot start with an underscore.")
+    data_names = [_column_name(col) for col in columns if not _is_group(col)]
+    current = next((name for name in data_names if name == wanted), None) or next(
+        (name for name in data_names if name.strip().lower() == wanted.lower()), None
+    )
+    if current is None:
+        raise ValueError(f"Column not found: {wanted}")
+    if any(name != current and name.strip().lower() == target.lower() for name in data_names):
+        raise ValueError(f"There is already a column called {target}.")
+
+    new_columns = []
+    for col in columns:
+        if not _is_group(col) and _column_name(col) == current:
+            new_columns.append({**col, "name": target} if isinstance(col, dict) else target)
+        else:
+            new_columns.append(col)
+
+    new_rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            new_rows.append(row)
+            continue
+        renamed = {}
+        for key, value in row.items():
+            if key == current:
+                renamed[target] = value
+            elif key != target:
+                renamed[key] = value
+        raw_styles = renamed.get("_cellStyles")
+        if raw_styles:
+            try:
+                styles = json.loads(raw_styles) if isinstance(raw_styles, str) else None
+            except ValueError:
+                styles = None
+            if isinstance(styles, dict) and current in styles:
+                styles[target] = styles.pop(current)
+                renamed["_cellStyles"] = json.dumps(styles)
+        new_rows.append(renamed)
+    return new_columns, new_rows, current
 
 
 def get_columns_for_degree(degree_type: str) -> list[dict]:

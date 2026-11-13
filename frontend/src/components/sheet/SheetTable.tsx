@@ -20,11 +20,6 @@ import "./sheet-columns.css";
 /*  RenderColumn type for group/data column layout                     */
 /* ------------------------------------------------------------------ */
 
-/** Empty rows always shown under the data, and the row count a short sheet
- *  is padded up to. */
-const GHOST_ROWS_MIN = 3;
-const GHOST_ROWS_FILL = 12;
-
 export type RenderColumn =
   | { type: 'data'; col: ColumnDef; originalIndex: number; groupName?: string }
   | { type: 'group-control'; groupName: string; collapsed: boolean };
@@ -291,12 +286,12 @@ export function SheetTable({
   const [editingCell, setEditingCell] = useState<{ rowIndex: number, colName: string, seed?: string } | null>(null);
   const [modalCell, setModalCell] = useState<{ rowIndex: number, colName: string } | null>(null);
 
-  /* -------------------- header rename + ghost rows -------------------- */
+  /* -------------------- header rename + add row -------------------- */
 
   // Name of the column whose header is in rename mode.
   const [renamingColumn, setRenamingColumn] = useState<string | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
-  const ghostBusyRef = useRef(false);
+  const addRowBusyRef = useRef(false);
 
   const addColumnAndRename = async () => {
     if (!onQuickAddColumn || addingColumn) return;
@@ -311,27 +306,18 @@ export function SheetTable({
     }
   };
 
-  // Empty rows drawn under the data so a sheet reads as a grid you can type
-  // into. They are not records: clicking one creates the record. Hidden
-  // while a filter, search or grouping is narrowing the view, where "the
-  // next empty row" has no clear meaning.
-  const ghostRowCount =
-    onQuickAddRow && visibleDataCols.length > 0 && !groupBy && filters.length === 0 && !searchQuery
-      ? Math.max(GHOST_ROWS_MIN, GHOST_ROWS_FILL - viewRows.length)
-      : 0;
-
-  const startGhostRow = async (colName: string) => {
-    if (!onQuickAddRow || ghostBusyRef.current) return;
-    ghostBusyRef.current = true;
+  /** Append one empty record and start typing in its first cell. */
+  const addEmptyRow = async () => {
+    if (!onQuickAddRow || addRowBusyRef.current) return;
+    addRowBusyRef.current = true;
     try {
       const newIndex = await onQuickAddRow();
-      if (newIndex === null) return;
-      onFocusedCellChange({ rowIndex: newIndex, colName });
-      const colDef = visibleDataCols.find((c) => c.col.name === colName)?.col;
-      if (colDef?.type === "file") setModalCell({ rowIndex: newIndex, colName });
-      else setEditingCell({ rowIndex: newIndex, colName });
+      const firstCol = visibleDataCols[0]?.col;
+      if (newIndex === null || !firstCol) return;
+      onFocusedCellChange({ rowIndex: newIndex, colName: firstCol.name });
+      if (firstCol.type !== "file") setEditingCell({ rowIndex: newIndex, colName: firstCol.name });
     } finally {
-      ghostBusyRef.current = false;
+      addRowBusyRef.current = false;
     }
   };
 
@@ -795,44 +781,22 @@ export function SheetTable({
               );
             });
           })()}
-          {Array.from({ length: ghostRowCount }, (_, ghostIndex) => (
-            <tr key={`ghost-${ghostIndex}`} className="sheet-table-row ghost-row">
-              <td className="row-header ghost-row-header" style={{ height: 'var(--sheet-row-height)', textAlign: 'center' }}>
-                <span className="row-index-number">{rows.length + ghostIndex + 1}</span>
-              </td>
-              {renderColumns.map((rCol, cIndex) =>
-                rCol.type === 'group-control' ? (
-                  <td key={`ghost-ctrl-${cIndex}`} className="group-control-cell" />
-                ) : (
-                  <td
-                    key={`ghost-cell-${cIndex}`}
-                    className={`data-cell ghost-cell ${firstDataColIndex === cIndex ? "is-first-data-col" : ""}`}
-                    title="Click to start a new row"
-                    onClick={() => startGhostRow(rCol.col.name)}
-                  />
-                ),
-              )}
-              {onQuickAddColumn ? <td className="add-column-filler" /> : null}
-            </tr>
-          ))}
-          {onQuickAddRow && columns.length > 0 && ghostRowCount === 0 ? (
-            <tr className="quick-add-row">
-              <td colSpan={renderColumns.length + 2} style={{ padding: 0 }}>
+          {/* The only way a row is added from the grid: an explicit "+" under
+              the last row number. Rows never appear from clicking empty space. */}
+          {onQuickAddRow && columns.length > 0 ? (
+            <tr className="add-row-row">
+              <td className="row-header add-row-header">
                 <button
                   type="button"
-                  className="quick-add-row-btn"
-                  onClick={async () => {
-                    const newIndex = await onQuickAddRow();
-                    if (newIndex !== null && visibleDataCols.length > 0) {
-                      const colName = visibleDataCols[0].col.name;
-                      onFocusedCellChange({ rowIndex: newIndex, colName });
-                      setEditingCell({ rowIndex: newIndex, colName });
-                    }
-                  }}
+                  className="add-row-btn"
+                  title="Add a row"
+                  aria-label="Add a row"
+                  onClick={addEmptyRow}
                 >
-                  <Plus size={13} /> New row
+                  <Plus size={14} />
                 </button>
               </td>
+              <td className="add-row-rest" colSpan={renderColumns.length + (onQuickAddColumn ? 1 : 0)} />
             </tr>
           ) : null}
         </tbody>

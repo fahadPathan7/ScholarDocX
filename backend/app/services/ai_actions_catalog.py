@@ -27,7 +27,7 @@ WORKSPACE_ACTIONS = {
     "delete_project", "delete_sheet", "delete_row", "delete_sticky_note",
     "clear_sheet",
     # MODIFY
-    "add_column", "add_group",
+    "add_column", "rename_column", "add_group",
     "pin_project", "pin_sheet", "unpin_project", "unpin_sheet",
     "add_to_dashboard", "remove_from_dashboard",
     "duplicate_sheet",
@@ -60,7 +60,13 @@ def describe_actions(actions: list[dict[str, Any]]) -> list[str]:
         if action["type"] == "create_project":
             descriptions.append(f"Create project: {action['project']['name']}")
         elif action["type"] == "create_sheet":
-            descriptions.append(f"Create sheet: {action['sheet']['name']}")
+            sheet = action["sheet"]
+            start = (
+                f" with columns {', '.join(str(c.get('name')) for c in sheet['columns'][:6])}"
+                if sheet.get("columns")
+                else " (application tracker)" if sheet.get("template") == "application" else ""
+            )
+            descriptions.append(f"Create sheet: {sheet['name']}{start}")
         elif action["type"] == "add_rows":
             blank = all(not row for row in action["rows"])
             where = (
@@ -102,7 +108,9 @@ def describe_actions(actions: list[dict[str, Any]]) -> list[str]:
             descriptions.append(f"Delete sticky note: {action.get('note_title')}")
         # MODIFY
         elif action["type"] == "add_column":
-            descriptions.append(f"Add column: {action.get('column', {}).get('name', 'column')}")
+            descriptions.append(f"Add column: {action.get('column', {}).get('name') or 'next letter'}")
+        elif action["type"] == "rename_column":
+            descriptions.append(f"Rename column {action.get('column_name')} to {action.get('new_name')}")
         elif action["type"] == "add_group":
             descriptions.append(f"Add group: {action.get('group_name', 'group')}")
         elif action["type"] == "duplicate_sheet":
@@ -204,6 +212,8 @@ def execution_message(results: list[dict[str, Any]]) -> str:
             lines.append(f"- Deleted sticky note **{result.get('note', {}).get('title')}**.")
         elif result["type"] == "add_column":
             lines.append(f"- Added column **{result.get('column_name', '?')}** to **{result.get('page', {}).get('name', '?')}**.")
+        elif result["type"] == "rename_column":
+            lines.append(f"- Renamed column **{result.get('old_name')}** to **{result.get('new_name')}** in **{result.get('page', {}).get('name', '?')}**.")
         elif result["type"] == "add_group":
             lines.append(f"- Added group **{result.get('group_name', '?')}** to **{result.get('page', {}).get('name', '?')}**.")
         elif result["type"] == "duplicate_sheet":

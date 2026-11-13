@@ -263,61 +263,31 @@ export type SheetTemplate = {
 
 export const SHEET_TEMPLATES: SheetTemplate[] = [
   {
-    id: "prof_outreach",
-    name: "Professor Outreach",
-    description: "Track professor contacts with columns for Name, University, Research Area, Status, Website, Last Contact, and Notes.",
-    columns: [
-      { name: "Professor Name", type: "text", width: 150 },
-      { name: "University", type: "text", width: 150 },
-      { name: "Research Area", type: "text", width: 200 },
-      { name: "Status", type: "select", options: ["To Contact", "Emailed", "Replied", "Meeting Scheduled", "Rejected", "Accepted"], width: 150 },
-      { name: "Website", type: "url", width: 200 },
-      { name: "Last Contact", type: "date", width: 120 },
-      { name: "Notes", type: "text", width: 300 }
-    ]
-  },
-  {
-    id: "univ_shortlist",
-    name: "University Shortlist",
-    description: "Compare universities and programs with columns for University, Program, Deadline, Application Fee, GRE Required, Status, and Portal Link.",
-    columns: [
-      { name: "University", type: "text", width: 150 },
-      { name: "Program", type: "text", width: 150 },
-      { name: "Deadline", type: "date", width: 120 },
-      { name: "Application Fee", type: "number", width: 100 },
-      { name: "GRE Required", type: "bool", width: 100 },
-      { name: "Status", type: "select", options: ["Researching", "Applying", "Applied", "Admitted", "Waitlisted", "Rejected"], width: 150 },
-      { name: "Portal Link", type: "url", width: 200 }
-    ]
-  },
-  {
     id: "scholarship_tracker",
     name: "Scholarship Tracker",
-    description: "Monitor funding opportunities with columns for Scholarship Name, Sponsor, Amount, Coverage, Deadline, Status, Eligible Countries, Requirements, and URL.",
+    description: "Track scholarship programs like Erasmus: program, university, city, language requirements, funding, deadline and application progress.",
     columns: [
-      { name: "Scholarship Name", type: "text", width: 200 },
-      { name: "Sponsor", type: "text", width: 160 },
+      { name: "Program Name", type: "text", width: 220 },
+      { name: "University", type: "text", width: 180 },
+      { name: "City", type: "text", width: 120 },
+      { name: "Country", type: "text", width: 120 },
+      { name: "Degree Level", type: "select", options: ["Bachelor", "Master", "PhD", "Short Course"], width: 120 },
+      { name: "Duration", type: "text", width: 100 },
+      { name: "IELTS Required", type: "bool", width: 110 },
+      { name: "Min IELTS Band", type: "number", width: 110 },
+      { name: "Other Language Test", type: "text", width: 150 },
+      { name: "Sponsor", type: "text", width: 150 },
+      { name: "Funding Coverage", type: "text", width: 170 },
       { name: "Amount", type: "number", width: 100 },
-      { name: "Funding Coverage", type: "text", width: 160 },
+      { name: "Application Start Date", type: "date", width: 150 },
       { name: "Deadline", type: "date", width: 120 },
       { name: "Status", type: "select", options: ["Found", "Writing Essay", "Applied", "Won", "Lost"], width: 120 },
-      { name: "Eligible Countries", type: "text", width: 200 },
+      { name: "Application Status", type: "select", options: ["Not Started", "In Progress", "Submitted", "Under Review", "Awarded", "Declined"], width: 150 },
+      { name: "Eligible to Apply", type: "bool", width: 120 },
       { name: "Requirements", type: "text", width: 300 },
       { name: "Application URL", type: "url", width: 200 }
     ]
   },
-  {
-    id: "doc_checklist",
-    name: "Document Checklist",
-    description: "Organize application materials with columns for Document Type, Target, Status, File attachment, and Notes.",
-    columns: [
-      { name: "Document Type", type: "select", options: ["SOP", "Resume", "Transcript", "LOR", "Passport", "Test Score"], width: 150 },
-      { name: "Target", type: "text", width: 150 },
-      { name: "Status", type: "select", options: ["Not Started", "Drafting", "Reviewing", "Finalized", "Submitted"], width: 120 },
-      { name: "File", type: "file", width: 200 },
-      { name: "Notes", type: "text", width: 200 }
-    ]
-  }
 ];
 
 export function getCustomTemplates(): SheetTemplate[] {

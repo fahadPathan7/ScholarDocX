@@ -54,7 +54,7 @@ can hold anything the user wants to track, not just degree applications.
   type is asked for, shown, or used to group the project list.
 - FR-7.26: A new sheet is blank by default: text columns named A, B, C, D, E
   and no rows.
-- FR-7.27: Templates (application tracker, professor outreach, and so on, plus
+- FR-7.27: Templates (application tracker and scholarship tracker, plus
   the user's saved templates) are optional and picked from a gallery when
   creating a sheet.
 - FR-7.28: Columns are renamed, added, retyped, moved, hidden and deleted
@@ -90,7 +90,9 @@ Inside a project, the dashboard should focus on calendar-like planning and activ
 
 Recommended widgets:
 
-- A compact project calendar summary beside the dashboard metrics.
+- A compact project calendar summary beside the dashboard metrics. Its count and
+  the "Upcoming dates" tile include only dates from today onward; past dates are
+  not counted, but still show in the full calendar.
 - The compact calendar opens the full month calendar in a floating panel.
 - A month calendar that shows counts on dates that have sheet-row date values.
 - A selected-day side panel listing that day's row-linked events.
@@ -215,16 +217,18 @@ The Add Record form should:
 
 A new sheet starts **blank**: five text columns named A to E and no rows. The
 user renames a column by double-clicking its header, and adds the next letter
-with the `+` at the end of the header row. Below the data the grid shows a few
-empty rows; clicking one creates a record and starts typing in that cell.
+with the `+` at the end of the header row. Rows are added only with the `+`
+under the last row number (or Add record); the grid never draws placeholder
+rows and never creates a row from a click on empty space.
 
 Templates are optional starting points, never the default:
 
 - Application tracker: university, professor, funding, email and attachment
   columns. Its exact columns depend on the project's legacy degree value where
   one exists (older projects), otherwise the PhD layout.
-- Professor outreach, University shortlist, Scholarship tracker, Document
-  checklist.
+- Scholarship tracker, laid out per program (program name, university, city,
+  country, level, IELTS required and minimum band, funding, dates, statuses,
+  eligible to apply).
 - Templates the user saved from their own sheets.
 
 Column header interactions:
@@ -234,6 +238,10 @@ Column header interactions:
 - The header menu offers rename, change type, insert left/right, hide, summary
   and delete.
 - An empty or duplicate name is refused with a message; nothing is saved.
+
+The assistant and connected AI apps can do the same things: create a sheet
+with its own starting columns, add a column (named, or the next letter) and
+rename a column while keeping its values.
 
 ## Date Color Rules
 

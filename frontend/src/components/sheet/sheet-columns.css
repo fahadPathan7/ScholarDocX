@@ -8,11 +8,11 @@
 
 /* ---- Header: inline rename ---- */
 
-/* Room for the pinned row-number column and the pinned "+" column when a
-   header is scrolled into view, so neither sits on top of it. */
+/* Room for the pinned row-number column when a header is scrolled into
+   view, so it does not sit on top of it. */
 .sheet-table thead th.sheet-col-head {
   scroll-margin-left: 64px;
-  scroll-margin-right: 64px;
+  scroll-margin-right: 12px;
 }
 
 .sheet-table thead th.sheet-col-head.is-renaming {
@@ -160,24 +160,15 @@
 
 /* ---- "+" column at the end of the header ---- */
 
-/* The grid is normally at least 1200px wide. With a "+" column that would
-   leave it holding hundreds of pixels of slack while pinned over real
-   columns, so here the grid is only ever as wide as its container or its
-   columns, whichever is larger. */
+/* The "+" column has no width of its own, so it takes whatever the real
+   columns leave over: a short sheet reads as a grid with open space to its
+   right instead of five columns stretched across the page. It scrolls with
+   the grid; pinning it to the edge put it on top of the last real column. */
 .sheet-table.has-add-column {
   min-width: 100% !important;
 }
 
-/* It has no width of its own, so it takes whatever the lettered columns
-   leave over: a short sheet reads as a grid with open space to its right
-   instead of five columns stretched across the page. */
 .sheet-table thead th.add-column-header {
-  /* Pinned to the right edge of the scroller, so on a sheet wider than the
-     screen the "+" is still in reach without scrolling to the end. */
-  position: sticky;
-  right: 0;
-  z-index: 11;
-  width: 52px;
   min-width: 52px;
   padding: 0 8px;
   background: linear-gradient(180deg, #f3f7f3 0%, #e9f0ec 100%);
@@ -221,25 +212,46 @@
   padding: 0;
 }
 
-/* ---- Empty ("ghost") rows under the data ---- */
+/* ---- "+" row at the bottom of the grid ---- */
 
-.sheet-table tbody tr.ghost-row td.ghost-cell {
-  background: #fdfcf9;
-  cursor: cell;
-  transition: background 120ms ease, box-shadow 120ms ease;
+.sheet-table tbody tr.add-row-row td,
+.sheet-table tbody tr.add-row-row:hover td {
+  height: 36px;
+  padding: 0;
+  background: #fbfaf6;
+  border-color: transparent;
 }
 
-.sheet-table tbody tr.ghost-row:hover td.ghost-cell { background: #fdfcf9; }
-
-.sheet-table tbody tr.ghost-row td.ghost-cell:hover {
-  background: rgba(47, 125, 116, 0.09);
-  box-shadow: inset 0 0 0 1.5px rgba(47, 125, 116, 0.55);
-}
-
-.sheet-table tbody tr.ghost-row td.ghost-row-header {
-  color: #a9b6b1;
+.sheet-table tbody tr.add-row-row td.add-row-header,
+.sheet-table tbody tr.add-row-row:hover td.add-row-header {
+  background: #f7fbf8;
   cursor: default;
+  text-align: center;
+  vertical-align: middle;
 }
+
+.add-row-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px dashed rgba(31, 95, 88, 0.5);
+  border-radius: 7px;
+  background: #fffefb;
+  color: #1f5f58;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.add-row-btn:hover {
+  background: #e3f2ed;
+  border-style: solid;
+  border-color: #2f7d74;
+  transform: scale(1.06);
+}
+
+.add-row-btn:focus-visible { outline: 2px solid #2f7d74; outline-offset: 2px; }
 
 /* ---- Sheet tabs under the grid ---- */
 
@@ -346,6 +358,7 @@
   .column-menu-trigger,
   .sheet-tab,
   .sheet-tab-add,
-  .sheet-table tbody tr.ghost-row td.ghost-cell { transition: none; }
-  .add-column-btn:hover:not(:disabled) { transform: none; }
+  .add-row-btn { transition: none; }
+  .add-column-btn:hover:not(:disabled),
+  .add-row-btn:hover { transform: none; }
 }

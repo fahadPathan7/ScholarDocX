@@ -203,7 +203,7 @@ export const SHEET_SHORTCUTS: ShortcutGroup[] = [
   {
     title: "Rows and selection",
     items: [
-      { keys: "Click an empty row", description: "Start a new record in that cell" },
+      { keys: "+ under the last row", description: "Add an empty row" },
       { keys: "Click a row number", description: "Select the row · Shift+click extends the selection" },
       { keys: "Selection bar", description: "Fill down, set a column, clear, duplicate or delete" },
     ],

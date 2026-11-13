@@ -10,7 +10,7 @@
 /* ------------------------------------------------------------------ */
 
 import { FormEvent, useMemo, useState } from "react";
-import { BookmarkCheck, ClipboardList, FileCheck2, GraduationCap, Grid3x3, Plus, Trophy, Users, X, type LucideIcon } from "lucide-react";
+import { BookmarkCheck, ClipboardList, GraduationCap, Grid3x3, Plus, Trophy, X, type LucideIcon } from "lucide-react";
 import { Modal } from "../Modal";
 import { blankColumns } from "../sheet/sheetColumns";
 import { SHEET_TEMPLATES, type ColumnDef, type SheetTemplate } from "../sheet/sheetModel";
@@ -32,10 +32,7 @@ type StartOption = {
 };
 
 const TEMPLATE_ICONS: Record<string, LucideIcon> = {
-  prof_outreach: Users,
-  univ_shortlist: ClipboardList,
   scholarship_tracker: Trophy,
-  doc_checklist: FileCheck2,
 };
 
 /** Header cells shown per card. Letters fit five across; real column names

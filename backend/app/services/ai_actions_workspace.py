@@ -114,7 +114,19 @@ def normalize_workspace_action(
             missing.append("project_name")
         if missing:
             return {"type": action_type, "missing": missing}
-        return {"type": action_type, **proj_ref, "sheet": {"name": name}}
+        # SCHOLARDOCX-0259: a sheet may name its starting point. "columns"
+        # (names or {name, type}) wins over "template" (blank|application).
+        clean_sheet: dict[str, Any] = {"name": name}
+        template = clean(sheet.get("template") or raw_action.get("template")).lower()
+        if template in {"blank", "application"}:
+            clean_sheet["template"] = template
+        raw_columns = sheet.get("columns") if isinstance(sheet.get("columns"), list) else raw_action.get("columns")
+        if isinstance(raw_columns, list) and raw_columns:
+            clean_sheet["columns"] = [
+                col if isinstance(col, dict) else {"name": clean(col), "type": "text"}
+                for col in raw_columns
+            ]
+        return {"type": action_type, **proj_ref, "sheet": clean_sheet}
 
     if action_type == "add_rows":
         rows = raw_action.get("rows") if isinstance(raw_action.get("rows"), list) else []
@@ -264,8 +276,10 @@ def normalize_workspace_action(
             missing.append("project_name")
         if not sh_ref:
             missing.append("sheet_name")
-        if not column.get("name"):
-            missing.append("column_name")
+        if not isinstance(column, dict):
+            column = {"name": clean(column)}
+        # No name is fine: the column gets the next free letter, like the
+        # "+" in the grid header (SCHOLARDOCX-0259).
         if missing:
             return {"type": action_type, "missing": missing}
         action = {"type": action_type, "column": column}
@@ -424,6 +438,27 @@ def normalize_workspace_action(
         if missing:
             return {"type": action_type, "missing": missing}
         action = {"type": action_type, "new_name": new_name}
+        action.update(proj_ref)
+        action.update(sh_ref)
+        return action
+
+    if action_type == "rename_column":
+        proj_ref = project_ref(raw_action, previous_actions)
+        sh_ref = sheet_ref(raw_action, previous_actions)
+        column_name = clean(raw_action.get("column_name") or raw_action.get("old_name") or raw_action.get("column"))
+        new_name = clean(raw_action.get("new_name"))
+        missing = []
+        if not proj_ref:
+            missing.append("project_name")
+        if not sh_ref:
+            missing.append("sheet_name")
+        if not column_name:
+            missing.append("column_name")
+        if not new_name:
+            missing.append("new_name")
+        if missing:
+            return {"type": action_type, "missing": missing}
+        action = {"type": action_type, "column_name": column_name, "new_name": new_name}
         action.update(proj_ref)
         action.update(sh_ref)
         return action

@@ -150,7 +150,10 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
     "SUPPORTED ACTIONS:\n\n"
     "CREATE:\n"
     "  create_project — {project: {name, status, description, intake_term?, degree_type?}} (degree_type only when the user names a degree: bachelors|masters|phd)\n"
-    "  create_sheet   — {project_name, sheet: {name}}\n"
+    "  create_sheet   — {project_name, sheet: {name, columns?: [{name, type}], template?: blank|application}}\n"
+    "     A sheet is BLANK by default: text columns A, B, C, D, E. When the user says what the sheet is for,\n"
+    "     pass `columns` with sensible names and types instead. Use template `application` only when the\n"
+    "     user asks for the application tracker.\n"
     "  add_rows       — {project_name, sheet_name, rows: [{col: val, ...}]}\n"
     "  create_sticky_note — {note: {title, body, color, is_checklist, checklist_items: []}}\n\n"
 
@@ -171,7 +174,9 @@ ACTION_PLANNER_SYSTEM_PROMPT = (
     "  clear_sheet     — {project_name, sheet_name} (removes all rows, keeps columns)\n\n"
 
     "MODIFY:\n"
-    "  add_column      — {project_name, sheet_name, column: {name, type}}\n"
+    "  add_column      — {project_name, sheet_name, column: {name, type}} (omit name for the next letter: F, G, ...)\n"
+    "  rename_column   — {project_name, sheet_name, column_name, new_name} (keeps the column's values; use this,\n"
+    "     never add_column + copy, when the user wants a lettered column like A or B given a real name)\n"
     "  add_group       — {project_name, sheet_name, group_name, color}\n"
     "  pin_project / unpin_project — {project_name, pin_type: sidebar|dashboard}\n"
     "  pin_sheet / unpin_sheet     — {project_name, sheet_name, pin_type}\n"
@@ -272,6 +277,8 @@ ACTION_EXAMPLES_TEXT = (
     '{"type":"update_project","project_name":"Canada PhD 2027","updates":{"status":"Completed"}}\n'
     '{"type":"rename_project","project_name":"Canada PhD 2027","new_name":"Canada PhD 2028"}\n'
     '{"type":"rename_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Name","new_name":"New Name"}\n'
+    '{"type":"rename_column","project_name":"Housing","sheet_name":"Flats","column_name":"A","new_name":"City"}\n'
+    '{"type":"create_sheet","project_name":"Housing","sheet":{"name":"Flats","columns":[{"name":"City","type":"text"},{"name":"Rent","type":"number"},{"name":"Viewing","type":"date"}]}}\n'
     '{"type":"delete_sheet","project_name":"Canada PhD 2027","sheet_name":"Old Sheet"}\n'
     '{"type":"clear_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist"}\n'
     '{"type":"duplicate_sheet","project_name":"Canada PhD 2027","sheet_name":"Professor Shortlist","new_name":"Copy of Professor Shortlist"}\n'

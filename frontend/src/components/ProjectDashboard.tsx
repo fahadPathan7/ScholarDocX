@@ -30,15 +30,15 @@ export function ProjectDashboard({
         <div className="metric-grid compact-grid">
           <article className="metric-card"><span>Sheets</span><strong>{summary?.sheet_count ?? 0}</strong></article>
           <article className="metric-card"><span>Rows</span><strong>{summary?.row_count ?? 0}</strong></article>
-          <article className="metric-card"><span>Upcoming dates</span><strong>{calendarItems.length}</strong></article>
+          <article className="metric-card"><span>Upcoming dates</span><strong>{upcomingItems.length}</strong></article>
         </div>
       </Section>
       <Section title="Calendar" eyebrow="Compact">
         <button className="project-calendar-summary" type="button" onClick={() => setIsCalendarOpen(true)}>
           <CalendarDays size={22} />
           <div>
-            <strong>{calendarItems.length}</strong>
-            <span>row date{calendarItems.length === 1 ? "" : "s"}</span>
+            <strong>{upcomingItems.length}</strong>
+            <span>upcoming date{upcomingItems.length === 1 ? "" : "s"}</span>
           </div>
           <small>{nextItem ? `Next: ${formatShortDate(nextItem.date_key || nextItem.date)} · ${nextItem.title || "Untitled row"}` : "Open full calendar"}</small>
         </button>

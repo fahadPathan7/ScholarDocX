@@ -539,7 +539,10 @@ export function SheetTable({
         // cell that happens to bubble up here.
         if (event.target !== event.currentTarget) return;
         onFocusedCellChange(null);
-        setEditingCell(null);
+        // Do NOT clear editingCell here. Clicking the background moves focus
+        // off the editor, and its blur is what saves the typed text. Clearing
+        // it first unmounted the editor before that blur could fire, so the
+        // text was silently thrown away.
       }}
       onFocus={(e) => {
         // If focusing the container without a cell, default to first cell

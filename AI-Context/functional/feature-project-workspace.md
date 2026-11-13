@@ -54,7 +54,7 @@ can hold anything the user wants to track, not just degree applications.
   type is asked for, shown, or used to group the project list.
 - FR-7.26: A new sheet is blank by default: text columns named A, B, C, D, E
   and no rows.
-- FR-7.27: Templates (application tracker, professor outreach, and so on, plus
+- FR-7.27: Templates (application tracker and scholarship tracker, plus
   the user's saved templates) are optional and picked from a gallery when
   creating a sheet.
 - FR-7.28: Columns are renamed, added, retyped, moved, hidden and deleted
@@ -90,7 +90,9 @@ Inside a project, the dashboard should focus on calendar-like planning and activ
 
 Recommended widgets:
 
-- A compact project calendar summary beside the dashboard metrics.
+- A compact project calendar summary beside the dashboard metrics. Its count and
+  the "Upcoming dates" tile include only dates from today onward; past dates are
+  not counted, but still show in the full calendar.
 - The compact calendar opens the full month calendar in a floating panel.
 - A month calendar that shows counts on dates that have sheet-row date values.
 - A selected-day side panel listing that day's row-linked events.
@@ -224,8 +226,9 @@ Templates are optional starting points, never the default:
 - Application tracker: university, professor, funding, email and attachment
   columns. Its exact columns depend on the project's legacy degree value where
   one exists (older projects), otherwise the PhD layout.
-- Professor outreach, University shortlist, Scholarship tracker, Document
-  checklist.
+- Scholarship tracker, laid out per program (program name, university, city,
+  country, level, IELTS required and minimum band, funding, dates, statuses,
+  eligible to apply).
 - Templates the user saved from their own sheets.
 
 Column header interactions:
